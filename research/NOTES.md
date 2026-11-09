@@ -2038,3 +2038,14 @@ Stock: OLY_E_147_1100_0000_0000.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The still-only engine gates of sp2 stay (harmless; the silent-mode report was this grid bug).
 - Package sp3: E1479999.BIN 8fdec5af…, GUIDES.BIN f1d60781…, LABELS.BIN d6c1b4ab…, TONES.BIN a5cd04e9… (as sp2).
 - **v0.25 has the drive-mode restart too** (the WB grid row): fix it in the next release (or a v0.25.1).
+
+### sp3 camera result and sp4 (2026-11-09)
+- **Camera (owner, sp3): the fixes work** (no restart with the drive-mode recipe, '*' and hold-OK reset right) and
+  split toning works in photos; **not shown in live view**.
+- Analysis: sp2's still-only gate (R+14 = 0x1000) excludes any other pass; the restart that prompted it was the WB grid
+  holder (sp3). The emulator does not run live view's image processing (no hits at tone / st_run / hl_pp while idle in
+  live view), so whether live view passes through this stage is a camera question. sp4: ST_STILL 0 (the gate off);
+  the copier-pointer check and R = G = B stay. Emulator: stills as before; a request with R+14 = 0x2000 is toned too;
+  the restart recipe still runs clean. Open: whether live view uses this stage at all; whether its copy is skipped
+  when the curve object is unchanged (then a strength change would show only after the curve is copied again).
+- Package sp4: E1479999.BIN 34df5bf6…, GUIDES.BIN 1189c811… (LABELS.BIN, TONES.BIN as sp3).

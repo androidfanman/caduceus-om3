@@ -1,6 +1,8 @@
 /* v0.24 film test 7 (owner): the wheel's Film and Extras pages are hidden (their code stays; 1 brings them back) */
  .set W_FILM, 0
  .set W_EXTRAS, 0
+ .set ST_STILL, 0                 /* sp4: split toning on every COLOR pass (live view too, if it runs this stage); sp2/sp3 stills only
+                                   * (the silent-mode restart that made us add it was the WB grid holder, sp3) */
  .set W_TONE, 1                   /* v0.26 split toning: Luminance -> Shadows (axis 5) -> Highlights (axis 6) -> Color */
 /* film test 12 (owner, camera: test 11 went "sat, hue, sat, lum, all weird"): "work with the firmware, not against
  * it" -> the wheel's own order again, Color -> Color All -> Hue -> Luminance (the guide keeps the name Luminance).
@@ -7708,9 +7710,11 @@ st_run:
  cmp 0,d0
  bne s9
 1:
- movhu (14,a1),d0                 /* sp2: still development only (R+14 0x1000, column 0 of the curve rows); sp1 also */
- cmp 0x1000,d0                    /* ran on other passes (camera: a restart at the half-press in silent mode) */
+ .if ST_STILL
+ movhu (14,a1),d0                 /* sp2: still development only (R+14 0x1000, column 0 of the curve rows) */
+ cmp 0x1000,d0
  bne s9
+ .endif
  mov a3,d1                        /* the three curve pointers must be the job's own tables (the copier wrote them) */
  add 1252,d1
  mov (3172,a3),d0
