@@ -3,7 +3,15 @@
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
-## Unreleased
+## v0.26.1
+WB shift up to ±7 in films, and the 20 film sims tuned from colour-checker photos. Firmware camera-tested (2026-11-09,
+build wb7).
+
+**Firmware**
+- `LOOKS.BIN` accepts a WB shift of −7..+7 (record +37 / +38), like the camera's own fine-tune. v0.26 and older
+  refused the whole file past ±5, so none of the films loaded.
+
+**Film sims and Control Panel**
 - **Control Panel: the editor looks like the camera's Picture Mode screen** (2026-11-09): the HSL wheel with the
   camera's five pages (Color, Hue, Luminance, Shadows, Highlights) drawn as a colour ring with a value outline, the
   Highlight & Shadow box with Sh / Mid / Hi, the WB fine-tune box, and the rows in the camera's order. The wheel, the
@@ -14,8 +22,9 @@ same number is used here (test 17 = v0.17).
 - **Control Panel: grain preview** matches the camera better (owner, 2026-11-09: the preview's Med looked like the
   camera's High). High is now drawn as Med was, and Low / Med follow the camera's own steps.
 - **Control Panel: WB shift −7..+7**, as on the camera. LOOKS.BIN carries past ±5 only with Export › Firmware on the
-  camera › "v0.26.1 or later" (in testing): v0.26 and older refuse the whole file beyond ±5, so for them it is saved
-  as ±5 and the export says which looks.
+  camera › "v0.26.1 or later" (now the default): v0.26 and older refuse the whole file beyond ±5, so for them it is
+  saved as ±5 and the export says which looks.
+- The release's optional `LOOKS.BIN` is the tuned 20.
 
 ## v0.26
 Split toning, and a fix for a restart after changing the drive mode. Firmware camera-tested (2026-11-09, build sp4).

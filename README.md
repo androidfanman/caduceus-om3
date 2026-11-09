@@ -1,6 +1,3 @@
-> **Branch `feature/v0.26.1-wb7` (2026-11-09): in testing, not released.** LOOKS.BIN WB shift −7..+7 (v0.26 refuses
-> past ±5). Test build wb7 = emulator only; camera test next.
-
 # Caduceus for OM-3
 
 **Caduceus for OM-3** is the OM SYSTEM OM-3 member of the [Caduceus](https://github.com/cakelesscoder/caduceus-ep7)
@@ -11,7 +8,7 @@ Saturation), and adds the look's settings to the camera's own Picture Mode scree
 Noise Filter, lens vignette correction, Shading, Glow / Clarity and fast colour film grain. Films are made in the browser with the **Caduceus Control
 Panel**; changes you make on the camera are kept per film.
 
-**Latest: v0.26** ([changelog](CHANGELOG.md)) · **▶ [Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Install guide](docs/INSTALL.md)** ·
+**Latest: v0.26.1** ([changelog](CHANGELOG.md)) · **▶ [Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Install guide](docs/INSTALL.md)** ·
 **[Using it](#using-it)** · **[Roadmap](ROADMAP.md)** · Caduceus for the E-P7: [cakelesscoder/caduceus-ep7](https://github.com/cakelesscoder/caduceus-ep7).
 
 > [!WARNING]
@@ -37,6 +34,7 @@ Panel**; changes you make on the camera are kept per film.
 | **20 film sims** | Portra 400, Gold 200, Kodachrome 64, Portra 800, CineStill 800T, Ektar 100, Ultramax 400, Pro 400H, Velvia 50, Superia 400, ColorPlus 200, CineStill 400D, Fuji C200, Ektachrome E100, Reala 100, Provia 100F, Vision3 250D, Fuji Eterna, Astia 100F, Agfa Ultra 100: our own looks, in this order as FILM 1–20 (see [the list](#the-20-film-sims)). | New in v0.25 (tuned on the Control Panel preview) |
 | **Changes kept** | What you change on a film, or on COLOR 1–4, stays when you switch away and back and **over power off**, with the film you were on (kept by the camera in `EDITS.BIN` and `LOOKS.BIN`). **Hold OK** on a film: back as built; on COLOR n: back to the factory. A `*` marks what is changed. | Camera-tested (v0.25) |
 | **Hue and Luminance** | The Color Profile wheel (the **HSL** row) gains pages: **INFO** goes Color → Color All → Hue → Luminance. Hue turns a colour toward its neighbour; Luminance brightens or darkens it, for each of the 12 colours. | Camera-tested |
+| **WB shift ±7 in films** | A film's WB shift goes −7..+7 each way, like the camera's own fine-tune (v0.26 stopped `LOOKS.BIN` at ±5). | Camera-tested (v0.26.1) |
 | **Split toning** | Two more wheel pages, **Shadows** and **Highlights** (INFO after Luminance): tint the shadows and the highlights toward any of the wheel's 12 colours, strength −5..+5. Shows in live view; kept per film. | Camera-tested (v0.26) |
 | **Picture Mode rows** | On COLOR 1–4 and films: **Blk** / **Wht** (Blacks / Whites −5..+5), **WB** (a grid with the film's A-B / G-M shift; OK opens the camera's own WB fine-tune screen; works in every WB mode, Auto WB included), **Sharpness** (−5 Off..+2), **Noise Filter** (Off / Low / Std / High), **Vignette Correction** (Off / On), **Shading**, **Glow** (+ Glow, − Clarity) and **Film Grain**, next to the camera's Contrast and Highlight & Shadow. | Camera-tested (v0.25) |
 | **Film grain on COLOR** | Low / Med / High grain, in colour, made by the camera's image processor as the photo develops (the way its Grainy Film Art Filter adds grain): **as fast as a photo without grain**, with every other setting. | Camera-tested (v0.25) |
@@ -131,7 +129,7 @@ films (the creative profiles the camera lists as FILM 1–20) in your browser:
    correction are not previewed. Art Effects are not used from v0.25. **Split toning** (two wheels, Shadows and Highlights)
    shows in the preview too.
 5. **Export › Save to card…** (Chrome or Edge on a computer) writes `OM3MOD/LOOKS.BIN` (and `NAMES.BIN`) straight
-   onto the card; **Card folder (.zip)** downloads them. Keep **Firmware on the camera: v0.26 or later** (it saves split toning).
+   onto the card; **Card folder (.zip)** downloads them. Keep **Firmware on the camera: v0.26.1 or later** (it saves split toning and WB past ±5).
 6. On the camera: switch on, half-press once, and your films are FILM 1–20 in Picture Mode. A film you changed in the
    Control Panel starts as built on the camera; the others keep the changes you made on the camera.
 
@@ -154,7 +152,8 @@ Panel an app.
 Our own looks, designed from what each film is known for and made only of the camera's settings. None uses grain,
 Glow / Clarity or an Art Effect, so you can add those yourself. The names describe what inspired each look; they
 aren't the film makers' products or presets. This is the standard set, in camera order (also in the release as
-an optional `LOOKS.BIN`; from v0.26 ten of them carry a light split tone):
+an optional `LOOKS.BIN`; from v0.26 ten of them carry a light split tone, and v0.26.1 has them tuned from
+colour-checker photos):
 
 | FILM | Name | The look |
 |---|---|---|
@@ -234,7 +233,7 @@ with every other setting.
 - *Settings change but nothing happens in the photo?* The card's `GUIDES.BIN` must come from the same release as the
   firmware. Copy the release's `GUIDES.BIN` again.
 - *My changes were lost?* They save at the next half-press, and only when the card has an `OM3MOD` folder.
-- *New films from the Control Panel?* Export `LOOKS.BIN` (choose "v0.26 or later") and copy it to `OM3MOD`. A film
+- *New films from the Control Panel?* Export `LOOKS.BIN` (choose "v0.26.1 or later") and copy it to `OM3MOD`. A film
   you changed in the Control Panel starts again as built; the others keep your camera changes. Deleting `EDITS.BIN`
   puts every film back as built.
 - *Monochrome?* Not supported: the MONO profiles keep the camera's own editor.

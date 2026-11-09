@@ -390,6 +390,15 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.26.1 release (branch feature/v0.26.1-wb7; build wb7, camera-tested 2026-11-09)
+
+- `pf_lo` record +37 / +38 (A-B / G-M) −7 instead of −5: `pf_load`'s range check refused the whole `LOOKS.BIN` for a
+  WB byte past ±5. The camera's own WB row and `wb_get` were already ±7.
+- Firmware `E1479999.BIN` dec03d2f…, `GUIDES.BIN` d2476a54… (paired: differs from v0.26's only in its CRC and
+  firmware check bytes), `LABELS.BIN` / `TONES.BIN` as v0.26. Optional `LOOKS.BIN` 26998eeb… = the tuned 20 (fw 26
+  export; equal to the fw 25 export, as no film goes past ±5).
+- Control Panel: fw 26 "v0.26.1 or later" (the default), `wbMax(fw)`: ±7 for 26, ±5 before (clamped, with a note).
+
 ## v0.26 release (branch feature/v0.26-split-tone; build sp4, camera-tested 2026-11-09)
 
 - **Split toning engine** (`st_run`, ext11): the tone hook's exit jumps to it (`jmp st_run`, back via `tone_next`). It

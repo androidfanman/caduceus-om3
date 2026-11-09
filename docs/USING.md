@@ -1,4 +1,4 @@
-# Using Caduceus for OM-3 on the camera (v0.26)
+# Using Caduceus for OM-3 on the camera (v0.26.1)
 
 > **Color profiles only:** this is for Picture Mode COLOR 1–4. The Monochrome profiles keep the camera's own editor.
 > For v0.20–v0.22 (Film page, Extras page on the wheel) see this page as it was at
@@ -13,7 +13,7 @@ Films are your creative profiles: up to 20, **FILM 1–20**, after COLOR 1–4. 
 ColorPlus 200, CineStill 400D, Fuji C200, Ektachrome E100, Reala 100, Provia 100F, Vision3 250D, Fuji Eterna, Astia
 100F, Agfa Ultra 100: what each looks like is in the [README](../README.md#the-20-film-sims)). Copy the release's
 `LOOKS.BIN` to `OM3MOD`, or make and change films in the [Control Panel](https://androidfanman.github.io/caduceus-om3/)
-(it starts with the same 20, in the same order) and export `LOOKS.BIN` with **Firmware on the camera: v0.26 or later**.
+(it starts with the same 20, in the same order) and export `LOOKS.BIN` with **Firmware on the camera: v0.26.1 or later**.
 
 On the camera, Picture Mode › the COLOR position: the top row lists **COLOR 1–4, then FILM 1–20** (empty places
 skipped). Turn to a film: its **name** is the big title; the quick menu, the shooting screen and the viewfinder show it

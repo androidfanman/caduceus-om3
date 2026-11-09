@@ -2080,3 +2080,9 @@ Stock: OLY_E_147_1100_0000_0000.BIN sha 8c133084…696d, main 5e8d376e…7d59.
   camera test. Control Panel (live): WB −7..+7; export "v0.26.1 or later" (fw 26) keeps it, older settings save ±5.
 - Same day: the preview's grain was too strong (owner: tool Med ≈ camera High): GRAIN_S 24 / 44 / 68 (analysis from the
   owner's comparison; camera texture gains 448 / 832 / 1280).
+
+### wb7 camera result and v0.26.1 released (2026-11-09)
+- **Camera (owner): wb7 works** (camera-tested): a `LOOKS.BIN` with WB past ±5 loads.
+- Released as v0.26.1 from build wb7: the branch rebuilds it byte for byte (E1479999.BIN dec03d2f…, GUIDES.BIN
+  d2476a54…), and `patch.py --release v0.26.1` reproduces the same files. Optional LOOKS.BIN 26998eeb… (the tuned 20).
+

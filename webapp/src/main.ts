@@ -597,7 +597,7 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
 }
 
 /** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
-const om3Fw25 = () => { try { const s = localStorage.getItem('caduceus.om3.fw'); return s === null || s === '25' || s === '26'; } catch { return true; } };   // v0.26 is the default
+const om3Fw25 = () => { try { const s = localStorage.getItem('caduceus.om3.fw'); return s === null || s === '25' || s === '26'; } catch { return true; } };   // v0.26.1 is the default
 const splitPv = (l: Look): Look => (l.split && !om3Fw25() ? { ...l, split: undefined } : l);
 
 function refreshProblems() {
@@ -1226,13 +1226,13 @@ function om3ExportDialog() {
   const fname = (O.name || 'om3-looks').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'om3-looks';
   const n = O.bank.flat().filter(Boolean).length;
   const bankJson = () => JSON.stringify({ schema: BANK_SCHEMA, name: O.name, bank: O.bank.map((r) => r.map((l) => (l ? plainLook(l) : null))) }, null, 1) + '\n';
-  let fw: Fw = 25; try { const s = localStorage.getItem('caduceus.om3.fw'); if (['20', '21', '22', '23', '24', '25', '26'].includes(s ?? '')) fw = Number(s) as Fw; } catch { /* storage blocked */ }
+  let fw: Fw = 26; try { const s = localStorage.getItem('caduceus.om3.fw'); if (['20', '21', '22', '23', '24', '25', '26'].includes(s ?? '')) fw = Number(s) as Fw; } catch { /* storage blocked */ }
   const looksBin = () => profilesBin(O.bank, fw);
   const fwSel = h('select', { onchange: (e: Event) => {
     fw = Number((e.target as HTMLSelectElement).value) as Fw;
     try { localStorage.setItem('caduceus.om3.fw', String(fw)); } catch { /* storage blocked */ }
     renderEditor(); schedulePreview(); wbNote();   // v0.26: split toning shows only with the v0.26 export
-  } }, h('option', { value: '26', selected: fw === 26 }, 'v0.26.1 or later (WB ±7; firmware in testing)'), h('option', { value: '25', selected: fw === 25 }, 'v0.26 or later (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
+  } }, h('option', { value: '26', selected: fw === 26 }, 'v0.26.1 or later (WB ±7)'), h('option', { value: '25', selected: fw === 25 }, 'v0.26 (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
   const wbBig = O.bank.flat().filter((l) => l?.wb && Math.max(Math.abs(l.wb.a_b), Math.abs(l.wb.g_m)) > 5).map((l) => l!.name);
   const wbBox = h('p', { class: 'warn' });
   const wbNote = () => {

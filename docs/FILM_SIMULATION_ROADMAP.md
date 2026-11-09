@@ -3,7 +3,7 @@
 **Goal:** make the OM-3 with Caduceus the best film-replicating camera available: looks that render like real film
 stock straight out of the camera, and that load and shoot like a roll of film.
 
-Last updated 2026-11-09 (v0.26 released with split toning; halation parked). Update the status column as work moves, and add findings to the research log at the end
+Last updated 2026-11-09 (v0.26.1 released with the tuned 20; halation parked). Update the status column as work moves, and add findings to the research log at the end
 (details go in [`research/NOTES.md`](../research/NOTES.md)). The general roadmap is [`ROADMAP.md`](../ROADMAP.md).
 
 **Effort:** Low = a few sessions on known hooks · Medium = new firmware work on parts we already understand ·
@@ -20,7 +20,7 @@ new features have room; more can be opened up the same way.
 
 0. **Tune the 20 film sims from the owner's camera photos** (released in v0.25, tuned on the preview). **Draft 1 in
    the Control Panel (2026-11-09):** the owner's tuned colours, WB and tone (`TUNED` in `films.py`); Contrast, Sharp
-   and the split tones of seven films kept from the recipes. Not yet in a release's `LOOKS.BIN`. Owner's plan
+   and the split tones of seven films kept from the recipes. In v0.26.1's optional `LOOKS.BIN`. Owner's plan
    (2026-11-09): a colour checker card, fixed light, one photo per film (FILM 1–20) plus a neutral reference; measure
    each patch against the reference and adjust the recipes in `webapp/scripts/films.py`.
 1. **Our own grain texture** (after v0.25's fast colour grain with every setting): colour speckle and grain size from the
@@ -68,6 +68,7 @@ new features have room; more can be opened up the same way.
 
 | Date | Item | What it gives film looks |
 |---|---|---|
+| 2026-11-09 | v0.26.1 released | The 20 film sims tuned from colour-checker photos (draft 1) in the release's `LOOKS.BIN`; WB shift up to ±7 per film. |
 | 2026-11-09 | v0.26 released (split toning) | Shadows and Highlights wheel pages: tint by brightness toward any of the 12 colours, −5..+5, in photos and live view; ten of the 20 films carry a light split tone. Also fixes a restart after changing the drive mode. |
 | 2026-11-09 | The camera's 20 films (in v0.25) | 20 film sims rewritten in the owner's order, FILM 1–20 on the camera and in the Control Panel (one list). |
 | 2026-11-09 | v0.25 released (fast colour grain) | Film grain from the image processor in colour, as fast as no grain, with Shading and Glow / Clarity; a Glow row (+ Glow, − Clarity), a WB grid row, no Art Effects; film choice and changes now kept over power off. |
