@@ -918,6 +918,9 @@ ed_save:
  inc d2
  cmp FILE_LEN,d2
  bne 1b
+ mov a3,a0                        /* v0.26.2: the image's slots: a byte outside sd_check's ranges <- 0, so a refused BUNDLES.BIN is never written */
+ add HDR_LEN,a0
+ call sd_san,[d2,d3],12
  mov -1,d0                        /* header CRC-32 of S[0..15] + S[20..543] at S+16 */
  mov a3,a0
  mov 16,d1
@@ -2535,7 +2538,7 @@ pf_pbin:
  * contiguous from 144, each <= 16384 B) | 20 entries {u16 offset in its group, u16 length} at 64 (COLOR k profile v
  * at 5k + v - 1; length 0 = none) | group data. A picture = an OSD type-11 stream 175 x 50 (header GHDR).
  * P+NENT = the 20 entries, P+NPTR+4k = group k's heap copy (0 = none). */
-.section .ext4,"ax"
+.section .ext11,"ax"
 /* nm_load: `call nm_load,[d2,d3,a2,a3],36` from sd_load (HLS task), a2 = P. Locals (4) handle, (8) CRC, (12) k,
  * (16) next offset. The 64-byte header is read into P+TBUF (the title buffers, not yet in use). Stores: P+NENT,
  * P+NPTR, heap buffers, own frame. */
@@ -2794,7 +2797,7 @@ nm_own:
 gd_path:                          /* test 17: moved here from the section-10 tail (room for the name pictures) */
  .asciz "C:\\OM3MOD\\GUIDES.BIN"
 
-.section .ext4,"ax"
+.section .ext11,"ax"
 nm_path:                          /* v0.21: moved from the section-9 tail (room for the pf_save block call) */
  .asciz "C:\\OM3MOD\\NAMES.BIN"
 
@@ -6078,8 +6081,15 @@ fl_mk:
  bne 91f
  jmp 99f
 91:
- mov a0,a1
+ mov a0,a1                        /* v0.26.2: the whole block zeroed (the heap does not: record bytes that were never written kept what the memory held) */
+ mov SP_BLK / 4,d1
  clr d0
+97:
+ mov d0,(a1)
+ add 4,a1
+ add -1,d1
+ bne 97b
+ mov a0,a1
  mov d0,(a1)
  mov d0,(4,a1)
  mov d0,(8,a1)
@@ -6126,11 +6136,15 @@ fl_mk:
  not d0
  mov (8,a3),d1
  cmp d0,d1
- beq 95f
+ beq 96f
 94:
  mov (60,sp),a0                   /* a bad file: nothing valid */
  clr d0
  mov d0,(12,a0)
+ bra 95f
+96:
+ mov (60,sp),a0                   /* v0.26.2: a good file: out-of-range split toning in its records <- 0 */
+ call tw_san,[d2,a2],12
 95:
  mov (56,sp),a0
  mov (52,sp),a2
@@ -8193,3 +8207,275 @@ tg_sel:
  mov 3,d0
 9:
  jmp gd_s11
+
+/* ================================================================== automatic SD loading (v0.25 + SD-native worker)
+ * Port of research/caduceus-sd-native-candidate/native2.s (OM-3 research, offline-qualified only): a worker task polls the
+ * loader's section masks and the medium word, and wakes the HLS_EVENT task, which runs pr_gate (the same gate the
+ * half-press hook uses) without any key. The OK trigger and the half-press hook stay as fallbacks (pr_gate is once per
+ * power-on: STATE). Hooks: 0x60af0fb9 (HLS_EVENT entry) and 0x60af101c (its receive boundary), both stock calls.
+ * nm_load / nm_pick / nm_path moved to .ext11 (they run only after pr_gate, when every section is loaded) to give this
+ * code room in section 4.
+ */
+/* Placed, trimmed E147 native SD-load path (offline research; see REPORT.md).
+ *
+ * Linked into reclaimed main-image space in section 4, not into emulator scratch RAM. No data RAM of its own:
+ * the worker keeps its state in a callee-saved register (d3) and on its own stack.
+ *
+ *   sdl_ready          leaf helper shared by the worker and the consumer: d0 = 0 when the loader's section masks and
+ *                  the kind-4 media word allow a load, nonzero otherwise. Clobbers d0, d1.
+ *   sdl_create_worker  HLS_EVENT task, called from sdl_boot_stub: heap stack, stock create wrapper, stock activate.
+ *   sdl_boot_stub      patch site 0x60af0fb9 (HLS_EVENT entry after stock init, before its receive loop).
+ *   sdl_worker_entry   task SDLOAD: poll, then one zero-timeout wake to the HLS queue; back off after each send.
+ *   sdl_receive_probe  patch site 0x60af101c (HLS_EVENT receive boundary): private wake, tested OK trigger, stock sdl_classifier.
+ *
+ * Assembler switch (build.py --variant): --defsym NO_BOOT=1 builds the receive hook and consumer without the worker task
+ * (the OK-trigger control). Without it the image is the full automatic path.
+ */
+  .equ SDL_TAG, 0x0100f7ed
+  .equ SDL_SECTION_LOADED, 0xa32de590
+  .equ SDL_SECTION_INIT, 0xa32de58c
+  .equ SDL_MEDIA4, 0x60369308
+  .equ SDL_MEDIA3, 0x60369300
+  .equ SDL_MEDIA1, 0x603692f8
+  .equ SDL_QUEUE, 0x60043180
+  .equ SDL_POLL_TICKS, 100
+  .equ SDL_WORKER_PRIORITY, 56
+  .equ SDL_WORKER_STACK, 2048
+  .equ SDL_REQ_LOADED, 0x3ff           /* all ten sections copied (as pr_gate) */
+  .equ SDL_REQ_INIT, 0x2e9             /* the init mask bits the load needs (research/caduceus-sd-native-*) */
+  .equ SDL_SEND_PERIOD, 10           /* polls skipped after every send attempt: one wake per SDL_SEND_PERIOD+1 polls */
+
+/* Stock 0x60af0fb9: call 0x60af0fff,[d2,d3,a2,a3],24 (5 bytes). */
+.section .hook_hb,"ax"
+  jmp sdl_boot_stub
+
+/* Stock 0x60af101c: call 0x60af10da,[],0 (5 bytes). */
+.section .hook_hr,"ax"
+  jmp sdl_receive_probe
+
+.section .ext4,"ax"
+sdl_ready:
+  mov (SDL_SECTION_LOADED),d0
+  not d0
+  and SDL_REQ_LOADED,d0
+  mov (SDL_SECTION_INIT),d1
+  not d1
+  and SDL_REQ_INIT,d1
+  or d1,d0
+  mov (SDL_MEDIA4),d1
+  xor 0xf000,d1
+  or d1,d0
+  retf [],0
+
+sdl_boot_stub:
+  call sdl_create_worker,[a2],20
+  call sdl_hls_loop,[d2,d3,a2,a3],24
+  ret [],4
+
+sdl_create_worker:
+  mov a0,a2                       /* the HLS object the stock loop needs; a2 survives every call below */
+  mov SDL_WORKER_STACK,d0
+  mov sdl_heap_tag,a0
+  mov 260,d1
+  call sdl_heap_alloc,[],4
+  cmp 0,a0
+  beq sdl_create_done
+  mov SDL_WORKER_PRIORITY,d0
+  mov d0,(4,sp)
+  mov SDL_WORKER_STACK,d0
+  mov d0,(8,sp)
+  mov a0,(12,sp)
+  mov sdl_worker_name,a0
+  clr d0
+  mov d0,d1
+  mov sdl_worker_entry,a1
+  call sdl_task_create,[d2,d3,a2,a3],56
+  cmp 0,d0
+  blt sdl_create_done
+  exth d0
+  call sdl_task_start,[d2,d3,a2],16
+sdl_create_done:
+  mov a2,a0
+  ret [a2],20
+
+sdl_worker_entry:
+  add -24,sp                      /* (0,sp) belongs to CALL: it writes the return address there */
+  clr d0
+  mov d0,(4,sp)                   /* wake message {0, SDL_TAG, 0} at 4, descriptor {message, 12} at 16 */
+  mov d0,(12,sp)
+  mov SDL_TAG,d0
+  mov d0,(8,sp)
+  mov sp,a0
+  add 4,a0
+  mov a0,(16,sp)
+  mov 12,d0
+  mov d0,(20,sp)
+  clr d3                          /* d3: polls left before the next send */
+sdl_worker_loop:
+  mov SDL_POLL_TICKS,d0
+  call sdl_dly_tsk,[d2,a2,a3],16
+  movhu (STATE),d0
+  cmp 0,d0
+  bne sdl_worker_done                 /* the loader has begun (or the OK trigger won): stand down */
+  cmp 0,d3
+  beq sdl_worker_try
+  add -1,d3
+  bra sdl_worker_loop
+sdl_worker_try:
+  call sdl_ready,[],0
+  cmp 0,d0
+  bne sdl_worker_loop
+  mov SDL_SEND_PERIOD,d3
+  movhu (SDL_QUEUE),d0
+  clr d1
+  mov sp,a0
+  add 16,a0
+sdl_worker_send_call:
+  call sdl_queue_send,[d2,d3,a2,a3],48
+sdl_worker_send_result:
+  bra sdl_worker_loop
+sdl_worker_done:
+  call sdl_ext_tsk,[a2],8
+  ret [],24
+
+sdl_worker_name:
+  .asciz "SDLOAD"
+
+.section .ext4,"ax"
+sdl_receive_probe:
+  cmp SDL_TAG,d0
+  beq sdl_auto_event
+  cmp 0x02000004,d0
+  bne sdl_classify
+  movhu (STATE),d1
+  cmp 0,d1
+  bne sdl_classify
+  mov (SDL_MEDIA4),d1
+  cmp 0xf000,d1
+  beq sdl_ok_load
+  mov (SDL_MEDIA3),d1
+  cmp 0xf000,d1
+  beq sdl_ok_load
+  mov (SDL_MEDIA1),d1
+  cmp 0xf000,d1
+  bne sdl_classify
+sdl_ok_load:
+  /* CALL does not push the return address, but the loop owns (4,sp)..(12,sp): save the live registers below it. */
+  add -16,sp
+  mov d0,(4,sp)
+  mov a0,(8,sp)
+  mov a1,(12,sp)
+sdl_ok_gate_call:
+  call pr_gate,[d2,d3,a2,a3],36
+  mov (4,sp),d0
+  mov (8,sp),a0
+  mov (12,sp),a1
+  add 16,sp
+sdl_classify:
+  call sdl_classifier,[],0
+  jmp sdl_resume
+
+sdl_auto_event:
+  movhu (STATE),d1
+  cmp 0,d1
+  bne sdl_consume
+  call sdl_ready,[],0
+  cmp 0,d0
+  bne sdl_consume
+  clr d0
+  call sdl_drive_status,[d2,d3,a2,a3],20
+sdl_consumer_drive_result:
+  and 0x10bf,d0
+  cmp 0x1080,d0
+  bne sdl_consume
+  call sdl_ready,[],0                 /* the status call can block: check the media word again before the load */
+  cmp 0,d0
+  bne sdl_consume
+sdl_auto_gate_call:
+  call pr_gate,[d2,d3,a2,a3],36
+sdl_consume:
+  jmp sdl_next_receive
+
+/* ------------------------------------------------------------------ v0.26.2: no out-of-range bytes from EDITS.BIN into BUNDLES.BIN
+ * Found and fixed by fernandezk26 (github.com/fernandezk26/camera-stuff, v0.26.3; Apache-2.0), ported here without the stored-WB parts.
+ * Films saved by v0.24 / v0.25 hold whatever the heap held in record +53..+63 (the EDITS image block was not zeroed and
+ * pf_capto did not write them); v0.26 reads +53..+56 as split toning, copies them into the live slot, and then writes a
+ * BUNDLES.BIN its own sd_check refuses at the next power-on.
+ * sd_san: `call sd_san,[d2,d3],12`, a0 = 8 slots x 64 B: every byte outside sd_check's range table (sd_lo / sd_span) <- 0
+ * (0 is inside every range). Uses d0, d1, a0, a1. */
+.section .ext11,"ax"
+sd_san:
+ clr d2
+1:
+ movbu (d2,a0),d0
+ extb d0
+ mov d2,d1
+ and 63,d1
+ mov sd_lo,a1
+ movbu (d1,a1),d3
+ extb d3
+ sub d3,d0
+ mov sd_span,a1
+ movbu (d1,a1),d3
+ cmp d3,d0
+ bls 2f
+ clr d0
+ movbu d0,(d2,a0)
+2:
+ inc d2
+ cmp PAYLOAD_LEN,d2
+ bne 1b
+ ret [d2,d3],12
+
+/* tw_san: `call tw_san,[d2,a2],12` from fl_mk, a0 = the EDITS.BIN image after its CRC passed. Each of the 24 records
+ * (+16 + 68 r): +53..+56 (split toning: colours 0..11, strengths -5..5) <- 0 as a group when a byte is out of range;
+ * +57..+62 (unused) <- 0; +63 <- 0 on films (a COLOR's own record keeps its 0 / 1). Uses d0, d2, a0, a2. */
+tw_san:
+ add 16,a0
+ mov a0,a2
+ mov 24,d2
+1:
+ movbu (53,a2),d0
+ cmp 11,d0
+ bhi 2f
+ movbu (54,a2),d0
+ extb d0
+ add 5,d0
+ cmp 10,d0
+ bhi 2f
+ movbu (55,a2),d0
+ cmp 11,d0
+ bhi 2f
+ movbu (56,a2),d0
+ extb d0
+ add 5,d0
+ cmp 10,d0
+ bls 3f
+2:
+ clr d0
+ movbu d0,(53,a2)
+ movbu d0,(54,a2)
+ movbu d0,(55,a2)
+ movbu d0,(56,a2)
+3:
+ clr d0
+ movbu d0,(57,a2)
+ movbu d0,(58,a2)
+ movbu d0,(59,a2)
+ movbu d0,(60,a2)
+ movbu d0,(61,a2)
+ movbu d0,(62,a2)
+ cmp 4,d2
+ bhi 6f                           /* d2 counts 24 .. 1: 24 .. 5 = films, 4 .. 1 = COLOR 1-4's own, whose +63 is their '*' (0 / 1) */
+ movbu (63,a2),d0
+ cmp 1,d0
+ bls 7f
+ clr d0
+6:
+ movbu d0,(63,a2)
+7:
+ add 68,a2
+ add -1,d2
+ bne 1b
+ ret [d2,a2],12
+

@@ -9,6 +9,8 @@ const zlib = await import('node:zlib');
 const { expandImage } = await import(EMU + '/src/fw/expand.mjs');
 const { loadBlock } = await import(EMU + '/bin/run.mjs');
 const { Player } = await import(EMU + '/src/lab/player.mjs');
+// om-emu builds without PlaySession.lab_created: the application's task allow-list takes the worker's entry directly
+if (process.env.OM_WORKER_ENTRY) { const ca = await import(EMU + '/src/lab/camapp.mjs'); ca.CA_TASK_ENTRIES.push((parseInt(process.env.OM_WORKER_ENTRY, 16) - 0x10021020) >>> 0); }
 const { PLAYER_PARSER } = await import(EMU + '/scenarios/session_replay.mjs');
 const { cardFromImage, cardImage } = await import(EMU + '/src/lab/sdcard.mjs');
 const STATE = 0x62b4dd16, POOL = 0xa2852000, HMAX = 0xae81;

@@ -2086,3 +2086,32 @@ Stock: OLY_E_147_1100_0000_0000.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - Released as v0.26.1 from build wb7: the branch rebuilds it byte for byte (E1479999.BIN dec03d2f…, GUIDES.BIN
   d2476a54…), and `patch.py --release v0.26.1` reproduces the same files. Optional LOOKS.BIN 26998eeb… (the tuned 20).
 
+### fernandezk26's fork: SD loading without a half-press, and the EDITS.BIN bad-bytes bug (2026-11-09)
+Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.1` (tag v0.26.1.1), `wbrecall/v0.26.2`,
+`wbrecall/v0.26.3`. By their own notes everything there is emulator only.
+- **SD loader** (their commit 3ec4ff8, taken as is; `docs/SD_LOADER.md`): a worker task (SDLOAD, priority 56, 2 KiB)
+  polls every ~100 ms until the section masks and the card word allow a load, then wakes the HLS_EVENT task, which runs
+  our own `pr_gate` (same once-per-power-on gate as the half-press). Hooks 0x60af0fb9 and 0x60af101c (stock calls).
+  `nm_load` / `nm_pick` / `nm_path` moved from ext4 to ext11 for room.
+- **Bug they found (in our v0.26 / v0.26.1):** EDITS.BIN records saved by v0.24 / v0.25 hold heap leftovers in
+  +53..+63 (the image block was never zeroed; `pf_capto` did not write those bytes then). v0.26 reads +53..+56 as split
+  toning. Seen in the owner's own card files (analysis of the 2026-11-09 card copy, not in the repo): 9 of 20 film
+  records with out-of-range split bytes, and BUNDLES.BIN slots 2 and 3 carrying them.
+  **Emulator, v0.26.1 (dec03d2f) with the owner's card files:** choosing FILM 9 gives slot tone 45/109/237/-113 and the
+  half-press save writes it into BUNDLES.BIN. **Build sd1:** the same steps give 0/0/0/0 in the slot and in BUNDLES.BIN;
+  a real split tone (FILM 5: 8/2/1/2) is kept.
+- **Our port of the fix** (their v0.26.3, without its stored-WB parts): `fl_mk` zeroes the whole SP_BLK; `tw_san`
+  (after EDITS.BIN's CRC passes) zeroes a record's +53..+56 as a group when out of range, +57..+62, and +63 on films;
+  `ed_save` runs `sd_san` (sd_check's own table) over its image before the CRC. Difference from theirs: `tw_san`
+  sign-extends the strengths before the range test (theirs reads them unsigned, which zeroes every negative strength:
+  worth telling them). We did not take their per-slot `sd_san` after each film load (the three above cover it).
+- **Build sd1** (branch `feature/v0.26.2-sdload-ff`): E1479999.BIN 0b676068..., GUIDES.BIN 43981bd4...; LABELS / TONES as
+  v0.26.1. Emulator: card block published within 500 ms with no key (`session_autoload.mjs`, masks written by the
+  harness); wheel pages, split toning set, drive-mode recipe run without a stop. **Emulator only.** Only a camera can
+  show: AF / shooting while the worker polls, no card, card pulled, power cycles.
+- Emulator note: this om-emu has no `PlaySession.lab_created`; the scripts push the worker's entry onto
+  `CA_TASK_ENTRIES` instead (`OM_WORKER_ENTRY=<sdl_worker_entry>`, 60a8f623 on sd1). Needed for every session with
+  this firmware.
+- Their stored WB mode / Kelvin per film (v0.26.2 / v0.26.3) is not taken yet (owner: later, and with a Control Panel
+  control). Space after sd1: see build output (ext11 nearly full); halation will need room.
+

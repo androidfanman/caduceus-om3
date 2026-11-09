@@ -31,6 +31,8 @@ class P:                                   # toolchain and stock identity (set f
 
 LAYOUT = HERE / 'vendor' / 'caduceus-bundles-layout.json'    # Caduceus (Apache-2.0) bundle-table layout
 HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
+         '.hook_hb': (0x60af0fb9, bytes.fromhex('cd4600f018')),     # SD-native: HLS_EVENT entry (stock call 0x60af0fff)
+         '.hook_hr': (0x60af101c, bytes.fromhex('cdbe000000')),     # SD-native: HLS_EVENT receive boundary (stock call 0x60af10da)
          '.hook_shutter': (0x60415216, bytes.fromhex('cd2d01f024')),
          '.hook_set': (0x60b8798b, bytes.fromhex('dd04d90200f044')),
          '.hook_pmod': (0x6129ba07, bytes.fromhex('0cfcde10ec')),
