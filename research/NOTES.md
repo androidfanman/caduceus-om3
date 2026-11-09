@@ -2180,3 +2180,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 
 - **Camera (owner, 2026-11-09): sd3 "looks good so far"** (camera-tested, first look; the owner keeps testing). Not yet
   reported: whether the flash started on the first try, and titles elsewhere in the menus. Not released.
+- **Camera (owner, 2026-11-09):** flashing sd3 from sd2 started normally ("flashed fine"), nothing odd in the menus so
+  far. So the one failed start from sd1 looks like the timing of the press, not the loader (one good flash from a
+  loader build; keep an eye on it).
