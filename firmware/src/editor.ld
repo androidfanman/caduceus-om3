@@ -16,6 +16,8 @@ SECTIONS {
   .hook_fx      0x60555e50 : { *(.hook_fx) }
   .hook_lv      0x6046b8bb : { *(.hook_lv) }
   .hook_wt      0x605048c1 : { *(.hook_wt) }
+  .hook_scw     0x61157d30 : { *(.hook_scw) }
+  .hook_stw     0x6128b1d3 : { *(.hook_stw) }
   .hook_nr1     0x603c8038 : { *(.hook_nr1) }
   .hook_nr2     0x603e7891 : { *(.hook_nr2) }
   .hook_sh      0x603e767f : { *(.hook_sh) }
@@ -185,3 +187,6 @@ sdl_task_start   = 0x60030899;
 sdl_dly_tsk      = 0x60031581;
 sdl_queue_send   = 0x6004d171;
 sdl_ext_tsk      = 0x60031808;
+scw_set       = 0x6128abe0;
+stw_set       = 0x6128ab86;
+stw_back      = 0x6128b2c6;

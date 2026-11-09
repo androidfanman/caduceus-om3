@@ -40,6 +40,8 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_fx': (0x60555e50, bytes.fromhex('f041a000c068')),
          '.hook_lv': (0x6046b8bb, bytes.fromhex('f040a064c205cc8e00f8b808a001c905cc84005c04fa408402a001c879')),
          '.hook_wt': (0x605048c1, bytes.fromhex('f824302c5802')),
+         '.hook_stw': (0x6128b1d3, bytes.fromhex('cdb3f90004ccee00')),   # sd3: a text widget's string id is set (call 0x6128ab86,[],4; jmp 0x6128b2c6): the panel's title
+         '.hook_scw': (0x61157d30, bytes.fromhex('ddb02e1300a00c')),   # sd3: the super control panel sets its Picture Mode cell's choice (call 0x6128abe0,[d2,a2],12)
          '.hook_nr1': (0x603c8038, bytes.fromhex('dd48b3c9ffc00c')),
          '.hook_nr2': (0x603e7891, bytes.fromhex('ddefbac7ffc00c')),
          '.hook_sh': (0x603e767f, bytes.fromhex('dd01bdc7ffc00c')),   # v0.22 Sharp: capture Sharpness read (key 0x8119)

@@ -5475,6 +5475,8 @@ fl_set:
  call fl_sw,[d2,d3,a2,a3],40      /* the film being left keeps its changes; the look (0: neutral) into the slot */
  mov 1,d1
  movbu d1,(DIRTY,a2)
+ movbu d1,(fl_scf)                /* sd3: the super control panel draws its cell again (fl_scw) */
+ movbu d1,(fl_scf + 1)            /* ... and its title (fl_stw) */
 4:
  mov (16,sp),d0
  mov fl_cvt,a0
@@ -8533,4 +8535,70 @@ fl_scr:
  .irp j, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
  .long 0, FV0 + \j, 0, 0, FLB + \j
  .endr
+
+/* fl_scw <- 0x61157d30 `call 0x6128abe0,[d2,a2],12` in the super control panel's update (a0 = the Picture Mode cell's
+ * widget, d0 = its choice: 16..19 for COLOR 1-4), entered by the same call. The widget draws again only when its choice
+ * changes, and a step from one film to the next on the same COLOR leaves it (emulator: no picture / title request). After
+ * a film change (fl_scf, set by fl_set): the neighbouring choice first, then the stock call with the real one. */
+.section .hook_scw,"ax"
+ call fl_scw,[d2,a2],12
+.section .ext11,"ax"
+fl_scf:
+ .long 0
+fl_scw:
+ movbu (fl_scf),d1
+ cmp 0,d1
+ beq 9f
+ clr d1
+ movbu d1,(fl_scf)
+ add -12,sp
+ mov a0,(4,sp)
+ mov d0,(8,sp)
+ xor 1,d0
+ call scw_set,[d2,a2],12
+ mov (4,sp),a0
+ mov (8,sp),d0
+ add 12,sp
+ mov (sp),d1                      /* MDR = our caller's return address again (the nested call overwrote it) */
+ mov d1,mdr
+9:
+ jmp scw_set
+
+/* fl_stw <- jmp from 0x6128b1d3 `call 0x6128ab86,[],4; jmp 0x6128b2c6` (8 bytes; a text widget's string id <- d0, a0 = the widget; the super control
+ * panel's title comes through here with 2755 / 2756 / 2757 / 4769 "Color Profile k", which fl_tt reads as the film's
+ * name). The same string id draws nothing new, so after a film change (fl_scf + 1) another of the four first. */
+.section .hook_stw,"ax"
+ jmp fl_stw
+ nop
+ nop
+ nop
+.section .ext11,"ax"
+fl_stw:
+ movbu (fl_scf + 1),d1
+ cmp 0,d1
+ beq 9f
+ mov 2756,d1
+ cmp 2755,d0
+ beq 1f
+ mov 2755,d1
+ cmp 2756,d0
+ beq 1f
+ cmp 2757,d0
+ beq 1f
+ cmp 4769,d0
+ bne 9f
+1:
+ add -12,sp
+ mov a0,(4,sp)
+ mov d0,(8,sp)
+ mov d1,d0
+ clr d1
+ movbu d1,(fl_scf + 1)
+ call stw_set,[],4
+ mov (4,sp),a0
+ mov (8,sp),d0
+ add 12,sp
+9:
+ call stw_set,[],4
+ jmp stw_back
 

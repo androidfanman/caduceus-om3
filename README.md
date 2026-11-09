@@ -1,5 +1,5 @@
-> **Branch `feature/v0.26.2-sdload-ff` (2026-11-09): in testing, not released.** Test build sd2 = v0.26.1 + automatic
-> SD loading (no half-press) + the EDITS.BIN bad-bytes fix, both from fernandezk26's fork. sd2 camera-tested good on a first look (2026-11-09: films and live view right after power-on); the owner is testing
+> **Branch `feature/v0.26.2-sdload-ff` (2026-11-09): in testing, not released.** Test build sd3 = v0.26.1 + automatic
+> SD loading (no half-press) + the EDITS.BIN bad-bytes fix, both from fernandezk26's fork. sd3 adds the films to the super control panel's dials (emulator only). sd2 camera-tested good on a first look (2026-11-09: films and live view right after power-on); the owner is testing
 > longer before a release.
 
 # Caduceus for OM-3
