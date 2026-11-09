@@ -732,6 +732,9 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
 
 /** OM-3 v0.26 split toning: two wheels (Shadows, Highlights) of the camera's 12 colours. Click a colour to tint toward
  *  it; the slider sets the strength (minus = the opposite colour). Same numbers as the camera's wheel pages. */
+/** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
+const om3Fw25 = () => { try { return localStorage.getItem('caduceus.om3.fw') === '25'; } catch { return false; } };
+const splitPv = (l: Look): Look => (isOm3() && l.split && !om3Fw25() ? { ...l, split: undefined } : l);
 function splitPanel(l: Look, changed: () => void): HTMLElement {
   const NS = 'http://www.w3.org/2000/svg';
   const el = <K extends keyof SVGElementTagNameMap>(t: K, a: Record<string, string | number>) => {
@@ -773,6 +776,7 @@ function splitPanel(l: Look, changed: () => void): HTMLElement {
   };
   return h('div', { class: 'group' },
     h('span', { class: 'lbl' }, 'Split toning (firmware v0.26)'),
+    !om3Fw25() ? h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.26: '), 'Export is set to an older firmware, so split toning is not previewed and is left out of LOOKS.BIN. Choose "v0.26 or later" under Export › Firmware on the camera to use it.') : null,
     h('div', { class: 'split-row' }, wheel('sh', 'Shadows'), wheel('hl', 'Highlights')),
     h('p', { class: 'help' }, 'Tints the shadows and the highlights: click one of the wheel\'s 12 colours, then set the strength (minus tints toward the opposite colour). On the camera these are the HSL wheel\'s Shadows and Highlights pages (INFO after Luminance). Needs firmware v0.26: export with "v0.26 or later". Shown in the preview.'),
     h('button', { class: 'link', onclick: () => { delete l.split; renderEditor(); changed(); } }, 'Reset'));
@@ -908,7 +912,7 @@ function schedulePreview() {
     const l = cur();
     if (!l) { ctx.putImageData(srcData, 0, 0); return; }
     const out = ctx.createImageData(srcData.width, srcData.height);
-    renderLook(srcData, out, l, { advice: isOm3() || S.advice, camera: CAM });
+    renderLook(srcData, out, splitPv(l), { advice: isOm3() || S.advice, camera: CAM });
     ctx.putImageData(out, 0, 0);
   });
 }
@@ -1377,7 +1381,7 @@ function om3FilmPicker(into?: { k: number; v: number }) {
     const sc = Math.min(1, 520 / srcData.width), W = Math.round(srcData.width * sc), H = Math.round(srcData.height * sc);
     const c = document.createElement('canvas'); c.width = srcData.width; c.height = srcData.height;
     const cx = c.getContext('2d')!;
-    if (sel) { const out = cx.createImageData(srcData.width, srcData.height); renderLook(srcData, out, filmLook(sel), { advice: true, camera: CAM }); cx.putImageData(out, 0, 0); }
+    if (sel) { const out = cx.createImageData(srcData.width, srcData.height); renderLook(srcData, out, splitPv(filmLook(sel)), { advice: true, camera: CAM }); cx.putImageData(out, 0, 0); }
     else cx.putImageData(srcData, 0, 0);
     pv.width = W; pv.height = H; pv.getContext('2d')!.drawImage(c, 0, 0, W, H);
     pvNote.replaceChildren(...(sel ? [h('b', {}, sel.film), h('p', {}, sel.desc)] : [h('p', { class: 'help' }, 'Click a film to see it on your photo.')]));
@@ -1671,7 +1675,7 @@ async function om3ShareProfile(l: Look) {
     h('p', {}, 'A link to this OM-3 look, with everything in it (including Contrast, Sharp and Shading):'),
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
-    lc ? h('p', {}, 'Or the short Caduceus look code, which also works for E-P7 users (it carries no Contrast or Sharp):') : null,
+    lc ? h('p', {}, 'Or the short Caduceus look code, which also works for E-P7 users (it carries no Contrast, Sharp or split toning):') : null,
     lc ? h('div', { class: 'code-box' }, h('code', {}, encodeLookCode(l, true)), h('button', { onclick: () => copy(lc, 'Code copied') }, 'Copy code')) : null,
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'RapidRAW preset'), h('p', { class: 'help' }, 'This look as a .rrpreset for RapidRAW (Presets › Import), for ORF files. An approximation of the camera look.')),
@@ -1740,7 +1744,8 @@ function om3ExportDialog() {
   const fwSel = h('select', { onchange: (e: Event) => {
     fw = Number((e.target as HTMLSelectElement).value) as Fw;
     try { localStorage.setItem('caduceus.om3.fw', String(fw)); } catch { /* storage blocked */ }
-  } }, h('option', { value: '25', selected: fw === 25 }, 'v0.26 or later (split toning; test build)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
+    renderEditor(); schedulePreview();   // v0.26: split toning shows only with the v0.26 export
+  } }, h('option', { value: '25', selected: fw === 25 }, 'v0.26 or later (split toning; firmware in testing)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
   const cardFiles = async () => [{ name: 'LOOKS.BIN', data: looksBin() }, { name: 'NAMES.BIN', data: await namesBin(O.bank) as Uint8Array }];
   const busy = async (b: HTMLButtonElement, f: () => Promise<void>) => { b.disabled = true; try { await f(); } catch (e) { toast((e as Error).message, 'err'); } finally { b.disabled = probs.length > 0; } };
   const looks = O.bank.flat().filter(Boolean) as Look[];
