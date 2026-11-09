@@ -3,6 +3,11 @@
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## Unreleased
+- **Control Panel: the 20 film sims tuned** (draft 1, 2026-11-09): new colours, WB and tone for all 20 from the owner's
+  colour checker photos, and new split tones on Gold 200, Portra 800, CineStill 800T and Fuji Eterna. Contrast and
+  Sharp are as before (Gold 200 now Sharp −1). **New › Reset looks to standard** gives the new set.
+
 ## v0.26
 Split toning, and a fix for a restart after changing the drive mode. Firmware camera-tested (2026-11-09, build sp4).
 

@@ -2056,3 +2056,16 @@ Stock: OLY_E_147_1100_0000_0000.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - Released as v0.26 from build sp4 (`feature/v0.26-split-tone`): the branch rebuilds sp4 byte for byte
   (E1479999.BIN 34df5bf6…, GUIDES.BIN 1189c811…, TONES.BIN a5cd04e9…, LABELS.BIN d6c1b4ab…), and
   `patch.py --release v0.26` reproduces the same files. Optional LOOKS.BIN e742c70b… (the 20 films, fw 25 export).
+
+### The 20 film sims: tuning draft 1 (2026-11-09)
+- The owner tuned the 20 in the Control Panel from colour checker photos (fixed light, one photo per film) and sent the
+  set as a looks link. Taken into `webapp/scripts/films.py` as `TUNED` (hue / light / sat, WB, tone, split): the
+  recipe still gives Contrast, `SHARP` the Sharp, and a film without a split in the link keeps its recipe's.
+- Owner's choices (2026-11-09): Contrast and Sharp were 0 in the link (six names were shortened the way the old share
+  codes did, which drop those settings), so the old values stay; Gold 200's Sharp −1 was set by the owner and is kept.
+  Seven films without a split tone in the link (Portra 400, Kodachrome 64, Pro 400H, Superia 400, CineStill 400D,
+  Fuji C200, Vision3 250D) keep their old one. Checked: every film's colours, WB, tone and split equal the link's
+  apart from those.
+- Status: Control Panel defaults only (live 2026-11-09); the v0.26 release's optional `LOOKS.BIN` is still the
+  earlier set.
+

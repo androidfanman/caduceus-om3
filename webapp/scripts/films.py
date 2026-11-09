@@ -192,6 +192,43 @@ CAMERA = ['Portra 400', 'Gold 200', 'Kodachrome 64', 'Portra 800', 'CineStill 80
           'Velvia 50', 'Superia 400', 'ColorPlus 200', 'CineStill 400D', 'Fuji C200', 'Ektachrome E100', 'Reala 100', 'Provia 100F',
           'Vision3 250D', 'Fuji Eterna', 'Astia 100F', 'Agfa Ultra 100']
 
+# The camera's 20, tuned by the owner (first draft, 2026-11-09, from photos of a colour checker in fixed light with
+# every film): these values replace the recipe's colours, WB and tone. Contrast and Sharp stay the recipe's and SHARP's
+# (Gold 200: Sharp -1, the owner's), and a film without a split here keeps its recipe's split tone.
+TUNED = {
+ 'Portra 400': dict(hue=[0, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, 0], light=[1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0], sat=[1, 1, 1, 1, 0, -2, -4, -4, -3, -5, 0, -1], ab=2, mid=1),
+ 'Gold 200': dict(hue=[0, 0, -1, 0, 0, 0, 1, 1, 0, -1, -1, 0], light=[1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0], sat=[4, 0, -1, 1, 1, 0, -3, -5, -5, -3, 1, 2], ab=4, hl=-1, blk=1, split=('O', 1, 'O', 0)),
+ 'Kodachrome 64': dict(hue=[0, 1, 1, 0, 0, 0, 0, 0, 0, 0, -1, 0], light=[0, 0, 0, -1, 0, 0, -1, -1, 0, 0, -1, 0], sat=[3, 1, 2, 4, 3, 2, 4, 2, -2, -3, 1, 2], sh=-1, blk=-1),
+ 'Portra 800': dict(hue=[0, 0, 1, 1, 1, 1, 1, 0, -1, -2, -1, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 2, 2, 1, 0], sat=[-1, 0, 0, 0, -1, -2, -2, -2, -3, -3, -2, -1], ab=2, hl=2, sh=-2, blk=-1, split=('BC', 1, 'Y', 1)),
+ 'CineStill 800T': dict(hue=[-1, -1, -1, -1, 0, 0, 0, -1, -1, -1, -1, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[-2, -2, -2, -2, 0, 2, 2, 1, -2, -3, -3, -3], ab=-2, hl=-1, sh=-2, blk=-1, split=('GC', 1, 'O', 0)),
+ 'Ektar 100': dict(hue=[0, 1, 1, 1, 0, 0, 0, 1, 1, 2, 2, 1], light=[0, -1, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0], sat=[1, 4, 5, 4, 2, 1, 1, 1, 2, 2, 0, -1], sh=1, blk=1),
+ 'Ultramax 400': dict(hue=[0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[0, 1, 2, 3, 4, 2, 0, -2, -3, -2, -1, -1], ab=1),
+ 'Pro 400H': dict(hue=[1, 1, 1, 0, -1, -1, -1, 0, 0, 1, 1, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0], sat=[-2, -1, 0, 0, 0, 1, 2, 2, 2, 1, -1, -2], hl=2, sh=-1),
+ 'Velvia 50': dict(hue=[1, 1, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1], light=[0, 0, 1, 0, 0, 0, 0, 0, -1, 0, -1, -1], sat=[3, 0, -2, -2, -1, 1, 3, 3, 3, 3, 5, 5], gm=-1, hl=-3, sh=-3, blk=-2),
+ 'Superia 400': dict(hue=[0, 0, 0, -1, 0, 1, 2, 1, 0, -1, -1, 0], light=[0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[0, -3, -4, -4, -4, -3, -2, -1, -1, 0, 2, 2], hl=-1, sh=1, blk=1),
+ 'ColorPlus 200': dict(hue=[0, -1, -1, -1, 0, 1, 1, 1, 0, 0, 0, 0], light=[0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[-1, -2, -3, -2, -1, -1, 0, 0, 0, 0, 0, -1], ab=3, hl=2),
+ 'CineStill 400D': dict(hue=[0, 0, 0, 0, 0, 1, 1, 0, -1, -2, -1, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0], sat=[-1, 0, 1, 1, 0, -1, -1, -1, -4, -5, -4, -2], hl=1, blk=-1),
+ 'Fuji C200': dict(hue=[1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0], sat=[0, 1, 1, 0, -1, -2, -1, 0, 1, 2, 0, -2], sh=1, blk=1),
+ 'Ektachrome E100': dict(hue=[-1, -2, -2, -1, -1, -1, -1, -1, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[-1, -1, -1, -1, -1, -1, 0, 0, 0, 0, -1, -1], ab=-1, hl=1),
+ 'Reala 100': dict(hue=[0, 0, 0, 0, 0, -1, -1, 0, 1, 2, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0], sat=[-1, -2, -2, -2, -1, -1, -1, -1, 2, 4, 1, -1], hl=2, sh=1),
+ 'Provia 100F': dict(hue=[-1, -2, -2, -1, 0, 0, 0, 0, 1, 1, 1, 0], light=[0, 1, 1, 1, 0, 0, 0, 0, 0, -1, 0, 0], sat=[-2, -3, -3, -3, -2, -1, -1, 0, 2, 3, 1, -2], ab=-1, hl=2),
+ 'Vision3 250D': dict(hue=[0, 0, 0, 0, 0, -1, -1, 0, 0, 1, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0], sat=[-2, -2, -1, -1, 0, 0, 0, -1, -1, -2, -3, -3], hl=2, sh=1),
+ 'Fuji Eterna': dict(hue=[0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1], light=[0, 1, 1, 0, 0, 0, 0, 0, 2, 1, 1, 0], sat=[-5, -5, -4, -3, -1, 0, 0, 0, -1, -1, -3, -5], ab=1, hl=1, split=('B', 1, 'Y', 1)),
+ 'Astia 100F': dict(hue=[0, -1, -1, -1, 0, 0, 0, 0, 0, 1, 2, 1], light=[0, 0, 0, 0, 0, -1, -1, 0, -2, -1, 0, 0], sat=[-2, -3, -3, -2, -1, 1, 2, 3, 4, 2, -1, -2], sh=-1),
+ 'Agfa Ultra 100': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[1, 2, 1, 1, 0, -2, -2, -1, 0, 2, 1, 0], gm=-1, hl=-2, sh=1, blk=1),
+}
+TUNED_SHARP = {'Gold 200': -1}
+
+def tuned(name, s):
+    t = TUNED.get(name)
+    if not t: return s
+    s = dict(s, hue=list(t['hue']), light=list(t['light']), sat=list(t['sat']))
+    assert all(len(s[a]) == 12 and all(-LIM[a] <= v <= LIM[a] for v in s[a]) for a in ('hue', 'light', 'sat')), name
+    over = settings({k: v for k, v in t.items() if k not in ('hue', 'light', 'sat')})
+    s['tone'] = over['tone']; s['wb'] = over['wb']
+    if 'split' in over: s['split'] = over['split']
+    return s
+
 # Sharp per film (anything not listed: 0, the camera's normal). Never Off: that's a choice for the user.
 SHARP = {
  'Fuji Astia': -1, 'Pro Neg Std': -1, 'Eterna': -1, 'Nostalgic Neg': -1,
@@ -207,11 +244,12 @@ SHARP = {
 out = []
 for name, grp, film, desc, recipe in FILMS:
     assert len(name) <= 15 and name.isascii() and name == name.strip(), name
-    out.append({'name': name, 'group': grp, 'film': film, 'desc': desc, **settings(recipe), 'sharp': SHARP.get(name, 0)})
+    out.append({'name': name, 'group': grp, 'film': film, 'desc': desc, **tuned(name, settings(recipe)), 'sharp': TUNED_SHARP.get(name, SHARP.get(name, 0))})
 names = [f['name'] for f in out]
 assert len(set(names)) == len(names), 'duplicate names'
 assert all(k in names and -4 <= v <= 2 for k, v in SHARP.items()), 'SHARP: unknown film or out of range'
 assert all(v in names and k not in names for k, v in ALIASES.items())
+assert set(TUNED) <= set(CAMERA) and set(TUNED_SHARP) <= set(TUNED), 'TUNED: camera films only'
 assert len(CAMERA) == 20 and len(set(CAMERA)) == 20 and all(n in names for n in CAMERA), 'CAMERA: 20 known films'
 json.dump({'note': 'Our own film looks (webapp/scripts/films.py); edit the recipes there, not this file.', 'films': out, 'aliases': ALIASES, 'camera': CAMERA},
           open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'data', 'om3films.json'), 'w'), separators=(',', ':'))

@@ -18,7 +18,9 @@ new features have room; more can be opened up the same way.
 
 ## Next steps
 
-0. **Tune the 20 film sims from the owner's camera photos** (released in v0.25, tuned on the preview). Owner's plan
+0. **Tune the 20 film sims from the owner's camera photos** (released in v0.25, tuned on the preview). **Draft 1 in
+   the Control Panel (2026-11-09):** the owner's tuned colours, WB and tone (`TUNED` in `films.py`); Contrast, Sharp
+   and the split tones of seven films kept from the recipes. Not yet in a release's `LOOKS.BIN`. Owner's plan
    (2026-11-09): a colour checker card, fixed light, one photo per film (FILM 1–20) plus a neutral reference; measure
    each patch against the reference and adjust the recipes in `webapp/scripts/films.py`.
 1. **Our own grain texture** (after v0.25's fast colour grain with every setting): colour speckle and grain size from the
