@@ -325,56 +325,79 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .film-row.in-list { background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .in-list-tag { font-size: 12px; font-weight: 600; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 
-/* The editor as the camera's Picture Mode screen: HSL wheel (5 pages), Contrast, Highlight & Shadow, WB grid, rows */
+/* The editor as the camera's Picture Mode screen: HSL wheel (5 pages), Contrast, Highlight & Shadow, WB grid, rows.
+   The wheel, curve and WB grid sit on a dark "camera screen" in both themes, drawn like the camera's own. */
+:root { --cs-bg: #1e1e1f; --cs-ink: #f1efe9; --cs-dim: #8d8a83; --cs-line: rgba(241, 239, 233, .22); }
 .group.cam { gap: 6px; }
 .cam-head { display: flex; align-items: center; gap: 8px; }
 .cam-head .lbl { margin-right: auto; }
 .cam-tabs { gap: 0; }
 .cam-tabs button { flex: 1 1 auto; padding: 6px 4px; font-size: 13px; white-space: nowrap; }
 .cam-tabs button .dot { margin-left: 3px; }
-.hsl-wheel { cursor: pointer; display: block; width: 100%; max-width: 300px; height: auto; margin: 2px auto 0; outline: none; touch-action: none; }
-.hsl-wheel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 50%; }
-.hw-wedge { cursor: pointer; opacity: 0.32; stroke: var(--panel); stroke-width: 1; transition: opacity .12s; }
-.hw-wedge:hover { opacity: 0.55; }
-.hw-wedge.sel { opacity: 0.75; stroke: var(--ink); stroke-width: 2; }
-.hw-wedge.dim { opacity: 0.18; }
-.hw-wedge.dim:hover { opacity: 0.5; }
-.hw-zero { fill: none; stroke: var(--ink); stroke-opacity: .35; stroke-dasharray: 2 3; pointer-events: none; }
-.hw-bar { stroke-width: 9; stroke-linecap: round; pointer-events: none; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .55)); }
-.hw-num { font-size: 11px; font-weight: 600; fill: var(--ink); font-variant-numeric: tabular-nums; pointer-events: none; }
-.hw-hub { fill: var(--soft); stroke: var(--line); pointer-events: none; }
-.hw-hub-name { font-size: 12px; fill: var(--muted); pointer-events: none; }
-.hw-hub-val { font-size: 20px; font-weight: 700; fill: var(--ink); font-variant-numeric: tabular-nums; pointer-events: none; }
-.hw-ctl { display: grid; grid-template-columns: auto 104px auto minmax(0, 1fr) 34px; align-items: center; gap: 6px; }
+.cam-screen { display: block; width: 100%; height: auto; margin: 2px auto 0; outline: none; touch-action: none; }
+.cam-screen:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 14px; }
+.cs-bg { fill: var(--cs-bg); }
+.hsl-wheel { max-width: 300px; cursor: pointer; }
+.hw-wedge { cursor: pointer; opacity: .9; stroke: var(--cs-bg); stroke-width: 1.2; }
+.hw-wedge:hover { opacity: 1; }
+.hw-wedge.sel { opacity: 1; stroke: var(--cs-ink); stroke-width: 2.2; }
+.hw-wedge.dim { opacity: .35; }
+.hw-wedge.dim:hover { opacity: .7; }
+.hw-spokes line { stroke: var(--cs-line); stroke-width: 1; }
+.hw-zero { fill: none; stroke: var(--cs-dim); stroke-dasharray: 2 3; pointer-events: none; }
+.hw-poly { fill: rgba(241, 239, 233, .14); stroke: var(--cs-ink); stroke-width: 1.8; stroke-linejoin: round; pointer-events: none; }
+.hw-dot { stroke: var(--cs-bg); stroke-width: 1.5; pointer-events: none; }
+.hw-dot.sel { r: 6.5; stroke: var(--cs-ink); stroke-width: 2; }
+.hw-spoke { stroke-width: 5; stroke-linecap: round; pointer-events: none; }
+.hw-num { font-size: 10.5px; font-weight: 700; fill: var(--cs-ink); font-variant-numeric: tabular-nums; pointer-events: none; }
+.hw-hub-name { font-size: 12px; fill: var(--cs-dim); pointer-events: none; }
+.hw-hub-val { font-size: 20px; font-weight: 700; fill: var(--cs-ink); font-variant-numeric: tabular-nums; pointer-events: none; }
+.hw-ctl { display: grid; grid-template-columns: auto 100px auto minmax(0, 1fr) 34px; align-items: center; gap: 6px; }
 .hw-ctl output { text-align: right; font-variant-numeric: tabular-nums; }
 .hw-sel { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; overflow: hidden; }
 .hw-sel::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--sw, var(--muted)); }
-.crow { display: grid; grid-template-columns: 118px minmax(0, 1fr) 40px; align-items: center; gap: 8px; min-height: 30px; }
+/* Highlight & Shadow: the camera's box, 2 x 2 grid, crosses for Sh / Mid / Hi, values on top */
+.cam-screen-wrap { background: var(--cs-bg); border-radius: 14px; padding: 10px 10px 4px; max-width: 260px; margin: 2px auto 0; width: 100%; }
+.cam-screen-wrap .tone-curve { margin: 0 auto; }
+.tc-top { display: flex; justify-content: space-between; padding: 0 8px; font-size: 12.5px; color: var(--cs-dim); font-variant-numeric: tabular-nums; }
+.tc-top .on { color: var(--cs-ink); font-weight: 600; }
+.tone-curve.cam-screen { width: 100%; max-width: 240px; overflow: visible; }
+.tone-curve .tc-frame { fill: none; stroke: var(--cs-dim); }
+.tone-curve .tc-grid { stroke: var(--cs-line); }
+.tone-curve .tc-ident { stroke: var(--cs-line); stroke-dasharray: 3 3; }
+.tone-curve .tc-curve { stroke: var(--cs-ink); stroke-width: 2; fill: none; }
+.tone-curve .tc-end { display: none; }
+.tc-knob { cursor: ns-resize; outline: none; }
+.tc-knob .hit { fill: transparent; }
+.tc-knob .cross { stroke: var(--cs-ink); stroke-width: 2; }
+.tc-knob .pip { fill: var(--cs-bg); stroke: var(--cs-ink); stroke-width: 1.5; }
+.tc-knob.on .pip { fill: var(--accent); stroke: var(--accent); }
+.tc-knob.end .cross { display: none; }
+.tc-knob:hover .hit, .tc-knob:focus-visible .hit { fill: rgba(241, 239, 233, .12); }
+/* WB: the camera's fine-tune box with coloured edges and letter tags */
+.wb-grid { max-width: 260px; cursor: crosshair; }
+.wb-box { fill: rgba(241, 239, 233, .05); }
+.wb-tick { stroke: var(--cs-line); }
+.wb-edge { stroke-width: 3; }
+.wb-edge.g { stroke: #3fb950; } .wb-edge.m { stroke: #d63aa6; } .wb-edge.b { stroke: #3d7be0; } .wb-edge.a { stroke: #e0a020; }
+.wb-tag { fill: none; stroke: var(--cs-dim); }
+.wb-lab { font-size: 12px; font-weight: 600; fill: var(--cs-ink); }
+.wb-dot circle { fill: var(--accent); stroke: var(--cs-ink); stroke-width: 1.5; }
+.wb-cross { stroke: var(--cs-ink); stroke-width: 1.6; }
+.wb-read { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; }
+/* Picture Mode rows: name, the camera's − bar + slider, value */
+.crow { display: grid; grid-template-columns: 112px minmax(0, 1fr) 40px; align-items: center; gap: 8px; min-height: 30px; }
 .crow .cname { font-size: 14px; }
 .crow output { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
-.crow.seg-row { grid-template-columns: 118px minmax(0, 1fr); }
-.crow.seg-row .seg { justify-self: start; flex-wrap: wrap; }
-.crow.seg-row .seg { flex-wrap: nowrap; }
+.crow.seg-row { grid-template-columns: 112px minmax(0, 1fr); }
+.crow.seg-row .seg { justify-self: start; flex-wrap: nowrap; }
 .crow.seg-row .seg button { padding: 4px 7px; font-size: 12.5px; }
 .group.cam.rows .crow + .crow { border-top: 1px solid var(--soft); padding-top: 4px; }
-.wb-grid { cursor: crosshair; touch-action: none; display: block; width: 100%; max-width: 250px; height: auto; margin: 2px auto 0; outline: none; }
-.wb-grid:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.wb-cell { fill: var(--soft); stroke: var(--panel); stroke-width: 1; cursor: pointer; }
-.wb-cell.axis { fill: var(--line); }
-.wb-cell:hover { fill: var(--sel); }
-.wb-dot { fill: var(--accent); stroke: var(--ink); stroke-width: 1.5; pointer-events: none; }
-.wb-lab { font-size: 11px; font-weight: 700; fill: var(--muted); }
-.wb-read { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; }
+.cam-bar { display: grid; grid-template-columns: 22px minmax(0, 1fr) 22px; align-items: center; gap: 4px; min-width: 0; }
+.cam-step { border: 0; background: none; padding: 0; width: 22px; height: 22px; line-height: 20px; font-size: 18px; color: var(--muted); border-radius: 6px; }
+.cam-step:hover:not(:disabled) { background: var(--soft); color: var(--ink); }
 @media (max-width: 520px) {
-  .crow, .crow.seg-row { grid-template-columns: 100px minmax(0, 1fr) 36px; }
-  .crow.seg-row { grid-template-columns: 100px minmax(0, 1fr); }
-  .hw-ctl { grid-template-columns: auto 88px auto minmax(0, 1fr) 30px; }
+  .crow { grid-template-columns: 96px minmax(0, 1fr) 34px; }
+  .crow.seg-row { grid-template-columns: 96px minmax(0, 1fr); }
+  .hw-ctl { grid-template-columns: auto 84px auto minmax(0, 1fr) 30px; }
 }
-.tone-curve { touch-action: none; overflow: visible; }
-.tc-knob { cursor: ns-resize; outline: none; }
-.tc-knob circle { fill: var(--panel); stroke: var(--accent); stroke-width: 2; }
-.tc-knob.on circle { fill: var(--accent); }
-.tc-knob text { font-size: 8.5px; font-weight: 700; fill: var(--accent); pointer-events: none; }
-.tc-knob.on text { fill: var(--accent-ink); }
-.tc-knob:hover circle, .tc-knob:focus-visible circle { stroke: var(--ink); stroke-width: 2.5; }
-
