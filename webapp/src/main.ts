@@ -357,7 +357,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
 
   // The wheel as the camera draws it: the 12 colours as a ring (Yellow at 12 o'clock, clockwise), and inside it an
   // outline through one corner per colour that moves out (+) or in (−) with that colour's value; the dashed circle is 0.
-  // Shadows / Highlights (one colour each): a spoke toward the chosen colour, as long as the strength.
+  // Shadows / Highlights look the same; there only one colour can be set (choosing another moves the strength to it).
   const SZ = 290, C = SZ / 2, R0 = 104, R1 = 122, RZ = 64, RB = 34;
   const svg = svgEl('svg', { viewBox: `0 0 ${SZ} ${SZ}`, class: 'hsl-wheel cam-screen', role: 'group', tabindex: 0,
     'aria-label': `${TAB_NAME[tab]} wheel: arrow keys left and right pick a colour, up and down change it` });
@@ -378,8 +378,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
   const spokes = svgEl('g', { class: 'hw-spokes' });
   for (let i = 0; i < 12; i++) { const [x, y] = pt(i * Math.PI / 6, R0 - 2); spokes.append(svgEl('line', { x1: C, y1: C, x2: x, y2: y })); }
   const poly = svgEl('path', { class: 'hw-poly' });
-  const spoke = svgEl('line', { x1: C, y1: C, x2: C, y2: C, class: 'hw-spoke' });
-  svg.append(spokes, split ? '' : svgEl('circle', { cx: C, cy: C, r: RZ, class: 'hw-zero' }), poly, spoke, ...dots, ...nums);
+  svg.append(spokes, svgEl('circle', { cx: C, cy: C, r: RZ, class: 'hw-zero' }), poly, ...dots, ...nums);
   // the selected colour and its value in the screen's corner, where the camera shows its dial readouts
   const hubName = svgEl('text', { x: 14, y: 22, class: 'hw-hub-name' });
   const hubVal = svgEl('text', { x: 14, y: 44, class: 'hw-hub-val' });
@@ -394,16 +393,11 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
       const v = valueOf(i), am = i * Math.PI / 6, [x, y] = pt(am, RZ + (v / lim) * RB);
       d += `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
       dots[i].setAttribute('cx', x.toFixed(1)); dots[i].setAttribute('cy', y.toFixed(1));
-      dots[i].style.display = split ? 'none' : '';
       dots[i].classList.toggle('sel', i === S.sector);
       nums[i].textContent = v ? signed(v) : '';
       wedges[i].classList.toggle('sel', i === S.sector);
-      wedges[i].classList.toggle('dim', split && i !== S.sector);
     }
-    poly.setAttribute('d', split ? '' : d + 'Z');
-    const sv = split ? valueOf(S.sector) : 0, [sx, sy] = pt(S.sector * Math.PI / 6 + (sv < 0 ? Math.PI : 0), (Math.abs(sv) / lim) * (R0 - 10));
-    spoke.setAttribute('x2', sx.toFixed(1)); spoke.setAttribute('y2', sy.toFixed(1));
-    spoke.style.stroke = SPLIT_COLOURS[S.sector][1];
+    poly.setAttribute('d', d + 'Z');
     const v = valueOf(S.sector), nm = SPLIT_COLOURS[S.sector][0];
     hubName.textContent = split && !v ? TAB_NAME[tab] : nm;
     hubVal.textContent = split && !v ? 'Off' : signed(v);
@@ -442,7 +436,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
     drag.moved = true;
     const { i, rad } = polar(e);
     if (split && i !== S.sector) S.sector = i;
-    const v = split ? Math.max(0, Math.min(lim, Math.round((rad / (R0 - 10)) * lim))) : Math.round(((rad - RZ) / RB) * lim);
+    const v = Math.round(((rad - RZ) / RB) * lim);
     if (v !== valueOf(S.sector) || split) { setValue(S.sector, v); draw(); }
   });
   const endDrag = (e: PointerEvent) => { if (drag && e.pointerId === drag.id) { drag = null; checkpoint(); } };
@@ -456,7 +450,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
   draw();
 
   const help = split
-    ? `${tab === 'sh' ? 'Tints the shadows' : 'Tints the highlights'} toward one colour: click it, then set the strength (minus tints toward the opposite colour). Needs firmware v0.26.`
+    ? `${tab === 'sh' ? 'Tints the shadows' : 'Tints the highlights'} toward one colour: pick it, then set the strength (minus tints toward the opposite colour). One colour at a time. Needs firmware v0.26.`
     : tab === 'hue' ? 'Turns a colour toward its clockwise neighbour (+: Yellow → Orange).'
       : tab === 'light' ? 'Darker or brighter, per colour.' : 'Saturation, per colour.';
   return h('div', { class: 'group cam' },
@@ -473,7 +467,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
       selName,
       h('button', { class: 'icon', title: 'Next colour (front dial)', 'aria-label': 'Next colour', onclick: () => move(1) }, '›'),
       steps(inp), out),
-    h('p', { class: 'help' }, help, split ? ' Drag from the centre toward a colour: the farther, the stronger. Scroll or ↑ ↓ also work.' : ' Drag a colour\'s corner out (+) or in (−), or scroll / ↑ ↓ on the wheel; double-click a colour on the ring to zero it.'));
+    h('p', { class: 'help' }, help, ' Drag a colour\'s corner out (+) or in (−), or scroll / ↑ ↓ on the wheel; double-click a colour on the ring to zero it.'));
 }
 
 /** Highlight & Shadow, Blk and Wht: the curve with its sliders. Drag the handles on the curve up or down: S, M and H
