@@ -3,6 +3,12 @@
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## Unreleased (v0.26, firmware in testing)
+- **Control Panel: split toning** (2026-11-09): two colour wheels, Shadows and Highlights, each one of the camera
+  wheel's 12 colours with a strength −5..+5, shown in the preview. Needs firmware v0.26 (being camera-tested): it is
+  previewed and saved only with Export › Firmware on the camera › "v0.26 or later". Ten of the 20 film sims carry a
+  light tone (strength 1–2) for v0.26; with older firmware they are as in v0.25.
+
 ## v0.25
 Fast colour film grain, a WB grid row, a Glow row, settings kept over power off, and 20 new film sims. Firmware
 camera-tested (2026-11-08, build fx3); the 20 film sims were tuned on the Control Panel's preview.
