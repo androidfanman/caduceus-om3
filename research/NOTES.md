@@ -2139,3 +2139,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (its receive hook loads the card on the OK key message, and the worker loads early) or it was the timing of the press:
   an open question. To settle before a release: flash a few times from the released build and from sd2 and compare; if
   the loader is the cause, drop its OK trigger and delay the worker's first load.
+- **Camera (owner, 2026-11-09): sd2 "works well"** (camera-tested): after power-on, with no half-press, live view and
+  the shooting screen follow the selected film. No hang reported. Still open: the flash-entry question above, and the
+  longer test (AF / burst speed, no card, card pulled, power cycles). Not released.
