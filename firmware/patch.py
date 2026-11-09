@@ -11,6 +11,7 @@ Output (in --out, default "SD card files" next to this script):
   DCOLYMP/E1479999.BIN   the modified firmware: copy the DCOLYMP folder to the top of the SD card
   OM3MOD/GUIDES.BIN      page labels for the wheel editor (from v0.20 also the Extras code: keep it with its firmware)
   OM3MOD/LABELS.BIN      the Extras dial labels (v0.20)
+  OM3MOD/TONES.BIN       the split toning pages' guides (v0.26)
   restore/E1479999.BIN   the official firmware under the SD-update name, to go back to stock
 
 With no --stock, it looks for the official file next to this script, in the project folder and in Downloads, and
@@ -239,7 +240,7 @@ def main():
         (out / sub).mkdir(parents=True, exist_ok=True)
     (out / 'DCOLYMP' / 'E1479999.BIN').write_bytes(pkg)
     (out / 'restore' / 'E1479999.BIN').write_bytes(raw)
-    for name in ('GUIDES.BIN', 'LABELS.BIN'):          # page labels + Extras code (v0.20), Extras dial labels (v0.20)
+    for name in ('GUIDES.BIN', 'LABELS.BIN', 'TONES.BIN'):   # page labels + Extras code (v0.20), Extras dial labels (v0.20), split toning guides (v0.26)
         g = rdir / name
         if g.is_file():
             shutil.copyfile(g, out / 'OM3MOD' / name)

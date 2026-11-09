@@ -2049,3 +2049,10 @@ Stock: OLY_E_147_1100_0000_0000.BIN sha 8c133084…696d, main 5e8d376e…7d59.
   the restart recipe still runs clean. Open: whether live view uses this stage at all; whether its copy is skipped
   when the curve object is unchanged (then a strength change would show only after the curve is copied again).
 - Package sp4: E1479999.BIN 34df5bf6…, GUIDES.BIN 1189c811… (LABELS.BIN, TONES.BIN as sp3).
+
+### sp4 camera result and v0.26 released (2026-11-09)
+- **Camera (owner, sp4): works.** Split toning shows in live view as well as in photos, and nothing broke (camera-tested).
+  So live view does pass through the tone stage with the copier pointers set, and `ST_STILL 0` is right.
+- Released as v0.26 from build sp4 (`feature/v0.26-split-tone`): the branch rebuilds sp4 byte for byte
+  (E1479999.BIN 34df5bf6…, GUIDES.BIN 1189c811…, TONES.BIN a5cd04e9…, LABELS.BIN d6c1b4ab…), and
+  `patch.py --release v0.26` reproduces the same files. Optional LOOKS.BIN e742c70b… (the 20 films, fw 25 export).

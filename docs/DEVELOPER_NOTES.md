@@ -390,6 +390,31 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.26 release (branch feature/v0.26-split-tone; build sp4, camera-tested 2026-11-09)
+
+- **Split toning engine** (`st_run`, ext11): the tone hook's exit jumps to it (`jmp st_run`, back via `tone_next`). It
+  bends the job's R / G / B gamma tables in place (O+1252 / 1892 / 2532: 256 + 64 entries, 12-bit):
+  t' = t + ((Ks·ws + Kh·wh) >> 8), ws = ((t·s>>12)·s)>>12, wh = ((t·t>>12)·s)>>12, s = 4095 − t, with a running max so
+  each curve keeps rising (main and fine parts separately). K = `st_k`[colour] × strength (12 colours, 4.8 Cb / Cr
+  units per step at the peak). Gates: request key 11 (or 12 with +1731 = 0); the copier pointers O+3172 / 3176 / 3180
+  equal the tables; the profile from getter 63153; a strength set; R = G = B (no double bend). `ST_STILL 0`: no
+  still-only gate, so live view is toned too (camera-tested sp4).
+- **Look bytes:** slot +55 Shadows colour 0..11, +56 strength −5..5, +57 / +58 Highlights. `LOOKS.BIN` record
+  +53..+56 (`pf_lo` / `pf_bt` pairs 53,31 .. 56,34; `pf_bt` moved to ext3). BUNDLES range table 'sh_col', 'sh_str',
+  'hl_col', 'hl_str'. `ed_isdef` reads the strengths (+56, +58), not the colours; `e_rst` clears +0..58.
+- **Wheel pages:** axes 5 (Shadows) and 6 (Highlights); INFO cycle Luminance → 5 → 6 → Color. `tn_get` / `tn_set` /
+  `tn_poly` (ext11) sit in front of `ed_get` / `ed_set` / `ed_poly`; `tn_set` zeroes the colour with the strength.
+  Guides from `OM3MOD/TONES.BIN` ('OM3S', 8380 B, loaded at the half-press by `tg_load`; `tg_sel` for pages 5 / 6;
+  `gd_sel` resets the descriptor first). The dial label stays the camera's; `LABELS.BIN` is v0.25's (27 labels).
+- **Fix (also in v0.25):** after a drive-mode change, `sc_cap` captured the drive screen's layer-456 holder as the WB
+  grid's (crash at `gr_is` with a0 = 0x20041001 when a COLOR was opened). `gx_map`'s exit stores the next GUI state in
+  `gr_st`; `sc_cap` captures only when it is 0x0418 (Picture Mode).
+- Firmware `E1479999.BIN` 34df5bf6…, `GUIDES.BIN` 1189c811…, `LABELS.BIN` d6c1b4ab…, `TONES.BIN` a5cd04e9…; ext11
+  63904 of 65536, ext10 full. Optional `LOOKS.BIN` e742c70b… = the Control Panel's standard 20 (fw 25 export; the fw 24
+  export of the same bank is v0.25's b7e4262a…). `patch.py` copies `TONES.BIN`; the release workflow attaches it.
+- **Control Panel:** split toning wheels (`src/split.ts`, same `st_k` table), saved with "v0.26 or later" (fw 25, the
+  default now); OM-3 only from 2026-11-09.
+
 ## v0.25 release (branch feature/v0.25-fast-grain; build fx3, camera-tested 2026-11-08)
 
 Full trail: `research/NOTES.md` ("Grainy Film's grain path in the firmware", ft1..ft9, rc1..rc2c; "WB grid again",

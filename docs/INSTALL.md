@@ -68,6 +68,7 @@ SD card files/
   DCOLYMP/E1479999.BIN   the patched firmware update        → copy to the card
   OM3MOD/GUIDES.BIN      the page labels + Extras code       → copy to the card
   OM3MOD/LABELS.BIN      the Extras labels (v0.20)           → copy to the card
+  OM3MOD/TONES.BIN       the split toning guides (v0.26)     → copy to the card
   restore/E1479999.BIN   the official firmware 1.1           → keep on your computer
 ```
 
@@ -78,7 +79,7 @@ SD card files/
 1. Put the camera's SD card in your computer.
 2. Copy the **`DCOLYMP`** and **`OM3MOD`** folders from `SD card files` to the **top level** of the card, next to
    `DCIM`. If the card already has an `OM3MOD` folder from an earlier version, keep its `LOOKS.BIN`, `NAMES.BIN`
-   and `BUNDLES.BIN` (your looks and edits) and replace `GUIDES.BIN` and `LABELS.BIN` with the new ones. From v0.20
+   and `BUNDLES.BIN` (your looks and edits) and replace `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` with the new ones. From v0.20
    `GUIDES.BIN` carries code for that exact firmware: always copy it with the firmware.
 3. Eject the card properly before taking it out.
 
@@ -89,6 +90,7 @@ DCIM/
 DCOLYMP/E1479999.BIN
 OM3MOD/GUIDES.BIN
 OM3MOD/LABELS.BIN
+OM3MOD/TONES.BIN
 ```
 
 ## Flash
@@ -167,7 +169,7 @@ switch on again. If that doesn't help, [restore stock firmware](#restore-stock-f
 ## FAQ
 
 **Will updating to a new version lose my looks?** No. Flash the new firmware the same way and keep the card's
-`OM3MOD/LOOKS.BIN` and `BUNDLES.BIN`, and copy the new `GUIDES.BIN` and `LABELS.BIN`. Coming from v0.16–v0.18,
+`OM3MOD/LOOKS.BIN` and `BUNDLES.BIN`, and copy the new `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN`. Coming from v0.16–v0.18,
 where the bank was called `PROFILES.BIN`: rename it to `LOOKS.BIN` (same format). (v0.19 read `PROFILES.BIN` by
 itself; v0.20 needed that room for the Extras.) Looks saved by v0.19 or earlier have every Extras value at 0, and
 looks from v0.20 have Grain off and the lens correction as before.

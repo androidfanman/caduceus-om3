@@ -1,4 +1,4 @@
-# Using Caduceus for OM-3 on the camera (v0.25)
+# Using Caduceus for OM-3 on the camera (v0.26)
 
 > **Color profiles only:** this is for Picture Mode COLOR 1–4. The Monochrome profiles keep the camera's own editor.
 > For v0.20–v0.22 (Film page, Extras page on the wheel) see this page as it was at
@@ -13,7 +13,7 @@ Films are your creative profiles: up to 20, **FILM 1–20**, after COLOR 1–4. 
 ColorPlus 200, CineStill 400D, Fuji C200, Ektachrome E100, Reala 100, Provia 100F, Vision3 250D, Fuji Eterna, Astia
 100F, Agfa Ultra 100: what each looks like is in the [README](../README.md#the-20-film-sims)). Copy the release's
 `LOOKS.BIN` to `OM3MOD`, or make and change films in the [Control Panel](https://androidfanman.github.io/caduceus-om3/)
-(it starts with the same 20, in the same order) and export `LOOKS.BIN` with **Firmware on the camera: v0.25 or later**.
+(it starts with the same 20, in the same order) and export `LOOKS.BIN` with **Firmware on the camera: v0.26 or later**.
 
 On the camera, Picture Mode › the COLOR position: the top row lists **COLOR 1–4, then FILM 1–20** (empty places
 skipped). Turn to a film: its **name** is the big title; the quick menu, the shooting screen and the viewfinder show it
@@ -39,10 +39,15 @@ Every row under Picture Mode changes the film (or the COLOR) you're on, at once:
 Picture Mode always opens on the top row. There are no Art Effects from v0.25 (Shading does the dark corners).
 
 **The HSL wheel:** on the HSL row press **INFO**. INFO goes **Color** (the camera's saturation, one colour at a time)
-→ **Color All** → **Hue** → **Luminance** → Color. The front dial picks the colour, the rear dial the value. Colours
+→ **Color All** → **Hue** → **Luminance** → **Shadows** → **Highlights** → Color. The front dial picks the colour, the rear dial the value. Colours
 run clockwise from Yellow at 12 o'clock: Yellow, Orange, Orange-red, Red, Magenta, Violet, Blue, Blue-cyan, Cyan,
 Green-cyan, Green, Yellow-green. **Hue** (−5..+5): + turns a colour toward its clockwise neighbour (Yellow → Orange,
 Blue → Blue-cyan). **Luminance** (−5..+5): darker or brighter for that colour.
+
+**Split toning (v0.26):** the **Shadows** and **Highlights** pages tint the dark or the bright parts of the photo
+toward one colour. The front dial picks the colour on the wheel, the rear dial the strength (−5..+5; minus tints toward
+the opposite colour, 0 = off). Live view shows it. Each page holds one colour at a time; set both for a classic split
+tone (for example blue-cyan shadows with orange highlights). The guides on these pages come from `OM3MOD/TONES.BIN`.
 
 Your changes stay with the film: switch to another film and back, or switch the camera off and on, and they're still
 there. COLOR 1–4 keep their own
@@ -64,5 +69,6 @@ grain), in colour and at no extra time, with every other setting.
 ## Card files
 
 `LOOKS.BIN` (your films, from the Control Panel or the release), `EDITS.BIN` (your camera changes, written by the camera),
-`BUNDLES.BIN` (written by the camera), `GUIDES.BIN` and `LABELS.BIN` (from the release, always with its firmware).
+`BUNDLES.BIN` (written by the camera), `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` (from the release, always with its
+firmware).
 `NAMES.BIN` is only used by v0.17–v0.22. Formats: [FORMATS.md](FORMATS.md).

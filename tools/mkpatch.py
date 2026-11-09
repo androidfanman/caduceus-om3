@@ -43,7 +43,7 @@ out = dict(format='om3-patch-2', name='Caduceus for OM-3', version=a.version, de
            changed_bytes=sum(x != y for x, y in zip(main, stock_main)),
            frames=dict(component=2, base=hex(frames.BASE), layers=[list(x) for x in frames.LAYERS],
                        note='white Frame layers: rebuilt by patch.py (frames.py), window edges measured from the stock masks'),
-           card_files=['GUIDES.BIN', 'LABELS.BIN'],
+           card_files=[n for n in ('GUIDES.BIN', 'LABELS.BIN', 'TONES.BIN') if (Path(a.build) / n).is_file()],   # TONES.BIN: v0.26
            runs=runs)
 Path(a.out).write_text(json.dumps(out, indent=0))
 print(a.out, len(runs), 'runs', out['changed_bytes'], 'bytes changed')

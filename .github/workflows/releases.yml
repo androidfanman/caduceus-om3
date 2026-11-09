@@ -21,7 +21,7 @@ jobs:
             v=$(basename "$d")
             if gh release view "$v" >/dev/null 2>&1; then echo "$v exists"; continue; fi
             target=$(cat "$d/COMMIT" 2>/dev/null || echo "$GITHUB_SHA")
-            files=$(ls "$d"patch.json "$d"GUIDES.BIN "$d"LABELS.BIN "$d"LOOKS.BIN "$d"SHA256SUMS 2>/dev/null || true)
+            files=$(ls "$d"patch.json "$d"GUIDES.BIN "$d"LABELS.BIN "$d"TONES.BIN "$d"LOOKS.BIN "$d"SHA256SUMS 2>/dev/null || true)
             gh release create "$v" --target "$target" --title "Caduceus for OM-3 $v" --notes-file "$d/NOTES.md" $files
             echo "published $v at $target"
           done

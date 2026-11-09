@@ -3,11 +3,27 @@
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
-## Unreleased (v0.26, firmware in testing)
-- **Control Panel: split toning** (2026-11-09): two colour wheels, Shadows and Highlights, each one of the camera
-  wheel's 12 colours with a strength −5..+5, shown in the preview. Needs firmware v0.26 (being camera-tested): it is
-  previewed and saved only with Export › Firmware on the camera › "v0.26 or later". Ten of the 20 film sims carry a
-  light tone (strength 1–2) for v0.26; with older firmware they are as in v0.25.
+## v0.26
+Split toning, and a fix for a restart after changing the drive mode. Firmware camera-tested (2026-11-09, build sp4).
+
+**Split toning**
+- Two new pages on the HSL wheel, **Shadows** and **Highlights** (INFO after Luminance): each tints the shadows or
+  the highlights toward one of the wheel's 12 colours (front dial), with a strength −5..+5 (rear dial; minus = the
+  opposite colour). Shown in live view and in the photo; kept per film and over power off (`LOOKS.BIN` / `EDITS.BIN`
+  record +53..+56). Hold OK resets it; the `*` shows only when a strength is set.
+- New card file `OM3MOD/TONES.BIN`: the guides shown on the two pages (without it the camera's own guide shows).
+- How: the look's tint bends the photo's R / G / B tone curves (peak in the shadows or the highlights, each curve
+  kept rising), at the end of the tone stage, for photos and live view alike.
+- The 20 film sims (optional `LOOKS.BIN`): ten carry a light split tone (strength 1–2); the rest are as in v0.25.
+
+**Fixes**
+- Changing the drive mode (for example to silent shooting) and then opening a COLOR or film to change it could
+  restart the camera (in v0.25 too): the WB grid row picked up a screen element from the drive-mode screen. It now
+  only uses the Picture Mode screen's.
+
+**Control Panel**
+- **Split toning** (2026-11-09): two colour wheels, Shadows and Highlights, with the strength, shown in the preview.
+  Export › Firmware on the camera now defaults to "v0.26 or later", which saves it; older settings leave it out.
 - **Control Panel: OM-3 only** (2026-11-09): the E-P7 side is gone (camera switch, E-P7 packs and `LOOKS.BIN`, look
   codes, export targets). OM-3 looks are shared as links (`op1_` / `ob1_`), as before. The built-in library's starter
   looks from Caduceus for the E-P7 (credited) are still offered on an empty place.
