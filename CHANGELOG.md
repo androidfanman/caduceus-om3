@@ -4,6 +4,10 @@ Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while
 same number is used here (test 17 = v0.17).
 
 ## Unreleased
+- **Control Panel: the editor looks like the camera's Picture Mode screen** (2026-11-09): the HSL wheel with the
+  camera's five pages (Color, Hue, Luminance, Shadows, Highlights) drawn as a colour ring with a value outline, the
+  Highlight & Shadow box with Sh / Mid / Hi, the WB fine-tune box, and the rows in the camera's order. The wheel, the
+  curve's handles and the WB marker can be dragged with the mouse; every slider has − / + ends and stays as well.
 - **Control Panel: the 20 film sims tuned** (draft 1, 2026-11-09): new colours, WB and tone for all 20 from the owner's
   colour checker photos, and new split tones on Gold 200, Portra 800, CineStill 800T and Fuji Eterna. Contrast and
   Sharp are as before (Gold 200 now Sharp −1). **New › Reset looks to standard** gives the new set.
