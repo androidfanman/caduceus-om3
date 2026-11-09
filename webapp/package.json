@@ -2,7 +2,7 @@
   "name": "caduceus-looks",
   "private": true,
   "version": "0.1.0",
-  "description": "Caduceus look-pack editor: make and share EP7MOD/LOOKS.BIN look packs (static site)",
+  "description": "Caduceus for OM-3 Control Panel: make and share OM3MOD/LOOKS.BIN film looks (static site)",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {

@@ -1,6 +1,6 @@
 // Regenerate src/data/library.json (and src/data/tone_hsm.json from tools/data/tone_hsm.json) from the repo's look library (bundles/library_v3.json + sim/recipes).
 // Run from webapp/: `npm run gen-library`. The output is committed so the Docker build needs only webapp/.
-// tests/encoder.test.ts fails if the committed file is stale.
+// (Needs the E-P7 tools' data, which is not in this repository.)
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

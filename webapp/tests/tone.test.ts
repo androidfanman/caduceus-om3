@@ -54,7 +54,8 @@ describe('Blacks/Whites remap', () => {
 const MODEL_PY = join(ROOT, 'tools/ep7_tone_model.py');
 
 describe('Highlights/Shadows/Midtones model (tools/ep7_tone_model.py port)', () => {
-  it('src/data/tone_hsm.json is current (npm run gen-library)', () => {
+  // The source data lives with the E-P7 tools, which are not in this repository: checked only where they are.
+  it.skipIf(!existsSync(join(ROOT, 'tools/data/tone_hsm.json')))('src/data/tone_hsm.json is current (npm run gen-library)', () => {
     expect(toneData).toEqual(toneModelData(ROOT));
   });
 

@@ -37,7 +37,7 @@ Panel**; changes you make on the camera are kept per film.
 | **Picture Mode rows** | On COLOR 1–4 and films: **Blk** / **Wht** (Blacks / Whites −5..+5), **WB** (a grid with the film's A-B / G-M shift; OK opens the camera's own WB fine-tune screen; works in every WB mode, Auto WB included), **Sharpness** (−5 Off..+2), **Noise Filter** (Off / Low / Std / High), **Vignette Correction** (Off / On), **Shading**, **Glow** (+ Glow, − Clarity) and **Film Grain**, next to the camera's Contrast and Highlight & Shadow. | Camera-tested (v0.25) |
 | **Film grain on COLOR** | Low / Med / High grain, in colour, made by the camera's image processor as the photo develops (the way its Grainy Film Art Filter adds grain): **as fast as a photo without grain**, with every other setting. | Camera-tested (v0.25) |
 | **Saved on the card** | Your changes save to `OM3MOD` on the SD card at the next half-press, written to a new file and read back before the old one is replaced. | Camera-tested |
-| **Control Panel** | The Caduceus Control Panel, shared with Caduceus for the E-P7: a switch at the top picks **OM SYSTEM OM-3** or **Olympus PEN E-P7**. On the OM-3 it makes and previews your FILM 1–20 on test photos (or your own), starting from the 20 film sims (61 to choose from), then saves them for the card. | Works in any browser |
+| **Control Panel** | The Caduceus Control Panel for the OM-3 (it began as Caduceus for the E-P7's tool; since 2026-11-09 it is OM-3 only). It makes and previews your FILM 1–20 on test photos (or your own), starting from the 20 film sims (61 to choose from), then saves them for the card. | Works in any browser |
 
 ## Install
 
@@ -108,8 +108,7 @@ More detail, troubleshooting and FAQ: **[docs/INSTALL.md](docs/INSTALL.md)**.
 ## Make your own looks: the Control Panel
 
 The **[Caduceus Control Panel](https://androidfanman.github.io/caduceus-om3/)** is where you make and edit your
-films (the creative profiles the camera lists as FILM 1–20) in your browser. It is the same tool as Caduceus for the
-E-P7: the switch at the very top picks the camera. With **OM SYSTEM OM-3** selected:
+films (the creative profiles the camera lists as FILM 1–20) in your browser:
 
 1. **The list on the left is FILM 1–20**, in the same order as on the camera. Click a film to edit it. Drag a film to
    another place, or use ↑ ↓; × empties a place (empty places are left out of the camera's list and the films after
@@ -134,10 +133,10 @@ More:
   menu switches between them, **Rename** / **Delete** manage them. Lists stay in this browser; export one to put it on
   the card.
 - **Open…** the card's `OM3MOD/LOOKS.BIN` to edit the films on your card, then save them back.
-- **Caduceus looks:** **Paste code** takes a Caduceus look code or pack link, and **Open…** a Caduceus pack or E-P7
-  `LOOKS.BIN`. Each colour look becomes an OM-3 film (values beyond the OM-3's range are limited, a coloured glow
-  becomes a plain glow, Blur and monochrome looks are left out, and it says which).
-- **Share looks** / **Share** make a link to all your films or to one.
+- **Share looks** / **Share** make a link to all your films or to one; **Paste link** opens one.
+- **From the built-in library** (on an empty place) adds one of the starter looks from Caduceus for the E-P7, converted
+  for the OM-3. E-P7 files, packs and look codes are no longer opened (the E-P7 side of the tool was removed
+  2026-11-09: use cakelesscoder's own tool for the E-P7).
 
 Your work stays in the browser (nothing is uploaded). The preview is an approximation of the camera, good for
 direction and strength: judge the final look in live view. On a Mac, Safari's **File › Add to Dock** makes the Control
@@ -261,8 +260,8 @@ More: [docs/USING.md](docs/USING.md). Card file formats: [docs/FORMATS.md](docs/
   the bytes this project writes).
 - `card/`: generators for `GUIDES.BIN` (page labels), `LABELS.BIN` (Extras labels) and `LOOKS.BIN`.
 - `tools/mkpatch.py`: makes a release's `patch.json` from a build.
-- `webapp/`: the Caduceus Control Panel source (TypeScript + Vite, from cakelesscoder/caduceus-ep7 with the OM-3
-  mode added; see [webapp/README.md](webapp/README.md)). `looklab/` is its build, served by GitHub Pages
+- `webapp/`: the Caduceus Control Panel source (TypeScript + Vite, started from cakelesscoder/caduceus-ep7's tool;
+  OM-3 only since 2026-11-09; see [webapp/README.md](webapp/README.md)). `looklab/` is its build, served by GitHub Pages
   (`VITE_DEFAULT_CAMERA=om3 npm run build`, then copy `dist/` to `looklab/`).
 - `tools/emulator/`: test harness for [om-emu](https://github.com/flatpanda/om-emu) (E147 model).
 - [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md): addresses, hooks and the test history.
@@ -274,7 +273,7 @@ More: [docs/USING.md](docs/USING.md). Card file formats: [docs/FORMATS.md](docs/
 ## Credits
 
 Built on **[Caduceus](https://github.com/cakelesscoder/caduceus-ep7)** by cakelesscoder (Apache-2.0), firmware patches
-for the Olympus PEN E-P7: the on-camera editor design, the bundle-table layout, the Caduceus Control Panel (shared by both cameras), its tone
+for the Olympus PEN E-P7: the on-camera editor design, the bundle-table layout, the Caduceus Control Panel this tool started from, its tone
 model and the starter film looks. Sample photos are public domain (CC0), except the sunset by Joonas Lyytinen (CC BY 2.0); see [webapp/public/samples/CREDITS.md](webapp/public/samples/CREDITS.md). Camera emulation by
 [om-emu](https://github.com/flatpanda/om-emu).
 
