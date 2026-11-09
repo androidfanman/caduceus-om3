@@ -332,7 +332,7 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .cam-tabs { gap: 0; }
 .cam-tabs button { flex: 1 1 auto; padding: 6px 4px; font-size: 13px; white-space: nowrap; }
 .cam-tabs button .dot { margin-left: 3px; }
-.hsl-wheel { display: block; width: 100%; max-width: 300px; height: auto; margin: 2px auto 0; outline: none; touch-action: none; }
+.hsl-wheel { cursor: pointer; display: block; width: 100%; max-width: 300px; height: auto; margin: 2px auto 0; outline: none; touch-action: none; }
 .hsl-wheel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 50%; }
 .hw-wedge { cursor: pointer; opacity: 0.32; stroke: var(--panel); stroke-width: 1; transition: opacity .12s; }
 .hw-wedge:hover { opacity: 0.55; }
@@ -357,7 +357,7 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .crow.seg-row .seg { flex-wrap: nowrap; }
 .crow.seg-row .seg button { padding: 4px 7px; font-size: 12.5px; }
 .group.cam.rows .crow + .crow { border-top: 1px solid var(--soft); padding-top: 4px; }
-.wb-grid { display: block; width: 100%; max-width: 250px; height: auto; margin: 2px auto 0; outline: none; }
+.wb-grid { cursor: crosshair; touch-action: none; display: block; width: 100%; max-width: 250px; height: auto; margin: 2px auto 0; outline: none; }
 .wb-grid:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wb-cell { fill: var(--soft); stroke: var(--panel); stroke-width: 1; cursor: pointer; }
 .wb-cell.axis { fill: var(--line); }
@@ -370,4 +370,11 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
   .crow.seg-row { grid-template-columns: 100px minmax(0, 1fr); }
   .hw-ctl { grid-template-columns: auto 88px auto minmax(0, 1fr) 30px; }
 }
+.tone-curve { touch-action: none; overflow: visible; }
+.tc-knob { cursor: ns-resize; outline: none; }
+.tc-knob circle { fill: var(--panel); stroke: var(--accent); stroke-width: 2; }
+.tc-knob.on circle { fill: var(--accent); }
+.tc-knob text { font-size: 8.5px; font-weight: 700; fill: var(--accent); pointer-events: none; }
+.tc-knob.on text { fill: var(--accent-ink); }
+.tc-knob:hover circle, .tc-knob:focus-visible circle { stroke: var(--ink); stroke-width: 2.5; }
 

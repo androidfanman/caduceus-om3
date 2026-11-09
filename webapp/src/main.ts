@@ -282,7 +282,7 @@ function slider(min: number, max: number, value: number, on: (v: number) => void
 }
 
 /** Small live tone-curve graph: x = the stock rendering, y = with this look's tone (the camera LUT model). */
-function toneCurve(tone: Tone): { svg: SVGSVGElement; draw: () => void } {
+function toneCurve(tone: Tone): { svg: SVGSVGElement; draw: () => void; X: (v: number) => number; Y: (v: number) => number } {
   const NS = 'http://www.w3.org/2000/svg', S0 = 200, P = 8, W = S0 - 2 * P;
   const el = <K extends keyof SVGElementTagNameMap>(t: K, a: Record<string, string | number>) => {
     const e = document.createElementNS(NS, t);
@@ -310,7 +310,7 @@ function toneCurve(tone: Tone): { svg: SVGSVGElement; draw: () => void } {
     dB.classList.toggle('on', tone.blacks !== 0); dW.classList.toggle('on', tone.whites !== 0);
   };
   draw();
-  return { svg, draw };
+  return { svg, draw, X, Y };
 }
 
 
@@ -356,11 +356,6 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
     const [x0, y0] = pt(a0, R1), [x1, y1] = pt(a1, R1), [x2, y2] = pt(a1, R0), [x3, y3] = pt(a0, R0);
     const w = svgEl('path', { d: `M${x0},${y0} A${R1},${R1} 0 0 1 ${x1},${y1} L${x2},${y2} A${R0},${R0} 0 0 0 ${x3},${y3} Z`, fill: col, class: 'hw-wedge' });
     const t = svgEl('title'); t.textContent = nm; w.append(t);
-    w.addEventListener('click', () => {
-      S.sector = i;
-      if (split && !valueOf(i)) setValue(i, sp()[tab as 'sh'] || 2); else if (split) setValue(i, sp()[tab as 'sh']);
-      draw(); svg.focus();
-    });
     w.addEventListener('dblclick', () => { S.sector = i; setValue(i, 0); draw(); checkpoint(); });
     const [bx, by] = pt(am, RZ);
     const bar = svgEl('line', { x1: bx, y1: by, x2: bx, y2: by, stroke: col, class: 'hw-bar' });
@@ -401,6 +396,34 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
     else return;
     e.preventDefault();
   });
+  // Mouse / touch: press on a colour to pick it, drag out or in to set its value (the bar follows: out = +, in = −).
+  // On Shadows / Highlights the colour follows the pointer too. A press without a drag only picks the colour.
+  const polar = (e: PointerEvent) => {
+    const r = svg.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * SZ - C, y = ((e.clientY - r.top) / r.height) * SZ - C;
+    const a = (Math.atan2(x, -y) + 2 * Math.PI) % (2 * Math.PI);
+    return { i: Math.round(a / (Math.PI / 6)) % 12, rad: Math.hypot(x, y) };
+  };
+  let drag: { id: number; x: number; y: number; moved: boolean } | null = null;
+  svg.addEventListener('pointerdown', (e) => {
+    const { i, rad } = polar(e);
+    if (rad < R0 - 4 || rad > R1 + 22 || e.button !== 0) return;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+    svg.setPointerCapture(e.pointerId);
+    S.sector = i;
+    if (split) setValue(i, sp()[tab as 'sh'] || 2);
+    draw(); svg.focus({ preventScroll: true, focusVisible: false } as FocusOptions); e.preventDefault();
+  });
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) return;
+    drag.moved = true;
+    const { i, rad } = polar(e);
+    if (split && i !== S.sector) S.sector = i;
+    const v = Math.round(((rad - RZ) / RB) * lim);
+    if (v !== valueOf(S.sector) || split) { setValue(S.sector, v); draw(); }
+  });
+  const endDrag = (e: PointerEvent) => { if (drag && e.pointerId === drag.id) { drag = null; checkpoint(); } };
+  svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
   let wheelT = 0;
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -427,25 +450,65 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
       selName,
       h('button', { class: 'icon', title: 'Next colour (front dial)', 'aria-label': 'Next colour', onclick: () => move(1) }, '›'),
       inp, out),
-    h('p', { class: 'help' }, help, ' Scroll or ↑ ↓ on the wheel changes the selected colour; double-click a colour to zero it.'));
+    h('p', { class: 'help' }, help, ' Drag a colour out (+) or in (−), or scroll / ↑ ↓ on the wheel; double-click a colour to zero it.'));
 }
 
-/** Highlight & Shadow, Blk and Wht: the curve with its sliders. */
+/** Highlight & Shadow, Blk and Wht: the curve with its sliders. Drag the handles on the curve up or down: S, M and H
+ *  (Shadows, Midtones, Highlights), and the two ends (Blk, Wht). */
 function tonePanel(l: Look, changed: () => void): HTMLElement {
-  const { svg, draw } = toneCurve(l.tone);
+  const { svg, draw: drawCurve, X, Y } = toneCurve(l.tone);
+  const syncs: (() => void)[] = [];
   const row = (k: keyof Tone, label: string) => {
     const lim = toneLimit(k);
     const { inp, out } = slider(-lim, lim, l.tone[k], (v) => { l.tone[k] = v; draw(); changed(); }, undefined, label);
+    syncs.push(() => { inp.value = String(l.tone[k]); out.textContent = signed(l.tone[k]); });
     return h('div', { class: 'crow' }, h('span', { class: 'cname' }, label), inp, out);
   };
+  // handle: tone key, where it sits on the curve (x), its letter; the ends use the curve's first / last point
+  const HANDLES: [keyof Tone, number, string][] = [['blacks', 0, 'Blk'], ['shadows', 0.2, 'S'], ['midtones', 0.5, 'M'], ['highlights', 0.8, 'H'], ['whites', 1, 'Wht']];
+  const STEP = 9;   // px of drag per step
+  const knobs = HANDLES.map(([k, , t]) => {
+    const g = svgEl('g', { class: 'tc-knob', tabindex: 0, role: 'slider', 'aria-label': `${t === 'S' ? 'Shadows' : t === 'M' ? 'Midtones' : t === 'H' ? 'Highlights' : t}: drag up or down` });
+    const c = svgEl('circle', { r: 7 }), tx = svgEl('text', { 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    tx.textContent = t.length > 1 ? '' : t;
+    g.append(c, tx);
+    let d: { id: number; y: number; v0: number } | null = null;
+    g.addEventListener('pointerdown', (e) => { if (e.button) return; d = { id: e.pointerId, y: e.clientY, v0: l.tone[k] }; g.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation(); });
+    g.addEventListener('pointermove', (e) => {
+      if (!d || e.pointerId !== d.id) return;
+      const scale = svg.viewBox.baseVal.height / svg.getBoundingClientRect().height;
+      const lim = toneLimit(k), v = Math.max(-lim, Math.min(lim, d.v0 + Math.round(((d.y - e.clientY) * scale) / STEP)));
+      if (v !== l.tone[k]) { l.tone[k] = v; draw(); changed(); }
+    });
+    const end = (e: PointerEvent) => { if (d && e.pointerId === d.id) { d = null; checkpoint(); } };
+    g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+    g.addEventListener('keydown', (e) => {
+      const key = (e as KeyboardEvent).key, lim = toneLimit(k);
+      if (key !== 'ArrowUp' && key !== 'ArrowDown') return;
+      l.tone[k] = Math.max(-lim, Math.min(lim, l.tone[k] + (key === 'ArrowUp' ? 1 : -1))); draw(); changed(); checkpoint(); e.preventDefault();
+    });
+    g.addEventListener('dblclick', () => { l.tone[k] = 0; draw(); changed(); checkpoint(); });
+    svg.append(g);
+    return g;
+  });
+  function draw() {
+    drawCurve();
+    const t = previewToneLut(l.tone, 128);
+    HANDLES.forEach(([k, x], j) => {
+      const i = Math.round(x * 128);
+      knobs[j].setAttribute('transform', `translate(${X(x).toFixed(1)},${Y(t[i]).toFixed(1)})`);
+      knobs[j].classList.toggle('on', l.tone[k] !== 0);
+      knobs[j].setAttribute('aria-valuenow', String(l.tone[k]));
+    });
+    syncs.forEach((f) => f());
+  }
+  const rows = [row('highlights', 'Highlights'), row('midtones', 'Midtones'), row('shadows', 'Shadows'), h('div', { class: 'tone-sep' }), row('blacks', 'Blk'), row('whites', 'Wht')];
+  draw();
   return h('div', { class: 'group cam' },
     h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'Highlight & Shadow'),
       !toneIsZero(l.tone) ? h('button', { class: 'link', onclick: () => { for (const k of TONE_KEYS) l.tone[k] = 0; renderEditor(); changed(); } }, 'Reset') : null),
-    svg,
-    row('highlights', 'Highlights'), row('midtones', 'Midtones'), row('shadows', 'Shadows'),
-    h('div', { class: 'tone-sep' }),
-    row('blacks', 'Blk'), row('whites', 'Wht'),
-    h('p', { class: 'help' }, 'The curve shows the camera\'s normal → this look; the dots are the Blk and Wht ends.'));
+    svg, ...rows,
+    h('p', { class: 'help' }, 'Drag S, M and H on the curve, or its two ends (Blk, Wht), up or down; double-click one to zero it. The curve shows the camera\'s normal → this look.'));
 }
 
 /** WB: the camera's fine-tune grid, A–B across and G–M up and down (−7..+7). Click a square, or use the arrow keys. */
@@ -457,7 +520,6 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
   for (let gy = 0; gy < n; gy++) for (let gx = 0; gx < n; gx++) {
     const ab = gx - N, gm = N - gy;
     const r = svgEl('rect', { x: X(ab), y: Y(gm), width: CELL, height: CELL, class: `wb-cell${ab === 0 || gm === 0 ? ' axis' : ''}` });
-    r.addEventListener('click', () => { set(ab, gm); checkpoint(); svg.focus(); });
     svg.append(r);
   }
   const lab = (t: string, x: number, y: number) => { const e = svgEl('text', { x, y, class: 'wb-lab', 'text-anchor': 'middle', 'dominant-baseline': 'central' }); e.textContent = t; return e; };
@@ -476,6 +538,16 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
     read.textContent = `${ab < 0 ? 'B' : 'A'}${Math.abs(ab)}.${gm < 0 ? 'M' : 'G'}${Math.abs(gm)}`;
     svg.setAttribute('aria-valuetext', read.textContent);
   }
+  // press anywhere on the grid and drag: the dot follows (like the camera's WB screen, by mouse)
+  const cellAt = (e: PointerEvent) => {
+    const r = svg.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * SZ, y = ((e.clientY - r.top) / r.height) * SZ;
+    return [Math.floor((x - PAD) / CELL) - N, N - Math.floor((y - PAD) / CELL)];
+  };
+  let dragId: number | null = null;
+  svg.addEventListener('pointerdown', (e) => { if (e.button) return; dragId = e.pointerId; svg.setPointerCapture(e.pointerId); const [ab, gm] = cellAt(e); set(ab, gm); svg.focus({ preventScroll: true, focusVisible: false } as FocusOptions); e.preventDefault(); });
+  svg.addEventListener('pointermove', (e) => { if (dragId !== e.pointerId) return; const [ab, gm] = cellAt(e), [a0, g0] = get(); if (ab !== a0 || gm !== g0) set(ab, gm); });
+  const wbEnd = (e: PointerEvent) => { if (dragId === e.pointerId) { dragId = null; checkpoint(); } };
+  svg.addEventListener('pointerup', wbEnd); svg.addEventListener('pointercancel', wbEnd);
   svg.addEventListener('keydown', (e) => {
     const [ab, gm] = get(), k = (e as KeyboardEvent).key;
     const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] } as Record<string, number[]>)[k];
@@ -487,7 +559,7 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
     h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'WB'), read,
       h('button', { class: 'link', onclick: () => { set(0, 0); checkpoint(); } }, 'Reset')),
     svg,
-    h('p', { class: 'help' }, 'The look\'s shift, added to the camera\'s own WB in every WB mode (A amber / B blue, G green / M magenta). Past ±5 needs firmware v0.26.1.'));
+    h('p', { class: 'help' }, 'Click or drag on the grid (or arrow keys). The look\'s shift, added to the camera\'s own WB in every WB mode (A amber / B blue, G green / M magenta). Past ±5 needs firmware v0.26.1.'));
 }
 
 /** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
