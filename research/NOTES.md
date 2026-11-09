@@ -2134,3 +2134,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   after the load, DIRTY stays 0, the session goes on (Picture Mode, wheel, half-press). Whether live view and the label
   follow is a camera question; the SetValue runs on the HLS_EVENT task, not the GUI's (watch for a hang).
 - (2) not started.
+- **Camera (owner, 2026-11-09), flashing from sd1:** holding OK and switching on did not start the update at first (the
+  camera just started); pressing OK before switching on and holding ~10 s did. Not known whether sd1 narrows the window
+  (its receive hook loads the card on the OK key message, and the worker loads early) or it was the timing of the press:
+  an open question. To settle before a release: flash a few times from the released build and from sd2 and compare; if
+  the loader is the cause, drop its OK trigger and delay the worker's first load.
