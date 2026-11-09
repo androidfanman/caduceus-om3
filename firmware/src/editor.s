@@ -2518,7 +2518,7 @@ pf_bt:                            /* record offset, slot offset - 24 (v0.26: mov
 pf_lo:                            /* record byte i: lo; span = -2 lo for lo < 0, 1 for byte 36 (WB on 0/1), else 0
                                      (test 18: the span half of this table is computed, to make room) */
  .byte -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5
- .byte 0, -5,-5,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, 0,0,0,0,0,0,0   /* v0.26 +53..+56 split toning */
+ .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, 0,0,0,0,0,0,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7 */
 pf_pnew:
  .asciz "C:\\OM3MOD\\LOOKS.NEW"
 pf_pbin:

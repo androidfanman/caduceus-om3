@@ -1,3 +1,6 @@
+> **Branch `feature/v0.26.1-wb7` (2026-11-09): in testing, not released.** LOOKS.BIN WB shift −7..+7 (v0.26 refuses
+> past ±5). Test build wb7 = emulator only; camera test next.
+
 # Caduceus for OM-3
 
 **Caduceus for OM-3** is the OM SYSTEM OM-3 member of the [Caduceus](https://github.com/cakelesscoder/caduceus-ep7)

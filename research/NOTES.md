@@ -2069,3 +2069,14 @@ Stock: OLY_E_147_1100_0000_0000.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - Status: Control Panel defaults only (live 2026-11-09); the v0.26 release's optional `LOOKS.BIN` is still the
   earlier set.
 
+
+### WB -7..+7 in LOOKS.BIN: test build wb7 (2026-11-09)
+- Owner: the camera's WB shift goes −7..+7; the Control Panel stopped at ±5. Found (code): `pf_lo` limits LOOKS.BIN
+  record +37 / +38 (A-B / G-M) to −5..5, and the range check refuses the **whole file** when any byte is out of range
+  (`pf_load` returns 1, no films). The camera's own WB row and `wb_get` already go ±7.
+- Emulator: v0.26 (34df5bf6) with a LOOKS.BIN whose FILM 1 has WB +7 / −7: bank not loaded (LPTR 0); the same card
+  with the normal 20 loads (control). Build wb7 (`pf_lo` +37 / +38 = −7): the ±7 file loads (LPTR set). Emulator only.
+- Package wb7: E1479999.BIN dec03d2f…, GUIDES.BIN d2476a54… (LABELS.BIN, TONES.BIN as v0.26). To be v0.26.1 after a
+  camera test. Control Panel (live): WB −7..+7; export "v0.26.1 or later" (fw 26) keeps it, older settings save ±5.
+- Same day: the preview's grain was too strong (owner: tool Med ≈ camera High): GRAIN_S 24 / 44 / 68 (analysis from the
+  owner's comparison; camera texture gains 448 / 832 / 1280).
