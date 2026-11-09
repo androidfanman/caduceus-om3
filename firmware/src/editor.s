@@ -8393,6 +8393,7 @@ sdl_consumer_drive_result:
   bne sdl_consume
 sdl_auto_gate_call:
   call pr_gate,[d2,d3,a2,a3],36
+  call sdl_poke,[d2,d3,a2,a3],28     /* sd2: live view was built before the load: make it pick the look up now */
 sdl_consume:
   jmp sdl_next_receive
 
@@ -8478,4 +8479,41 @@ tw_san:
  add -1,d2
  bne 1b
  ret [d2,a2],12
+
+/* sdl_poke: `call sdl_poke,[d2,d3,a2,a3],28` after the automatic load (HLS_EVENT task). Owner, sd1 on the camera: after
+ * power-on live view showed the stock COLOR, not the film, until something rebuilt it (the half-press used to). When the
+ * block is published and the picture mode is COLOR k: the wheel's cursor setting 2197 + k re-written with its own value,
+ * the same poke the editor uses after every change (k_cur + SetValue), which is what makes live view take the slot. */
+.section .ext11,"ax"
+sdl_poke:
+ movhu (STATE),d0
+ cmp 0,d0
+ beq 9f
+ cmp 0xae81,d0
+ bcc 9f                           /* 0xffff: tried, nothing published */
+ mov 111,d0
+ call sget,[],4
+ call fl_k,[],0
+ cmp 0,d0
+ blt 9f
+ add 2197,d0
+ mov d0,d2
+ call facade,[],4
+ mov (a0),a2
+ mov (12,a2),a2                   /* GetValue(id, &value) */
+ mov sp,a1
+ add 8,a1
+ mov d2,d0
+ calls (a2)
+ cmp 0,d0
+ bne 9f
+ call facade,[],4
+ mov (a0),a2
+ mov (4,a2),a2                    /* SetValue(id, mode 0, value) */
+ mov (8,sp),a1
+ clr d1
+ mov d2,d0
+ calls (a2)
+9:
+ ret [d2,d3,a2,a3],28
 

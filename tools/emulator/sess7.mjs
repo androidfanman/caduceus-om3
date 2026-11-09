@@ -186,9 +186,13 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     }
     dd.m.setRegs(saved); console.log('VALS ' + JSON.stringify(out));
   }
+  else if (t === 'autoload') {   // the SD loader's conditions, written by the harness (the lab runs no section loader): masks + the kind-4 medium word
+    lab.sim.write(0xa32de590, new Uint8Array([0xff, 0x03, 0, 0])); lab.sim.write(0xa32de58c, new Uint8Array([0xe9, 0x02, 0, 0])); lab.sim.write(0x60369308, new Uint8Array([0x00, 0xf0, 0, 0]));
+    for (let i = 0; i < 10; i++) { s.idle_slice(lab.lab_time() + 200e6); s.camapp.pump(); }
+  }
   else if (t.startsWith('hold2:')) { const k = t.slice(6); s.key(k, 'down'); for (let i = 0; i < 30; i++) { s.camapp.pump(); s.idle_slice(lab.lab_time() + 100e6); } s.key(k, 'up'); s.camapp.pump(); }
   else if (t.startsWith('hold:')) { const k = t.slice(5); s.key(k, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 2000e6); s.key(k, 'up'); s.camapp.pump(); }
-  else if (t !== 'wait') { s.key(t, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(t, 'up'); s.camapp.pump(); }
+  else if (t !== 'wait' && t !== 'autoload') { s.key(t, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(t, 'up'); s.camapp.pump(); }
   curStep = t; s.idle_slice(lab.lab_time() + 1200e6); snap(t);
   if (wdbg) { if (t === 'down') wdbg.watch(WRANGE.split(',').map((r, i) => { const [lo, n] = r.split(':'); return { id: i, lo: parseInt(lo, 16), len: parseInt(n, 16), kind: process.env.WKIND || 'r', action: 'log' }; })); for (const r of wdbg.watchLog()) wlog.push({ step: t, id: r.id, pc: r.pc.toString(16), addr: (r.addr >>> 0).toString(16) }); }
 }

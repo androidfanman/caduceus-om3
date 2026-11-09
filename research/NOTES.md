@@ -2120,3 +2120,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **Camera (owner): sd1 "works and works well"** (camera-tested, first look): films load without a half-press. The owner
   keeps testing before any release; no detail yet on AF / shooting speed, no-card start, card pulled, or the films that
   had bad bytes. Not released: wait for the owner's go-ahead.
+
+### sd1 quirks on the camera, and sd2 (2026-11-09)
+- **Camera (owner, sd1):** (1) after power-on live view does not show the film's look, and the shooting screen reads
+  "COLOR1*" where Picture Mode shows FILM 5 (owner's photo); (2) on the super control panel the dials on the Picture Mode
+  cell step through COLOR 1–4 only, not the films (a wish, not a regression).
+- (1) Analysis / guess: live view and the shooting screen are built before the worker's load publishes the block, and
+  nothing rebuilds them (the half-press used to). The emulator cannot show this (it runs no live view, and its start
+  screen is drawn after the load: FILM 5 shows there).
+- **sd2** = sd1 + `sdl_poke` (ext11) after the automatic `pr_gate`: when the block is published and the picture mode is
+  COLOR k, the wheel's cursor setting 2197 + k is re-written with its own value (GetValue + SetValue through the facade,
+  the editor's own poke after an edit). E1479999.BIN 12993ce6…, GUIDES.BIN da30267c…. Emulator only: the poke runs once
+  after the load, DIRTY stays 0, the session goes on (Picture Mode, wheel, half-press). Whether live view and the label
+  follow is a camera question; the SetValue runs on the HLS_EVENT task, not the GUI's (watch for a hang).
+- (2) not started.
