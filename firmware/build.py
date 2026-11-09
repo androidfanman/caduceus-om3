@@ -331,6 +331,11 @@ def build(defaults, testfile, out):
     assert struct.unpack_from('<3I', m, o(0x6152f8dc)) == (901, 4, 0x6152f850)
     assert bytes(m[o(0x6152f850):o(0x6152f850) + 80]) == bytes(m[o(sy['fl_rec']):o(sy['fl_rec']) + 80])
     struct.pack_into('<II', m, o(0x6152f8e0), 24, sy['fl_rec'])
+    # sd3: the super control panel's dial-step table, entry 5 (key 901: COLOR 1-4) -> fl_scr (the stock four, then the films)
+    assert struct.unpack_from('<4I', m, o(0x615384b4) + 80) == (901, 4, 54, 0x61538464)
+    assert bytes(m[o(0x61538464):o(0x61538464) + 80]) == bytes(m[o(sy['fl_scr']):o(sy['fl_scr']) + 80])
+    struct.pack_into('<I', m, o(0x615384b4) + 84, 24)
+    struct.pack_into('<I', m, o(0x615384b4) + 92, sy['fl_scr'])
     # film test 4: the held-OK reset sends its event to the rows listed for the selected picture mode (0x611c3c07
     # `add 0x61536324,d1` over 8 entries, bound `cmp 8,d1` at 0x611c3cae): fl_rtab = the stock 8 + the films
     assert struct.unpack_from('<HHI', m, o(0x61536324) + 8 * 4) == (54, 5, 0x61536310)

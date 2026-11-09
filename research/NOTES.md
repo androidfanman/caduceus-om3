@@ -2142,3 +2142,22 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **Camera (owner, 2026-11-09): sd2 "works well"** (camera-tested): after power-on, with no half-press, live view and
   the shooting screen follow the selected film. No hang reported. Still open: the flash-entry question above, and the
   longer test (AF / burst speed, no card, card pulled, power cycles). Not released.
+
+### Super control panel: dials through the films (sd3 draft, 2026-11-09; emulator only, not for the camera yet)
+- Owner: on the super control panel the dials on the Picture Mode cell step COLOR 1–4 only; wanted: the films too.
+- Found (disassembly + emulator WATCH): the step is 0x611c6e44 (called from 0x611c59fd). It reads GetValue(111)
+  (return 0x611c6e79) as "where am I", GetValue(897) -> the key into its own table at 0x615384b4 (6 x {key, count,
+  default, records}; records 20 B {0, value, 0, 0, availability id}); entry 5 = key 901, COLOR 1–4 at 0x61538464. The
+  helpers 0x611c74e0 / 0x611c75ce pick the next / previous record that is available (GetValue(availability id) == 1 and
+  facade vtable +40 (id, value) == 1), then SetValue(901, value).
+- sd3 draft: entry 5 -> `fl_scr` (ext11: the stock four, then FV0 + j with FLB + j; build.py asserts the stock entry),
+  and `fl_get` answers the film value to the caller 0x611c6e79. **Emulator: the dials now go COLOR 2, 3, 4, FILM 1, 2,
+  3 … and back with wrap (FILM 20, 19 …); SetValue(901, FV0 + j) -> fl_set loads the film (LIDX follows).**
+- **Not solved: the cell and the title do not redraw when the step stays on the same COLOR** (FILM 1 -> FILM 2: both on
+  COLOR 1, the picture mode value stays 54; no picture / title request follows: WATCH on ic_get / st_get). Tried, no
+  effect in the emulator: (a) the editor's poke (SetValue 2197 + k with its own value) from fl_set; (b) the manager
+  called twice (another COLOR, then COLOR k). (c) Answering the film value to the GUI's value cache (GetValue from
+  0x610fd979) made it worse (the cell has no choice for an unknown value; the title stuck). Next idea: teach the
+  panel's cell the film values (its value -> picture / title choice tables, as fl_l0..2 did for the Picture Mode screen),
+  then (c) becomes right. The panel's own redraw after a step: 0x611c5a68.. (`0x611c65ec`, `0x612970e8` with 8000).
+- Space: ext11 65248 of 65536 with the draft.

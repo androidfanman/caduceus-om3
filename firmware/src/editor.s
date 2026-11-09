@@ -5323,6 +5323,8 @@ fl_get:
  mov (4,sp),d1
  cmp 0x611d08f4,d1
  beq fl_g2
+ cmp 0x611c6e79,d1                /* sd3: the super control panel's dial step (0x611c6e44) reads where it is: the film, so the next is the next film */
+ beq fl_g2
  bra 8f
 12:
  add -FLB,d2
@@ -8516,4 +8518,19 @@ sdl_poke:
  calls (a2)
 9:
  ret [d2,d3,a2,a3],28
+
+/* sd3: the super control panel's Picture Mode cell steps with the dials through its own table (0x615384b4, 6 x {key, count,
+ * default, records}; records 20 B {0, value, 0, 0, availability id}). Entry 5 (key 901: the COLOR position) had COLOR 1-4;
+ * build.py points it here: the stock four, then the films FV0 + j with FLB + j (the step helpers skip a film that is
+ * not there, as they skip a picture mode that is switched off). SetValue 901 <- FV0 + j is fl_set, as from the list. */
+.section .ext11,"ax"
+.balign 4
+fl_scr:
+ .long 0, 54, 0, 0, 1072
+ .long 0, 55, 0, 0, 1073
+ .long 0, 56, 0, 0, 1074
+ .long 0, 64, 0, 0, 1075
+ .irp j, 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19
+ .long 0, FV0 + \j, 0, 0, FLB + \j
+ .endr
 
