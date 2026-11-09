@@ -26,14 +26,16 @@ import { crc32, type Problem } from './format';
 import { CAMERA_FILMS, filmByName, filmLook } from './om3films';
 
 export const COLORS = 4, PER = 5;
-export const OM3 = { hl: 5, sat: 5, wb: 5, contrast: 2, sharpness: 2, shading: 5, hsm: 7, bw: 5, fx: 5, grain: 3 } as const;
+export const OM3 = { hl: 5, sat: 5, wb: 7, contrast: 2, sharpness: 2, shading: 5, hsm: 7, bw: 5, fx: 5, grain: 3 } as const;
 /** v0.22 Sharp (Extras sector 10): the camera's own numbers, 0 = its normal; -3..-4 softer than its menu goes, -5 = Off. */
 export const SHARP = { lo: -5, hi: 2 } as const;
 export const sharpLabel = (v: number) => (v <= SHARP.lo ? 'Off' : v > 0 ? `+${v}` : String(v));
 /** Firmware the LOOKS.BIN is for: 24 = v0.25 and later (fast colour grain with everything; Art Effect = Frame only),
  * 23 = v0.24.1 (NR High; Shading saved as 0: the row is hidden there), 22 = v0.22 (Sharp), 21 (Grain, VigFix),
  * 20 = v0.20 and older / PROFILES.BIN. */
-export type Fw = 20 | 21 | 22 | 23 | 24 | 25;   // 25 = v0.26 (split toning, record +53..+56)
+export type Fw = 20 | 21 | 22 | 23 | 24 | 25 | 26;   // 25 = v0.26 (split toning, record +53..+56); 26 = v0.26.1 (WB -7..7)
+/** WB shift that firmware `fw` accepts in LOOKS.BIN: v0.26 and older refuse the whole file beyond -5..5. */
+export const wbMax = (fw: Fw) => (fw >= 26 ? 7 : 5);
 /** v0.25: Grain is as fast as normal with every setting, except Glow / Clarity and Frame together (the slower route,
  * about 3 s per photo). */
 export const slowGrain = (_l: Look) => false;   // v0.25: no Art Effect (Frame removed), so grain is fast with everything
@@ -132,7 +134,7 @@ export function profilesBin(bank: Bank, fw: Fw = 22): Uint8Array {
     if (!l) return;
     const r = 5 * k + j, o = 32 + 64 * r, s8 = (at: number, v: number) => d.setInt8(o + at, v);
     for (let i = 0; i < 12; i++) { s8(i, l.hue[i]); s8(12 + i, l.light[i]); s8(24 + i, l.sat[i]); }
-    const ab = l.wb?.a_b ?? 0, gm = l.wb?.g_m ?? 0;
+    const wm = wbMax(fw), ab = Math.max(-wm, Math.min(wm, l.wb?.a_b ?? 0)), gm = Math.max(-wm, Math.min(wm, l.wb?.g_m ?? 0));
     b[o + 36] = l.wb && (ab || gm) ? 1 : 0; s8(37, ab); s8(38, gm);
     s8(39, l.tone.blacks); s8(40, l.tone.whites);
     const sharp = l.advice.sharpness ?? 0;

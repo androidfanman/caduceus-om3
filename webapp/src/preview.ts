@@ -249,8 +249,10 @@ function om3Settings(img: Float32Array, w: number, h: number, sharp: number, sha
 /** OM-3 v0.21 Grain (Low / Med / High), from research/grain/model.py: the camera's MONO grain shape. Per row, one
  *  xorshift32 per 4 pixels gives a triangular 0..30 value per pixel, smoothed down the columns and paired across, and
  *  each pixel's luma moves by ((64 h - 945) * G[Y] * S) / 2^18 (G: none in deep shadows, full from the midtones up).
- *  S is the camera's strength for the level, reduced as the photo is when it is shown this small. */
-const GRAIN_S = [0, 28, 68, 112];
+ *  S is the strength for the level, reduced as the photo is when it is shown this small. Owner, 2026-11-09 (v0.26 on
+ *  the camera): the old Med (68) looked like the camera's High, so High is now 68 and Low / Med follow the camera's
+ *  texture gains (v0.25 fast grain: Low 448, Med 832, High 1280), i.e. 68 x 448 / 1280 and 68 x 832 / 1280. */
+const GRAIN_S = [0, 24, 44, 68];
 const GRAIN_G = Array.from({ length: 256 }, (_, y) => {
   const ss = (t: number) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
   return Math.round(255 * (0.08 + 0.92 * ss((y - 25) / 75)) * (1 - 0.25 * ss((y - 200) / 55)));

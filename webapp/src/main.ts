@@ -376,14 +376,14 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
   }) : [];
   return h('div', { class: 'group' },
     h('label', { class: 'check' }, box, h('span', {}, 'White balance shift'),
-      h('span', { class: 'help' }, on ? 'the look\'s shift, added to the camera\'s own WB (Extras sectors 3 A–B and 4 G–M)' : 'off: no shift')),
+      h('span', { class: 'help' }, on ? 'the look\'s shift (−7..+7, as on the camera), added to the camera\'s own WB. Past ±5 needs firmware v0.26.1' : 'off: no shift')),
     ...rows);
 }
 
 /** OM-3 v0.26 split toning: two wheels (Shadows, Highlights) of the camera's 12 colours. Click a colour to tint toward
  *  it; the slider sets the strength (minus = the opposite colour). Same numbers as the camera's wheel pages. */
 /** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
-const om3Fw25 = () => { try { const s = localStorage.getItem('caduceus.om3.fw'); return s === null || s === '25'; } catch { return true; } };   // v0.26 is the default
+const om3Fw25 = () => { try { const s = localStorage.getItem('caduceus.om3.fw'); return s === null || s === '25' || s === '26'; } catch { return true; } };   // v0.26 is the default
 const splitPv = (l: Look): Look => (l.split && !om3Fw25() ? { ...l, split: undefined } : l);
 function splitPanel(l: Look, changed: () => void): HTMLElement {
   const NS = 'http://www.w3.org/2000/svg';
@@ -1070,13 +1070,20 @@ function om3ExportDialog() {
   const fname = (O.name || 'om3-looks').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'om3-looks';
   const n = O.bank.flat().filter(Boolean).length;
   const bankJson = () => JSON.stringify({ schema: BANK_SCHEMA, name: O.name, bank: O.bank.map((r) => r.map((l) => (l ? plainLook(l) : null))) }, null, 1) + '\n';
-  let fw: Fw = 25; try { const s = localStorage.getItem('caduceus.om3.fw'); if (s === '20' || s === '21' || s === '22' || s === '23' || s === '24' || s === '25') fw = Number(s) as Fw; } catch { /* storage blocked */ }
+  let fw: Fw = 25; try { const s = localStorage.getItem('caduceus.om3.fw'); if (['20', '21', '22', '23', '24', '25', '26'].includes(s ?? '')) fw = Number(s) as Fw; } catch { /* storage blocked */ }
   const looksBin = () => profilesBin(O.bank, fw);
   const fwSel = h('select', { onchange: (e: Event) => {
     fw = Number((e.target as HTMLSelectElement).value) as Fw;
     try { localStorage.setItem('caduceus.om3.fw', String(fw)); } catch { /* storage blocked */ }
-    renderEditor(); schedulePreview();   // v0.26: split toning shows only with the v0.26 export
-  } }, h('option', { value: '25', selected: fw === 25 }, 'v0.26 or later (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
+    renderEditor(); schedulePreview(); wbNote();   // v0.26: split toning shows only with the v0.26 export
+  } }, h('option', { value: '26', selected: fw === 26 }, 'v0.26.1 or later (WB ±7; firmware in testing)'), h('option', { value: '25', selected: fw === 25 }, 'v0.26 or later (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
+  const wbBig = O.bank.flat().filter((l) => l?.wb && Math.max(Math.abs(l.wb.a_b), Math.abs(l.wb.g_m)) > 5).map((l) => l!.name);
+  const wbBox = h('p', { class: 'warn' });
+  const wbNote = () => {
+    wbBox.hidden = !(wbBig.length && fw < 26);
+    wbBox.replaceChildren(h('b', {}, 'WB beyond ±5: '), `${wbBig.join(', ')}. Firmware v0.26 and older refuse a LOOKS.BIN with a WB shift past ±5, so this export saves it as ±5. Choose "v0.26.1 or later" for the full ±7.`);
+  };
+  wbNote();
   const cardFiles = async () => [{ name: 'LOOKS.BIN', data: looksBin() }, { name: 'NAMES.BIN', data: await namesBin(O.bank) as Uint8Array }];
   const busy = async (b: HTMLButtonElement, f: () => Promise<void>) => { b.disabled = true; try { await f(); } catch (e) { toast((e as Error).message, 'err'); } finally { b.disabled = probs.length > 0; } };
   const looks = O.bank.flat().filter(Boolean) as Look[];
@@ -1098,6 +1105,7 @@ function om3ExportDialog() {
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'Firmware on the camera'), h('p', { class: 'help' }, 'v0.22 adds Sharp, v0.21 Grain and the lens vignette correction choice to LOOKS.BIN. Older firmware would reject a file with the newer settings, so they are left out for it: for v0.21 the look\'s sharpness goes to the camera\'s Sharpness setting instead (−2 to +2, softer values as −2); for v0.20 and older there is no grain either and every look keeps the camera\'s correction.')),
       fwSel),
+    wbBox,
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'Save to the SD card'), h('p', { class: 'help' }, 'Pick the card (or its OM3MOD folder): writes OM3MOD/LOOKS.BIN and NAMES.BIN. This replaces the looks on the card, including ones made on the camera: Open… the card\'s LOOKS.BIN first to keep those. Chrome / Edge.')),
       toCard),

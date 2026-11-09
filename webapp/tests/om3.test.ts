@@ -70,9 +70,9 @@ describe('OM-3 profile bank', () => {
   it('toOm3: mono refused, ranges limited, v0.20 Extras kept (glow without colour, no Blur)', () => {
     expect(toOm3(blankLook('mono')).look).toBeNull();
     const l = blankLook('colour', 'X');
-    l.hue[0] = 7; l.light[3] = -6; l.wb = { a_b: 7, g_m: -1 }; l.grain = 'film'; l.effect = { type: 'halation', strength: 2, tint: 'red' }; l.art_effect = 'pin_hole';
+    l.hue[0] = 7; l.light[3] = -6; l.wb = { a_b: 8, g_m: -1 }; l.grain = 'film'; l.effect = { type: 'halation', strength: 2, tint: 'red' }; l.art_effect = 'pin_hole';
     const c = toOm3(l);
-    expect(c.look!.hue[0]).toBe(5); expect(c.look!.light[3]).toBe(-5); expect(c.look!.wb).toEqual({ a_b: 5, g_m: -1 });
+    expect(c.look!.hue[0]).toBe(5); expect(c.look!.light[3]).toBe(-5); expect(c.look!.wb).toEqual({ a_b: 7, g_m: -1 });
     expect(c.look!.grain).toBe('film'); expect(c.look!.effect).toEqual({ type: 'bloom', strength: 2 }); expect(c.look!.art_effect).toBe('pin_hole');
     expect(c.changed).toEqual(['Hue/Light', 'WB', 'halation as glow']);
     expect(c.dropped).toEqual([]);
@@ -214,5 +214,14 @@ describe('split toning (v0.26)', () => {
     bendSplit(img, 3, { sh_color: 8, sh: 5, hl_color: 1, hl: 5 });
     expect([...img.subarray(0, 6)].map((x) => Math.round(x * 1000))).toEqual([0, 0, 0, 1000, 1000, 1000]);
     expect(img[6]).toBeLessThan(img[7]);   // cyan shadows: red down, green up
+  });
+});
+
+describe('WB -7..7 (v0.26.1)', () => {
+  it('saves ±7 only for v0.26.1; older firmware gets ±5 (it refuses the file beyond)', async () => {
+    const { profilesBin, emptyBank, blankProfile } = await import('../src/om3');
+    const b = emptyBank(); const l = blankProfile('WB test'); l.wb = { a_b: 7, g_m: -6 }; b[0][0] = l;
+    expect([...profilesBin(b, 26).subarray(32 + 37, 32 + 39)]).toEqual([7, 250]);
+    expect([...profilesBin(b, 25).subarray(32 + 37, 32 + 39)]).toEqual([5, 251]);
   });
 });

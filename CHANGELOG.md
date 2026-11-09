@@ -7,6 +7,11 @@ same number is used here (test 17 = v0.17).
 - **Control Panel: the 20 film sims tuned** (draft 1, 2026-11-09): new colours, WB and tone for all 20 from the owner's
   colour checker photos, and new split tones on Gold 200, Portra 800, CineStill 800T and Fuji Eterna. Contrast and
   Sharp are as before (Gold 200 now Sharp −1). **New › Reset looks to standard** gives the new set.
+- **Control Panel: grain preview** matches the camera better (owner, 2026-11-09: the preview's Med looked like the
+  camera's High). High is now drawn as Med was, and Low / Med follow the camera's own steps.
+- **Control Panel: WB shift −7..+7**, as on the camera. LOOKS.BIN carries past ±5 only with Export › Firmware on the
+  camera › "v0.26.1 or later" (in testing): v0.26 and older refuse the whole file beyond ±5, so for them it is saved
+  as ±5 and the export says which looks.
 
 ## v0.26
 Split toning, and a fix for a restart after changing the drive mode. Firmware camera-tested (2026-11-09, build sp4).
