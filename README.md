@@ -1,7 +1,3 @@
-> **Branch `feature/tool-camera-layout` (2026-11-09): waiting for the owner's OK, not live.** The Control Panel's
-> editor laid out like the camera's Picture Mode screen (HSL wheel with 5 pages, Contrast, Highlight & Shadow curve,
-> WB grid, rows).
-
 # Caduceus for OM-3
 
 **Caduceus for OM-3** is the OM SYSTEM OM-3 member of the [Caduceus](https://github.com/cakelesscoder/caduceus-ep7)
@@ -123,7 +119,9 @@ films (the creative profiles the camera lists as FILM 1–20) in your browser:
 3. **Film sims** opens all 61 film looks: **The 20** first, in FILM order, then more under "More" (other slide and
    negative films, Fujifilm-style simulations, instant films and cinema print stocks). Click one to preview it on your
    photo; **+ Add** puts it in an empty place (or offers to replace one when all 20 are used).
-4. **Edit** a film: Hue, Lightness and Saturation for each of the 12 colours; the tone (Highlights, Shadows,
+4. **Edit** a film, laid out like the camera's Picture Mode screen: the HSL wheel with the camera's five pages (Color,
+   Hue, Luminance, Shadows, Highlights; drag a colour on the wheel or use the slider), the Highlight & Shadow curve
+   (drag its handles), the WB grid (click or drag) and the rows below. In short: Hue, Lightness and Saturation for each of the 12 colours; the tone (Highlights, Shadows,
    Midtones, Blacks, Whites); the camera's Contrast and Shading; the WB shift (A-B / G-M); and the Extras (Noise
    Filter, lens vignette correction, Grain, Sharp, Glow ↔ Clarity). The preview on the test photos (or your own: drag
    the line on the photo to compare before and after) shows grain, glow and clarity; Noise Filter and the lens
