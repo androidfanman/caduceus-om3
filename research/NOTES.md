@@ -2115,3 +2115,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Their stored WB mode / Kelvin per film (v0.26.2 / v0.26.3) is not taken yet (owner: later, and with a Control Panel
   control). Space after sd1: see build output (ext11 nearly full); halation will need room.
 
+
+### sd1 first camera result (2026-11-09)
+- **Camera (owner): sd1 "works and works well"** (camera-tested, first look): films load without a half-press. The owner
+  keeps testing before any release; no detail yet on AF / shooting speed, no-card start, card pulled, or the films that
+  had bad bytes. Not released: wait for the owner's go-ahead.

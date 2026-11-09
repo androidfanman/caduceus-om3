@@ -1,5 +1,5 @@
 > **Branch `feature/v0.26.2-sdload-ff` (2026-11-09): in testing, not released.** Test build sd1 = v0.26.1 + automatic
-> SD loading (no half-press) + the EDITS.BIN bad-bytes fix, both from fernandezk26's fork. Emulator only; camera test next.
+> SD loading (no half-press) + the EDITS.BIN bad-bytes fix, both from fernandezk26's fork. First camera test good (2026-11-09); the owner is testing longer before a release.
 
 # Caduceus for OM-3
 
