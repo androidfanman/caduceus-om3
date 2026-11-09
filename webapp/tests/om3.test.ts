@@ -198,26 +198,6 @@ describe('OM-3 profile bank', () => {
 
 export type { Look };
 
-describe('look codes for long OM-3 names (owner 2026-11-09)', () => {
-  it('shortens film names to 12 characters instead of refusing the code', async () => {
-    const { codeName } = await import('../src/sharecode');
-    expect(codeName('Agfa Ultra 100')).toBe('AgfaUltra100');
-    expect(codeName('Kodachrome 64')).toBe('Kodachrome64');
-    expect(codeName('CineStill 800T')).toBe('CineStil800T');
-    expect(codeName('Ektachrome E100')).toBe('EktachroE100');
-    expect(codeName('Portra 400')).toBe('Portra 400');
-    for (const n of ['Agfa Ultra 100', 'Ektachrome E100', 'CineStill 400D', 'ColorPlus 200', 'ABCDEFGHIJKLMNO']) expect(codeName(n).length).toBeLessThanOrEqual(12);
-  });
-});
-
-describe('every film sim makes a look code', () => {
-  it('encodes all films (names shortened)', async () => {
-    const { codeName, encodeLookCode } = await import('../src/sharecode');
-    const { FILMS, filmLook } = await import('../src/om3films');
-    for (const f of FILMS) { const l = filmLook(f); expect(() => encodeLookCode({ ...l, name: codeName(l.name) })).not.toThrow(); }
-  });
-});
-
 describe('split toning (v0.26)', () => {
   it('writes and reads record +53..+56 only for v0.26 exports', async () => {
     const { profilesBin, readProfiles, emptyBank, blankProfile } = await import('../src/om3');

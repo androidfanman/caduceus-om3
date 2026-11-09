@@ -1,20 +1,15 @@
 import './style.css';
 import libraryJson from './data/library.json';
-import { decodeLooksBin, encodeBundlesBin, hasTone, nameProblem, PackError, validatePack, type Problem } from './format';
+import { type Problem } from './format';
 import {
-  ARTS, MAX_LOOKS, MONO_FILTERS, NAME_MAX, NOTE_MAX, PACK_SCHEMA, SECTORS, SLOT_NAMES, TINTS, TONE_KEYS, blankLook, cloneLook,
-  exportable, parsePack, toneIsZero, toneLimit, type Look, type Pack, type SlotName, type Tone,
+  NOTE_MAX, PACK_SCHEMA, SECTORS, TONE_KEYS,
+  parsePack, toneIsZero, toneLimit, type Look, type Pack, type Tone,
 } from './pack';
 import { History } from './history';
-import { fromLibrary, libraryOrigin, migratePack, replaceRetiredLooks, resetLook, standardPack } from './reset';
+import { fromLibrary, libraryOrigin, resetLook } from './reset';
 import { renderLook } from './preview';
-import { codeName, decodeLookCode, decodePackCode, encodeLookCode as encodeLookCode0, encodePackCode, isPackCode } from './sharecode';
-// owner 2026-11-09: OM-3 film names (up to 15) are shortened to fit a look code (12) instead of refusing the code
-const encodeLookCode = (l: Look, group = false) => encodeLookCode0(l.name.length > 12 ? { ...l, name: codeName(l.name) } : l, group);
 import { makeZip } from './zip';
 import { rrpreset } from './rapidraw';
-import { TARGETS, targetById } from './targets';
-import { recipeCard } from './targets/recipe';
 import { previewToneLut } from './tone';
 import {
   BANK_SCHEMA, COLORS, OM3, OM3_ARTS, OM3_NAME_MAX, PER, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
@@ -24,18 +19,10 @@ import { namesBin } from './om3names';
 import { SPLIT_COLOURS, SPLIT_MAX, type Split } from './split';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
-
 // ---------------------------------------------------------------- state
 const LIBRARY = parsePack(libraryJson);
-const STORE = 'caduceus.pack.v2', STORE_V1 = 'caduceus.pack.v1', STORE_LIB = 'caduceus.library';
-// '+m2': forces one more migration pass for packs saved before tone fingerprints were handled
-const LIB_VERSION: string = ((libraryJson as { version?: string }).version ?? 'dev') + '+m2';
-const SAMPLES = [
-  { id: 'neon', label: 'Neon' }, { id: 'harbour', label: 'Harbour' }, { id: 'headwrap', label: 'Portrait' },
-  { id: 'forest', label: 'Forest' }, { id: 'brasserie', label: 'Night' },
-];
-// OM-3 mode: the colour-frames test photo first, then public-domain (CC0) photos picked for skin, strong colour, greens,
-// blues, night light and sunset.
+// The colour-frames test photo first, then public-domain (CC0) photos picked for skin, strong colour, greens, blues,
+// night light and sunset.
 /** Bump when a sample photo file changes, so browsers fetch the new one instead of their cached copy. */
 const SAMPLE_REV = '2';
 const OM3_SAMPLES = [
@@ -47,29 +34,18 @@ const SWATCH = ['#e3c22f', '#e8932e', '#e0602a', '#d03434', '#c43c92', '#8a52c6'
   '#2fb28c', '#45a845', '#9fc63b'];
 type Tab = 'hue' | 'light' | 'sat';
 
-let libNotice = '';   // before S: startPack() sets it
+let libNotice = '';
 const S = {
-  pack: startPack(),
-  sel: 0,
   tab: 'hue' as Tab,
-  image: 'harbour',
-  advice: true,
+  image: 'frames',
   cut: 50,
 };
 
-// ---------------------------------------------------------------- camera (E-P7: Caduceus; OM-3: Caduceus for OM-3)
-type Cam = 'ep7' | 'om3';
-const STORE_CAM = 'caduceus.camera', STORE_OM3 = 'caduceus.om3.bank.v1';
-const DEFAULT_CAM: Cam = (import.meta as { env?: Record<string, string> }).env?.VITE_DEFAULT_CAMERA === 'om3' ? 'om3' : 'ep7';
-let CAM: Cam = (() => {
-  const q = new URLSearchParams(location.search).get('camera');
-  if (q === 'om3' || q === 'ep7') return q;
-  try { const v = localStorage.getItem(STORE_CAM); if (v === 'om3' || v === 'ep7') return v; } catch { /* private mode */ }
-  return DEFAULT_CAM;
-})();
-const isOm3 = () => CAM === 'om3';
-const samples = () => (isOm3() ? OM3_SAMPLES : SAMPLES);
-if (isOm3()) S.image = 'frames';
+// ---------------------------------------------------------------- camera: OM-3 only (owner 2026-11-09: the E-P7 side of the
+// shared Caduceus Control Panel is gone from this tool)
+const STORE_OM3 = 'caduceus.om3.bank.v1';
+const CAM = 'om3' as const;
+const samples = () => OM3_SAMPLES;
 /** The OM-3 look bank: 4 COLORs x 5 numbers, positional like the camera's Film page. */
 const O = { name: 'OM-3 looks', bank: startBank(), k: 0, v: 0 };
 // Saved lists ("playlists"): named copies of all four COLORs' looks, kept in this browser. The list you're on is the
@@ -126,45 +102,10 @@ function startBank(): Bank {
 }
 const bankSnapshot = () => JSON.stringify({ schema: BANK_SCHEMA, name: O.name, bank: O.bank });
 
-/** The saved pack brought up to the current built-in library (or the library itself for a first visit). */
-function startPack(): Pack {
-  const stored = loadStored();
-  const swap = stored ? replaceRetiredLooks(stored, LIBRARY) : null;
-  const saved = swap ? swap.pack : stored;
-  if (swap?.replaced) {
-    libNotice = 'Nostalgic has been replaced by Provia 400 in your saved pack.';
-    try { localStorage.setItem(STORE, JSON.stringify(swap.pack)); } catch { /* private mode */ }
-  }
-  let prev: { version?: string; names?: string[] } = {};
-  try { prev = JSON.parse(localStorage.getItem(STORE_LIB) ?? '{}'); } catch { /* none */ }
-  const stamp = () => { try { localStorage.setItem(STORE_LIB, JSON.stringify({ version: LIB_VERSION, names: LIBRARY.looks.map((l) => l.name) })); } catch { /* private mode */ } };
-  if (!saved) { stamp(); return standardPack(LIBRARY); }
-  if (prev.version === LIB_VERSION) return saved;
-  const m = migratePack(saved, LIBRARY, prev.names);
-  stamp();
-  if (m.updated || m.added)
-    libNotice = (libNotice ? libNotice + ' ' : '') + `Film library updated to v${LIB_VERSION}: ${m.updated} look${m.updated === 1 ? '' : 's'} refreshed` +
-      (m.added ? `, ${m.added} added` : '') + '. Your own and edited looks are unchanged.';
-  try { localStorage.setItem(STORE, JSON.stringify(m.pack)); } catch { /* private mode */ }
-  return m.pack;
-}
-
-function loadStored(): Pack | null {
-  try {
-    const s = localStorage.getItem(STORE);
-    if (s) return parsePack(JSON.parse(s));
-    // v1 storage predates Look.origin: looks named like a library look are taken to be that look (for Reset look).
-    const old = localStorage.getItem(STORE_V1);
-    if (!old) return null;
-    const p = parsePack(JSON.parse(old));
-    for (const l of p.looks) if (LIBRARY.looks.some((o) => o.name === l.name)) l.origin = l.name;
-    return p;
-  } catch { return null; }
-}
 let saveTimer = 0;
 function flush() {
   clearTimeout(saveTimer);
-  try { if (isOm3()) { localStorage.setItem(STORE_OM3, bankSnapshot()); storeLists(); } else localStorage.setItem(STORE, JSON.stringify(S.pack)); } catch { /* private mode */ }
+  try { localStorage.setItem(STORE_OM3, bankSnapshot()); storeLists(); } catch { /* private mode */ }
 }
 function persist() { clearTimeout(saveTimer); saveTimer = window.setTimeout(flush, 250); }
 window.addEventListener('pagehide', flush);
@@ -172,7 +113,7 @@ window.addEventListener('pagehide', flush);
 // ---------------------------------------------------------------- undo / redo
 // Every edit calls save(). Continuous edits (slider drags, typing) run inside draft(): they are saved but only become
 // an undo step at the end of the gesture (the input's change event: pointer-up, blur or Enter) via checkpoint().
-const snapshot = () => (isOm3() ? bankSnapshot() : JSON.stringify(S.pack));
+const snapshot = () => bankSnapshot();
 let hist = new History(snapshot(), 200);
 let drafting = false;
 function save() { persist(); if (!drafting) checkpoint(); }
@@ -187,12 +128,7 @@ function step(dir: 'undo' | 'redo') {
   checkpoint();
   const s = dir === 'undo' ? hist.undo() : hist.redo();
   if (s === null) return;
-  if (isOm3()) { O.bank = parseBank(JSON.parse(s), parseLook).bank; persist(); renderAll(); undoUi(); return; }
-  const prev = S.pack;
-  S.pack = parsePack(JSON.parse(s));
-  const n = S.pack.looks.length;
-  const k = S.pack.looks.findIndex((l, i) => JSON.stringify(l) !== JSON.stringify(prev.looks[i]));
-  S.sel = Math.max(0, Math.min(k >= 0 ? k : S.sel, n - 1));
+  O.bank = parseBank(JSON.parse(s), parseLook).bank;
   persist(); renderAll(); undoUi();
 }
 const isTextField = (t: EventTarget | null) => t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable) ||
@@ -205,7 +141,7 @@ document.addEventListener('keydown', (e) => {
   else return;
   e.preventDefault();
 });
-const cur = (): Look | undefined => (isOm3() ? O.bank[O.k][O.v] ?? undefined : S.pack.looks[S.sel]);
+const cur = (): Look | undefined => O.bank[O.k][O.v] ?? undefined;
 
 // ---------------------------------------------------------------- DOM helpers
 type Attrs = Record<string, unknown>;
@@ -262,46 +198,33 @@ const shareBase = () => location.origin + location.pathname;
 // ---------------------------------------------------------------- layout
 function shell() {
   const app = $('#app');
-  const om3 = isOm3();
   app.replaceChildren(
-    h('div', { class: 'camera-bar' },
-      h('span', { class: 'cam-lbl', id: 'cam-lbl' }, 'Camera'),
-      h('div', { class: 'seg cam-seg', role: 'radiogroup', 'aria-labelledby': 'cam-lbl' },
-        ...([['ep7', 'Olympus PEN E-P7'], ['om3', 'OM SYSTEM OM-3']] as [Cam, string][]).map(([c, t]) =>
-          h('button', { role: 'radio', 'aria-checked': String(c === CAM), class: c === CAM ? 'on' : '', onclick: () => switchCamera(c) }, t))),
-      h('span', { class: 'cam-note' }, om3
-        ? 'Caduceus for OM-3: 20 films, FILM 1–20 in Picture Mode (LOOKS.BIN).'
-        : 'Caduceus for the E-P7: the Film page look pack (LOOKS.BIN).')),
     h('header', { class: 'top' },
       h('div', { class: 'brand' }, h('span', { class: 'mark', 'aria-hidden': 'true' }, '☤'), h('span', { class: 'word' }, 'Caduceus'),
-        h('span', { class: 'sub' }, om3 ? 'control panel · OM-3' : 'control panel')),
+        h('span', { class: 'sub' }, 'for OM-3 · control panel')),
       h('nav', { class: 'actions' },
         h('span', { class: 'undo-btns' },
           h('button', { id: 'undo', class: 'icon', title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo', disabled: true, onclick: () => step('undo') }, '↶'),
           h('button', { id: 'redo', class: 'icon', title: 'Redo (Ctrl+Shift+Z)', 'aria-label': 'Redo', disabled: true, onclick: () => step('redo') }, '↷')),
-        om3 ? menu('New', [
+        menu('New', [
           ['Reset looks to standard', () => newBank('library')],
           ['Empty looks', () => newBank('empty')],
-        ]) : menu('New', [
-          ['Reset pack to standard', () => newPack('library')],
-          ['Empty pack', () => newPack('empty')],
         ]),
-        h('button', { onclick: openFile, title: om3 ? 'The card\'s OM3MOD/LOOKS.BIN (or PROFILES.BIN from v0.17–v0.18), a looks file, or a Caduceus pack / E-P7 LOOKS.BIN' : undefined }, 'Open…'),
-        om3 ? h('button', { onclick: () => om3FilmPicker(), title: 'Add film simulations (Fujifilm, slide, negative, instant, cinema print) to your looks' }, 'Film sims') : null,
-        h('button', { onclick: pasteDialog }, 'Paste code'),
-        h('button', { onclick: sharePack }, om3 ? 'Share looks' : 'Share pack'),
-        h('button', { onclick: om3 ? om3InstallDialog : installDialog }, 'Install firmware'),
-        h('button', { class: 'primary', onclick: om3 ? om3ExportDialog : exportDialog }, 'Export'))),
+        h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN, or a looks file saved from this tool' }, 'Open…'),
+        h('button', { onclick: () => om3FilmPicker(), title: 'Add film simulations to your films' }, 'Film sims'),
+        h('button', { onclick: pasteDialog, title: 'Open a shared look or looks link' }, 'Paste link'),
+        h('button', { onclick: om3Share }, 'Share looks'),
+        h('button', { onclick: om3InstallDialog }, 'Install firmware'),
+        h('button', { class: 'primary', onclick: om3ExportDialog }, 'Export'))),
     h('main', { class: 'layout' },
       h('aside', { class: 'pane list-pane', id: 'list' }),
       h('section', { class: 'pane preview-pane', id: 'preview' }),
       h('section', { class: 'pane editor-pane', id: 'editor' })),
     h('footer', { class: 'foot' },
-      h('span', {}, om3 ? 'Caduceus for OM-3 is an unofficial, community firmware mod (COLOR looks only, not Monochrome). Files are made in your browser; nothing is uploaded.'
-        : 'Caduceus is an unofficial, community firmware mod. Files are made in your browser; nothing is uploaded.'),
+      h('span', {}, 'Caduceus for OM-3 is an unofficial, community firmware mod (COLOR looks only, not Monochrome). Files are made in your browser; nothing is uploaded.'),
       h('a', { href: './samples/CREDITS.md', target: '_blank', rel: 'noopener' }, 'Image credits')),
     h('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }),
-    h('input', { type: 'file', id: 'file', accept: '.json,application/json,.bin,.BIN', hidden: true, onchange: (e: Event) => (isOm3() ? om3OnFile(e) : onFile(e)) }),
+    h('input', { type: 'file', id: 'file', accept: '.json,application/json,.bin,.BIN', hidden: true, onchange: om3OnFile }),
     h('input', { type: 'file', id: 'photo', accept: 'image/*', hidden: true, onchange: onPhoto }));
   buildPreview();
 }
@@ -320,257 +243,20 @@ function renderAll() {
 }
 
 // ---------------------------------------------------------------- look list
-let dragFrom = -1;
 function renderList() {
-  if (isOm3()) { renderBank(); return; }
-  const el = $('#list');
-  const p = S.pack;
-  const problems = validatePack(p);
-  const bad = new Set(problems.map((x) => x.look).filter((x) => x !== undefined));
-  const n = p.looks.length;
-  el.replaceChildren(
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Pack name'),
-      h('input', { type: 'text', value: p.name, maxlength: 60, oninput: (e: Event) => draft(() => { p.name = (e.target as HTMLInputElement).value; save(); }), onchange: checkpoint, onkeydown: enterCommits })),
-    h('div', { class: 'list-head' }, h('span', {}, 'Looks'), h('span', { class: n > MAX_LOOKS ? 'count over' : 'count' }, `${n} / ${MAX_LOOKS}`)),
-    h('ol', { class: 'looks' }, ...p.looks.map((l, i) => {
-      const li = h('li', {
-        class: `look${i === S.sel ? ' sel' : ''}${bad.has(i) ? ' bad' : ''}`, draggable: 'true', tabindex: 0,
-        onclick: () => { S.sel = i; renderAll(); },
-        onkeydown: (e: KeyboardEvent) => {
-          if (e.key === 'ArrowUp' && e.altKey) { move(i, i - 1); e.preventDefault(); }
-          else if (e.key === 'ArrowDown' && e.altKey) { move(i, i + 1); e.preventDefault(); }
-          else if (e.key === 'ArrowUp' && i > 0) { S.sel = i - 1; renderAll(); focusSel(); e.preventDefault(); }
-          else if (e.key === 'ArrowDown' && i < n - 1) { S.sel = i + 1; renderAll(); focusSel(); e.preventDefault(); }
-        },
-        ondragstart: (e: DragEvent) => { dragFrom = i; e.dataTransfer?.setData('text/plain', String(i)); li.classList.add('dragging'); },
-        ondragend: () => li.classList.remove('dragging'),
-        ondragover: (e: DragEvent) => { e.preventDefault(); li.classList.add('over'); },
-        ondragleave: () => li.classList.remove('over'),
-        ondrop: (e: DragEvent) => { e.preventDefault(); li.classList.remove('over'); if (dragFrom >= 0) move(dragFrom, i); dragFrom = -1; },
-      },
-      h('span', { class: 'grip', 'aria-hidden': 'true' }, '⋮⋮'),
-      h('span', { class: 'idx' }, String(i + 1)),
-      h('span', { class: 'nm' }, l.name || '(no name)'),
-      l.kind === 'mono' ? h('span', { class: 'kind mono', title: 'Monochrome look' }, 'B&W') : h('span'),
-      h('span', { class: 'row-btns' },
-        h('button', { class: 'icon', title: 'Move up (Alt+↑)', 'aria-label': 'Move up', disabled: i === 0, onclick: (e: Event) => { e.stopPropagation(); move(i, i - 1); } }, '↑'),
-        h('button', { class: 'icon', title: 'Move down (Alt+↓)', 'aria-label': 'Move down', disabled: i === n - 1, onclick: (e: Event) => { e.stopPropagation(); move(i, i + 1); } }, '↓'),
-        h('button', { class: 'icon danger', title: 'Remove', 'aria-label': 'Remove', onclick: (e: Event) => { e.stopPropagation(); remove(i); } }, '×')));
-      return li;
-    })),
-    ...(n === 0 ? [h('p', { class: 'empty' }, 'No looks yet. Add one below.')] : []),
-    h('div', { class: 'add-row' },
-      menu('+ Add look', [
-        ['Blank colour look', () => addLook(blankLook('colour', uniqueName('New Look')))],
-        ['Blank mono look', () => addLook(blankLook('mono', uniqueName('New Mono')))],
-        ['From the built-in library…', libraryPicker],
-        ['Duplicate selected', () => { const l = cur(); if (l) addLook({ ...cloneLook(l), name: uniqueName(l.name) }); }],
-        ['Paste a look code…', pasteDialog],
-      ])));
+  renderBank();
 }
+
 function enterCommits(e: KeyboardEvent) { if (e.key === 'Enter') checkpoint(); }
 function focusSel() { ($('#list li.sel') as HTMLElement | null)?.focus(); }
-
-function uniqueName(base: string): string {
-  const names = new Set(S.pack.looks.map((l) => l.name.toLowerCase()));
-  if (!names.has(base.toLowerCase())) return base;
-  for (let k = 2; k < 100; k++) {
-    const suf = ` ${k}`, nm = base.slice(0, NAME_MAX - suf.length).trimEnd() + suf;
-    if (!names.has(nm.toLowerCase())) return nm;
-  }
-  return base;
-}
-
-function addLook(l: Look) {
-  if (S.pack.looks.length >= MAX_LOOKS) { toast(`A pack holds at most ${MAX_LOOKS} looks. Remove one first.`, 'err'); return false; }
-  S.pack.looks.push(l);
-  S.sel = S.pack.looks.length - 1;
-  save(); renderAll();
-  return true;
-}
-function remove(i: number) {
-  const l = S.pack.looks[i];
-  S.pack.looks.splice(i, 1);
-  remapSlots((k) => (k === i ? undefined : k > i ? k - 1 : k));
-  S.sel = Math.max(0, Math.min(S.sel, S.pack.looks.length - 1));
-  save(); renderAll();
-  toast(`Removed "${l.name}"`);
-}
-function move(from: number, to: number) {
-  const n = S.pack.looks.length;
-  if (to < 0 || to >= n || from === to) return;
-  const [l] = S.pack.looks.splice(from, 1);
-  S.pack.looks.splice(to, 0, l);
-  const old = [...Array(n).keys()];               // new position -> old index
-  old.splice(from, 1); old.splice(to, 0, from);
-  const map = new Map(old.map((o, k) => [o, k] as [number, number]));
-  remapSlots((k) => map.get(k));
-  S.sel = to;
-  save(); renderAll(); focusSel();
-}
-function remapSlots(f: (k: number) => number | undefined) {
-  for (const s of SLOT_NAMES) {
-    const k = S.pack.slots[s];
-    if (k === undefined) continue;
-    const v = f(k);
-    if (v === undefined) delete S.pack.slots[s]; else S.pack.slots[s] = v;
-  }
-}
-
-function newPack(kind: 'library' | 'empty') {
-  if (!confirm(kind === 'library' ? 'Reset the pack to the standard built-in library? Your current pack is replaced (Undo brings it back).'
-    : 'Start an empty pack? The current pack is replaced (Undo brings it back).')) return;
-  S.pack = kind === 'library' ? standardPack(LIBRARY) : { schema: PACK_SCHEMA, name: 'My pack', looks: [blankLook('colour', 'My Look')], slots: {} };
-  S.sel = 0;
-  save(); renderAll();
-  toast(kind === 'library' ? 'Pack reset to the built-in library' : 'Started an empty pack');
-}
-
-function resetSelected() {
-  const i = S.sel, l = cur();
-  if (!l) return;
-  S.pack.looks[i] = resetLook(l, LIBRARY, S.pack.looks.filter((_, k) => k !== i).map((o) => o.name));
-  save(); renderAll();
-  toast(libraryOrigin(l, LIBRARY) ? `"${S.pack.looks[i].name}" restored to the built-in values` : `"${l.name}" reset to neutral`);
-}
-
-function libraryPicker() {
-  const have = new Set(S.pack.looks.map((l) => l.name.toLowerCase()));
-  const list = h('div', { class: 'pick-list' }, ...LIBRARY.looks.map((l) => h('button', {
-    class: 'pick', onclick: () => { if (addLook({ ...fromLibrary(l), name: uniqueName(l.name) })) dlg.close(); },
-  }, h('b', {}, l.name), have.has(l.name.toLowerCase()) ? h('span', { class: 'tag' }, 'in pack') : null, h('small', {}, l.notes))));
-  const dlg = modal('Add from the built-in library', list);
-}
 
 // ---------------------------------------------------------------- editor
 function renderEditor() {
   const el = $('#editor');
   const l = cur();
-  if (isOm3() && !l) { el.replaceChildren(emptySlotPanel()); return; }
-  if (!l) { el.replaceChildren(h('p', { class: 'empty' }, 'Add a look to start editing.')); return; }
-  if (isOm3()) { renderOm3Editor(l); return; }
-  const i = S.sel;
-  const changed = () => { save(); schedulePreview(); refreshProblems(); refreshLookCode(); };
-  const np = nameProblem(l.name);
-  const nameInput = h('input', {
-    type: 'text', value: l.name, maxlength: NAME_MAX, spellcheck: 'false', autocomplete: 'off', 'aria-describedby': 'name-help',
-    onchange: checkpoint, onkeydown: enterCommits,
-    oninput: (e: Event) => draft(() => {
-      l.name = (e.target as HTMLInputElement).value;
-      const p = nameProblem(l.name) ?? dupName(l, i);
-      $('#name-help').textContent = p ?? `${l.name.length} / ${NAME_MAX}`;
-      $('#name-help').className = p ? 'help err' : 'help';
-      const row = document.querySelectorAll('#list li .nm')[i];
-      if (row) row.textContent = l.name || '(no name)';
-      changed();
-    }),
-  });
-  const notesBytes = () => new TextEncoder().encode(l.notes).length;
-  el.replaceChildren(
-    h('div', { class: 'ed-head' },
-      h('label', { class: 'field grow' }, h('span', { class: 'lbl' }, 'Name'), nameInput,
-        h('span', { id: 'name-help', class: np || dupName(l, i) ? 'help err' : 'help' }, np ?? dupName(l, i) ?? `${l.name.length} / ${NAME_MAX}`)),
-      h('div', { class: 'ed-btns' },
-        h('button', {
-          class: 'share-btn', onclick: resetSelected,
-          title: libraryOrigin(l, LIBRARY) ? `Restore the built-in "${libraryOrigin(l, LIBRARY)!.name}" values` : 'Set every value to neutral',
-        }, 'Reset look'),
-        h('button', { class: 'share-btn', onclick: () => shareLook(l), title: 'Share this look as a short code' }, 'Share'))),
-    seg('Type', [['colour', 'Colour'], ['mono', 'Monochrome']], l.kind, (v) => {
-      l.kind = v as Look['kind'];
-      if (l.kind === 'mono') { l.art_effect = 'off'; l.advice.mono_filter ??= { colour: 'none', strength: 1 }; }
-      renderList(); renderEditor(); changed();
-    }),
-    l.kind === 'colour' ? sectorPanel(l, changed) : monoPanel(l, changed),
-    ...(l.kind === 'colour' ? [tonePanel(l, changed)] : []),
-    h('div', { class: 'group' },
-      seg('Noise reduction', [['off', 'Camera'], ['standard', 'Standard'], ['fine', 'Low'], ['film', 'Off (most texture)']], l.grain, (v) => { l.grain = v as Look['grain']; renderEditor(); changed(); })),
-    effectPanel(l, changed),
-    wbPanel(l, changed),
-    ...(l.kind === 'colour' ? [h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Art Effect'),
-      h('select', { onchange: (e: Event) => { l.art_effect = (e.target as HTMLSelectElement).value as Look['art_effect']; changed(); } },
-        ...ARTS.filter((a) => ['off', 'star_light', 'pin_hole'].includes(a) || a === l.art_effect).map((a) =>
-          h('option', { value: a, selected: a === l.art_effect }, artLabel(a)))),
-      h('span', { class: 'help' }, 'Kept in the pack file, share codes and the starter BUNDLES.BIN (COLOR slots). LOOKS.BIN has no Art Effect field. Not shown in the preview.'))] : []),
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes'),
-      h('textarea', {
-        rows: 3, maxlength: 400, placeholder: 'What the look is for, settings advice…', onchange: checkpoint,
-        oninput: (e: Event) => draft(() => {
-          l.notes = (e.target as HTMLTextAreaElement).value;
-          const b = notesBytes();
-          $('#notes-help').textContent = `${b} / ${NOTE_MAX} bytes · kept in the pack file (not on the card)`;
-          $('#notes-help').className = b > NOTE_MAX ? 'help err' : 'help';
-          changed();
-        }),
-      }, l.notes),
-      h('span', { id: 'notes-help', class: notesBytes() > NOTE_MAX ? 'help err' : 'help' }, `${notesBytes()} / ${NOTE_MAX} bytes · kept in the pack file (not on the card)`)),
-    lookCodePanel(l),
-    h('div', { id: 'problems' }));
-  refreshProblems();
-  refreshLookCode();
+  if (!l) { el.replaceChildren(emptySlotPanel()); return; }
+  renderOm3Editor(l);
 }
-
-/** Per-look share code: live code with copy buttons, and a box to paste a code into this look. */
-function lookCodePanel(l: Look): HTMLElement {
-  const code = h('code', { id: 'look-code' });
-  const help = h('span', { id: 'look-code-help', class: 'help' });
-  const inp = h('input', { type: 'text', placeholder: 'Paste a look code to load it into this look', spellcheck: 'false', autocomplete: 'off' });
-  const msg = h('span', { class: 'help' });
-  const apply = () => {
-    const t = inp.value.trim();
-    if (!t) return;
-    if (isPackCode(t)) { msg.className = 'help err'; msg.textContent = 'That is a pack link: use Paste code at the top.'; return; }
-    if (isOm3()) {
-      try {
-        const c = toOm3(decodeLookCode(t));
-        if (!c.look) throw new Error('A monochrome look can\'t be an OM-3 look (COLOR looks only).');
-        c.look.notes = l.notes; O.bank[O.k][O.v] = c.look; save(); renderAll();
-        toast(`Loaded "${c.look.name}" into ${at(O.k, O.v)}${om3Changes(c)}`);
-      } catch (e) { msg.className = 'help err'; msg.textContent = (e as Error).message; }
-      return;
-    }
-    try {
-      const n = decodeLookCode(t), i = S.sel;
-      n.notes = l.notes;                                    // codes carry no notes: keep this look's
-      S.pack.looks[i] = { ...l, name: '' };                 // so the incoming name may reuse this look's
-      n.name = uniqueName(n.name);
-      S.pack.looks[i] = n;
-      save(); renderAll();
-      toast(`Loaded "${n.name}" into look ${i + 1} (Undo brings the old one back)`);
-    } catch (e) { msg.className = 'help err'; msg.textContent = (e as Error).message; }
-  };
-  inp.addEventListener('input', () => { msg.textContent = ''; });
-  inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') apply(); });
-  const raw = () => { try { return encodeLookCode(cur()!); } catch { return null; } };
-  return h('div', { class: 'group look-code' },
-    h('span', { class: 'lbl' }, 'Look code'),
-    h('div', { class: 'code-box' }, code,
-      h('button', { onclick: () => { const c = raw(); if (c) copy(c, 'Code copied'); } }, 'Copy code'),
-      h('button', { onclick: () => { const c = raw(); if (c) copy(`${shareBase()}#${c}`, 'Link copied'); } }, 'Copy link')),
-    help,
-    h('div', { class: 'code-box' }, inp, h('button', { onclick: apply }, 'Load code')),
-    msg);
-}
-function refreshLookCode() {
-  const code = document.getElementById('look-code'), help = document.getElementById('look-code-help'), l = cur();
-  if (!code || !help || !l) return;
-  try {
-    code.textContent = encodeLookCode(l, true);
-    help.className = 'help';
-    help.textContent = 'Share just this look: anyone can paste the code (or open the link) in the control panel. Notes are not included.'
-      + (l.name.length > 12 ? ` Codes hold 12 characters, so the name travels as "${codeName(l.name)}".` : '');
-  } catch (e) {
-    code.textContent = '—';
-    help.className = 'help err';
-    help.textContent = (e as Error).message;
-  }
-}
-
-function dupName(l: Look, i: number): string | null {
-  const j = S.pack.looks.findIndex((o, k) => k !== i && o.name.toLowerCase() === l.name.toLowerCase());
-  return j >= 0 ? `Same name as look ${j + 1}.` : null;
-}
-const artLabel = (a: string) => ({ off: 'Off', star_light: 'Star Light', pin_hole: 'Pin Hole', blur: 'Blur (legacy: Off on v0.21+, issue #20)', white_edge: 'White Edge (legacy: Off on v0.15+)', frame: 'Frame (legacy: Off on v0.15+)' } as Record<string, string>)[a] ?? a;
 
 function seg(label: string, opts: [string, string][], value: string, on: (v: string) => void): HTMLElement {
   return h('div', { class: 'field' }, h('span', { class: 'lbl' }, label),
@@ -590,7 +276,7 @@ function slider(min: number, max: number, value: number, on: (v: number) => void
 }
 
 function sectorPanel(l: Look, changed: () => void): HTMLElement {
-  const hl = isOm3() ? OM3.hl : 7;
+  const hl = OM3.hl;
   const tabs: [Tab, string, number][] = [['hue', 'Hue', hl], ['light', 'Lightness', hl], ['sat', 'Saturation', 5]];
   const lim = tabs.find((t) => t[0] === S.tab)![2];
   const arr = l[S.tab];
@@ -605,12 +291,9 @@ function sectorPanel(l: Look, changed: () => void): HTMLElement {
     }, label, l[t].some((v) => v !== 0) ? h('span', { class: 'dot' }) : null))),
     h('div', { class: 'sectors' }, ...rows),
     h('div', { class: 'tab-foot' },
-      h('span', { class: 'help' }, isOm3()
-        ? (S.tab === 'hue' ? '±5 per sector: + turns the colour toward its clockwise neighbour (Yellow → Orange). Double-click a slider to zero it.'
-          : '±5 per sector, as on the camera\'s wheel. Double-click a slider to zero it.')
-        : S.tab === 'sat'
-        ? 'A Film pick sets the camera\'s saturation from these values on Caduceus v0.24 or later, for looks with a tone. It is also stored for MONO colour slots (looks without a tone).'
-        : `±${lim} per sector (v0.17 firmware). Double-click a slider to zero it.`),
+      h('span', { class: 'help' }, S.tab === 'hue'
+        ? '±5 per sector: + turns the colour toward its clockwise neighbour (Yellow → Orange). Double-click a slider to zero it.'
+        : '±5 per sector, as on the camera\'s wheel. Double-click a slider to zero it.'),
       h('button', { class: 'link', onclick: () => { arr.fill(0); renderEditor(); changed(); } }, 'Reset')));
 }
 
@@ -661,60 +344,28 @@ function tonePanel(l: Look, changed: () => void): HTMLElement {
     ...rows.slice(0, 3),
     h('div', { class: 'tone-sep' }),
     ...rows.slice(3),
-    isOm3() ? h('p', { class: 'help' },
+    h('p', { class: 'help' },
       'Highlights / Shadows / Midtones (±7) are the look\'s own tone settings; Blacks / Whites (±5) move the ends of the curve ',
       '(Extras sectors 6 and 7 on the camera). Choosing the look on the camera\'s Film page sets them all. ',
-      'The graph shows stock → this look; dots mark the Blacks and Whites ends.') :
-    h('p', { class: 'help' },
-      'Highlights / Shadows / Midtones (±7): picking the look sets the profile\'s own tone settings to these. ',
-      'Blacks / Whites (±5) move the ends of the tone curve (+Blacks lifts to a matte black, −Whites rolls the white point off); ',
-      'they act in COLOR slots, and a look with a tone is COLOR-only (it cannot go in a MONO slot). Needs Caduceus v0.19 or later. ',
-      'The graph shows stock → this look (camera tone LUT model); dots mark the Blacks and Whites ends.'),
+      'The graph shows stock → this look; dots mark the Blacks and Whites ends.'),
   );
-}
-
-function monoPanel(l: Look, changed: () => void): HTMLElement {
-  const mf = (l.advice.mono_filter ??= { colour: 'none', strength: 1 });
-  return h('div', { class: 'group' },
-    h('p', { class: 'help' }, 'Mono looks use the camera\'s Monochrome profile; the per-sector colour sliders do not apply. Filter is advice for the camera setting (and the preview).'),
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Colour filter (advice)'),
-      h('select', { onchange: (e: Event) => { mf.colour = (e.target as HTMLSelectElement).value as typeof mf.colour; changed(); } },
-        ...MONO_FILTERS.map((c) => h('option', { value: c, selected: c === mf.colour }, c[0].toUpperCase() + c.slice(1))))),
-    (() => { const { inp, out } = slider(1, 3, mf.strength, (v) => { mf.strength = v; changed(); }, String, 'Filter strength'); return h('div', { class: 'srow plain' }, h('span', { class: 'sname' }, 'Filter strength'), inp, out); })());
 }
 
 function effectPanel(l: Look, changed: () => void): HTMLElement {
   const e = l.effect;
   const v = !e ? 0 : e.type === 'clarity' ? e.strength : -e.strength;
   const fmt = (x: number) => (x === 0 ? 'Off' : x < 0 ? `Glow ${-x}` : `Clarity ${x}`);
-  const tintSel = h('select', {
-    'aria-label': 'Glow colour',
-    onchange: (ev: Event) => {
-      const t = (ev.target as HTMLSelectElement).value as (typeof TINTS)[number];
-      if (l.effect && l.effect.type !== 'clarity') { if (t === 'neutral' && l.effect.type === 'bloom') delete l.effect.tint; else l.effect.tint = t; }
-      changed();
-    },
-  }, ...TINTS.map((t) => h('option', { value: t, selected: (e?.tint ?? (e?.type === 'halation' ? 'red' : 'neutral')) === t }, t[0].toUpperCase() + t.slice(1))));
-  const tintRow = h('label', { class: 'field inline' }, h('span', { class: 'lbl' }, 'Glow colour'), tintSel);
-  tintRow.hidden = isOm3() || !(e && e.type !== 'clarity');
   const { inp, out } = slider(-5, 5, v, (x) => {
-    if (x === 0) l.effect = null;
-    else if (x > 0) l.effect = { type: 'clarity', strength: x };
-    else {
-      const keep = l.effect && l.effect.type !== 'clarity' ? l.effect : null;
-      l.effect = { type: keep?.type ?? 'bloom', strength: -x, ...(keep?.tint ? { tint: keep.tint } : {}) };
-    }
-    tintRow.hidden = isOm3() || !(l.effect && l.effect.type !== 'clarity');
+    l.effect = x === 0 ? null : x > 0 ? { type: 'clarity', strength: x } : { type: 'bloom', strength: -x };
     changed();
   }, fmt, 'Glow to clarity');
   return h('div', { class: 'group' },
     h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Glow ↔ Clarity'),
-      h('div', { class: 'srow plain' }, h('span', { class: 'end' }, 'Glow'), inp, h('span', { class: 'end' }, 'Clarity'), out)),
-    tintRow);
+      h('div', { class: 'srow plain' }, h('span', { class: 'end' }, 'Glow'), inp, h('span', { class: 'end' }, 'Clarity'), out)));
 }
 
 function wbPanel(l: Look, changed: () => void): HTMLElement {
-  const on = l.wb !== null, wl = isOm3() ? OM3.wb : 7;
+  const on = l.wb !== null, wl = OM3.wb;
   const box = h('input', {
     type: 'checkbox', checked: on,
     onchange: (e: Event) => { l.wb = (e.target as HTMLInputElement).checked ? { a_b: 0, g_m: 0 } : null; renderEditor(); changed(); },
@@ -725,8 +376,7 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
   }) : [];
   return h('div', { class: 'group' },
     h('label', { class: 'check' }, box, h('span', {}, 'White balance shift'),
-      h('span', { class: 'help' }, isOm3() ? (on ? 'the look\'s shift, added to the camera\'s own WB (Extras sectors 3 A–B and 4 G–M)' : 'off: no shift')
-        : on ? 'overrides the camera\'s WB fine-tune for this look' : 'off: your own WB fine-tune applies')),
+      h('span', { class: 'help' }, on ? 'the look\'s shift, added to the camera\'s own WB (Extras sectors 3 A–B and 4 G–M)' : 'off: no shift')),
     ...rows);
 }
 
@@ -734,7 +384,7 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
  *  it; the slider sets the strength (minus = the opposite colour). Same numbers as the camera's wheel pages. */
 /** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
 const om3Fw25 = () => { try { return localStorage.getItem('caduceus.om3.fw') === '25'; } catch { return false; } };
-const splitPv = (l: Look): Look => (isOm3() && l.split && !om3Fw25() ? { ...l, split: undefined } : l);
+const splitPv = (l: Look): Look => (l.split && !om3Fw25() ? { ...l, split: undefined } : l);
 function splitPanel(l: Look, changed: () => void): HTMLElement {
   const NS = 'http://www.w3.org/2000/svg';
   const el = <K extends keyof SVGElementTagNameMap>(t: K, a: Record<string, string | number>) => {
@@ -784,20 +434,10 @@ function splitPanel(l: Look, changed: () => void): HTMLElement {
 
 function refreshProblems() {
   const el = document.getElementById('problems');
-  if (isOm3()) {
-    const probs = validateBank(O.bank), at = O.k * PER + O.v;
-    if (el) { const mine = probs.filter((p) => p.look === at); el.replaceChildren(...(mine.length ? [h('ul', { class: 'problems' }, ...mine.map((p) => h('li', {}, p.message)))] : [])); }
-    const bad = new Set(probs.map((p) => p.look));
-    document.querySelectorAll('#list li.look').forEach((li) => li.classList.toggle('bad', bad.has(Number((li as HTMLElement).dataset.at))));
-    return;
-  }
-  const probs = validatePack(S.pack);
-  if (el) {
-    const mine = probs.filter((p) => p.look === S.sel);
-    el.replaceChildren(...(mine.length ? [h('ul', { class: 'problems' }, ...mine.map((p) => h('li', {}, p.message)))] : []));
-  }
+  const probs = validateBank(O.bank), at = O.k * PER + O.v;
+  if (el) { const mine = probs.filter((p) => p.look === at); el.replaceChildren(...(mine.length ? [h('ul', { class: 'problems' }, ...mine.map((p) => h('li', {}, p.message)))] : [])); }
   const bad = new Set(probs.map((p) => p.look));
-  document.querySelectorAll('#list li.look').forEach((li, k) => li.classList.toggle('bad', bad.has(k)));
+  document.querySelectorAll('#list li.look').forEach((li) => li.classList.toggle('bad', bad.has(Number((li as HTMLElement).dataset.at))));
 }
 
 // ---------------------------------------------------------------- preview
@@ -839,8 +479,7 @@ function buildPreview() {
     h('div', { class: 'pv-wrap' }, frame, h('span', { class: 'badge' }, 'Before'), h('span', { class: 'badge r' }, 'After · approximate')),
     thumbs,
     h('div', { class: 'pv-opts' },
-      isOm3() ? h('span', { class: 'help' }, 'Includes Contrast, Sharp and Shading.') : h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: S.advice, onchange: (e: Event) => { S.advice = (e.target as HTMLInputElement).checked; schedulePreview(); } }),
-        h('span', {}, 'Include advice (contrast)')),
+      h('span', { class: 'help' }, 'Includes Contrast, Sharp and Shading.'),
       h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Use your own photo…')),
     h('p', { class: 'help' }, 'Drag the line on the photo to compare before and after. A rough desktop-sim port running on JPEGs, not the camera\'s pipeline: use it for direction and strength, then check on the camera. Your own photo never leaves this browser.'));
   pickImage(S.image);
@@ -912,73 +551,20 @@ function schedulePreview() {
     const l = cur();
     if (!l) { ctx.putImageData(srcData, 0, 0); return; }
     const out = ctx.createImageData(srcData.width, srcData.height);
-    renderLook(srcData, out, splitPv(l), { advice: isOm3() || S.advice, camera: CAM });
+    renderLook(srcData, out, splitPv(l), { advice: true, camera: CAM });
     ctx.putImageData(out, 0, 0);
   });
 }
 
 // ---------------------------------------------------------------- import / export / share
 function openFile() { $<HTMLInputElement>('#file').click(); }
-async function onFile(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0];
-  (e.target as HTMLInputElement).value = '';
-  if (!f) return;
-  const bytes = new Uint8Array(await f.arrayBuffer());
-  if (bytes.length >= 4 && String.fromCharCode(...bytes.subarray(0, 4)) === 'EP7B') {   // a card LOOKS.BIN
-    try {
-      const p = decodeLooksBin(bytes, f.name.replace(/\.bin$/i, '') || 'LOOKS.BIN');
-      replacePack(p, `Opened ${f.name} (${p.looks.length} looks; LOOKS.BIN has no notes or Art Effects)`);
-    } catch (err) { toast((err as Error).message, 'err'); }
-    return;
-  }
-  try {
-    const p = parsePack(JSON.parse(new TextDecoder().decode(bytes)));
-    replacePack(p, `Opened "${p.name}" (${p.looks.length} looks)`);
-  } catch (err) { toast(`Not a pack file or LOOKS.BIN: ${(err as Error).message}`, 'err'); }
-}
-
-function replacePack(p: Pack, msg: string) {
-  S.pack = p;
-  S.sel = 0;
-  save(); renderAll();
-  const probs = validatePack(p);
-  toast(probs.length ? `${msg}. ${probs.length} problem(s) to fix before export.` : msg, probs.length ? 'err' : 'ok');
-}
-
-function shareLook(l: Look) {
-  let code: string;
-  try { code = encodeLookCode(l); } catch (e) { toast((e as Error).message, 'err'); return; }
-  const link = `${shareBase()}#${code}`;
-  const grouped = encodeLookCode(l, true);
-  modal(`Share "${l.name}"`, h('div', { class: 'share' },
-    h('p', {}, 'Anyone can paste this code into the Caduceus Control Panel (Paste code) to get this look.'),
-    h('div', { class: 'code-box' }, h('code', {}, grouped), h('button', { onclick: () => copy(code, 'Code copied') }, 'Copy code')),
-    h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
-      h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
-    h('p', { class: 'help' }, `${code.length} characters. Carries the card values (incl. tone), name, Art Effect and mono filter; notes stay out (use a pack link for those). Dashes and case don't matter when pasting.`),
-    h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'RapidRAW preset'), h('p', { class: 'help' }, 'This look as a .rrpreset for RapidRAW (Presets › Import), for ORF files or raws from any camera. An approximation of the camera look.')),
-      h('button', { onclick: () => { const i = S.pack.looks.indexOf(l); if (i >= 0) downloadRr(i); } }, 'Download'))));
-}
-
-async function sharePack() {
-  if (isOm3()) { om3Share(); return; }
-  const code = await encodePackCode(S.pack);
-  const link = `${shareBase()}#${code}`;
-  modal('Share this pack', h('div', { class: 'share' },
-    h('p', {}, `A link to the whole pack (${S.pack.looks.length} looks, notes and starter slots). Opening it loads the pack in the editor. The pack is inside the link itself: nothing is stored on the server.`),
-    h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
-      h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
-    h('p', { class: 'help' }, `${link.length} characters. For a single look, use the Share button next to its name: much shorter.`)));
-}
-
 function pasteDialog() {
-  const ta = h('textarea', { rows: 3, placeholder: 'Paste a look code (e.g. 1K7G-…) or a pack link', spellcheck: 'false' });
+  const ta = h('textarea', { rows: 3, placeholder: 'Paste a shared look or looks link (…#op1_… or …#ob1_…)', spellcheck: 'false' });
   const msg = h('p', { class: 'help' });
-  const go = h('button', { class: 'primary' }, 'Import');
-  const dlg = modal('Paste a code', h('div', {}, ta, msg), [go]);
+  const go = h('button', { class: 'primary' }, 'Open');
+  const dlg = modal('Paste a link', h('div', {}, ta, msg), [go]);
   go.addEventListener('click', async () => {
-    const r = await importCode(ta.value);
+    const r = await om3ImportCode(ta.value, false);
     if (r) dlg.close(); else msg.className = 'help err';
   });
   ta.addEventListener('input', () => { msg.textContent = ''; });
@@ -987,236 +573,12 @@ function pasteDialog() {
 }
 let importCodeMsg: (m: string) => void = (m) => toast(m, 'err');
 
-async function importCode(text: string, fromLink = false): Promise<boolean> {
-  const t = text.trim();
-  if (!t) return false;
-  if (isOm3()) return om3ImportCode(t, fromLink);
-  try {
-    if (isPackCode(t)) {
-      const p = await decodePackCode(t);
-      if (fromLink) return confirmPack(p);
-      if (!confirm(`Open the shared pack "${p.name}" (${p.looks.length} looks)? It replaces your current pack.`)) return false;
-      replacePack(p, `Opened "${p.name}"`);
-      return true;
-    }
-    const l = decodeLookCode(t);
-    if (S.pack.looks.length >= MAX_LOOKS) { fullDialog(l); return true; }
-    l.name = uniqueName(l.name);
-    addLook(l);
-    toast(`Added "${l.name}"`);
-    return true;
-  } catch (e) {
-    importCodeMsg((e as Error).message);
-    return false;
-  }
-}
-
-/** A shared look arrives while the pack already holds 32: replace one, or start a new pack with it. */
-function fullDialog(l: Look) {
-  const sel = h('select', { 'aria-label': 'Look to replace' }, ...S.pack.looks.map((o, i) => h('option', { value: i, selected: i === S.sel }, `${i + 1}. ${o.name}`)));
-  const rep = h('button', { class: 'primary' }, 'Replace');
-  const fresh = h('button', {}, 'New pack with just this look');
-  const dlg = modal(`Add "${l.name}"`, h('div', {},
-    h('p', {}, `Your pack is full (${MAX_LOOKS} looks, the camera's limit). Replace one of them with "${l.name}", or start a new pack.`),
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Replace'), sel)), [fresh, rep]);
-  rep.addEventListener('click', () => {
-    const i = Number(sel.value);
-    const old = S.pack.looks[i].name;
-    S.pack.looks[i] = { ...S.pack.looks[i], name: '' };   // so the incoming name may reuse the replaced one
-    l.name = uniqueName(l.name);
-    S.pack.looks[i] = l;
-    S.sel = i;
-    save(); renderAll(); dlg.close();
-    toast(`Replaced "${old}" with "${l.name}"`);
-  });
-  fresh.addEventListener('click', () => {
-    S.pack = { schema: PACK_SCHEMA, name: 'My pack', looks: [l], slots: {} };
-    S.sel = 0;
-    save(); renderAll(); dlg.close();
-    toast(`New pack with "${l.name}"`);
-  });
-}
-
-function confirmPack(p: Pack): boolean {
-  const yes = h('button', { class: 'primary' }, 'Open pack');
-  const keep = h('button', {}, 'Keep my pack');
-  const dlg = modal('Open shared pack?', h('div', {},
-    h('p', {}, `"${p.name}": ${p.looks.length} looks (${p.looks.slice(0, 6).map((l) => l.name).join(', ')}${p.looks.length > 6 ? ', …' : ''}).`),
-    h('p', { class: 'help' }, 'Opening it replaces the pack you are editing. Export yours first if you want to keep it.')), [keep, yes]);
-  yes.addEventListener('click', () => { replacePack(p, `Opened "${p.name}"`); dlg.close(); });
-  keep.addEventListener('click', () => dlg.close());
-  return true;
-}
-
-const GH = 'https://github.com/cakelesscoder/caduceus-ep7';
-function installDialog() {
-  const link = (href: string, text: string) => h('a', { href, target: '_blank', rel: 'noopener' }, text);
-  const code = (t: string) => h('code', {}, t);
-  const step = (title: string, ...body: (Node | string | null)[]) => h('li', { class: 'step' }, h('b', {}, title), h('div', { class: 'step-body' }, ...body));
-  const exportBtn = h('button', { onclick: () => { dlg.close(); exportDialog(); } }, 'Open Export');
-  const body = h('div', { class: 'install' },
-    h('p', { class: 'warn' }, '⚠️ Unofficial, experimental firmware. Flashing can brick your camera; you do this at your own risk. Without the EP7MOD folder the camera is almost stock, and the restore file returns it fully to stock.'),
-    h('ol', { class: 'steps' },
-      step('Check your camera',
-        h('p', {}, 'Olympus PEN ', h('b', {}, 'E-P7'), ' on firmware ', h('b', {}, '1.1'), ' (Setup › Firmware), a charged battery and an SD card formatted in the camera.')),
-      step('Get Python 3.10+ (once)',
-        h('p', {}, 'Windows / macOS: ', link('https://www.python.org/downloads/', 'python.org/downloads'), '. Windows: tick ', h('b', {}, 'Add python.exe to PATH'), '. macOS: afterwards run ', code('Install Certificates.command'), ' in the Python folder. Linux: usually already installed.')),
-      step('Download Caduceus',
-        h('p', {}, 'Open the ', link(`${GH}/releases/latest`, 'latest release'), ', download ', h('b', {}, 'Source code (zip)'), ' and unzip it. There is no firmware file to download: OM\'s licence means you build it yourself in the next step.')),
-      step('Build (one double-click)',
-        h('p', {}, 'In the unzipped folder, double-click the launcher for your system:'),
-        h('ul', {},
-          h('li', {}, 'Windows: ', code('Build Caduceus (Windows).bat')),
-          h('li', {}, 'macOS: ', code('Build Caduceus (Mac).command'), ' (first time: right-click › Open, then Open)'),
-          h('li', {}, 'Linux: ', code('build-caduceus-linux.sh'))),
-        h('p', {}, 'It downloads OM\'s official 1.1 firmware, builds Caduceus, checks every file and offers to copy it to your camera card. Otherwise copy ', code('DCOLYMP'), ' and ', code('EP7MOD'), ' to the root of the card. Keep ', code('restore/'), ' on your computer.')),
-      step('Your looks: LOOKS.BIN (optional)',
-        h('p', {}, h('b', {}, 'Nothing to do if you\'re happy with the built-in looks.'), ' The ', code('EP7MOD/LOOKS.BIN'), ' that step 4 puts on the card already holds all 32 built-in looks (Velvia, Portra 400, CineStill 800T, Acros…).'),
-        h('p', {}, 'To use your own versions instead:'),
-        h('ol', { class: 'substeps' },
-          h('li', {}, 'Tweak looks here in the Control Panel, or add new ones (the preview shows the effect).'),
-          h('li', {}, 'Press ', h('b', {}, 'Export'), ' › ', code('LOOKS.BIN'), ' › Download.'),
-          h('li', {}, 'Copy it to ', code('EP7MOD/'), ' on the card, replacing the old ', code('LOOKS.BIN'), '. Keep the name exactly ', code('LOOKS.BIN'), '.'),
-          h('li', {}, 'Put the card back and half-press once: your looks are on the Film page.')),
-        h('p', {}, 'No re-flash needed: swap ', code('LOOKS.BIN'), ' any time. Your saved slot choices (', code('BUNDLES.BIN'), ') stay as they are.'),
-        exportBtn),
-      step('Flash',
-        h('p', {}, 'Put the card in the camera, hold ', h('b', {}, 'OK'), ' and switch on. Wait for the update to finish (blinking LED) and don\'t switch off meanwhile. Setup › Firmware then shows Caduceus.')),
-      step('Shoot',
-        h('p', {}, 'Half-press once so the looks load. Picture Mode › a Colour Profile › colour wheel, press ', h('b', {}, 'INFO'), ' until ', code('Film: <name>'), ', and turn the dial to pick a look.')))
-  );
-  const dlg = modal('Install the firmware', body, [
-    h('a', { class: 'btn', href: `${GH}/blob/main/docs/INSTALL.md`, target: '_blank', rel: 'noopener' }, 'Full guide on GitHub'),
-    h('a', { class: 'btn primary', href: `${GH}/releases/latest`, target: '_blank', rel: 'noopener' }, 'Latest release'),
-  ]);
-}
-
-const STORE_TARGET = 'caduceus.target';
-// Camera selector stays hidden until other cameras have known-good builds (the E-P7 export is used meanwhile).
-const SHOW_CAMERA_SELECTOR = false;
-function exportDialog() {
-  if (!SHOW_CAMERA_SELECTOR) { modal('Export', h('div', { class: 'export' }, ep7Body())); return; }
-  let target = targetById((() => { try { return localStorage.getItem(STORE_TARGET); } catch { return null; } })());
-  const sel = h('select', {
-    'aria-label': 'Camera',
-    onchange: () => {
-      target = targetById(sel.value);
-      try { localStorage.setItem(STORE_TARGET, target.id); } catch { /* private mode */ }
-      paint();
-    },
-  }, ...TARGETS.map((t) => h('option', { value: t.id, disabled: t.status !== 'ready', selected: t.id === target.id },
-    t.status === 'ready' ? t.label : `${t.label} (coming soon)`)));
-  const soonLinks = h('p', { class: 'help' }, 'Coming soon: ', ...TARGETS.filter((t) => t.status === 'soon').flatMap((t, i) =>
-    [i ? ' · ' : '', h('a', { href: t.doc, target: '_blank', rel: 'noopener' }, t.label)]));
-  const note = h('p', { class: 'help' });
-  const content = h('div', {});
-  const paint = () => {
-    note.textContent = target.note;
-    content.replaceChildren(target.id === 'recipe-card' ? recipeBody() : ep7Body());
-  };
-  const body = h('div', { class: 'export' },
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Camera'), sel, note), soonLinks, content);
-  paint();
-  modal('Export', body);
-}
-
-function recipeBody(): HTMLElement {
-  const fname = (S.pack.name || 'pack').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'pack';
-  const l = cur();
-  const files = () => targetById('recipe-card').export(S.pack);
-  return h('div', {},
-    l ? h('pre', { class: 'recipe-card' }, recipeCard(l)) : null,
-    h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'This look (.md)'), h('p', { class: 'help' }, `The card above: "${l?.name ?? ''}".`)),
-      h('button', { class: 'primary', disabled: !l, onclick: () => { if (l) { const f = files()[S.sel]; download(f.name, f.data, 'text/markdown'); } } }, 'Download')),
-    h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'All looks (.zip)'), h('p', { class: 'help' }, `${S.pack.looks.length} cards, one Markdown file per look.`)),
-      h('button', {
-        disabled: !S.pack.looks.length,
-        onclick: () => download(`${fname}-recipes.zip`, makeZip(files().map((f) => ({ name: f.name, data: typeof f.data === 'string' ? new TextEncoder().encode(f.data) : f.data }))), 'application/zip'),
-      }, 'Download')));
-}
-
 const rrName = (n: string) => n.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'look';
-const downloadRr = (i: number) => download(`${rrName(S.pack.looks[i].name)}.rrpreset`, rrpreset(S.pack, i), 'application/json');
-const rrFiles = () => S.pack.looks.map((l, i) => ({ name: `${String(i + 1).padStart(2, '0')}-${rrName(l.name)}.rrpreset`, data: new TextEncoder().encode(rrpreset(S.pack, i)) }));
-function ep7Body(): HTMLElement {
-  const probs = validatePack({ ...S.pack, slots: {} });
-  const slotSel = (s: SlotName) => {
-    const sel = h('select', {
-      onchange: (e: Event) => {
-        const v = (e.target as HTMLSelectElement).value;
-        if (v === '') delete S.pack.slots[s]; else S.pack.slots[s] = Number(v);
-        save();
-      },
-    }, h('option', { value: '' }, '— stock —'),
-    ...S.pack.looks.map((l, i) => (s.startsWith('COLOR') ? l.kind === 'mono' : hasTone(l)) ? null : h('option', { value: i, selected: S.pack.slots[s] === i }, `${i + 1}. ${l.name}`)).filter(Boolean) as HTMLElement[]);
-    return h('label', { class: 'slot' }, h('span', {}, s), sel);
-  };
-  const withBundles = h('input', { type: 'checkbox' });
-  const fname = (S.pack.name || 'pack').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'pack';
-  const looksBin = () => {
-    try { return targetById('ep7-caduceus').export(S.pack)[0].data as Uint8Array; } catch (e) { toast(e instanceof PackError ? 'Fix the problems listed first' : (e as Error).message, 'err'); return null; }
-  };
-  const packJson = () => JSON.stringify({ ...exportable(S.pack), schema: PACK_SCHEMA }, null, 1) + '\n';
-  const body = h('div', { class: 'export' },
-    probs.length
-      ? h('div', { class: 'problems-box' }, h('b', {}, `${probs.length} problem(s) block LOOKS.BIN:`),
-        h('ul', { class: 'problems' }, ...probs.slice(0, 12).map((p) => h('li', {}, fmtProblem(p)))))
-      : h('p', { class: 'ok' }, `✓ ${S.pack.looks.length} looks pass the camera's LOOKS.BIN checks (v0.19 firmware).`),
-    h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'LOOKS.BIN'), h('p', { class: 'help' }, 'The looks the camera\'s Film page offers (needs Caduceus v0.24 or later). The firmware install already puts the 32 built-in looks on the card; download this only to use your own edits. Copy it to EP7MOD/ on the card (replacing LOOKS.BIN there) and half-press. No re-flash needed.')),
-      h('button', { class: 'primary', disabled: probs.length > 0, onclick: () => { const b = looksBin(); if (b) download('LOOKS.BIN', b); } }, 'Download')),
-    h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'Pack file (.json)'), h('p', { class: 'help' }, 'Everything, including notes and advice. Open it here later or send it to someone.')),
-      h('button', { onclick: () => download(`${fname}.caduceus.json`, packJson(), 'application/json') }, 'Download')),
-    h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'RapidRAW presets (.rrpreset)'), h('p', { class: 'help' }, 'One look, or every look as its own preset in a zip, for ORF files or raws from any camera. Unzip, then in RapidRAW: Presets › Import and select the files. Approximate: RapidRAW starts from its own raw rendering, so expect the look\'s character, not an exact match to the camera JPEG.')),
-      h('div', { class: 'ex-btns' },
-        h('button', { disabled: !cur(), onclick: () => { if (cur()) downloadRr(S.sel); } }, 'This look'),
-        h('button', { disabled: !S.pack.looks.length, onclick: () => download(`${fname}-rapidraw.zip`, makeZip(rrFiles()), 'application/zip') }, `All ${S.pack.looks.length} (.zip)`))),
-    h('details', { class: 'ex-bundles' },
-      h('summary', {}, 'Starter slots (BUNDLES.BIN, optional)'),
-      h('p', { class: 'help' }, 'BUNDLES.BIN holds the looks currently in the 8 picture-mode slots. Your card\'s BUNDLES.BIN has your saved slot choices: only replace it if you want to reset them. Empty = the camera\'s stock rendering.'),
-      h('div', { class: 'slots' }, ...SLOT_NAMES.map(slotSel))),
-    h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'Card folder (.zip)'), h('p', { class: 'help' }, 'EP7MOD/LOOKS.BIN (+ BUNDLES.BIN if ticked) and the pack file. Unzip at the card root.'),
-        h('label', { class: 'check' }, withBundles, h('span', {}, 'Include starter BUNDLES.BIN'))),
-      h('button', {
-        disabled: probs.length > 0, onclick: () => {
-          const lb = looksBin();
-          if (!lb) return;
-          const files = [{ name: 'EP7MOD/LOOKS.BIN', data: lb }];
-          if (withBundles.checked) {
-            try { files.push({ name: 'EP7MOD/BUNDLES.BIN', data: encodeBundlesBin(S.pack) }); } catch (e) { toast((e as Error).message, 'err'); return; }
-          }
-          files.push({ name: `${fname}.caduceus.json`, data: new TextEncoder().encode(packJson()) });
-          download(`${fname}-card.zip`, makeZip(files), 'application/zip');
-        },
-      }, 'Download')),
-    h('p', { class: 'help' }, 'Copy EP7MOD/ to the root of the card (never into DCOLYMP/). The camera checks every file and ignores one that fails.'));
-  return body;
-}
-const fmtProblem = (p: Problem) => (p.look !== undefined ? `Look ${p.look + 1} (${S.pack.looks[p.look]?.name || 'no name'}): ` : '') + p.message;
-
 // ---------------------------------------------------------------- OM-3 (Caduceus for OM-3)
 // The OM-3 has no look list: each of COLOR 1-4 holds five numbered looks (the camera's Film page, dial 1-5).
 const OB_PREFIX = 'ob1_', OP_PREFIX = 'op1_';
 const OM3_GH = 'https://github.com/androidfanman/caduceus-om3';
 const at = (k: number, v: number) => `FILM ${k * PER + v + 1}`;   // owner 2026-11-08: one list, FILM 1-20 (COLOR k = (n - 1) / 5 on the card)
-
-function switchCamera(c: Cam) {
-  if (c === CAM) return;
-  flush();
-  CAM = c;
-  try { localStorage.setItem(STORE_CAM, c); } catch { /* private mode */ }
-  const u = new URL(location.href);
-  if (u.searchParams.has('camera')) { u.searchParams.set('camera', c); history.replaceState(null, '', u.pathname + u.search + u.hash); }
-  hist = new History(snapshot(), 200);
-  S.tab = 'hue';
-  if (S.image !== 'user') S.image = c === 'om3' ? 'frames' : 'harbour';
-  shell(); renderAll(); undoUi();
-}
 
 function newBank(kind: 'library' | 'empty') {
   if (!confirm(kind === 'library' ? 'Reset to the 20 films in the standard FILM 1–20 order? Your current films are replaced (Undo brings them back).'
@@ -1344,8 +706,8 @@ function emptySlotPanel(): HTMLElement {
       h('button', { class: 'primary', onclick: () => put(blankProfile(`Look ${v + 1}`), `New blank look in ${at(k, v)}`) }, 'Blank look'),
       h('button', { onclick: () => om3FilmPicker({ k, v }) }, 'From the film sims…'),
       h('button', { onclick: om3LibraryPicker }, 'From the built-in library…'),
-      h('button', { onclick: pasteDialog }, 'Paste a code…')),
-    h('p', { class: 'help' }, 'Library looks come from Caduceus (E-P7) and are converted for the OM-3: Hue, Light and WB shifts are limited to ±5, a halation glow becomes a plain glow (the OM-3 glow has no colour), and Blur is left out. NR, Glow / Clarity and Art Effects carry over (firmware v0.20).'));
+      h('button', { onclick: pasteDialog }, 'Paste a link…')),
+    h('p', { class: 'help' }, 'Library looks are the starter looks of Caduceus for the E-P7 by cakelesscoder, converted for the OM-3: Hue, Light and WB shifts are limited to ±5, a halation glow becomes a plain glow (the OM-3 glow has no colour), and Blur is left out. NR, Glow / Clarity and Art Effects carry over (firmware v0.20).'));
 }
 
 function om3Changes(c: { changed: string[]; dropped: string[] }): string {
@@ -1471,7 +833,7 @@ function renderOm3Editor(l: Look) {
   showWarn();
   const el = $('#editor');
   const k = O.k, v = O.v;
-  const changed = () => { save(); schedulePreview(); refreshProblems(); refreshLookCode(); };
+  const changed = () => { save(); schedulePreview(); refreshProblems(); };
   const np = om3NameProblem(l.name);
   const nameInput = h('input', {
     type: 'text', value: l.name, maxlength: OM3_NAME_MAX, spellcheck: 'false', autocomplete: 'off', 'aria-describedby': 'name-help',
@@ -1505,7 +867,7 @@ function renderOm3Editor(l: Look) {
             toast(film ? `"${r.name}" restored to the ${film.name} film sim` : orig ? `"${r.name}" restored to the built-in values` : `"${l.name}" reset to neutral`);
           },
         }, 'Reset look'),
-        h('button', { class: 'share-btn', onclick: () => om3ShareProfile(l), title: 'Share this look as a link or code' }, 'Share'))),
+        h('button', { class: 'share-btn', onclick: () => om3ShareProfile(l), title: 'Share this look as a link' }, 'Share'))),
     sectorPanel(l, changed),
     tonePanel(l, changed),
     splitPanel(l, changed),
@@ -1556,10 +918,8 @@ function renderOm3Editor(l: Look) {
         }),
       }, l.notes),
       h('span', { id: 'notes-help', class: notesBytes() > NOTE_MAX ? 'help err' : 'help' }, `${notesBytes()} / ${NOTE_MAX} bytes · kept in the looks file (not on the card)`)),
-    lookCodePanel(l),
     h('div', { id: 'problems' }));
   refreshProblems();
-  refreshLookCode();
 }
 
 // ---- OM-3 links: a whole bank (ob1_) or one look (op1_), deflated JSON. Unlike look codes they keep Contrast and Sharp.
@@ -1578,34 +938,12 @@ async function decodeOm3(prefix: string, t: string): Promise<unknown> {
 }
 const isOm3Code = (t: string, p: string) => new RegExp(`(^|#)\\s*${p}`).test(t.trim());
 
-/** Fill a bank from a Caduceus (E-P7) pack: its first 20 colour looks, five per COLOR in order. */
-function packToBank(p: Pack): { bank: Bank; n: number; mono: number; extra: number } {
-  const bank = emptyBank();
-  const colour = p.looks.filter((l) => l.kind === 'colour');
-  colour.slice(0, COLORS * PER).forEach((l, i) => { bank[Math.floor(i / PER)][i % PER] = toOm3(l).look; });
-  return { bank, n: Math.min(colour.length, COLORS * PER), mono: p.looks.length - colour.length, extra: Math.max(0, colour.length - COLORS * PER) };
-}
 function replaceBank(bank: Bank, msg: string, name?: string) {
   O.bank = bank; if (name) O.name = name; O.k = 0; O.v = 0;
   save(); renderAll();
   const probs = validateBank(bank);
   toast(probs.length ? `${msg}. ${probs.length} problem(s) to fix before export.` : msg, probs.length ? 'err' : 'ok');
 }
-function confirmPackToBank(p: Pack, fromE7 = true) {
-  const r = packToBank(p);
-  const yes = h('button', { class: 'primary' }, 'Use as OM-3 looks');
-  const e7 = h('button', {}, 'Open for the E-P7 instead');
-  const no = h('button', {}, 'Cancel');
-  const dlg = modal('Caduceus pack → OM-3 looks', h('div', {},
-    h('p', {}, `"${p.name}": ${p.looks.length} looks. The first ${r.n} colour looks become FILM 1–${r.n}, in order.`),
-    h('p', { class: 'help' }, [r.mono ? `${r.mono} monochrome look(s) are skipped (COLOR looks only). ` : '', r.extra ? `${r.extra} more colour look(s) don't fit (20 looks). ` : '',
-      'Hue, Light and WB are limited to ±5; a halation glow becomes a plain glow and Blur is left out. This replaces your current looks (Undo brings them back).'].join(''))),
-  [no, ...(fromE7 ? [e7] : []), yes]);
-  yes.addEventListener('click', () => { replaceBank(r.bank, `Loaded ${r.n} looks from "${p.name}"`); dlg.close(); });
-  e7.addEventListener('click', () => { dlg.close(); switchCamera('ep7'); replacePack(p, `Opened "${p.name}"`); });
-  no.addEventListener('click', () => dlg.close());
-}
-
 async function om3OnFile(e: Event) {
   const f = (e.target as HTMLInputElement).files?.[0];
   (e.target as HTMLInputElement).value = '';
@@ -1615,11 +953,10 @@ async function om3OnFile(e: Event) {
   try {
     if (magic === 'OM3P') { replaceBank(readProfiles(bytes), `Opened ${f.name} (${readProfiles(bytes).flat().filter(Boolean).length} looks)`); return; }
     if (magic === 'OM3N') { toast('That is NAMES.BIN (the name pictures). Open LOOKS.BIN instead: it holds the names too.', 'err'); return; }
-    if (magic === 'EP7B') { confirmPackToBank(decodeLooksBin(bytes, f.name.replace(/\.bin$/i, '') || 'LOOKS.BIN')); return; }
     const j = JSON.parse(new TextDecoder().decode(bytes));
     if (j && j.schema === BANK_SCHEMA) { const b = parseBank(j, parseLook); replaceBank(b.bank, `Opened "${b.name}"`, b.name); return; }
-    confirmPackToBank(parsePack(j));
-  } catch (err) { toast(`Not a LOOKS.BIN, looks file or Caduceus pack: ${(err as Error).message}`, 'err'); }
+    throw new Error('not an OM-3 file');
+  } catch (err) { toast(`Not an OM-3 LOOKS.BIN or looks file: ${(err as Error).message}`, 'err'); }
 }
 
 async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
@@ -1631,11 +968,9 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
       replaceBank(b.bank, `Opened "${b.name}"`, b.name);
       return true;
     }
-    if (isPackCode(t)) { confirmPackToBank(await decodePackCode(t)); return true; }
-    let c: { look: Look | null; changed: string[]; dropped: string[] };
-    if (isOm3Code(t, OP_PREFIX)) c = { look: parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
-    else c = toOm3(decodeLookCode(t));
-    if (!c.look) throw new Error('That is a monochrome look: OM-3 looks are COLOR only.');
+    if (!isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_).');
+    const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
+    if (!c.look) throw new Error('That link holds no look.');
     let k = O.k, v = O.v;
     if (O.bank[k][v]) {
       const free = O.bank[k].findIndex((x) => !x);
@@ -1669,14 +1004,10 @@ async function om3Share() {
 async function om3ShareProfile(l: Look) {
   const code = await encodeOm3(OP_PREFIX, plainLook(l));
   const link = `${shareBase()}?camera=om3#${code}`;
-  let lc = '';
-  try { lc = encodeLookCode(l); } catch { /* shown below */ }
   modal(`Share "${l.name}"`, h('div', { class: 'share' },
     h('p', {}, 'A link to this OM-3 look, with everything in it (including Contrast, Sharp and Shading):'),
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
-    lc ? h('p', {}, 'Or the short Caduceus look code, which also works for E-P7 users (it carries no Contrast, Sharp or split toning):') : null,
-    lc ? h('div', { class: 'code-box' }, h('code', {}, encodeLookCode(l, true)), h('button', { onclick: () => copy(lc, 'Code copied') }, 'Copy code')) : null,
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'RapidRAW preset'), h('p', { class: 'help' }, 'This look as a .rrpreset for RapidRAW (Presets › Import), for ORF files. An approximation of the camera look.')),
       h('button', { onclick: () => download(`${rrName(l.name)}.rrpreset`, rrpreset(bankPack([l]), 0), 'application/json') }, 'Download'))));
@@ -1792,10 +1123,9 @@ function om3ExportDialog() {
 async function handleHash() {
   const code = decodeURIComponent(location.hash.slice(1));
   if (!code) return;
-  if (code.startsWith(OB_PREFIX) && !isOm3()) switchCamera('om3');
   history.replaceState(null, '', location.pathname + location.search);
   importCodeMsg = (m) => toast(`Link: ${m}`, 'err');
-  await importCode(code, true);
+  await om3ImportCode(code, true);
   importCodeMsg = (m) => toast(m, 'err');
 }
 

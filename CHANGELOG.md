@@ -8,6 +8,9 @@ same number is used here (test 17 = v0.17).
   wheel's 12 colours with a strength −5..+5, shown in the preview. Needs firmware v0.26 (being camera-tested): it is
   previewed and saved only with Export › Firmware on the camera › "v0.26 or later". Ten of the 20 film sims carry a
   light tone (strength 1–2) for v0.26; with older firmware they are as in v0.25.
+- **Control Panel: OM-3 only** (2026-11-09): the E-P7 side is gone (camera switch, E-P7 packs and `LOOKS.BIN`, look
+  codes, export targets). OM-3 looks are shared as links (`op1_` / `ob1_`), as before. The built-in library's starter
+  looks from Caduceus for the E-P7 (credited) are still offered on an empty place.
 
 ## v0.25
 Fast colour film grain, a WB grid row, a Glow row, settings kept over power off, and 20 new film sims. Firmware
