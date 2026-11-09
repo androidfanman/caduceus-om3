@@ -1,3 +1,4 @@
+import { parseSplit, splitOk } from './split';
 // OM SYSTEM OM-3 with Caduceus for OM-3 (androidfanman/caduceus-om3): the profile bank and its card files.
 // The camera has 5 looks for each of COLOR 1-4 (its Film page, dial 0-5). A look holds the wheels (Saturation, Hue,
 // Light), the tone (Shadows / Midtones / Highlights on the camera's own tone settings, Blacks / Whites on the Extras
@@ -32,7 +33,7 @@ export const sharpLabel = (v: number) => (v <= SHARP.lo ? 'Off' : v > 0 ? `+${v}
 /** Firmware the LOOKS.BIN is for: 24 = v0.25 and later (fast colour grain with everything; Art Effect = Frame only),
  * 23 = v0.24.1 (NR High; Shading saved as 0: the row is hidden there), 22 = v0.22 (Sharp), 21 (Grain, VigFix),
  * 20 = v0.20 and older / PROFILES.BIN. */
-export type Fw = 20 | 21 | 22 | 23 | 24;
+export type Fw = 20 | 21 | 22 | 23 | 24 | 25;   // 25 = v0.26 (split toning, record +53..+56)
 /** v0.25: Grain is as fast as normal with every setting, except Glow / Clarity and Frame together (the slower route,
  * about 3 s per photo). */
 export const slowGrain = (_l: Look) => false;   // v0.25: no Art Effect (Frame removed), so grain is fast with everything
@@ -111,6 +112,7 @@ export function validateProfile(l: Look, at?: { k: number; v: number }): Problem
   if (!(OM3_ARTS as readonly string[]).includes(l.art_effect)) add('art_effect', 'Art Effect: Off, Star Light, Pin Hole, White Edge or Frame.');
   if (!OM3_NR.includes(l.grain)) add('grain', 'NR: Camera, Off, Low, Std or High.');
   if (l.film_grain !== undefined && !(Number.isInteger(l.film_grain) && l.film_grain >= 0 && l.film_grain <= OM3.grain)) add('film_grain', 'Grain: Off, Low, Med or High.');
+  if (l.split && !splitOk(l.split)) add('split', 'Split toning: a colour of the wheel and a strength -5..5.');
   return p;
 }
 export function validateBank(bank: Bank): Problem[] {
@@ -142,6 +144,7 @@ export function profilesBin(bank: Bank, fw: Fw = 22): Uint8Array {
     b[o + 49] = nr === 4 && fw < 23 ? 1 : nr;                                     // High needs v0.23: Standard before
     if (fw >= 21) { b[o + 50] = l.lens_correction ? 0 : 1; b[o + 51] = Math.max(0, Math.min(OM3.grain, l.film_grain ?? 0)); }
     if (fw >= 22) s8(52, Math.max(SHARP.lo, Math.min(SHARP.hi, sharp)));
+    if (fw >= 25 && l.split && splitOk(l.split)) { b[o + 53] = l.split.sh_color; s8(54, l.split.sh); b[o + 55] = l.split.hl_color; s8(56, l.split.hl); }   // v0.26 split toning
     const nm = l.name.replace(/[^\x20-\x7e]/g, '?').slice(0, 15);
     for (let i = 0; i < nm.length; i++) b[1312 + 16 * r + i] = nm.charCodeAt(i);
   }));
@@ -158,7 +161,7 @@ export function readProfiles(b: Uint8Array): Bank {
   for (let r = 0; r < 20; r++) {
     const o = 32 + 64 * r, s = (i: number) => d.getInt8(o + i), a = (at: number) => Array.from({ length: 12 }, (_, i) => s(at + i));
     let name = ''; for (let i = 0; i < 15; i++) { const c = b[1312 + 16 * r + i]; if (!c) break; name += String.fromCharCode(c); }
-    if (!name && !b.subarray(o, o + 53).some(Boolean)) continue;
+    if (!name && !b.subarray(o, o + 57).some(Boolean)) continue;
     const l = blankLook('colour', (name || `Look ${(r % 5) + 1}`).slice(0, OM3_NAME_MAX).trim() || 'Look');
     l.hue = a(0); l.light = a(12); l.sat = a(24);
     l.wb = b[o + 36] & 1 ? { a_b: s(37), g_m: s(38) } : null;
@@ -171,6 +174,8 @@ export function readProfiles(b: Uint8Array): Bank {
     l.grain = OM3_NR[b[o + 49]] ?? 'off';
     if (b[o + 50] === 0) l.lens_correction = true;
     if (b[o + 51] >= 1) l.film_grain = Math.min(OM3.grain, b[o + 51]);
+    const sp = parseSplit({ sh_color: b[o + 53], sh: s(54), hl_color: b[o + 55], hl: s(56) });
+    if (sp) l.split = sp;
     bank[Math.floor(r / 5)][r % 5] = l;
   }
   return bank;

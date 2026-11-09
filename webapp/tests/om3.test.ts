@@ -217,3 +217,22 @@ describe('every film sim makes a look code', () => {
     for (const f of FILMS) { const l = filmLook(f); expect(() => encodeLookCode({ ...l, name: codeName(l.name) })).not.toThrow(); }
   });
 });
+
+describe('split toning (v0.26)', () => {
+  it('writes and reads record +53..+56 only for v0.26 exports', async () => {
+    const { profilesBin, readProfiles, emptyBank, blankProfile } = await import('../src/om3');
+    const b = emptyBank(); const l = blankProfile('Tone test'); l.split = { sh_color: 8, sh: 3, hl_color: 1, hl: -2 }; b[0][0] = l;
+    const f25 = profilesBin(b, 25), f24 = profilesBin(b, 24);
+    expect([...f25.subarray(32 + 53, 32 + 57)]).toEqual([8, 3, 1, 254]);
+    expect([...f24.subarray(32 + 53, 32 + 57)]).toEqual([0, 0, 0, 0]);
+    expect(readProfiles(f25)[0][0]!.split).toEqual({ sh_color: 8, sh: 3, hl_color: 1, hl: -2 });
+    expect(readProfiles(f24)[0][0]!.split).toBeUndefined();
+  });
+  it('the preview bend matches the firmware model at the curve ends', async () => {
+    const { bendSplit } = await import('../src/split');
+    const img = new Float32Array([0, 0, 0, 1, 1, 1, 0.3, 0.3, 0.3]);
+    bendSplit(img, 3, { sh_color: 8, sh: 5, hl_color: 1, hl: 5 });
+    expect([...img.subarray(0, 6)].map((x) => Math.round(x * 1000))).toEqual([0, 0, 0, 1000, 1000, 1000]);
+    expect(img[6]).toBeLessThan(img[7]);   // cyan shadows: red down, green up
+  });
+});

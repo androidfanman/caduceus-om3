@@ -324,3 +324,13 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .name-dlg input { width: 100%; }
 .film-row.in-list { background: color-mix(in srgb, var(--accent) 9%, transparent); }
 .in-list-tag { font-size: 12px; font-weight: 600; color: var(--accent-ink); background: var(--accent); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+
+/* OM-3 v0.26 split toning wheels */
+.split-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.split-one { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1 1 150px; }
+.split-one .srow { width: 100%; }
+.split-wedge { cursor: pointer; opacity: 0.5; stroke: var(--panel); stroke-width: 1.5; }
+.split-wedge:hover { opacity: 0.85; }
+.split-wedge.on { opacity: 1; stroke: var(--ink); stroke-width: 2.5; }
+.split-hub { fill: var(--soft); stroke: var(--line); }
+.split-dot { fill: #fff; stroke: #222; stroke-width: 2; pointer-events: none; }

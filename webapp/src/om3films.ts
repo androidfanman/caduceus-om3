@@ -10,6 +10,7 @@ export interface Film {
   hue: number[]; light: number[]; sat: number[];
   tone: Look['tone']; contrast: number; wb: { a_b: number; g_m: number } | null;
   sharp: number;   // firmware v0.22 Sharp, the camera's numbers (0 = its normal)
+  split?: { sh_color: number; sh: number; hl_color: number; hl: number };   // v0.26 split toning
 }
 export type FilmGroup = 'fuji' | 'slide' | 'neg' | 'instant' | 'print';
 export const FILM_GROUPS: [FilmGroup, string][] = [
@@ -38,6 +39,7 @@ export function filmLook(f: Film): Look {
   l.tone = { ...f.tone };
   l.advice = { contrast: f.contrast, sharpness: f.sharp ?? 0 };
   l.wb = f.wb ? { ...f.wb } : null;
+  if (f.split) l.split = { ...f.split };
   l.notes = f.desc;
   return l;
 }

@@ -1,3 +1,4 @@
+import { parseSplit, type Split } from './split';
 // Pack model (schema "caduceus-pack/1") and its structural parsing. The value vocabulary is the one of the repo's
 // library/bundle JSON (bundles/*.json, patches/bundles/build.py) so packs read naturally next to the Python tools.
 
@@ -67,6 +68,7 @@ export interface Look {
   advice: Advice;      // camera settings the look recommends (preview only; not in any card file)
   lens_correction?: boolean;   // Caduceus v0.25 / OM-3 v0.21: true = keep the camera's lens vignette correction (default: off)
   film_grain?: number;         // OM-3 v0.21: the camera's grain 1 Low, 2 Med, 3 High (absent = off); not the E-P7 grain field
+  split?: Split;               // OM-3 v0.26: split toning, Shadows / Highlights colour 0..11 and strength -5..5 (absent = off)
   origin?: string;     // app-only: the built-in library look this one came from (for Reset look); not exported
   lib?: string;        // app-only: fingerprint of the library values it was copied from (unmodified = still equal)
 }
@@ -156,6 +158,7 @@ export function parseLook(v: unknown, what = 'look'): Look {
     advice: adv,
     ...(v.lens_correction === true ? { lens_correction: true } : {}),
     ...(Number.isInteger(v.film_grain) && (v.film_grain as number) > 0 ? { film_grain: Math.min(3, v.film_grain as number) } : {}),
+    ...(parseSplit(v.split) ? { split: parseSplit(v.split) } : {}),
     ...(typeof v.origin === 'string' ? { origin: v.origin } : {}),
     ...(typeof v.lib === 'string' ? { lib: v.lib } : {}),
   };

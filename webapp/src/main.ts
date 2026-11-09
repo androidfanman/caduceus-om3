@@ -21,6 +21,7 @@ import {
   SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw,
 } from './om3';
 import { namesBin } from './om3names';
+import { SPLIT_COLOURS, SPLIT_MAX, type Split } from './split';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
 
@@ -729,6 +730,58 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
     ...rows);
 }
 
+/** OM-3 v0.26 split toning: two wheels (Shadows, Highlights) of the camera's 12 colours. Click a colour to tint toward
+ *  it; the slider sets the strength (minus = the opposite colour). Same numbers as the camera's wheel pages. */
+/** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
+const om3Fw25 = () => { try { return localStorage.getItem('caduceus.om3.fw') === '25'; } catch { return false; } };
+const splitPv = (l: Look): Look => (isOm3() && l.split && !om3Fw25() ? { ...l, split: undefined } : l);
+function splitPanel(l: Look, changed: () => void): HTMLElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = <K extends keyof SVGElementTagNameMap>(t: K, a: Record<string, string | number>) => {
+    const e = document.createElementNS(NS, t);
+    for (const [k, v] of Object.entries(a)) e.setAttribute(k, String(v));
+    return e;
+  };
+  const sp = (): Split => l.split ?? { sh_color: 8, sh: 0, hl_color: 1, hl: 0 };
+  const put = (s: Split) => { if (s.sh || s.hl) l.split = s; else delete l.split; changed(); };
+  const wheel = (which: 'sh' | 'hl', title: string) => {
+    const S0 = 150, C = S0 / 2, R1 = 70, R0 = 28, cKey = which === 'sh' ? 'sh_color' : 'hl_color';
+    const svg = el('svg', { viewBox: `0 0 ${S0} ${S0}`, width: S0, height: S0, class: 'split-wheel', role: 'img' });
+    const pt = (a: number, r: number) => [C + r * Math.sin(a), C - r * Math.cos(a)];
+    const dot = el('circle', { r: 7, class: 'split-dot' });
+    const { inp, out } = slider(-SPLIT_MAX, SPLIT_MAX, sp()[which], (v) => { const s = { ...sp(), [which]: v }; put(s); draw(); }, undefined, `${title} strength`);
+    const name = h('span', { class: 'help' });
+    const wedges = SPLIT_COLOURS.map(([nm, col], i) => {
+      const a0 = (i - 0.5) * Math.PI / 6, a1 = (i + 0.5) * Math.PI / 6;
+      const [x0, y0] = pt(a0, R1), [x1, y1] = pt(a1, R1), [x2, y2] = pt(a1, R0), [x3, y3] = pt(a0, R0);
+      const w = el('path', { d: `M${x0},${y0} A${R1},${R1} 0 0 1 ${x1},${y1} L${x2},${y2} A${R0},${R0} 0 0 0 ${x3},${y3} Z`, fill: col, class: 'split-wedge' });
+      const t = el('title', {}); t.textContent = nm; w.append(t);
+      w.addEventListener('click', () => {
+        const s = { ...sp(), [cKey]: i } as Split;
+        if (!s[which]) s[which] = 2;
+        put(s); inp.value = String(s[which]); out.textContent = s[which] > 0 ? `+${s[which]}` : String(s[which]); draw(); checkpoint();
+      });
+      svg.append(w); return w;
+    });
+    svg.append(el('circle', { cx: C, cy: C, r: R0 - 2, class: 'split-hub' }), dot);
+    const draw = () => {
+      const s = sp(), c = s[cKey as 'sh_color'], v = s[which];
+      wedges.forEach((w, i) => w.classList.toggle('on', i === c && v !== 0));
+      const a = c * Math.PI / 6 + (v < 0 ? Math.PI : 0), [x, y] = v ? pt(a, R0 + 4 + (Math.abs(v) / SPLIT_MAX) * (R1 - R0 - 10)) : [C, C];
+      dot.setAttribute('cx', String(x)); dot.setAttribute('cy', String(y));
+      name.textContent = v === 0 ? 'Off' : `${SPLIT_COLOURS[c][0]}${v < 0 ? ' (opposite)' : ''} ${v > 0 ? '+' : ''}${v}`;
+    };
+    draw();
+    return h('div', { class: 'split-one' }, h('b', {}, title), svg, h('div', { class: 'srow plain' }, h('span', { class: 'sname' }, 'Strength'), inp, out), name);
+  };
+  return h('div', { class: 'group' },
+    h('span', { class: 'lbl' }, 'Split toning (firmware v0.26)'),
+    !om3Fw25() ? h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.26: '), 'Export is set to an older firmware, so split toning is not previewed and is left out of LOOKS.BIN. Choose "v0.26 or later" under Export › Firmware on the camera to use it.') : null,
+    h('div', { class: 'split-row' }, wheel('sh', 'Shadows'), wheel('hl', 'Highlights')),
+    h('p', { class: 'help' }, 'Tints the shadows and the highlights: click one of the wheel\'s 12 colours, then set the strength (minus tints toward the opposite colour). On the camera these are the HSL wheel\'s Shadows and Highlights pages (INFO after Luminance). Needs firmware v0.26: export with "v0.26 or later". Shown in the preview.'),
+    h('button', { class: 'link', onclick: () => { delete l.split; renderEditor(); changed(); } }, 'Reset'));
+}
+
 function refreshProblems() {
   const el = document.getElementById('problems');
   if (isOm3()) {
@@ -859,7 +912,7 @@ function schedulePreview() {
     const l = cur();
     if (!l) { ctx.putImageData(srcData, 0, 0); return; }
     const out = ctx.createImageData(srcData.width, srcData.height);
-    renderLook(srcData, out, l, { advice: isOm3() || S.advice, camera: CAM });
+    renderLook(srcData, out, splitPv(l), { advice: isOm3() || S.advice, camera: CAM });
     ctx.putImageData(out, 0, 0);
   });
 }
@@ -1328,7 +1381,7 @@ function om3FilmPicker(into?: { k: number; v: number }) {
     const sc = Math.min(1, 520 / srcData.width), W = Math.round(srcData.width * sc), H = Math.round(srcData.height * sc);
     const c = document.createElement('canvas'); c.width = srcData.width; c.height = srcData.height;
     const cx = c.getContext('2d')!;
-    if (sel) { const out = cx.createImageData(srcData.width, srcData.height); renderLook(srcData, out, filmLook(sel), { advice: true, camera: CAM }); cx.putImageData(out, 0, 0); }
+    if (sel) { const out = cx.createImageData(srcData.width, srcData.height); renderLook(srcData, out, splitPv(filmLook(sel)), { advice: true, camera: CAM }); cx.putImageData(out, 0, 0); }
     else cx.putImageData(srcData, 0, 0);
     pv.width = W; pv.height = H; pv.getContext('2d')!.drawImage(c, 0, 0, W, H);
     pvNote.replaceChildren(...(sel ? [h('b', {}, sel.film), h('p', {}, sel.desc)] : [h('p', { class: 'help' }, 'Click a film to see it on your photo.')]));
@@ -1455,6 +1508,7 @@ function renderOm3Editor(l: Look) {
         h('button', { class: 'share-btn', onclick: () => om3ShareProfile(l), title: 'Share this look as a link or code' }, 'Share'))),
     sectorPanel(l, changed),
     tonePanel(l, changed),
+    splitPanel(l, changed),
     h('div', { class: 'group' },
       h('span', { class: 'lbl' }, 'Camera settings'),
       setting('Contrast', OM3.contrast, () => l.advice.contrast ?? 0, (x) => { l.advice.contrast = x; }, 'The camera\'s Contrast for this look'),
@@ -1621,7 +1675,7 @@ async function om3ShareProfile(l: Look) {
     h('p', {}, 'A link to this OM-3 look, with everything in it (including Contrast, Sharp and Shading):'),
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
-    lc ? h('p', {}, 'Or the short Caduceus look code, which also works for E-P7 users (it carries no Contrast or Sharp):') : null,
+    lc ? h('p', {}, 'Or the short Caduceus look code, which also works for E-P7 users (it carries no Contrast, Sharp or split toning):') : null,
     lc ? h('div', { class: 'code-box' }, h('code', {}, encodeLookCode(l, true)), h('button', { onclick: () => copy(lc, 'Code copied') }, 'Copy code')) : null,
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'RapidRAW preset'), h('p', { class: 'help' }, 'This look as a .rrpreset for RapidRAW (Presets › Import), for ORF files. An approximation of the camera look.')),
@@ -1685,12 +1739,13 @@ function om3ExportDialog() {
   const fname = (O.name || 'om3-looks').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'om3-looks';
   const n = O.bank.flat().filter(Boolean).length;
   const bankJson = () => JSON.stringify({ schema: BANK_SCHEMA, name: O.name, bank: O.bank.map((r) => r.map((l) => (l ? plainLook(l) : null))) }, null, 1) + '\n';
-  let fw: Fw = 24; try { const s = localStorage.getItem('caduceus.om3.fw'); if (s === '20' || s === '21' || s === '22' || s === '23' || s === '24') fw = Number(s) as Fw; } catch { /* storage blocked */ }
+  let fw: Fw = 24; try { const s = localStorage.getItem('caduceus.om3.fw'); if (s === '20' || s === '21' || s === '22' || s === '23' || s === '24' || s === '25') fw = Number(s) as Fw; } catch { /* storage blocked */ }
   const looksBin = () => profilesBin(O.bank, fw);
   const fwSel = h('select', { onchange: (e: Event) => {
     fw = Number((e.target as HTMLSelectElement).value) as Fw;
     try { localStorage.setItem('caduceus.om3.fw', String(fw)); } catch { /* storage blocked */ }
-  } }, h('option', { value: '24', selected: fw === 24 }, 'v0.25 or later'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
+    renderEditor(); schedulePreview();   // v0.26: split toning shows only with the v0.26 export
+  } }, h('option', { value: '25', selected: fw === 25 }, 'v0.26 or later (split toning; firmware in testing)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
   const cardFiles = async () => [{ name: 'LOOKS.BIN', data: looksBin() }, { name: 'NAMES.BIN', data: await namesBin(O.bank) as Uint8Array }];
   const busy = async (b: HTMLButtonElement, f: () => Promise<void>) => { b.disabled = true; try { await f(); } catch (e) { toast((e as Error).message, 'err'); } finally { b.disabled = probs.length > 0; } };
   const looks = O.bank.flat().filter(Boolean) as Look[];

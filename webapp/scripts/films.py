@@ -28,43 +28,47 @@ def settings(r):
         if k[:2] in ('h_', 'l_', 's_'):
             arr = {'h_': 'hue', 'l_': 'light', 's_': 'sat'}[k[:2]]; f = k[2:]
             for s in FAM.get(f, [f]): out[arr][SECTORS.index(s)] += v
-        else: assert k in LIM or k == 'sat', k
+        else: assert k in LIM or k in ('sat', 'split'), k
     for a in ('hue', 'light', 'sat'): out[a] = [max(-LIM[a], min(LIM[a], v)) for v in out[a]]
     c = lambda k: max(-LIM[k], min(LIM[k], r.get(k, 0)))
     out['tone'] = {'highlights': c('hl'), 'shadows': c('sh'), 'midtones': c('mid'), 'blacks': c('blk'), 'whites': c('wht')}
     out['contrast'] = c('con')
     out['wb'] = {'a_b': c('ab'), 'g_m': c('gm')} if r.get('ab') or r.get('gm') else None
+    if r.get('split'):   # v0.26 split toning: (Shadows colour, strength, Highlights colour, strength), the wheel's colours
+        sc, sv, hc, hv = r['split']
+        assert abs(sv) <= 5 and abs(hv) <= 5
+        out['split'] = {'sh_color': SECTORS.index(sc), 'sh': sv, 'hl_color': SECTORS.index(hc), 'hl': hv}
     return out
 
 # name (camera, ≤ 15 characters), group, film, description, recipe
 FILMS = [
  # --- the camera's 20 (owner, 2026-11-08): FILM 1-20 in this order (CAMERA below); rewritten for v0.25 ---
  ('Portra 400', 'neg', 'Kodak Portra 400', "Kodak Portra 400: the most loved colour negative, warm, natural skin, soft greens, gentle contrast and bright, airy midtones.",
-  dict(sat=-1, s_O=1, l_O=1, h_O=-1, s_g=-1, h_g=1, s_b=-1, h_b=1, ab=1, con=-1, hl=-2, sh=1, mid=1)),
+  dict(sat=-1, s_O=1, l_O=1, h_O=-1, s_g=-1, h_g=1, s_b=-1, h_b=1, ab=1, con=-1, hl=-2, sh=1, mid=1, split=('BC', 1, 'O', 1))),
  ('Gold 200', 'neg', 'Kodak Gold 200', "Kodak Gold 200: the classic consumer film, warm and golden with rich yellows, friendly skin and yellowish greens.",
   dict(sat=1, ab=2, s_y=2, h_y=1, s_O=1, h_g=1, s_b=-1, con=1, sh=-1, hl=-1)),
  ('Kodachrome 64', 'slide', 'Kodak Kodachrome 64', "Kodak Kodachrome 64: the classic magazine slide film, deep reds and golden yellows, dark, rich blues, restrained greens and dense shadows.",
-  dict(sat=1, s_r=3, l_r=-1, s_y=2, h_y=1, s_g=-1, h_g=1, l_g=-1, s_b=2, l_b=-1, h_b=-1, ab=1, con=2, sh=-2, blk=-1)),
+  dict(sat=1, s_r=3, l_r=-1, s_y=2, h_y=1, s_g=-1, h_g=1, l_g=-1, s_b=2, l_b=-1, h_b=-1, ab=1, con=2, sh=-2, blk=-1, split=('B', 1, 'Y', 1))),
  ('Portra 800', 'neg', 'Kodak Portra 800', "Kodak Portra 800: fast Portra for low light, warmer and richer than 400, with a touch more colour in the reds.",
-  dict(ab=2, s_O=1, l_O=1, h_O=-1, s_r=1, s_g=-1, h_g=1, s_b=-1, h_b=1, hl=-1, mid=1)),
+  dict(ab=2, s_O=1, l_O=1, h_O=-1, s_r=1, s_g=-1, h_g=1, s_b=-1, h_b=1, hl=-1, mid=1, split=('BC', 1, 'O', 1))),
  ('CineStill 800T', 'neg', 'CineStill 800T', "CineStill 800T: tungsten-balanced cinema film for night and city lights; cool, teal-leaning colour with warm skin and glowing reds (no halation: add Glow yourself).",
-  dict(ab=-2, s_O=1, s_OR=1, s_r=1, h_b=1, s_b=1, h_g=-1, s_g=-1, con=1, sh=-1, hl=-1, blk=1)),
+  dict(ab=-2, s_O=1, s_OR=1, s_r=1, h_b=1, s_b=1, h_g=-1, s_g=-1, con=1, sh=-1, hl=-1, blk=1, split=('C', 2, 'O', 2))),
  ('Ektar 100', 'neg', 'Kodak Ektar 100', "Kodak Ektar 100: the finest-grained colour negative, with saturated colour, bold reds, vivid greens and strong, clean blues.",
   dict(sat=2, s_r=1, s_b=1, h_b=-1, s_O=-1, h_O=1, s_g=1, con=1, sh=-1)),
  ('Ultramax 400', 'neg', 'Kodak UltraMax 400', "Kodak UltraMax 400: Kodak's affordable all-rounder, warm, saturated and punchy, with rich blues and good skin tones.",
   dict(sat=1, ab=1, s_r=1, s_y=1, h_y=1, s_b=1, h_g=1, con=1, sh=-1)),
  ('Pro 400H', 'neg', 'Fujicolor Pro 400H', "Fujicolor Pro 400H: the pastel wedding favourite, soft colour, airy highlights, pale skin, minty greens and cyan skies.",
-  dict(sat=-1, ab=-1, gm=1, h_g=-1, l_g=1, h_b=1, l_b=1, s_O=-1, l_O=1, mid=1, con=-1, sh=1)),
+  dict(sat=-1, ab=-1, gm=1, h_g=-1, l_g=1, h_b=1, l_b=1, s_O=-1, l_O=1, mid=1, con=-1, sh=1, split=('C', 1, 'Y', 0))),
  ('Velvia 50', 'slide', 'Fujichrome Velvia 50', "Fujichrome Velvia 50: the legendary landscape slide film, intense saturation, deep blues, lush greens and a hint of magenta.",
   dict(sat=3, s_g=1, s_b=1, s_m=1, s_O=-2, h_r=1, h_b=-1, l_b=-1, gm=-1, con=2, sh=-3, blk=-1)),
  ('Superia 400', 'neg', 'Fujicolor Superia X-Tra 400', "Fujicolor Superia X-Tra 400: the classic everyday Fuji film, green-leaning colour, magenta-ish reds, cyan skies and snappy contrast.",
-  dict(sat=1, gm=1, ab=-1, s_g=2, h_g=-1, h_b=1, h_r=1, s_O=-1, con=1, sh=-1)),
+  dict(sat=1, gm=1, ab=-1, s_g=2, h_g=-1, h_b=1, h_r=1, s_O=-1, con=1, sh=-1, split=('G', 2, 'Y', 0))),
  ('ColorPlus 200', 'neg', 'Kodak ColorPlus 200', "Kodak ColorPlus 200: the budget Kodak classic, warm and yellow-golden, softer and more muted than Gold, with a nostalgic snapshot feel.",
   dict(sat=-1, ab=2, s_y=2, h_y=1, s_O=1, s_g=-1, h_g=1, s_b=-1, hl=-1, blk=1)),
  ('CineStill 400D', 'neg', 'CineStill 400D', "CineStill 400D: daylight cinema film for stills, soft and warm with pastel colour, glowing skin and gentle cyan skies (no halation).",
-  dict(ab=1, s_O=1, l_O=1, h_b=1, s_b=-1, h_g=-1, s_g=-1, hl=-1, sh=1, blk=1)),
+  dict(ab=1, s_O=1, l_O=1, h_b=1, s_b=-1, h_g=-1, s_g=-1, hl=-1, sh=1, blk=1, split=('BC', 1, 'O', 1))),
  ('Fuji C200', 'neg', 'Fujicolor C200', "Fujicolor C200: Fuji's everyday film, with cool greens and blues, slightly muted reds and a clear, airy look.",
-  dict(ab=-1, gm=1, s_r=-1, s_g=1, h_g=-1, s_b=1, h_b=1, mid=1, hl=-1)),
+  dict(ab=-1, gm=1, s_r=-1, s_g=1, h_g=-1, s_b=1, h_b=1, mid=1, hl=-1, split=('GC', 1, 'Y', 0))),
  ('Ektachrome E100', 'slide', 'Kodak Ektachrome E100', "Kodak Ektachrome E100: clean, neutral slide colour with crisp contrast and deep, clear blue and cyan skies.",
   dict(sat=1, s_b=2, s_c=1, s_O=-1, ab=-1, con=1, sh=-1, blk=-1)),
  ('Reala 100', 'neg', 'Fujicolor Superia Reala 100', "Fujicolor Reala 100: fine-grained negative known for accurate, natural colour, clean greens and true skin.",
@@ -72,9 +76,9 @@ FILMS = [
  ('Provia 100F', 'slide', 'Fujichrome Provia 100F', "Fujichrome Provia 100F: the finest-grained Provia, accurate colour, clean blue skies and crisp, natural contrast.",
   dict(sat=1, s_b=1, s_O=-1, con=1, sh=-1)),
  ('Vision3 250D', 'neg', 'Kodak Vision3 250D / 50D', "Kodak Vision3 250D and 50D: modern daylight motion-picture negative, natural and very soft, with open shadows, gentle highlights and warm skin.",
-  dict(sat=-1, s_O=1, h_b=1, con=-2, sh=2, hl=-2, blk=1)),
+  dict(sat=-1, s_O=1, h_b=1, con=-2, sh=2, hl=-2, blk=1, split=('BC', 1, 'O', 1))),
  ('Fuji Eterna', 'neg', 'Fujicolor Eterna (motion picture)', "Fujicolor Eterna: Fuji's cinema negative, very muted and understated, soft contrast, open shadows and quiet cyan-green tones.",
-  dict(sat=-3, s_O=2, s_g=-1, h_g=-1, h_b=1, con=-2, hl=-2, sh=2, blk=1, wht=-1)),
+  dict(sat=-3, s_O=2, s_g=-1, h_g=-1, h_b=1, con=-2, hl=-2, sh=2, blk=1, wht=-1, split=('GC', 1, 'Y', 0))),
  ('Astia 100F', 'slide', 'Fujichrome Astia 100F', "Fujichrome Astia 100F: Fuji's soft slide film for people, gentle contrast with accurate, delicate colour and clean skies.",
   dict(s_O=-1, l_O=1, s_b=1, con=-1, hl=-1, sh=1)),
  ('Agfa Ultra 100', 'neg', 'Agfa Ultra Color 100', "Agfa Ultra Color 100: one of the most saturated colour negatives ever made, bold reds and blues with skin kept in check.",
