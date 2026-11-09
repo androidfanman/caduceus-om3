@@ -10,6 +10,8 @@ __pycache__/
 .DS_Store
 *.omsd
 !releases/*/GUIDES.BIN
+!releases/*/TONES.BIN
+!releases/*/LOOKS.BIN
 !releases/*/LABELS.BIN
 
 # web app (build output is published as looklab/)
