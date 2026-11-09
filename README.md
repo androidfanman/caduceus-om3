@@ -1,3 +1,7 @@
+> **Branch `feature/tool-camera-layout` (2026-11-09): waiting for the owner's OK, not live.** The Control Panel's
+> editor laid out like the camera's Picture Mode screen (HSL wheel with 5 pages, Contrast, Highlight & Shadow curve,
+> WB grid, rows).
+
 # Caduceus for OM-3
 
 **Caduceus for OM-3** is the OM SYSTEM OM-3 member of the [Caduceus](https://github.com/cakelesscoder/caduceus-ep7)

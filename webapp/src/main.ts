@@ -2,7 +2,7 @@ import './style.css';
 import libraryJson from './data/library.json';
 import { type Problem } from './format';
 import {
-  NOTE_MAX, PACK_SCHEMA, SECTORS, TONE_KEYS,
+  NOTE_MAX, PACK_SCHEMA, TONE_KEYS,
   parsePack, toneIsZero, toneLimit, type Look, type Pack, type Tone,
 } from './pack';
 import { History } from './history';
@@ -12,7 +12,7 @@ import { makeZip } from './zip';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
 import {
-  BANK_SCHEMA, COLORS, OM3, OM3_ARTS, OM3_NAME_MAX, PER, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
+  BANK_SCHEMA, COLORS, OM3, OM3_NAME_MAX, PER, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
   SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw,
 } from './om3';
 import { namesBin } from './om3names';
@@ -30,13 +30,13 @@ const OM3_SAMPLES = [
   { id: 'taxi', label: 'Yellow taxi' }, { id: 'meadow', label: 'Mountain meadow' }, { id: 'ocean', label: 'Ocean' },
   { id: 'bluehour', label: 'Blue hour' }, { id: 'paris', label: 'Night street' }, { id: 'paijanne', label: 'Sunset' },
 ];
-const SWATCH = ['#e3c22f', '#e8932e', '#e0602a', '#d03434', '#c43c92', '#8a52c6', '#3d5bd0', '#3d8bd0', '#2fb2c6',
-  '#2fb28c', '#45a845', '#9fc63b'];
-type Tab = 'hue' | 'light' | 'sat';
+/** The camera's HSL wheel pages, in its INFO order (v0.26): Color (saturation), Hue, Luminance, Shadows, Highlights. */
+type Tab = 'sat' | 'hue' | 'light' | 'sh' | 'hl';
 
 let libNotice = '';
 const S = {
-  tab: 'hue' as Tab,
+  tab: 'sat' as Tab,
+  sector: 0,            // the wheel's selected colour (the camera's front dial)
   image: 'frames',
   cut: 50,
 };
@@ -258,8 +258,14 @@ function renderEditor() {
   renderOm3Editor(l);
 }
 
-function seg(label: string, opts: [string, string][], value: string, on: (v: string) => void): HTMLElement {
-  return h('div', { class: 'field' }, h('span', { class: 'lbl' }, label),
+/** A Picture Mode row: the camera's name, a slider and the value. */
+function crow(label: string, lim: number, get: () => number, set: (x: number) => void, tip: string): HTMLElement {
+  const { inp, out } = slider(-lim, lim, get(), (x) => { set(x); save(); schedulePreview(); refreshProblems(); }, undefined, label);
+  return h('div', { class: 'crow', title: tip }, h('span', { class: 'cname' }, label), inp, out);
+}
+/** A Picture Mode row with a few choices. */
+function cseg(label: string, opts: [string, string][], value: string, on: (v: string) => void, tip: string): HTMLElement {
+  return h('div', { class: 'crow seg-row', title: tip }, h('span', { class: 'cname' }, label),
     h('div', { class: 'seg', role: 'radiogroup', 'aria-label': label }, ...opts.map(([v, t]) =>
       h('button', { role: 'radio', 'aria-checked': String(v === value), class: v === value ? 'on' : '', onclick: () => on(v) }, t))));
 }
@@ -273,28 +279,6 @@ function slider(min: number, max: number, value: number, on: (v: number) => void
     ondblclick: () => { inp.value = '0'; out.textContent = fmt(0); on(0); },
   });
   return { inp, out };
-}
-
-function sectorPanel(l: Look, changed: () => void): HTMLElement {
-  const hl = OM3.hl;
-  const tabs: [Tab, string, number][] = [['hue', 'Hue', hl], ['light', 'Lightness', hl], ['sat', 'Saturation', 5]];
-  const lim = tabs.find((t) => t[0] === S.tab)![2];
-  const arr = l[S.tab];
-  const rows = SECTORS.map((name, k) => {
-    const { inp, out } = slider(-lim, lim, arr[k], (v) => { arr[k] = v; changed(); }, undefined, `${name} ${S.tab}`);
-    return h('div', { class: 'srow' }, h('span', { class: 'sw', style: `background:${SWATCH[k]}` }), h('span', { class: 'sname' }, name), inp, out);
-  });
-  return h('div', { class: 'group' },
-    h('div', { class: 'tabs', role: 'tablist' }, ...tabs.map(([t, label]) => h('button', {
-      role: 'tab', 'aria-selected': String(t === S.tab), class: t === S.tab ? 'on' : '',
-      onclick: () => { S.tab = t; renderEditor(); },
-    }, label, l[t].some((v) => v !== 0) ? h('span', { class: 'dot' }) : null))),
-    h('div', { class: 'sectors' }, ...rows),
-    h('div', { class: 'tab-foot' },
-      h('span', { class: 'help' }, S.tab === 'hue'
-        ? '±5 per sector: + turns the colour toward its clockwise neighbour (Yellow → Orange). Double-click a slider to zero it.'
-        : '±5 per sector, as on the camera\'s wheel. Double-click a slider to zero it.'),
-      h('button', { class: 'link', onclick: () => { arr.fill(0); renderEditor(); changed(); } }, 'Reset')));
 }
 
 /** Small live tone-curve graph: x = the stock rendering, y = with this look's tone (the camera LUT model). */
@@ -329,108 +313,186 @@ function toneCurve(tone: Tone): { svg: SVGSVGElement; draw: () => void } {
   return { svg, draw };
 }
 
-const TONE_LABEL: Record<keyof Tone, string> = { highlights: 'Highlights', shadows: 'Shadows', midtones: 'Midtones', blacks: 'Blacks', whites: 'Whites' };
-function tonePanel(l: Look, changed: () => void): HTMLElement {
-  const rows = TONE_KEYS.map((k) => {
-    const lim = toneLimit(k);
-    const { inp, out } = slider(-lim, lim, l.tone[k], (v) => { l.tone[k] = v; drawCurve(); changed(); }, undefined, TONE_LABEL[k]);
-    return h('div', { class: 'srow plain' }, h('span', { class: 'sname' }, TONE_LABEL[k]), inp, out);
+
+// ---------------------------------------------------------------- the camera's Picture Mode screen, as panels
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl<K extends keyof SVGElementTagNameMap>(t: K, a: Record<string, string | number> = {}): SVGElementTagNameMap[K] {
+  const e = document.createElementNS(SVG_NS, t);
+  for (const [k, v] of Object.entries(a)) e.setAttribute(k, String(v));
+  return e;
+}
+const signed = (v: number) => (v > 0 ? `+${v}` : String(v));
+const TAB_NAME: Record<Tab, string> = { sat: 'Color', hue: 'Hue', light: 'Luminance', sh: 'Shadows', hl: 'Highlights' };
+
+/** The HSL wheel with the camera's five pages. Color / Hue / Luminance: a value for each of the 12 colours (±5).
+ *  Shadows / Highlights (v0.26 split toning): one colour and a strength. Click a colour (or ← →, the front dial),
+ *  then set the value with the slider (or ↑ ↓ / the mouse wheel, the rear dial). */
+function hslPanel(l: Look, changed: () => void): HTMLElement {
+  const tab = S.tab;
+  const split = tab === 'sh' || tab === 'hl';
+  const sp = (): Split => l.split ?? { sh_color: 8, sh: 0, hl_color: 1, hl: 0 };
+  const cKey = tab === 'sh' ? 'sh_color' : 'hl_color';
+  const lim = split ? SPLIT_MAX : 5;
+  if (split) S.sector = sp()[cKey as 'sh_color'];
+  const valueOf = (i: number) => (split ? (i === sp()[cKey as 'sh_color'] ? sp()[tab as 'sh'] : 0) : l[tab as 'sat'][i]);
+  const setValue = (i: number, v: number) => {
+    v = Math.max(-lim, Math.min(lim, v));
+    if (split) {
+      const s = { ...sp(), [cKey]: i, [tab]: v } as Split;
+      if (s.sh || s.hl) l.split = s; else delete l.split;
+    } else l[tab as 'sat'][i] = v;
+    changed();
+  };
+  const tabHas = (t: Tab) => (t === 'sh' || t === 'hl' ? !!l.split?.[t] : l[t].some((x) => x !== 0));
+
+  // the wheel: 12 wedges, Yellow at 12 o'clock, clockwise like the camera; each value is a bar from the zero ring
+  const SZ = 290, C = SZ / 2, R0 = 52, R1 = 116, RZ = (R0 + R1) / 2, RB = (R1 - R0) / 2 - 6;
+  const svg = svgEl('svg', { viewBox: `0 0 ${SZ} ${SZ}`, class: 'hsl-wheel', role: 'group', tabindex: 0,
+    'aria-label': `${TAB_NAME[tab]} wheel: arrow keys left and right pick a colour, up and down change it` });
+  const pt = (a: number, r: number) => [C + r * Math.sin(a), C - r * Math.cos(a)];
+  const wedges: SVGPathElement[] = [], bars: SVGLineElement[] = [], nums: SVGTextElement[] = [];
+  SPLIT_COLOURS.forEach(([nm, col], i) => {
+    const a0 = (i - 0.5) * Math.PI / 6 + 0.012, a1 = (i + 0.5) * Math.PI / 6 - 0.012, am = i * Math.PI / 6;
+    const [x0, y0] = pt(a0, R1), [x1, y1] = pt(a1, R1), [x2, y2] = pt(a1, R0), [x3, y3] = pt(a0, R0);
+    const w = svgEl('path', { d: `M${x0},${y0} A${R1},${R1} 0 0 1 ${x1},${y1} L${x2},${y2} A${R0},${R0} 0 0 0 ${x3},${y3} Z`, fill: col, class: 'hw-wedge' });
+    const t = svgEl('title'); t.textContent = nm; w.append(t);
+    w.addEventListener('click', () => {
+      S.sector = i;
+      if (split && !valueOf(i)) setValue(i, sp()[tab as 'sh'] || 2); else if (split) setValue(i, sp()[tab as 'sh']);
+      draw(); svg.focus();
+    });
+    w.addEventListener('dblclick', () => { S.sector = i; setValue(i, 0); draw(); checkpoint(); });
+    const [bx, by] = pt(am, RZ);
+    const bar = svgEl('line', { x1: bx, y1: by, x2: bx, y2: by, stroke: col, class: 'hw-bar' });
+    const [nx, ny] = pt(am, R1 + 13);
+    const num = svgEl('text', { x: nx, y: ny, class: 'hw-num', 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    svg.append(w); wedges.push(w); bars.push(bar); nums.push(num);
   });
-  const { svg, draw: drawCurve } = toneCurve(l.tone);
-  return h('div', { class: 'group' },
-    h('div', { class: 'tone-head' }, h('span', { class: 'lbl' }, 'Tone'),
+  svg.append(svgEl('circle', { cx: C, cy: C, r: RZ, class: 'hw-zero' }), ...bars, ...nums,
+    svgEl('circle', { cx: C, cy: C, r: R0 - 4, class: 'hw-hub' }));
+  const hubName = svgEl('text', { x: C, y: C - 9, class: 'hw-hub-name', 'text-anchor': 'middle' });
+  const hubVal = svgEl('text', { x: C, y: C + 15, class: 'hw-hub-val', 'text-anchor': 'middle' });
+  svg.append(hubName, hubVal);
+
+  const { inp, out } = slider(-lim, lim, valueOf(S.sector), (v) => { setValue(S.sector, v); draw(false); }, undefined, `${TAB_NAME[tab]} value`);
+  const selName = h('span', { class: 'hw-sel' });
+  const move = (d: number) => { S.sector = (S.sector + d + 12) % 12; if (split) setValue(S.sector, sp()[tab as 'sh']); draw(); };
+  function draw(syncSlider = true) {
+    for (let i = 0; i < 12; i++) {
+      const v = valueOf(i), am = i * Math.PI / 6, [x, y] = pt(am, RZ + (v / lim) * RB);
+      bars[i].setAttribute('x2', String(x)); bars[i].setAttribute('y2', String(y));
+      nums[i].textContent = v ? signed(v) : '';
+      wedges[i].classList.toggle('sel', i === S.sector);
+      wedges[i].classList.toggle('dim', split && i !== S.sector);
+      bars[i].style.opacity = split && i !== S.sector ? '0' : '';
+    }
+    const v = valueOf(S.sector), nm = SPLIT_COLOURS[S.sector][0];
+    hubName.textContent = split && !v ? TAB_NAME[tab] : nm;
+    hubVal.textContent = split && !v ? 'Off' : signed(v);
+    selName.textContent = split && v < 0 ? `${nm} (opposite)` : nm;
+    selName.style.setProperty('--sw', SPLIT_COLOURS[S.sector][1]);
+    if (syncSlider) { inp.value = String(v); out.textContent = signed(v); }
+  }
+  svg.addEventListener('keydown', (e) => {
+    const k = (e as KeyboardEvent).key;
+    if (k === 'ArrowLeft') move(-1); else if (k === 'ArrowRight') move(1);
+    else if (k === 'ArrowUp' || k === 'ArrowDown') { setValue(S.sector, valueOf(S.sector) + (k === 'ArrowUp' ? 1 : -1)); draw(); checkpoint(); }
+    else if (k === '0' || k === 'Delete' || k === 'Backspace') { setValue(S.sector, 0); draw(); checkpoint(); }
+    else return;
+    e.preventDefault();
+  });
+  let wheelT = 0;
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    setValue(S.sector, valueOf(S.sector) + ((e as WheelEvent).deltaY < 0 ? 1 : -1)); draw();
+    clearTimeout(wheelT); wheelT = window.setTimeout(checkpoint, 400);
+  }, { passive: false });
+  draw();
+
+  const help = split
+    ? `${tab === 'sh' ? 'Tints the shadows' : 'Tints the highlights'} toward one colour: click it, then set the strength (minus tints toward the opposite colour). Needs firmware v0.26.`
+    : tab === 'hue' ? 'Turns a colour toward its clockwise neighbour (+: Yellow → Orange).'
+      : tab === 'light' ? 'Darker or brighter, per colour.' : 'Saturation, per colour.';
+  return h('div', { class: 'group cam' },
+    h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'HSL'),
+      h('button', { class: 'link', onclick: () => { if (split) { if (l.split) { const s = { ...l.split, [tab]: 0 } as Split; if (s.sh || s.hl) l.split = s; else delete l.split; } } else l[tab as 'sat'].fill(0); renderEditor(); changed(); } }, 'Reset page')),
+    h('div', { class: 'tabs cam-tabs', role: 'tablist' }, ...(['sat', 'hue', 'light', 'sh', 'hl'] as Tab[]).map((t) => h('button', {
+      role: 'tab', 'aria-selected': String(t === tab), class: t === tab ? 'on' : '',
+      onclick: () => { S.tab = t; renderEditor(); },
+    }, TAB_NAME[t], tabHas(t) ? h('span', { class: 'dot' }) : null))),
+    split && !om3Fw25() ? h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.26: '), 'Export is set to an older firmware, so split toning is not previewed or saved. Choose "v0.26 or later" under Export › Firmware on the camera.') : null,
+    svg,
+    h('div', { class: 'hw-ctl' },
+      h('button', { class: 'icon', title: 'Previous colour (front dial)', 'aria-label': 'Previous colour', onclick: () => move(-1) }, '‹'),
+      selName,
+      h('button', { class: 'icon', title: 'Next colour (front dial)', 'aria-label': 'Next colour', onclick: () => move(1) }, '›'),
+      inp, out),
+    h('p', { class: 'help' }, help, ' Scroll or ↑ ↓ on the wheel changes the selected colour; double-click a colour to zero it.'));
+}
+
+/** Highlight & Shadow, Blk and Wht: the curve with its sliders. */
+function tonePanel(l: Look, changed: () => void): HTMLElement {
+  const { svg, draw } = toneCurve(l.tone);
+  const row = (k: keyof Tone, label: string) => {
+    const lim = toneLimit(k);
+    const { inp, out } = slider(-lim, lim, l.tone[k], (v) => { l.tone[k] = v; draw(); changed(); }, undefined, label);
+    return h('div', { class: 'crow' }, h('span', { class: 'cname' }, label), inp, out);
+  };
+  return h('div', { class: 'group cam' },
+    h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'Highlight & Shadow'),
       !toneIsZero(l.tone) ? h('button', { class: 'link', onclick: () => { for (const k of TONE_KEYS) l.tone[k] = 0; renderEditor(); changed(); } }, 'Reset') : null),
     svg,
-    ...rows.slice(0, 3),
+    row('highlights', 'Highlights'), row('midtones', 'Midtones'), row('shadows', 'Shadows'),
     h('div', { class: 'tone-sep' }),
-    ...rows.slice(3),
-    h('p', { class: 'help' },
-      'Highlights / Shadows / Midtones (±7) are the look\'s own tone settings; Blacks / Whites (±5) move the ends of the curve ',
-      '(Extras sectors 6 and 7 on the camera). Choosing the look on the camera\'s Film page sets them all. ',
-      'The graph shows stock → this look; dots mark the Blacks and Whites ends.'),
-  );
+    row('blacks', 'Blk'), row('whites', 'Wht'),
+    h('p', { class: 'help' }, 'The curve shows the camera\'s normal → this look; the dots are the Blk and Wht ends.'));
 }
 
-function effectPanel(l: Look, changed: () => void): HTMLElement {
-  const e = l.effect;
-  const v = !e ? 0 : e.type === 'clarity' ? e.strength : -e.strength;
-  const fmt = (x: number) => (x === 0 ? 'Off' : x < 0 ? `Glow ${-x}` : `Clarity ${x}`);
-  const { inp, out } = slider(-5, 5, v, (x) => {
-    l.effect = x === 0 ? null : x > 0 ? { type: 'clarity', strength: x } : { type: 'bloom', strength: -x };
-    changed();
-  }, fmt, 'Glow to clarity');
-  return h('div', { class: 'group' },
-    h('div', { class: 'field' }, h('span', { class: 'lbl' }, 'Glow ↔ Clarity'),
-      h('div', { class: 'srow plain' }, h('span', { class: 'end' }, 'Glow'), inp, h('span', { class: 'end' }, 'Clarity'), out)));
-}
-
+/** WB: the camera's fine-tune grid, A–B across and G–M up and down (−7..+7). Click a square, or use the arrow keys. */
 function wbPanel(l: Look, changed: () => void): HTMLElement {
-  const on = l.wb !== null, wl = OM3.wb;
-  const box = h('input', {
-    type: 'checkbox', checked: on,
-    onchange: (e: Event) => { l.wb = (e.target as HTMLInputElement).checked ? { a_b: 0, g_m: 0 } : null; renderEditor(); changed(); },
+  const N = OM3.wb, CELL = 13, PAD = 18, SZ = PAD * 2 + CELL * (2 * N + 1);
+  const svg = svgEl('svg', { viewBox: `0 0 ${SZ} ${SZ}`, class: 'wb-grid', role: 'slider', tabindex: 0, 'aria-label': 'White balance shift: left and right for A–B, up and down for G–M' });
+  const X = (ab: number) => PAD + (ab + N) * CELL, Y = (gm: number) => PAD + (N - gm) * CELL;
+  const n = 2 * N + 1;
+  for (let gy = 0; gy < n; gy++) for (let gx = 0; gx < n; gx++) {
+    const ab = gx - N, gm = N - gy;
+    const r = svgEl('rect', { x: X(ab), y: Y(gm), width: CELL, height: CELL, class: `wb-cell${ab === 0 || gm === 0 ? ' axis' : ''}` });
+    r.addEventListener('click', () => { set(ab, gm); checkpoint(); svg.focus(); });
+    svg.append(r);
+  }
+  const lab = (t: string, x: number, y: number) => { const e = svgEl('text', { x, y, class: 'wb-lab', 'text-anchor': 'middle', 'dominant-baseline': 'central' }); e.textContent = t; return e; };
+  svg.append(lab('G', SZ / 2, PAD / 2), lab('M', SZ / 2, SZ - PAD / 2), lab('B', PAD / 2, SZ / 2), lab('A', SZ - PAD / 2, SZ / 2));
+  const dot = svgEl('rect', { width: CELL, height: CELL, class: 'wb-dot' });
+  svg.append(dot);
+  const read = h('output', { class: 'wb-read' });
+  const get = () => [l.wb?.a_b ?? 0, l.wb?.g_m ?? 0];
+  function set(ab: number, gm: number) {
+    ab = Math.max(-N, Math.min(N, ab)); gm = Math.max(-N, Math.min(N, gm));
+    l.wb = ab || gm ? { a_b: ab, g_m: gm } : null; draw(); changed();
+  }
+  function draw() {
+    const [ab, gm] = get();
+    dot.setAttribute('x', String(X(ab))); dot.setAttribute('y', String(Y(gm)));
+    read.textContent = `${ab < 0 ? 'B' : 'A'}${Math.abs(ab)}.${gm < 0 ? 'M' : 'G'}${Math.abs(gm)}`;
+    svg.setAttribute('aria-valuetext', read.textContent);
+  }
+  svg.addEventListener('keydown', (e) => {
+    const [ab, gm] = get(), k = (e as KeyboardEvent).key;
+    const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] } as Record<string, number[]>)[k];
+    if (d) { set(ab + d[0], gm + d[1]); checkpoint(); e.preventDefault(); }
+    else if (k === '0' || k === 'Delete' || k === 'Backspace') { set(0, 0); checkpoint(); e.preventDefault(); }
   });
-  const rows = on ? [['a_b', 'A–B', 'Amber +  /  Blue −'], ['g_m', 'G–M', 'Green +  /  Magenta −']].map(([k, label, tip]) => {
-    const { inp, out } = slider(-wl, wl, l.wb![k as 'a_b'], (v) => { l.wb![k as 'a_b'] = v; changed(); }, undefined, label);
-    return h('div', { class: 'srow plain', title: tip }, h('span', { class: 'sname' }, label), inp, out);
-  }) : [];
-  return h('div', { class: 'group' },
-    h('label', { class: 'check' }, box, h('span', {}, 'White balance shift'),
-      h('span', { class: 'help' }, on ? 'the look\'s shift (−7..+7, as on the camera), added to the camera\'s own WB. Past ±5 needs firmware v0.26.1' : 'off: no shift')),
-    ...rows);
+  draw();
+  return h('div', { class: 'group cam' },
+    h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'WB'), read,
+      h('button', { class: 'link', onclick: () => { set(0, 0); checkpoint(); } }, 'Reset')),
+    svg,
+    h('p', { class: 'help' }, 'The look\'s shift, added to the camera\'s own WB in every WB mode (A amber / B blue, G green / M magenta). Past ±5 needs firmware v0.26.1.'));
 }
 
-/** OM-3 v0.26 split toning: two wheels (Shadows, Highlights) of the camera's 12 colours. Click a colour to tint toward
- *  it; the slider sets the strength (minus = the opposite colour). Same numbers as the camera's wheel pages. */
 /** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
 const om3Fw25 = () => { try { const s = localStorage.getItem('caduceus.om3.fw'); return s === null || s === '25' || s === '26'; } catch { return true; } };   // v0.26 is the default
 const splitPv = (l: Look): Look => (l.split && !om3Fw25() ? { ...l, split: undefined } : l);
-function splitPanel(l: Look, changed: () => void): HTMLElement {
-  const NS = 'http://www.w3.org/2000/svg';
-  const el = <K extends keyof SVGElementTagNameMap>(t: K, a: Record<string, string | number>) => {
-    const e = document.createElementNS(NS, t);
-    for (const [k, v] of Object.entries(a)) e.setAttribute(k, String(v));
-    return e;
-  };
-  const sp = (): Split => l.split ?? { sh_color: 8, sh: 0, hl_color: 1, hl: 0 };
-  const put = (s: Split) => { if (s.sh || s.hl) l.split = s; else delete l.split; changed(); };
-  const wheel = (which: 'sh' | 'hl', title: string) => {
-    const S0 = 150, C = S0 / 2, R1 = 70, R0 = 28, cKey = which === 'sh' ? 'sh_color' : 'hl_color';
-    const svg = el('svg', { viewBox: `0 0 ${S0} ${S0}`, width: S0, height: S0, class: 'split-wheel', role: 'img' });
-    const pt = (a: number, r: number) => [C + r * Math.sin(a), C - r * Math.cos(a)];
-    const dot = el('circle', { r: 7, class: 'split-dot' });
-    const { inp, out } = slider(-SPLIT_MAX, SPLIT_MAX, sp()[which], (v) => { const s = { ...sp(), [which]: v }; put(s); draw(); }, undefined, `${title} strength`);
-    const name = h('span', { class: 'help' });
-    const wedges = SPLIT_COLOURS.map(([nm, col], i) => {
-      const a0 = (i - 0.5) * Math.PI / 6, a1 = (i + 0.5) * Math.PI / 6;
-      const [x0, y0] = pt(a0, R1), [x1, y1] = pt(a1, R1), [x2, y2] = pt(a1, R0), [x3, y3] = pt(a0, R0);
-      const w = el('path', { d: `M${x0},${y0} A${R1},${R1} 0 0 1 ${x1},${y1} L${x2},${y2} A${R0},${R0} 0 0 0 ${x3},${y3} Z`, fill: col, class: 'split-wedge' });
-      const t = el('title', {}); t.textContent = nm; w.append(t);
-      w.addEventListener('click', () => {
-        const s = { ...sp(), [cKey]: i } as Split;
-        if (!s[which]) s[which] = 2;
-        put(s); inp.value = String(s[which]); out.textContent = s[which] > 0 ? `+${s[which]}` : String(s[which]); draw(); checkpoint();
-      });
-      svg.append(w); return w;
-    });
-    svg.append(el('circle', { cx: C, cy: C, r: R0 - 2, class: 'split-hub' }), dot);
-    const draw = () => {
-      const s = sp(), c = s[cKey as 'sh_color'], v = s[which];
-      wedges.forEach((w, i) => w.classList.toggle('on', i === c && v !== 0));
-      const a = c * Math.PI / 6 + (v < 0 ? Math.PI : 0), [x, y] = v ? pt(a, R0 + 4 + (Math.abs(v) / SPLIT_MAX) * (R1 - R0 - 10)) : [C, C];
-      dot.setAttribute('cx', String(x)); dot.setAttribute('cy', String(y));
-      name.textContent = v === 0 ? 'Off' : `${SPLIT_COLOURS[c][0]}${v < 0 ? ' (opposite)' : ''} ${v > 0 ? '+' : ''}${v}`;
-    };
-    draw();
-    return h('div', { class: 'split-one' }, h('b', {}, title), svg, h('div', { class: 'srow plain' }, h('span', { class: 'sname' }, 'Strength'), inp, out), name);
-  };
-  return h('div', { class: 'group' },
-    h('span', { class: 'lbl' }, 'Split toning (firmware v0.26)'),
-    !om3Fw25() ? h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.26: '), 'Export is set to an older firmware, so split toning is not previewed and is left out of LOOKS.BIN. Choose "v0.26 or later" under Export › Firmware on the camera to use it.') : null,
-    h('div', { class: 'split-row' }, wheel('sh', 'Shadows'), wheel('hl', 'Highlights')),
-    h('p', { class: 'help' }, 'Tints the shadows and the highlights: click one of the wheel\'s 12 colours, then set the strength (minus tints toward the opposite colour). On the camera these are the HSL wheel\'s Shadows and Highlights pages (INFO after Luminance). Needs firmware v0.26: export with "v0.26 or later". Shown in the preview.'),
-    h('button', { class: 'link', onclick: () => { delete l.split; renderEditor(); changed(); } }, 'Reset'));
-}
 
 function refreshProblems() {
   const el = document.getElementById('problems');
@@ -848,10 +910,6 @@ function renderOm3Editor(l: Look) {
       changed();
     }),
   });
-  const setting = (label: string, lim: number, get: () => number, set: (x: number) => void, tip: string) => {
-    const { inp, out } = slider(-lim, lim, get(), (x) => { set(x); changed(); }, undefined, label);
-    return h('div', { class: 'srow plain', title: tip }, h('span', { class: 'sname' }, label), inp, out);
-  };
   const notesBytes = () => new TextEncoder().encode(l.notes).length;
   const film = filmOf(l), orig = film ? undefined : libraryOrigin(l, LIBRARY);
   el.replaceChildren(
@@ -868,44 +926,36 @@ function renderOm3Editor(l: Look) {
           },
         }, 'Reset look'),
         h('button', { class: 'share-btn', onclick: () => om3ShareProfile(l), title: 'Share this look as a link' }, 'Share'))),
-    sectorPanel(l, changed),
+    hslPanel(l, changed),
+    h('div', { class: 'group cam' }, crow('Contrast', OM3.contrast, () => l.advice.contrast ?? 0, (x) => { l.advice.contrast = x; }, 'The camera\'s Contrast for this look')),
     tonePanel(l, changed),
-    splitPanel(l, changed),
-    h('div', { class: 'group' },
-      h('span', { class: 'lbl' }, 'Camera settings'),
-      setting('Contrast', OM3.contrast, () => l.advice.contrast ?? 0, (x) => { l.advice.contrast = x; }, 'The camera\'s Contrast for this look'),
-      setting('Shading', OM3.shading, () => l.vignette, (x) => { l.vignette = x; }, 'The camera\'s Shading (− darker corners, + lighter)'),
-      h('p', { class: 'help' }, 'Choosing the look on the camera sets its Contrast and Shading (Picture Mode menu items) to these. (Firmware v0.24.1 hid Shading: looks saved for it get Shading 0.)')),
-    h('div', { class: 'group' },
-      h('span', { class: 'lbl' }, 'Extras (camera firmware v0.20; lens correction and Grain v0.21; Sharp v0.22; NR High v0.23)'),
-      seg('NR', [['off', 'Camera'], ['film', 'Off'], ['fine', 'Low'], ['standard', 'Std'], ['high', 'High']], l.grain,
-        (x) => { l.grain = x as Look['grain']; renderEditor(); changed(); }),
-      h('p', { class: 'help' }, 'The camera\'s noise reduction (Noise Filter) for each photo with this look; Camera leaves your menu setting. Extras sector 1. High needs firmware v0.23 (for older firmware it is saved as Std).')),
-    h('div', { class: 'group' },
-      seg('Lens vignette correction', [['off', 'Off (default)'], ['on', 'Keep camera\'s']], l.lens_correction ? 'on' : 'off', (v) => {
-        if (v === 'on') l.lens_correction = true; else delete l.lens_correction;
-        renderEditor(); changed();
-      }),
-      h('p', { class: 'help' }, 'Off turns the camera\'s lens shading correction (Shading Comp.) off for photos with this look, for natural corners, without changing the menu setting; Keep follows your menu setting. Extras sector 8 (VigFix, firmware v0.21). Not shown in the preview.')),
-    h('div', { class: 'group' },
-      seg('Grain', [['0', 'Off'], ['1', 'Low'], ['2', 'Med'], ['3', 'High']], String(l.film_grain ?? 0), (v) => {
-        if (v === '0') delete l.film_grain; else l.film_grain = Number(v);
-        renderEditor(); changed();
-      }),
-      h('p', { class: 'help' }, 'Film grain from the camera\'s own grain engine, the same texture as its Monochrome grain, on the colour photo. Extras sector 9 (firmware v0.21). Shown in the preview.'),
-      grainWarn),
-    h('div', { class: 'group' }, (() => {
-      const { inp, out } = slider(SHARP.lo, SHARP.hi, l.advice.sharpness ?? 0, (x) => { l.advice.sharpness = x; changed(); }, sharpLabel, 'Sharp');
-      return h('div', { class: 'srow plain', title: 'The camera\'s sharpening for photos with this look' }, h('span', { class: 'sname' }, 'Sharp'), inp, out);
-    })(),
-      h('p', { class: 'help' }, 'The camera\'s sharpening for photos with this look, in its own numbers: 0 is its normal, +1 and +2 crisper, −1 to −4 softer (−3 and −4 go past the camera\'s menu) and Off (−5) no sharpening at all. Extras sector 10 (firmware v0.22, which takes the Sharpness item off the COLOR screen). Shown roughly in the preview.')),
-    h('p', { class: 'warn' }, h('b', {}, 'Firmware v0.25: '), 'Glow / Clarity has its own row on the camera\'s Picture Mode screen (called Glow: + is Glow, − is Clarity), and grain stays as fast as normal with it. Art Effects are not used on v0.25 (Shading does the dark corners).'),
-    effectPanel(l, fxChanged),
-    h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Art Effect'),
-      h('select', { onchange: (e: Event) => { l.art_effect = (e.target as HTMLSelectElement).value as Look['art_effect']; fxChanged(); } },
-        ...OM3_ARTS.filter((a) => a === 'off' || a === l.art_effect).map((a) => h('option', { value: a, selected: a === l.art_effect }, ({ off: 'Off', star_light: 'Star Light (not on v0.25)', pin_hole: 'Pin Hole (not on v0.25)', white_edge: 'White Edge (not on v0.25)', frame: 'Frame (not on v0.25)' } as Record<string, string>)[a]))),
-      h('span', { class: 'help' }, 'Not used on v0.25: looks saved for v0.25 always have it Off. Older firmware (v0.24.1 and before) ignores it too or uses it only as noted there.')),
     wbPanel(l, changed),
+    h('div', { class: 'group cam rows' },
+      (() => {
+        const { inp, out } = slider(SHARP.lo, SHARP.hi, l.advice.sharpness ?? 0, (x) => { l.advice.sharpness = x; changed(); }, sharpLabel, 'Sharpness');
+        return h('div', { class: 'crow', title: 'The camera\'s sharpening: 0 its normal, + crisper, − softer, −5 Off' }, h('span', { class: 'cname' }, 'Sharpness'), inp, out);
+      })(),
+      cseg('Noise Filter', [['off', 'Menu'], ['film', 'Off'], ['fine', 'Low'], ['standard', 'Std'], ['high', 'High']], l.grain,
+        (x) => { l.grain = x as Look['grain']; renderEditor(); changed(); }, 'Noise reduction for photos with this look; Menu keeps the camera\'s menu setting'),
+      cseg('Vignette Correction', [['off', 'Off'], ['on', 'On']], l.lens_correction ? 'on' : 'off', (x) => {
+        if (x === 'on') l.lens_correction = true; else delete l.lens_correction;
+        renderEditor(); changed();
+      }, 'Off = the lens\'s natural corners; On = the camera\'s correction (not in the preview)'),
+      crow('Shading', OM3.shading, () => l.vignette, (x) => { l.vignette = x; }, 'The camera\'s Shading: − darker corners, + lighter'),
+      (() => {
+        const e = l.effect, v = !e ? 0 : e.type === 'clarity' ? -e.strength : e.strength;
+        const { inp, out } = slider(-OM3.fx, OM3.fx, v, (x) => {
+          l.effect = x === 0 ? null : x > 0 ? { type: 'bloom', strength: x } : { type: 'clarity', strength: -x };
+          fxChanged();
+        }, (x) => (x === 0 ? '0' : x > 0 ? `+${x}` : String(x)), 'Glow');
+        return h('div', { class: 'crow', title: '+ Glow (a soft glow), − Clarity (local contrast)' }, h('span', { class: 'cname' }, 'Glow'), inp, out);
+      })(),
+      cseg('Film Grain', [['0', 'Off'], ['1', 'Low'], ['2', 'Med'], ['3', 'High']], String(l.film_grain ?? 0), (x) => {
+        if (x === '0') delete l.film_grain; else l.film_grain = Number(x);
+        renderEditor(); changed();
+      }, 'Colour film grain, made by the camera as the photo develops'),
+      grainWarn,
+      h('p', { class: 'help' }, 'In the camera\'s Picture Mode order. Glow: + Glow, − Clarity. Hover a row for what it does.')),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes'),
       h('textarea', {
         rows: 3, maxlength: 400, placeholder: 'What the look is for…', onchange: checkpoint,
