@@ -2178,3 +2178,5 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Build sd3 = sd2 + this: E1479999.BIN / GUIDES.BIN checksums in the commit message. ext11 65392 of 65536 (144 left).
   0x6128b1d3 is a general text-widget path (every title set through 0x6128b0fd goes through fl_stw's flag test).
 
+- **Camera (owner, 2026-11-09): sd3 "looks good so far"** (camera-tested, first look; the owner keeps testing). Not yet
+  reported: whether the flash started on the first try, and titles elsewhere in the menus. Not released.
