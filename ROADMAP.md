@@ -3,19 +3,50 @@
 What's planned for Caduceus for OM-3. Nothing here is promised or dated: features land when they work on a real camera.
 Ideas and requests are welcome in [Issues](https://github.com/androidfanman/caduceus-om3/issues).
 
+The order (owner, 2026-11-09): first finish the colour profiles, then video. The lens, focus and button requests
+below are planned too; their place in that order isn't set yet.
+
+## Next: finishing the colour profiles
+
+The goal is for Color Profile mode to be the best JPEG maker of any camera. Halation and custom crop modes are the
+last two pieces: with them the colour profiles are complete.
+
 | Feature | What it means | Status |
 |---|---|---|
-| **More crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9, as in Caduceus for the E-P7. | Planned |
-| **Panasonic aperture rings** | The aperture ring on Panasonic lenses that have one sets the aperture on the OM-3. | Planned |
-| **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size (Grain Lab design), still at no extra time. | Planned |
-| **Glow / Clarity + Frame + Grain fast** | That one combination still takes the slower route (the fast one wrote no picture). | Researching |
+| **Halation** | The red glow around bright lights of cinema film (CineStill and others), as a film setting. Caduceus for the E-P7 has it; the OM-3 version would ride on the Glow row's route. | Next |
+| **Custom crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9 (as in Caduceus for the E-P7), and your own. | Planned |
+| **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size, still at no extra time. | Planned |
 
-## Video
+## Bugs being looked at
+
+| Bug | What happens | Status |
+|---|---|---|
+| **Glow with grain** | Reported: the camera shuts down after taking a photo with Glow and grain together ([#12](https://github.com/androidfanman/caduceus-om3/issues/12)), and Med grain is much stronger when Glow is on ([#16](https://github.com/androidfanman/caduceus-om3/issues/16)). | Investigating |
+| **Playback while saving** | Pressing playback while the photo is still being written can freeze the camera (dark grey screen; only taking the battery out helps; the photo is fine) ([#15](https://github.com/androidfanman/caduceus-om3/issues/15)). | Investigating |
+
+## Lenses and focus
 
 | Feature | What it means | Status |
 |---|---|---|
-| **Colour profiles in video** | The colour profiles and their wheels (Hue, Light, Extras) also apply when recording video. | Planned |
-| **10-bit beyond Log and HLG** | Today the OM-3 records 10-bit only with OM-Log400 or HLG; the other profiles are 8-bit H.264, which bands and blocks when graded. Allow 10-bit with the standard and COLOR profiles, or failing that, cleaner 8-bit encoding ([#1](https://github.com/androidfanman/caduceus-om3/issues/1)). | Investigating |
+| **Focus stacking with any lens** | The camera's focus stacking (and focus bracketing) with any autofocus lens, not only OM's listed ones. | Planned |
+| **Panasonic lenses work properly** | The aperture ring on Panasonic lenses that have one sets the aperture; and the camera waits for focus before it takes the picture with lenses like the Panasonic 20mm f/1.7, as Panasonic bodies do ([#13](https://github.com/androidfanman/caduceus-om3/issues/13)). | Planned |
+
+## Buttons and controls
+
+| Feature | What it means | Status |
+|---|---|---|
+| **More button functions** | Button functions to switch S-AF / C-AF, and to switch between normal and high-speed sequential shooting ([#10](https://github.com/androidfanman/caduceus-om3/issues/10)). | Requested |
+| **All arrow keys configurable** | Every arrow key can be a custom button, not only right and down ([#9](https://github.com/androidfanman/caduceus-om3/issues/9)). | Requested |
+| **Quick WB / ISO page** | A button that opens a quick WB / ISO page as on the PEN-F and E-P7 ([#8](https://github.com/androidfanman/caduceus-om3/issues/8)). | Requested |
+
+## Video (after the photo side is finished)
+
+| Feature | What it means | Status |
+|---|---|---|
+| **Colour profiles in video** | The colour profiles, your films and their settings also apply when recording video, baked in, like real-time LUTs ([#3](https://github.com/androidfanman/caduceus-om3/issues/3)). | Planned |
+| **10-bit beyond Log and HLG** | Today the OM-3 records 10-bit only with OM-Log400 or HLG; the other profiles are 8-bit H.264, which bands and blocks when graded. Allow 10-bit (and other log / bit-depth choices) with the standard and COLOR profiles, or failing that, cleaner 8-bit encoding ([#1](https://github.com/androidfanman/caduceus-om3/issues/1), [#3](https://github.com/androidfanman/caduceus-om3/issues/3)). | Investigating |
+| **Sharpness in video** | The look's Sharpness (down to Off) also for video; today video stays at the camera's normal sharpening ([#6](https://github.com/androidfanman/caduceus-om3/issues/6)). | Planned |
+| **Wider C-AF settings for video** | C-AF speed and sensitivity beyond −2..+2 (for example −5..+5) so subject detection holds on to people without hunting ([#14](https://github.com/androidfanman/caduceus-om3/issues/14)). | Requested |
 
 ## Done
 
