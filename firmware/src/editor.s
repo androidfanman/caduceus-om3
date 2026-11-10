@@ -4285,7 +4285,7 @@ ic_get:
 11:
  cmp 15706,d1                     /* film test 9: the shooting screen's "COLOR1".."COLOR4" */
  bcs 13f
- cmp 15710,d1
+ cmp 15714,d1                     /* sd4: and 15710..15713, their '*' pictures (0x61234cca..: COLOR k itself changed) */
  bcc 13f
  jmp fl_lvp
 13:
@@ -6767,6 +6767,7 @@ fl_lvp:
  mov d0,(8,sp)
  mov d1,d2
  add -15706,d2
+ and 3,d2                         /* sd4: the '*' pictures too (owner: a changed COLOR 1 hid "FILM N" on the screen) */
  mov fl_LVL,d0
  mov d0,(24,sp)
  mov LV_SLOT,d0
