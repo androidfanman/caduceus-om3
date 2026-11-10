@@ -21,6 +21,7 @@ last two pieces: with them the colour profiles are complete.
 
 | Bug | What happens | Status |
 |---|---|---|
+| **Film Grain with RAW+JPEG** | With image quality set to RAW+JPEG, a photo with Film Grain is saved, then the screen goes black and the camera freezes (battery out). Found 2026-11-09; v0.25 to v0.26.1 are most likely all affected. **Until fixed: use Film Grain with JPEG only, or switch Film Grain off for RAW+JPEG.** Probably the cause of [#12](https://github.com/androidfanman/caduceus-om3/issues/12). | Being fixed |
 | **Glow with grain** | Reported: the camera shuts down after taking a photo with Glow and grain together ([#12](https://github.com/androidfanman/caduceus-om3/issues/12)), and Med grain is much stronger when Glow is on ([#16](https://github.com/androidfanman/caduceus-om3/issues/16)). | Fixed in v0.26.1 |
 | **Playback while saving** | Pressing playback while the photo is still being written can freeze the camera (dark grey screen; only taking the battery out helps; the photo is fine) ([#15](https://github.com/androidfanman/caduceus-om3/issues/15)). | Fixed in v0.26.1 |
 
