@@ -411,6 +411,11 @@ assigned function.
   om-emu driver `drive.mjs` (tokens as `research/emulator/` plus `pic:ID:FILE`, `get:` / `set:` / `robj:`, `strset:`,
   `strings:`, env `WATCH` / `WREAD` / `WMEM`, `OM_WORKER_ENTRY`). Earlier rounds' scripts (`make_uptest*.py`,
   `poc_isowb.py`, `layer_isowb.py`, `make_dialtest.py`) stayed in the local workspace; their edits are written above.
+- **Camera bug, fixed 2026-11-10:** FILM 17's list picture showed ▲. Our picture id 0x7fa0 is one of Caduceus' own:
+  v0.25+ gives film j's list cell the id `IC_FM0` (0x7f90) + j, and the row's left cell `IC_FL0` (0x7fb0) + j, so
+  Caduceus uses 0x7f80..0x7fc3. `up_ic` answers first, so it took film 17's id. ▲ is now 0x7fe0 (package
+  `be17717a…`, GUIDES `5c06ddb1…`); om-emu: ▲ row and picker title as before (the film list itself needs a card image
+  with `LOOKS.BIN`, which needs mtools; not checked there).
 - Before a release: own validator / row / descriptor records instead of sid 1957's (lookup hooks; the validator table
   is fixed at 1712), the movie up key (1280), and space that a probe has proven (or code in the GUIDES.BIN block).
 

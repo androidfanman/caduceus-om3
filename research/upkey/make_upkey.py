@@ -11,7 +11,8 @@ Edits (details and addresses in research/BUTTONS.md, "Up key"):
   4. Rule 0x605d9b80 (target 50): drops "Direct Function -> Exp comp", so ▲ keeps the chosen function.
   5. The 7 "execute on key release" states that list the ▼ / ▶ releases get the ▲ release too (ISO, MF as on ▶).
   6. up_get (up.s) at the dispatcher's value read 0x610833b3: ▲ follows the arrow-pad mode (Off / [·:·] / Direct).
-  7. The ▲ picture: ▼ (0x776) flipped, id 0x7fa0, served by up_ic (upic.s) in front of Caduceus' ic_get; also the
+  7. The ▲ picture: ▼ (0x776) flipped, id 0x7fe0 (clear of Caduceus' ids 0x7f80..0x7fc3; 0x7fa0, the first choice,
+     is film 17's list picture), served by up_ic (upic.s) in front of Caduceus' ic_get; also the
      picker title's key icon (list 0x6139e26c, key 4's blank slot).
   Space: v0.26.2 fills its 64 KiB section-6 extension, so section 6's loaded end moves once more, 0x60f59800 ->
   0x60f5a800 (loader word 0x60045e9c, as build.py does). That extra 4 KiB is not covered by a space probe; the
@@ -61,7 +62,7 @@ assert sids == [47, 48, 49, 1964, 1292, 158, 53, 51, 56], sids
 up = bytearray(recs[sids.index(53)])
 struct.pack_into('<I', up, 0, 50)
 assert struct.unpack_from('<I', up, 4)[0] == 0x0777000c
-UPIC = 0x7fa0                                               # our ▲ picture (research/upkey/upic.s answers it)
+UPIC = 0x7fe0                                               # our ▲ picture (research/upkey/upic.s answers it)
 struct.pack_into('<I', up, 4, (UPIC << 16) | 0xc)          # ▶'s own value labels stay (test 3: ▶'s list)
 m[o(NEWREC):o(NEWREC) + 280] = b''.join(recs + [bytes(up)])
 struct.pack_into('<II', m, o(HDR) + 4, NEWREC, 10)
@@ -90,7 +91,7 @@ struct.pack_into('<I', m, o(0x615c73ec) + 8, 50)
 #   key icon is picture list 0x6139e26c ({0xffff, 7, 7, id}, index = variant +2 - 1): key 4 (index 4) is blank -> ▲
 assert u32(0x61571c18, 2) == (0x50004, 0x37) and u32(0x61571c60, 6)[1:] == u32(0x61571c18, 6)[1:]
 assert u32(0x6139e2ac, 4) == (0xffff, 7, 7, 1) and u32(0x6139e2dc, 4)[3] == 0x777
-struct.pack_into('<I', m, o(0x6139e2ac) + 12, 0x7fa0)
+struct.pack_into('<I', m, o(0x6139e2ac) + 12, UPIC)
 
 # 4: the up-key rule loses its Direct Function branch (the last of three)
 R = 0x605d9b80
