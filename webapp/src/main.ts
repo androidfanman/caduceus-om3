@@ -682,7 +682,7 @@ function drawChart() {
   requestAnimationFrame(() => {
     chartQueued = false;
     if (S.image !== 'chart') return;
-    srcData = chartImage(CHART, Math.min(900, Math.ceil(previewPx() / 2)));
+    srcData = chartImage(CHART, Math.min(720, Math.ceil(previewPx() / 2)));
     schedulePreview();
   });
 }
@@ -772,7 +772,7 @@ function chartPanel(): HTMLElement {
     }
     note();
     box.replaceChildren(h('div', { class: 'chart-cols' }, arc, h('div', { class: 'chart-grid' }, ...kids)), noteEl,
-      h('p', { class: 'help' }, 'A drawn chart with simulated light: greys, the wheel\'s 12 colours, skin tones and sky, leaves and brick. Before is on the left, your film on the right. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top). Double-click a slider or the arc to reset it.'));
+      h('p', { class: 'help' }, 'A drawn chart with simulated light: six greys, six strong colours, skin tones, sky, leaves and brick. Before is on the left, your film on the right. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top). Double-click a slider or the arc to reset it.'));
   }
   build();
   box.toggleAttribute('hidden', S.image !== 'chart');
@@ -816,7 +816,7 @@ function sizeFrame(w: number, h: number) {
   // the colour chart (owner 2026-11-09): before and after as two pictures side by side, no dividing line
   const pair = S.image === 'chart';
   frame.classList.toggle('pair', pair);
-  if (pair) { frame.style.aspectRatio = ''; frame.style.width = `min(100%, ${(2 * 46 * w / h).toFixed(2)}vh)`; return; }
+  if (pair) { frame.style.aspectRatio = ''; frame.style.width = `min(100%, ${(2 * 58 * w / h).toFixed(2)}vh)`; return; }
   frame.style.aspectRatio = `${w} / ${h}`;
   frame.style.width = `min(100%, ${(70 * w / h).toFixed(2)}vh)`;
 }

@@ -2273,3 +2273,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   window); the chart is smaller with fewer colours (6 x 4 square patches: 6 greys, the 12 wheel hues, 3 skin, sky /
   leaves / brick) and, for the chart only, before and after are two pictures side by side (no dividing line; photos
   keep the line). Checked in Chromium at desktop and phone widths; not checked in Safari itself (no WebKit here).
+- Then (owner, with a photo of a commercial 18-patch grey / colour card: "something like this but vertical"): the
+  chart is an upright card, 3 columns x 6 rows: a wider column of six greys (white at the top), six strong wheel
+  colours (red, yellow, green, cyan, blue, magenta), and three skin tones, sky, leaves, brick. Our own layout and
+  colours; nothing taken from that card (no name, artwork or values). Published.

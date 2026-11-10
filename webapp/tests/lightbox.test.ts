@@ -5,8 +5,10 @@ const px = (im: { width: number; data: Uint8ClampedArray }, u: number, v: number
   const o = (Math.round(v * h) * im.width + Math.round(u * im.width)) * 4;
   return [im.data[o], im.data[o + 1], im.data[o + 2]];
 };
-// the middle of the grey patch in column c (row 1)
-const grey = (im: { width: number; height: number; data: Uint8ClampedArray }, c: number) => { const [u, v] = patchCentre(c, 0); return px(im, u, v, im.height); };
+type Im = { width: number; height: number; data: Uint8ClampedArray };
+const at = (im: Im, col: number, row: number) => { const [u, v] = patchCentre(col, row); return px(im, u, v, im.height); };
+// grey c: 0 black .. 5 white (the left column, white at the top)
+const grey = (im: Im, c: number) => at(im, 0, 5 - c);
 const L = (p: Partial<ChartLight>): ChartLight => ({ ...CHART_DEFAULT, ...p });
 
 describe('light box', () => {
@@ -38,11 +40,13 @@ describe('light box', () => {
   it('brightness and shadow darken, grey ramp rises', () => {
     const a = grey(renderChart(L({}), 600), 3)[1], d = grey(renderChart(L({ ev: -6 }), 600), 3)[1];
     expect(d).toBeLessThan(a - 30);
-    const sh = renderChart(L({ shadow: 50 }), 600);
-    expect(grey(sh, 5)[1]).toBeLessThan(grey(renderChart(L({}), 600), 5)[1] - 40);   // the right side is in shadow
-    expect(grey(sh, 5)[2]).toBeGreaterThan(grey(sh, 5)[0]);                            // and bluer
-    const pm = renderChart(L({ shadow: 50, time: 900 }), 600);                              // afternoon: the shadow is on the left
-    expect(grey(pm, 0)[1]).toBeLessThan(grey(renderChart(L({ time: 900 }), 600), 0)[1]); expect(grey(pm, 5)[1]).toBe(grey(renderChart(L({ time: 900 }), 600), 5)[1]);
+    const sh = renderChart(L({ shadow: 50 }), 600), lit = renderChart(L({}), 600);
+    const lum = (c: number[]) => c[0] + c[1] + c[2];
+    expect(lum(at(sh, 2, 0))).toBeLessThan(lum(at(lit, 2, 0)) - 60);                       // morning / noon: the right side is in shadow
+    expect(at(sh, 0, 5)).toEqual(at(lit, 0, 5));                                            // the bottom left is still lit
+    expect(grey(renderChart(L({ shadow: 100 }), 600), 5)[2]).toBeGreaterThan(grey(renderChart(L({ shadow: 100 }), 600), 5)[0]);   // shade is bluer
+    const pm = renderChart(L({ shadow: 50, time: 900 }), 600), pmLit = renderChart(L({ time: 900 }), 600);   // afternoon: from the left
+    expect(grey(pm, 5)[1]).toBeLessThan(grey(pmLit, 5)[1] - 40); expect(at(pm, 2, 5)).toEqual(at(pmLit, 2, 5));
     const im = renderChart(L({}), 600); let last = -1;
     for (let c = 0; c < 6; c++) { const g = grey(im, c)[1]; expect(g).toBeGreaterThan(last); last = g; }
   });

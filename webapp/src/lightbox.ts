@@ -98,23 +98,27 @@ function hsv(hDeg: number, s: number, v: number): RGB {
 }
 const hex = (s: string): RGB => [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255];
 
-/** The chart: 6 columns x 4 rows of square patches (sRGB as drawn in neutral light; owner 2026-11-09: fewer colours,
- *  a smaller chart). Row 1 six greys from black to white, rows 2-3 the wheel's 12 colours (strong) in wheel order,
- *  row 4 three skin tones and three everyday colours (sky, leaves, brick). */
-export const CHART_COLS = 6, CHART_ROWS = 4;
-/** The picture's shape (height / width) and its layout as fractions of the width: table margin, card padding. */
-const CHART_MARGIN = 0.05, CHART_PAD = 0.03, CHART_CELL = (1 - 2 * CHART_MARGIN - 2 * CHART_PAD) / CHART_COLS;
+/** The chart, upright (owner 2026-11-09: "fewer colours, smaller ... vertical"): 3 columns x 6 rows, 18 patches (sRGB
+ *  as drawn in neutral light). Left, a wider column of six greys, white at the top to black; middle, six strong
+ *  colours from the wheel (red, yellow, green, cyan, blue, magenta); right, three skin tones, then sky, leaves and
+ *  brick. Our own layout and colours. */
+export const CHART_COLS = 3, CHART_ROWS = 6;
+/** Column widths in units of the row height (the greys are wider), and the layout as fractions of the picture's
+ *  width: table margin, card padding. */
+const COL_W = [1.4, 1, 1], COL_X = [0, 1.4, 2.4], COLS_W = 3.4;
+const CHART_MARGIN = 0.06, CHART_PAD = 0.04, CHART_CELL = (1 - 2 * CHART_MARGIN - 2 * CHART_PAD) / COLS_W;
+/** The picture's shape: height / width. */
 export const CHART_ASPECT = 2 * CHART_MARGIN + 2 * CHART_PAD + CHART_ROWS * CHART_CELL;
 /** The middle of patch (col, row) as fractions of the picture's width and height. */
 export const patchCentre = (col: number, row: number): [number, number] =>
-  [CHART_MARGIN + CHART_PAD + CHART_CELL * (col + 0.5), (CHART_MARGIN + CHART_PAD + CHART_CELL * (row + 0.5)) / CHART_ASPECT];
-const SKIN = ['#f3d2bd', '#c99472', '#7d5236'];
-const EVERYDAY = ['#6f9ccb', '#4c7a3d', '#a8553f'];   // sky, leaves, brick
+  [CHART_MARGIN + CHART_PAD + CHART_CELL * (COL_X[col] + COL_W[col] / 2), (CHART_MARGIN + CHART_PAD + CHART_CELL * (row + 0.5)) / CHART_ASPECT];
+const SOFT = ['#f3d2bd', '#c99472', '#7d5236', '#6f9ccb', '#4c7a3d', '#a8553f'];   // skin light / medium / dark, sky, leaves, brick
 function patchSrgb(): RGB[] {
   const out: RGB[] = [];
-  for (let i = 0; i < 6; i++) { const L = 8 + (96 - 8) * (i / 5), y = L > 8 ? ((L + 16) / 116) ** 3 : L / 903.3, e = y <= 0.0031308 ? 12.92 * y : 1.055 * y ** (1 / 2.4) - 0.055; out.push([e, e, e]); }
-  for (let i = 0; i < 12; i++) out.push(hsv(i * 30, 0.8, 0.86));
-  for (const c of [...SKIN, ...EVERYDAY]) out.push(hex(c));
+  for (let r = 0; r < CHART_ROWS; r++) {
+    const L = 96 - (96 - 8) * (r / 5), y = L > 8 ? ((L + 16) / 116) ** 3 : L / 903.3, e = y <= 0.0031308 ? 12.92 * y : 1.055 * y ** (1 / 2.4) - 0.055;
+    out.push([e, e, e], hsv(r * 60, 0.8, 0.86), hex(SOFT[r]));
+  }
   return out;
 }
 /** Patch reflectances (linear), kept inside what real paint can do. */
@@ -169,8 +173,9 @@ export function renderChart(p: ChartLight, width: number): ChartImage {
       let s = 0;
       if (x >= cx0 && x < cx1 && inY) {
         s = 1;
-        const fx = (x - cx0 - pad) / gx, col = Math.floor(fx), rx = fx - col;
-        if (row >= 0 && row < CHART_ROWS && col >= 0 && col < CHART_COLS && rx > gap / 2 && rx < 1 - gap / 2 && ry > gap / 2 && ry < 1 - gap / 2) s = 2 + row * CHART_COLS + col;
+        const fx = (x - cx0 - pad) / gx, col = fx < 0 ? -1 : fx < COL_X[1] ? 0 : fx < COL_X[2] ? 1 : fx < COLS_W ? 2 : -1;
+        const dx = col < 0 ? 0 : fx - COL_X[col];   // distance into the patch's column, in row heights (same gap all round)
+        if (row >= 0 && row < CHART_ROWS && col >= 0 && dx > gap / 2 && dx < COL_W[col] - gap / 2 && ry > gap / 2 && ry < 1 - gap / 2) s = 2 + row * CHART_COLS + col;
       }
       // how much of this pixel is in shadow (0 lit .. 1 shaded): the shadow comes in from the right in the morning
       // and at noon, from the left in the afternoon (the sun has moved across)
