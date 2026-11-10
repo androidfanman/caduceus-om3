@@ -109,8 +109,18 @@ function oneOf<T extends readonly string[]>(v: unknown, list: T, what: string, d
 }
 
 /** Structural parse of one look (types and shapes; value ranges are checked by format.validateLook). */
+/** The version of one look's JSON (in share links and files, from 2026-11-09). Raised only if a setting's meaning ever
+ *  changes; a new setting is just a new field (older looks read without it as off / 0). Looks without the field are 1. */
+export const LOOK_SCHEMA = 'caduceus-om3-look/1';
+export const LOOK_SCHEMA_V = 1;
+
 export function parseLook(v: unknown, what = 'look'): Look {
   if (!isObj(v)) throw new Error(`${what}: must be an object`);
+  if (v.schema !== undefined) {
+    const m = typeof v.schema === 'string' ? /^caduceus-om3-look\/(\d+)$/.exec(v.schema) : null;
+    if (!m) throw new Error(`${what}: unknown format ${JSON.stringify(v.schema)} (this app reads ${LOOK_SCHEMA})`);
+    if (Number(m[1]) > LOOK_SCHEMA_V) throw new Error(`${what} was made with a newer version of the Control Panel (format ${m[1]}): reload the page to update it.`);
+  }
   const kind = v.kind === 'mono' ? 'mono' : v.kind === undefined || v.kind === 'colour' ? 'colour' : null;
   if (!kind) throw new Error(`${what}: kind must be "colour" or "mono"`);
   if (typeof v.name !== 'string') throw new Error(`${what}: name must be a string`);

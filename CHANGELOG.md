@@ -23,6 +23,13 @@ sd4).
   as v0.26.1.
 
 
+**Control Panel** (same day, after the release)
+- **Look links and files carry their format and minimum firmware:** every look starts with
+  `"schema": "caduceus-om3-look/1"` and `"min_fw"` (for example `"0.26"` with split toning, `"0.26.1"` with a WB shift
+  past ±5); a set of looks carries the newest of its looks'. The Share window and the message after opening a link
+  say which Caduceus version a look needs. `min_fw` is worked out from the settings, never trusted from the file. Old
+  links and files open as before.
+
 ## v0.26.1
 WB shift up to ±7 in films, and the 20 film sims tuned from colour-checker photos. Firmware camera-tested (2026-11-09,
 build wb7).

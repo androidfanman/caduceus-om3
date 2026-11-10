@@ -27,6 +27,12 @@ cakelesscoder's own tool for the E-P7.
   layout (v0.26 adds split toning at record +53..+56).
 - **Share**: a link to all films (`ob1_…`) or one (`op1_…`): base64url of the deflated JSON, in the URL fragment
   (never sent to the server). Opening such a link imports it.
+- **Look format** (2026-11-09): every look in a link or a looks file starts with `"schema": "caduceus-om3-look/1"` and
+  `"min_fw"` (the oldest Caduceus firmware that carries all its settings, e.g. `"0.26"` for split toning, `"0.26.1"`
+  for a WB shift past ±5; the bank / file gets the newest of its looks'). `min_fw` is worked out from the settings when
+  written and ignored when read (worked out again), so a hand-edited value can't mislead. Looks without the fields
+  (older links and files) read as format 1. The number goes up only if a setting's meaning changes; a new setting is
+  a new field, read as off / 0 from older looks. A higher format is refused with "reload the page to update".
 
 | File | What |
 |---|---|

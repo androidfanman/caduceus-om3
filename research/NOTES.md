@@ -2334,3 +2334,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   - **Next step (not built):** a camera probe that writes a fixed test text into both fields at that hook, to prove
     the hook runs for every JPEG and to see what the Mac / phone apps show. Then the real text. Space: ext11 144 B
     (enough for the probe's jump and a short copy; the real code goes in the GUIDES.BIN block).
+
+### Control Panel: look format version and minimum firmware (2026-11-09; published)
+- Owner (from a comment): add `"schema": "caduceus-om3-look/{n}"` to each look's JSON and a `"min_fw"` field.
+- Built: `LOOK_SCHEMA` (pack.ts; parseLook accepts no schema or format <= 1, refuses higher with "reload the page",
+  refuses unknown strings), `minFw` / `bankMinFw` / `exportLook` / `FW_NAME` (om3.ts). Rules: WB past ±5 0.26.1,
+  split toning 0.26, NR High 0.24.1, Sharp below -2 0.22, Film Grain or lens correction off 0.21, else 0.20. Links
+  (op1_ / ob1_) and the .om3.json file carry them; the bank object gets `min_fw` too. LOOKS.BIN unchanged.
+- Checked: unit tests (format and rules), and in a browser: the site's link has schema / min_fw first; an old link
+  without them opens ("needs Caduceus v0.26.1 or later" for WB +6); a format-2 link is refused with the reload message.

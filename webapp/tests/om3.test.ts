@@ -11,7 +11,8 @@ import { fromLibrary } from '../src/reset';
 import { COLORS, PER, defaultBank, emptyBank, parseBank, monoGrain, profilesBin, readProfiles, slowGrain, toOm3, validateBank, type Bank } from '../src/om3';
 import { parseLook } from '../src/pack';
 import { FILMS, FILM_GROUPS, filmByName, filmLook } from '../src/om3films';
-import { validateProfile } from '../src/om3';
+import { validateProfile, exportLook, minFw, bankMinFw, FW_NAME } from '../src/om3';
+import { LOOK_SCHEMA } from '../src/pack';
 
 const LIB = parsePack(libraryJson);
 const MK = join(__dirname, '../../card/mkprofiles.py');
@@ -223,5 +224,35 @@ describe('WB -7..7 (v0.26.1)', () => {
     const b = emptyBank(); const l = blankProfile('WB test'); l.wb = { a_b: 7, g_m: -6 }; b[0][0] = l;
     expect([...profilesBin(b, 26).subarray(32 + 37, 32 + 39)]).toEqual([7, 250]);
     expect([...profilesBin(b, 25).subarray(32 + 37, 32 + 39)]).toEqual([5, 251]);
+  });
+});
+
+describe('look format version and minimum firmware (2026-11-09)', () => {
+  const base = (): Look => blankLook('colour', 'Test');
+  it('works out the minimum firmware from the settings', () => {
+    expect(FW_NAME[minFw(base())]).toBe('0.20');
+    expect(FW_NAME[minFw({ ...base(), film_grain: 1 })]).toBe('0.21');
+    expect(FW_NAME[minFw({ ...base(), lens_correction: true })]).toBe('0.21');
+    expect(FW_NAME[minFw({ ...base(), advice: { sharpness: -4 } })]).toBe('0.22');
+    expect(FW_NAME[minFw({ ...base(), grain: 'high' })]).toBe('0.24.1');
+    expect(FW_NAME[minFw({ ...base(), split: { sh_color: 6, sh: 2, hl_color: 0, hl: 0 } })]).toBe('0.26');
+    expect(FW_NAME[minFw({ ...base(), wb: { a_b: 6, g_m: 0 } })]).toBe('0.26.1');
+    expect(FW_NAME[minFw({ ...base(), wb: { a_b: -5, g_m: 5 }, film_grain: 2 })]).toBe('0.21');
+    expect(FW_NAME[bankMinFw([[base(), null], [{ ...base(), wb: { a_b: 0, g_m: -7 } }]])]).toBe('0.26.1');
+  });
+  it('exports schema and min_fw first, and reads them back', () => {
+    const l = { ...base(), split: { sh_color: 6, sh: 2, hl_color: 0, hl: 0 } }, x = exportLook(l);
+    expect(Object.keys(x).slice(0, 2)).toEqual(['schema', 'min_fw']);
+    expect(x.schema).toBe(LOOK_SCHEMA); expect(x.min_fw).toBe('0.26');
+    const back = parseLook(JSON.parse(JSON.stringify(x)));
+    expect(back).toEqual(parseLook(JSON.parse(JSON.stringify(l))));
+    expect(back).not.toHaveProperty('min_fw');
+  });
+  it('ignores a wrong min_fw, reads old looks without the fields, refuses newer and unknown formats', () => {
+    const l = { ...base(), wb: { a_b: 7, g_m: 0 } };
+    expect(FW_NAME[minFw(parseLook({ ...exportLook(l), min_fw: '0.20' }))]).toBe('0.26.1');
+    expect(() => parseLook(JSON.parse(JSON.stringify(l)))).not.toThrow();
+    expect(() => parseLook({ ...exportLook(l), schema: 'caduceus-om3-look/2' })).toThrow(/newer version/);
+    expect(() => parseLook({ ...exportLook(l), schema: 'something-else' })).toThrow(/unknown format/);
   });
 });

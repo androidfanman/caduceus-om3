@@ -139,6 +139,8 @@ print(code)
 print("https://androidfanman.github.io/caduceus-om3/looklab/?camera=om3#" + code)
 ```
 
+The look may start with `"schema": "caduceus-om3-look/1"` (optional; looks without it are read as that format). Any `"min_fw"` you add is ignored: the Control Panel works the minimum firmware out from the settings itself.
+
 The code is the look's JSON compressed with zlib (deflate with the zlib header) and written as URL-safe base64 without `=` padding, after `op1_`. Always make it with code, never by hand.
 
 **If you can't run code:** give me the JSON. I can save it as a file in this format and open it with **Open…** in the Control Panel, which replaces my current looks (Undo brings them back):

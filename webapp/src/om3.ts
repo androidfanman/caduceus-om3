@@ -21,7 +21,7 @@ import { parseSplit, splitOk } from './split';
 //     the look's sharpness in +42 (-2..+2, softer values as -2)
 //     | 20 x 16-B names at 1312. Written with sel = 0 so the camera never saves its own settings over these profiles.
 //   NAMES.BIN v1: the name pictures for the Film page (./om3names.ts).
-import { ARTS, blankLook, cloneLook, toneIsZero, zeroTone, type Grain, type Look, type Pack } from './pack';
+import { ARTS, LOOK_SCHEMA, blankLook, cloneLook, toneIsZero, zeroTone, type Grain, type Look, type Pack } from './pack';
 import { crc32, type Problem } from './format';
 import { CAMERA_FILMS, filmByName, filmLook } from './om3films';
 
@@ -36,6 +36,27 @@ export const sharpLabel = (v: number) => (v <= SHARP.lo ? 'Off' : v > 0 ? `+${v}
 export type Fw = 20 | 21 | 22 | 23 | 24 | 25 | 26;   // 25 = v0.26 (split toning, record +53..+56); 26 = v0.26.1 (WB -7..7)
 /** WB shift that firmware `fw` accepts in LOOKS.BIN: v0.26 and older refuse the whole file beyond -5..5. */
 export const wbMax = (fw: Fw) => (fw >= 26 ? 7 : 5);
+/** Caduceus release names of the Fw values (the export menu's). */
+export const FW_NAME: Record<Fw, string> = { 20: '0.20', 21: '0.21', 22: '0.22', 23: '0.24.1', 24: '0.25', 25: '0.26', 26: '0.26.1' };
+/** The oldest firmware that carries everything in this look (worked out from its settings, never read from a file):
+ *  WB shift past ±5 v0.26.1, split toning v0.26, Noise Filter High v0.24.1, Sharp below -2 v0.22, Film Grain or the
+ *  lens vignette correction off v0.21; anything else v0.20. */
+export function minFw(l: Look): Fw {
+  if (Math.abs(l.wb?.a_b ?? 0) > 5 || Math.abs(l.wb?.g_m ?? 0) > 5) return 26;
+  if (l.split) return 25;
+  if (OM3_NR.indexOf(l.grain) === 4) return 23;
+  if ((l.advice.sharpness ?? 0) < -2) return 22;
+  if ((l.film_grain ?? 0) > 0 || l.lens_correction) return 21;
+  return 20;
+}
+/** The newest of the looks' minFw (20 for none). */
+export const bankMinFw = (bank: Bank): Fw => bank.flat().reduce<Fw>((m, l) => (l ? Math.max(m, minFw(l)) as Fw : m), 20);
+/** A look as it leaves the tool (share links, the .om3.json file): its format version and minimum firmware first, then
+ *  the settings, without the app's own bookkeeping. */
+export function exportLook(l: Look): Record<string, unknown> {
+  const { origin: _o, lib: _l, ...x } = l as Look & { origin?: unknown; lib?: unknown };
+  return { schema: LOOK_SCHEMA, min_fw: FW_NAME[minFw(l)], ...x };
+}
 /** v0.25: Grain is as fast as normal with every setting, except Glow / Clarity and Frame together (the slower route,
  * about 3 s per photo). */
 export const slowGrain = (_l: Look) => false;   // v0.25: no Art Effect (Frame removed), so grain is fast with everything

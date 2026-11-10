@@ -13,7 +13,7 @@ import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
 import {
   BANK_SCHEMA, COLORS, OM3, OM3_NAME_MAX, PER, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
-  SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw,
+  SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw,
 } from './om3';
 import { namesBin } from './om3names';
 import { SPLIT_COLOURS, SPLIT_MAX, type Split } from './split';
@@ -1079,7 +1079,10 @@ async function zpipe(data: Uint8Array, s: CompressionStream | DecompressionStrea
 }
 const toB64u = (b: Uint8Array) => { let s = ''; for (const x of b) s += String.fromCharCode(x); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const fromB64u = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-const plainLook = (l: Look) => { const { origin: _o, lib: _l, ...x } = l as Look & { origin?: unknown; lib?: unknown }; return x; };
+/** A whole bank as it leaves the tool: the newest firmware any of its looks needs, and each look with its own. */
+const exportBank = () => ({ schema: BANK_SCHEMA, min_fw: FW_NAME[bankMinFw(O.bank)], name: O.name, bank: O.bank.map((r) => r.map((l) => (l ? exportLook(l) : null))) });
+/** "Needs Caduceus v0.26 or later on the camera." when more than the oldest the tool exports for. */
+const fwNote = (fw: Fw) => (fw > 20 ? `Needs Caduceus v${FW_NAME[fw]} or later on the camera.` : '');
 async function encodeOm3(prefix: string, v: unknown) { return prefix + toB64u(await zpipe(new TextEncoder().encode(JSON.stringify(v)), new CompressionStream('deflate'))); }
 async function decodeOm3(prefix: string, t: string): Promise<unknown> {
   const s = t.trim().replace(/^.*#/, '').replace(/\s+/g, '');
@@ -1115,7 +1118,7 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
       const b = parseBank(await decodeOm3(OB_PREFIX, t), parseLook);
       const n = b.bank.flat().filter(Boolean).length;
       if (!confirm(`Open the shared looks "${b.name}" (${n} looks)? They replace your current looks (Undo brings them back).`)) return fromLink;
-      replaceBank(b.bank, `Opened "${b.name}"`, b.name);
+      replaceBank(b.bank, `Opened "${b.name}"${bankMinFw(b.bank) > 20 ? ` · needs Caduceus v${FW_NAME[bankMinFw(b.bank)]} or later` : ''}`, b.name);
       return true;
     }
     if (!isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_).');
@@ -1133,7 +1136,7 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
     }
     O.bank[k][v] = c.look; O.k = k; O.v = v;
     save(); renderAll();
-    toast(`Added "${c.look.name}" as ${at(k, v)}${om3Changes(c)}`);
+    toast(`Added "${c.look.name}" as ${at(k, v)}${om3Changes(c)}${minFw(c.look) > 20 ? ` · needs Caduceus v${FW_NAME[minFw(c.look)]} or later` : ''}`);
     return true;
   } catch (e) {
     importCodeMsg((e as Error).message);
@@ -1142,20 +1145,21 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
 }
 
 async function om3Share() {
-  const code = await encodeOm3(OB_PREFIX, { schema: BANK_SCHEMA, name: O.name, bank: O.bank.map((r) => r.map((l) => (l ? plainLook(l) : null))) });
+  const code = await encodeOm3(OB_PREFIX, exportBank());
   const link = `${shareBase()}?camera=om3#${code}`;
   modal('Share these looks', h('div', { class: 'share' },
     h('p', {}, `A link to all ${O.bank.flat().filter(Boolean).length} OM-3 looks (names, notes, Contrast / Sharp / Shading). Opening it loads them here. Everything is inside the link itself: nothing is stored on a server.`),
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
-    h('p', { class: 'help' }, `${link.length} characters. For one look, use the Share button next to its name.`)));
+    h('p', { class: 'help' }, `${link.length} characters. ${fwNote(bankMinFw(O.bank))} For one look, use the Share button next to its name.`)));
 }
 
 async function om3ShareProfile(l: Look) {
-  const code = await encodeOm3(OP_PREFIX, plainLook(l));
+  const code = await encodeOm3(OP_PREFIX, exportLook(l));
   const link = `${shareBase()}?camera=om3#${code}`;
   modal(`Share "${l.name}"`, h('div', { class: 'share' },
     h('p', {}, 'A link to this OM-3 look, with everything in it (including Contrast, Sharp and Shading):'),
+    fwNote(minFw(l)) ? h('p', { class: 'help' }, fwNote(minFw(l))) : null,
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
     h('div', { class: 'ex-row' },
@@ -1219,7 +1223,7 @@ function om3ExportDialog() {
   const probs = validateBank(O.bank);
   const fname = (O.name || 'om3-looks').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'om3-looks';
   const n = O.bank.flat().filter(Boolean).length;
-  const bankJson = () => JSON.stringify({ schema: BANK_SCHEMA, name: O.name, bank: O.bank.map((r) => r.map((l) => (l ? plainLook(l) : null))) }, null, 1) + '\n';
+  const bankJson = () => JSON.stringify(exportBank(), null, 1) + '\n';
   let fw: Fw = 26; try { const s = localStorage.getItem('caduceus.om3.fw'); if (['20', '21', '22', '23', '24', '25', '26'].includes(s ?? '')) fw = Number(s) as Fw; } catch { /* storage blocked */ }
   const looksBin = () => profilesBin(O.bank, fw);
   const fwSel = h('select', { onchange: (e: Event) => {
