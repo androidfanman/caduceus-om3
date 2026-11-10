@@ -152,15 +152,18 @@ function shade2(refl: RGB, cri: number, main: RGB, sky: RGB, gain: RGB): [RGB, R
     [refl[0] * sky[0] * gain[0], refl[1] * sky[1] * gain[1], refl[2] * sky[2] * gain[2]]];
 }
 
-/** Draw the chart, `width` px wide (CHART_ASPECT gives its height), in the given light as the camera would record it (before any film). */
-export function renderChart(p: ChartLight, width: number): ChartImage {
+/** Draw the chart, `width` px wide (CHART_ASPECT gives its height), in the given light as the camera would record it
+ *  with its WB setting (before any film); `neutral` = with the light's colour cancelled instead (the reference). */
+export function renderChart(p: ChartLight, width: number, neutral = false): ChartImage {
   const W = Math.max(48, Math.round(width)), H = Math.round(W * CHART_ASPECT);
   const src = SOURCES[p.source];
   const main = lightColor(lightKelvin(p), src.tint);
   // the shade inside a sunny scene: blue skylight, about two stops down
   const SKY_LEVEL = 0.24, sky = lightColor(9000).map((v) => v * SKY_LEVEL) as RGB;
-  const wbTint = p.wb === 'auto' ? src.tint : WB_MODES[p.wb].tint;
-  const wbc = lightColor(wbKelvin(p), wbTint), gain: RGB = [1 / wbc[0], 1 / wbc[1], 1 / wbc[2]];
+  // neutral = the reference picture ("before"): the light's own colour taken out exactly, whatever the camera's WB is
+  // set to (owner 2026-11-09: the camera's WB belongs to the "after" side only)
+  const wbTint = neutral || p.wb === 'auto' ? src.tint : WB_MODES[p.wb].tint;
+  const wbc = lightColor(neutral ? lightKelvin(p) : wbKelvin(p), wbTint), gain: RGB = [1 / wbc[0], 1 / wbc[1], 1 / wbc[2]];
   const expo = 2 ** (Math.max(-9, Math.min(9, p.ev)) / 3);
   const shadow = p.source === 'sun' && p.shadow ? sunShadow(p.time) : 0, pm = p.time > 720;
 

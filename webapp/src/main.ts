@@ -672,20 +672,24 @@ async function pickImage(id: string) {
 // ---- the colour chart "light box": a drawn chart, the light on it and the camera's white balance (lightbox.ts)
 const STORE_CHART = 'caduceus.om3.chart.v1';
 const CHART: ChartLight = (() => { try { return chartLight(JSON.parse(localStorage.getItem(STORE_CHART) ?? 'null')); } catch { return { ...CHART_DEFAULT }; } })();
-function chartImage(p: ChartLight, px: number): ImageData { const c = renderChart(p, px); return new ImageData(c.data as Uint8ClampedArray<ArrayBuffer>, c.width, c.height); }
+function chartImage(p: ChartLight, px: number, neutral = false): ImageData { const c = renderChart(p, px, neutral); return new ImageData(c.data as Uint8ClampedArray<ArrayBuffer>, c.width, c.height); }
 function chartThumb(): string {
   const c = document.createElement('canvas'), im = chartImage(CHART_DEFAULT, 240);
   c.width = im.width; c.height = im.height; c.getContext('2d')!.putImageData(im, 0, 0);
   return c.toDataURL('image/png');
 }
 let chartQueued = false;
+/** The chart's "before" picture (the light's colour cancelled); photos use the photo itself. */
+let chartBefore: ImageData | null = null;
 function drawChart() {
   if (chartQueued) return;
   chartQueued = true;
   requestAnimationFrame(() => {
     chartQueued = false;
     if (S.image !== 'chart') return;
-    srcData = chartImage(CHART, Math.min(720, Math.ceil(previewPx() / 2)));
+    const px = Math.min(720, Math.ceil(previewPx() / 2));
+    srcData = chartImage(CHART, px);
+    chartBefore = chartImage(CHART, px, true);   // "before": the chart in this light, without the camera's WB setting
     schedulePreview();
   });
 }
@@ -749,7 +753,7 @@ function chartPanel(): HTMLElement {
   const note = () => {
     const lk = lightKelvin(CHART), wk = wbKelvin(CHART);
     const cast = CHART.wb === 'auto' && wk === lk ? 'Auto WB follows it, so greys stay grey.'
-      : wk > lk + 150 ? 'so the picture comes out warmer (more amber).' : wk < lk - 150 ? 'so the picture comes out cooler (more blue).' : 'so greys stay about grey.';
+      : wk > lk + 150 ? 'so After comes out warmer (more amber) than Before.' : wk < lk - 150 ? 'so After comes out cooler (more blue) than Before.' : 'so greys stay about grey.';
     noteEl.textContent = `Light about ${lk} K, camera WB ${wk} K: ${cast}`;
   };
   const ev = (v: number) => (v === 0 ? '0 EV' : `${v > 0 ? '+' : '−'}${(Math.abs(v) / 3).toFixed(1)} EV`);
@@ -780,7 +784,7 @@ function chartPanel(): HTMLElement {
     }
     note();
     box.replaceChildren(h('div', { class: 'chart-cols' }, arc, h('div', { class: 'chart-grid' }, ...kids)), noteEl,
-      h('p', { class: 'help' }, 'A drawn chart with simulated light: six greys, six strong colours, skin tones, sky, leaves and brick. Before is on the left, your film on the right. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top): the light warms and the shadow grows as the sun gets lower. Double-click a slider or the arc to reset it.'));
+      h('p', { class: 'help' }, 'A drawn chart with simulated light: six greys, six strong colours, skin tones, sky, leaves and brick. Before (left) is the chart in this light with the light\'s colour taken out; After (right) adds the camera\'s WB setting and your film. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top): the light warms and the shadow grows as the sun gets lower. Double-click a slider or the arc to reset it.'));
   }
   build();
   box.toggleAttribute('hidden', S.image !== 'chart');
@@ -837,8 +841,9 @@ function schedulePreview() {
     if (!srcData || !canvas) return;
     if (canvas.width !== srcData.width || canvas.height !== srcData.height) { canvas.width = srcData.width; canvas.height = srcData.height; }
     sizeFrame(srcData.width, srcData.height);
-    if (beforeOf !== srcData) {           // the untouched photo, drawn once per photo
-      beforeCv.width = srcData.width; beforeCv.height = srcData.height; beforeCv.getContext('2d')!.putImageData(srcData, 0, 0); beforeOf = srcData;
+    const before = S.image === 'chart' && chartBefore ? chartBefore : srcData;
+    if (beforeOf !== before) {           // the untouched photo, drawn once per photo
+      beforeCv.width = before.width; beforeCv.height = before.height; beforeCv.getContext('2d')!.putImageData(before, 0, 0); beforeOf = before;
     }
     const ctx = canvas.getContext('2d')!;
     const l = cur();

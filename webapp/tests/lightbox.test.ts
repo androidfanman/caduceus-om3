@@ -52,6 +52,12 @@ describe('light box', () => {
     const im = renderChart(L({}), 600); let last = -1;
     for (let c = 0; c < 6; c++) { const g = grey(im, c)[1]; expect(g).toBeGreaterThan(last); last = g; }
   });
+  it('the reference picture ignores the camera WB', () => {
+    const a = renderChart(L({ source: 'tungsten', wb: 'sunny' }), 300, true), b = renderChart(L({ source: 'tungsten', wb: 'custom', kelvin: 9000 }), 300, true);
+    expect(a.data).toEqual(b.data);
+    const [r, g, bl] = grey(a, 3); expect(Math.abs(r - g)).toBeLessThanOrEqual(4); expect(Math.abs(bl - g)).toBeLessThanOrEqual(4);
+    const [r2, , b2] = grey(renderChart(L({ source: 'street' }), 300, true), 3); expect(Math.abs(r2 - b2)).toBeLessThanOrEqual(6);
+  });
   it('cleans stored settings', () => {
     expect(chartLight(null)).toEqual(CHART_DEFAULT);
     expect(chartLight({ source: 'moon', time: 5000, ev: -99, wb: 'x', kelvin: 123456, shadow: 40 })).toEqual({ ...CHART_DEFAULT, time: 1080, ev: -9, kelvin: 14000 });

@@ -2282,3 +2282,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Then (owner: "no shadow at noon ... then shadows vice versa"): the shadow follows the time of day (none at noon,
   growing to 60% of the chart at sunrise / sunset; on the right in the morning, the left in the afternoon, the sun
   being on the arc's side); the slider became an on / off tick. Published.
+- Then (owner: "the camera wb should only affect the after"): the chart's Before picture is drawn with the light's
+  own colour cancelled exactly (`renderChart(p, px, true)`), whatever the camera WB is set to; After = the camera's WB
+  setting + the film. Before still follows the light source's other effects (shadow, brightness, lamp falloff, the
+  street lamp's weak colours). Published.
