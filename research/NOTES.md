@@ -2239,3 +2239,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (`patch.py --release v0.26.2` rebuilds E1479999.BIN 4add99d3… byte for byte; GUIDES.BIN 92b67919…). Credit to
   fernandezk26 in the README, CHANGELOG and release notes. Not yet told to fernandezk26: their `tw_san` reads the
   strengths unsigned (ours sign-extends). Issue #12 reply: still waiting for the owner's "post it".
+
+### Session wrap-up (2026-11-09, after the v0.26.2 release)
+- Owner's camera and card are on v0.26.2 (sd4). Card cleaned by the owner (DCOLYMP empty, test files, the old backup
+  folder and the test photos removed); OM3MOD holds the v0.26.2 card files and the owner's films / changes.
+- Open, in the owner's hands: (1) the issue #12 reply (say the RAW+JPEG fix is in v0.26.2) waits for "post it";
+  (2) a note to fernandezk26 that their `tw_san` reads strengths unsigned (not sent, not drafted).
+- Open, technical: a changed film shows no '*' on the shooting screen (15710..15713 answered with the plain "FILM N");
+  the one flash that did not start from sd1 (not seen again on sd2, sd3, sd4); firmware space: ext11 has 144 B left
+  (halation needs ~1.8 KB: more proven space or a move into the GUIDES.BIN block first).
+- Next on the list (owner): per-film WB mode / Kelvin with a Control Panel sidebar control; then halation, custom crops.
+- Tool note: the Mac shell bridge could not reach the card after it was re-inserted mid-session (listing and copying
+  still worked; deleting did not). A fresh session with the card already in restores it.
