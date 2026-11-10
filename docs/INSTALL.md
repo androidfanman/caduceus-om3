@@ -13,7 +13,7 @@
 4. Camera off, full battery: **hold OK and switch on**. Steady light = writing (about two minutes, don't touch
    anything); blinking = done. Switch off and on again.
 5. Delete `DCOLYMP/E1479999.BIN` from the card, keep `OM3MOD`.
-6. **Half-press once** after every power-on, then Picture Mode › COLOR 1–4 › **▼**: the wheel opens on the Looks
+6. Switch on (before v0.26.2: half-press once after every power-on), then Picture Mode › COLOR 1–4 › **▼**: the wheel opens on the Looks
    page, and **INFO** steps through the others.
 
 To undo: flash `SD card files/restore/E1479999.BIN` the same way.
@@ -109,8 +109,8 @@ anything (that is how the same updater behaves on the E-P7): make the files agai
 
 ## First use
 
-1. Switch on and **half-press the shutter once**. That loads your settings from the card. Nothing is read at power-on,
-   so until the first half-press the wheel works exactly as stock.
+1. Switch on. Your settings load from the card by themselves a moment after the camera starts (v0.26.2). Before
+   v0.26.2: **half-press the shutter once**; until then the wheel works exactly as stock.
 2. Picture Mode › **COLOR 1** (or 2–4) › press **▼** to open the Color Profile wheel.
 3. It opens on the **Film** page with the selected look's name. Press **INFO** for the others: Saturation →
    Saturation (All) → **Hue** → **Light** → **Extras** → back to **Film**. The label under the wheel names the page.
@@ -147,7 +147,7 @@ unzipped folder onto the Terminal window, press Return, then run `python3 firmwa
 **The camera doesn't start the update when I hold OK**: check the file is at `DCOLYMP/E1479999.BIN` on the card's
 top level (not inside another folder), the battery is full, and you hold OK *before* switching on.
 
-**The new pages don't appear**: half-press once after switching on. If they still don't, check *Setup › Firmware*
+**The new pages don't appear**: half-press once after switching on (needed before v0.26.2). If they still don't, check *Setup › Firmware*
 says 1.1 and that the flash finished (steady, then blinking).
 
 **My changes don't stay**: they save at the next half-press, and only when the card has an `OM3MOD` folder at its top

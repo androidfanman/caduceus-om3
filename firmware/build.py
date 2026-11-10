@@ -31,6 +31,8 @@ class P:                                   # toolchain and stock identity (set f
 
 LAYOUT = HERE / 'vendor' / 'caduceus-bundles-layout.json'    # Caduceus (Apache-2.0) bundle-table layout
 HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
+         '.hook_hb': (0x60af0fb9, bytes.fromhex('cd4600f018')),     # SD-native: HLS_EVENT entry (stock call 0x60af0fff)
+         '.hook_hr': (0x60af101c, bytes.fromhex('cdbe000000')),     # SD-native: HLS_EVENT receive boundary (stock call 0x60af10da)
          '.hook_shutter': (0x60415216, bytes.fromhex('cd2d01f024')),
          '.hook_set': (0x60b8798b, bytes.fromhex('dd04d90200f044')),
          '.hook_pmod': (0x6129ba07, bytes.fromhex('0cfcde10ec')),
@@ -38,6 +40,8 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_fx': (0x60555e50, bytes.fromhex('f041a000c068')),
          '.hook_lv': (0x6046b8bb, bytes.fromhex('f040a064c205cc8e00f8b808a001c905cc84005c04fa408402a001c879')),
          '.hook_wt': (0x605048c1, bytes.fromhex('f824302c5802')),
+         '.hook_stw': (0x6128b1d3, bytes.fromhex('cdb3f90004ccee00')),   # sd3: a text widget's string id is set (call 0x6128ab86,[],4; jmp 0x6128b2c6): the panel's title
+         '.hook_scw': (0x61157d30, bytes.fromhex('ddb02e1300a00c')),   # sd3: the super control panel sets its Picture Mode cell's choice (call 0x6128abe0,[d2,a2],12)
          '.hook_nr1': (0x603c8038, bytes.fromhex('dd48b3c9ffc00c')),
          '.hook_nr2': (0x603e7891, bytes.fromhex('ddefbac7ffc00c')),
          '.hook_sh': (0x603e767f, bytes.fromhex('dd01bdc7ffc00c')),   # v0.22 Sharp: capture Sharpness read (key 0x8119)
@@ -329,6 +333,11 @@ def build(defaults, testfile, out):
     assert struct.unpack_from('<3I', m, o(0x6152f8dc)) == (901, 4, 0x6152f850)
     assert bytes(m[o(0x6152f850):o(0x6152f850) + 80]) == bytes(m[o(sy['fl_rec']):o(sy['fl_rec']) + 80])
     struct.pack_into('<II', m, o(0x6152f8e0), 24, sy['fl_rec'])
+    # sd3: the super control panel's dial-step table, entry 5 (key 901: COLOR 1-4) -> fl_scr (the stock four, then the films)
+    assert struct.unpack_from('<4I', m, o(0x615384b4) + 80) == (901, 4, 54, 0x61538464)
+    assert bytes(m[o(0x61538464):o(0x61538464) + 80]) == bytes(m[o(sy['fl_scr']):o(sy['fl_scr']) + 80])
+    struct.pack_into('<I', m, o(0x615384b4) + 84, 24)
+    struct.pack_into('<I', m, o(0x615384b4) + 92, sy['fl_scr'])
     # film test 4: the held-OK reset sends its event to the rows listed for the selected picture mode (0x611c3c07
     # `add 0x61536324,d1` over 8 entries, bound `cmp 8,d1` at 0x611c3cae): fl_rtab = the stock 8 + the films
     assert struct.unpack_from('<HHI', m, o(0x61536324) + 8 * 4) == (54, 5, 0x61536310)

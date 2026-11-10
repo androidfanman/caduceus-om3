@@ -2086,3 +2086,156 @@ Stock: OLY_E_147_1100_0000_0000.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - Released as v0.26.1 from build wb7: the branch rebuilds it byte for byte (E1479999.BIN dec03d2f…, GUIDES.BIN
   d2476a54…), and `patch.py --release v0.26.1` reproduces the same files. Optional LOOKS.BIN 26998eeb… (the tuned 20).
 
+### fernandezk26's fork: SD loading without a half-press, and the EDITS.BIN bad-bytes bug (2026-11-09)
+Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.1` (tag v0.26.1.1), `wbrecall/v0.26.2`,
+`wbrecall/v0.26.3`. By their own notes everything there is emulator only.
+- **SD loader** (their commit 3ec4ff8, taken as is; `docs/SD_LOADER.md`): a worker task (SDLOAD, priority 56, 2 KiB)
+  polls every ~100 ms until the section masks and the card word allow a load, then wakes the HLS_EVENT task, which runs
+  our own `pr_gate` (same once-per-power-on gate as the half-press). Hooks 0x60af0fb9 and 0x60af101c (stock calls).
+  `nm_load` / `nm_pick` / `nm_path` moved from ext4 to ext11 for room.
+- **Bug they found (in our v0.26 / v0.26.1):** EDITS.BIN records saved by v0.24 / v0.25 hold heap leftovers in
+  +53..+63 (the image block was never zeroed; `pf_capto` did not write those bytes then). v0.26 reads +53..+56 as split
+  toning. Seen in the owner's own card files (analysis of the 2026-11-09 card copy, not in the repo): 9 of 20 film
+  records with out-of-range split bytes, and BUNDLES.BIN slots 2 and 3 carrying them.
+  **Emulator, v0.26.1 (dec03d2f) with the owner's card files:** choosing FILM 9 gives slot tone 45/109/237/-113 and the
+  half-press save writes it into BUNDLES.BIN. **Build sd1:** the same steps give 0/0/0/0 in the slot and in BUNDLES.BIN;
+  a real split tone (FILM 5: 8/2/1/2) is kept.
+- **Our port of the fix** (their v0.26.3, without its stored-WB parts): `fl_mk` zeroes the whole SP_BLK; `tw_san`
+  (after EDITS.BIN's CRC passes) zeroes a record's +53..+56 as a group when out of range, +57..+62, and +63 on films;
+  `ed_save` runs `sd_san` (sd_check's own table) over its image before the CRC. Difference from theirs: `tw_san`
+  sign-extends the strengths before the range test (theirs reads them unsigned, which zeroes every negative strength:
+  worth telling them). We did not take their per-slot `sd_san` after each film load (the three above cover it).
+- **Build sd1** (branch `feature/v0.26.2-sdload-ff`): E1479999.BIN 0b676068..., GUIDES.BIN 43981bd4...; LABELS / TONES as
+  v0.26.1. Emulator: card block published within 500 ms with no key (`session_autoload.mjs`, masks written by the
+  harness); wheel pages, split toning set, drive-mode recipe run without a stop. **Emulator only.** Only a camera can
+  show: AF / shooting while the worker polls, no card, card pulled, power cycles.
+- Emulator note: this om-emu has no `PlaySession.lab_created`; the scripts push the worker's entry onto
+  `CA_TASK_ENTRIES` instead (`OM_WORKER_ENTRY=<sdl_worker_entry>`, 60a8f623 on sd1). Needed for every session with
+  this firmware.
+- Their stored WB mode / Kelvin per film (v0.26.2 / v0.26.3) is not taken yet (owner: later, and with a Control Panel
+  control). Space after sd1: see build output (ext11 nearly full); halation will need room.
+
+
+### sd1 first camera result (2026-11-09)
+- **Camera (owner): sd1 "works and works well"** (camera-tested, first look): films load without a half-press. The owner
+  keeps testing before any release; no detail yet on AF / shooting speed, no-card start, card pulled, or the films that
+  had bad bytes. Not released: wait for the owner's go-ahead.
+
+### sd1 quirks on the camera, and sd2 (2026-11-09)
+- **Camera (owner, sd1):** (1) after power-on live view does not show the film's look, and the shooting screen reads
+  "COLOR1*" where Picture Mode shows FILM 5 (owner's photo); (2) on the super control panel the dials on the Picture Mode
+  cell step through COLOR 1–4 only, not the films (a wish, not a regression).
+- (1) Analysis / guess: live view and the shooting screen are built before the worker's load publishes the block, and
+  nothing rebuilds them (the half-press used to). The emulator cannot show this (it runs no live view, and its start
+  screen is drawn after the load: FILM 5 shows there).
+- **sd2** = sd1 + `sdl_poke` (ext11) after the automatic `pr_gate`: when the block is published and the picture mode is
+  COLOR k, the wheel's cursor setting 2197 + k is re-written with its own value (GetValue + SetValue through the facade,
+  the editor's own poke after an edit). E1479999.BIN 12993ce6…, GUIDES.BIN da30267c…. Emulator only: the poke runs once
+  after the load, DIRTY stays 0, the session goes on (Picture Mode, wheel, half-press). Whether live view and the label
+  follow is a camera question; the SetValue runs on the HLS_EVENT task, not the GUI's (watch for a hang).
+- (2) not started.
+- **Camera (owner, 2026-11-09), flashing from sd1:** holding OK and switching on did not start the update at first (the
+  camera just started); pressing OK before switching on and holding ~10 s did. Not known whether sd1 narrows the window
+  (its receive hook loads the card on the OK key message, and the worker loads early) or it was the timing of the press:
+  an open question. To settle before a release: flash a few times from the released build and from sd2 and compare; if
+  the loader is the cause, drop its OK trigger and delay the worker's first load.
+- **Camera (owner, 2026-11-09): sd2 "works well"** (camera-tested): after power-on, with no half-press, live view and
+  the shooting screen follow the selected film. No hang reported. Still open: the flash-entry question above, and the
+  longer test (AF / burst speed, no card, card pulled, power cycles). Not released.
+
+### Super control panel: dials through the films (sd3 draft, 2026-11-09; emulator only, not for the camera yet)
+- Owner: on the super control panel the dials on the Picture Mode cell step COLOR 1–4 only; wanted: the films too.
+- Found (disassembly + emulator WATCH): the step is 0x611c6e44 (called from 0x611c59fd). It reads GetValue(111)
+  (return 0x611c6e79) as "where am I", GetValue(897) -> the key into its own table at 0x615384b4 (6 x {key, count,
+  default, records}; records 20 B {0, value, 0, 0, availability id}); entry 5 = key 901, COLOR 1–4 at 0x61538464. The
+  helpers 0x611c74e0 / 0x611c75ce pick the next / previous record that is available (GetValue(availability id) == 1 and
+  facade vtable +40 (id, value) == 1), then SetValue(901, value).
+- sd3 draft: entry 5 -> `fl_scr` (ext11: the stock four, then FV0 + j with FLB + j; build.py asserts the stock entry),
+  and `fl_get` answers the film value to the caller 0x611c6e79. **Emulator: the dials now go COLOR 2, 3, 4, FILM 1, 2,
+  3 … and back with wrap (FILM 20, 19 …); SetValue(901, FV0 + j) -> fl_set loads the film (LIDX follows).**
+- **Not solved: the cell and the title do not redraw when the step stays on the same COLOR** (FILM 1 -> FILM 2: both on
+  COLOR 1, the picture mode value stays 54; no picture / title request follows: WATCH on ic_get / st_get). Tried, no
+  effect in the emulator: (a) the editor's poke (SetValue 2197 + k with its own value) from fl_set; (b) the manager
+  called twice (another COLOR, then COLOR k). (c) Answering the film value to the GUI's value cache (GetValue from
+  0x610fd979) made it worse (the cell has no choice for an unknown value; the title stuck). Next idea: teach the
+  panel's cell the film values (its value -> picture / title choice tables, as fl_l0..2 did for the Picture Mode screen),
+  then (c) becomes right. The panel's own redraw after a step: 0x611c5a68.. (`0x611c65ec`, `0x612970e8` with 8000).
+- Space: ext11 65248 of 65536 with the draft.
+
+### sd3: the super control panel's label follows the film (2026-11-09; emulator only)
+- Why nothing redrew: the panel's update (0x61157c..: widgets 200..204 from its model bytes) sets the Picture Mode
+  cell's choice with `call 0x6128abe0` at 0x61157d30 (a0 widget, d0 16..19 for COLOR 1–4), and the title's string id
+  (2755 / 2756 / 2757 / 4769) through 0x6128b0fd -> 0x6128b1d3 `call 0x6128ab86,[],4` (found with a value trace:
+  sess7 `WVAL=2756 WRANGE=610c0000,612a0000`). Both setters do nothing when the value is the one they hold, and a film
+  step inside one COLOR changes neither.
+- Fix: `fl_set` sets two flag bytes (`fl_scf`, `fl_scf + 1`) when a film is switched. `fl_scw` (hook `.hook_scw`,
+  0x61157d30, the same 7-byte call) sets the neighbouring choice (d0 ^ 1) first when the flag is up, then the real
+  one; `fl_stw` (hook `.hook_stw`, 0x6128b1d3: the 5-byte call + its 3-byte `jmp 0x6128b2c6` replaced by `jmp fl_stw`
+  + 3 nop) sets another of the four title ids first. The pictures / the name are asked again (fl_scp / fl_tt).
+- **Emulator:** dials on the cell: COLOR 1 -> 2 -> 3 -> 4 -> FILM 1 (Portra 400) -> FILM 2 (Gold 200) -> FILM 3
+  (Kodachrome 64), back, COLOR 4 ("Color Profile 4"), and before COLOR 1: FILM 20 (Agfa Ultra 100); cell and title
+  right at every step; Picture Mode then opens on FILM 20 and the shooting screen reads FILM 20.
+- Build sd3 = sd2 + this: E1479999.BIN / GUIDES.BIN checksums in the commit message. ext11 65392 of 65536 (144 left).
+  0x6128b1d3 is a general text-widget path (every title set through 0x6128b0fd goes through fl_stw's flag test).
+
+- **Camera (owner, 2026-11-09): sd3 "looks good so far"** (camera-tested, first look; the owner keeps testing). Not yet
+  reported: whether the flash started on the first try, and titles elsewhere in the menus. Not released.
+- **Camera (owner, 2026-11-09):** flashing sd3 from sd2 started normally ("flashed fine"), nothing odd in the menus so
+  far. So the one failed start from sd1 looks like the timing of the press, not the loader (one good flash from a
+  loader build; keep an eye on it).
+
+### Grain + RAW+JPEG: the camera goes black after the photo (owner, 2026-11-09, on sd3)
+- **Camera (owner):** with image quality RAW+JPEG, a photo with Film Grain (Low, Med or High alike) is saved, then the
+  screen goes black, the camera tries to restart and freezes (battery out). JPEG only: fine. All the owner's grain
+  tests so far were JPEG only. FILM 1, Contrast −1, Blk +1, WB A2, Sharpness −1 when found; the grain level does not
+  matter. GitHub #12 (2026-11-09, "the image gets recorded, but then black screen and crash", glow + grain) reads the same.
+- Not known: whether v0.25 / v0.26 / v0.26.1 do it too (likely: the fast grain route is unchanged since v0.25, and
+  sd1–sd3 do not touch it), and why. The fast route gives a COLOR still Grainy Film II's work list and texture
+  (`xb_wl`, `xb_tex`, `xb_dev`, `xb_c1e`); a RAW+JPEG capture presumably runs another development (the RAW's
+  preview) or a different list through the same hooks. Analysis / guess; the emulator does not develop photos.
+- The v0.21–v0.24 CPU grain was used with JPEG+ORF on 2026-11-07 (photos PB071392 / 93) without this.
+- Dead end while looking for a way to tell RAW from the settings: the emulator docs' MODE_RAW (22) is about the mode
+  dial's custom banks, not the image quality; the panel's image-quality cell (cursor id 861) does not open in the
+  emulator. Getters during the capture are risky (v0.24's restart).
+- Plan: a logging build (the fg1–fg3 GLOG logger on the current branch) and two grain-off photos from the owner, one
+  JPEG and one RAW+JPEG, to see what the RAW capture adds; then keep the texture route off those requests (CPU grain
+  or no grain there). Until then: grain with JPEG only.
+- **Logging build lg1** (2026-11-09): sd3 with `XB_LOG 1` (not committed as the default). Firmware identical to sd3
+  (836cafd6…), so GUIDES.BIN only: 43f35661…, 13756 B. Emulator: boots, Picture Mode, the half-press save runs. Run
+  asked of the owner (as fg2 run 3: a row changed and back before the first and the last half-press): JPEG grain off,
+  RAW+JPEG grain off, JPEG grain Low; then GLOG.BIN from the card. Afterwards sd3's GUIDES.BIN (c6b6728d…) back.
+- **lg1 result (camera, 2026-11-09; GLOG.BIN decoded with `research/grain/glog3.py`):** a JPEG photo is one capture
+  (key 11, 6 requests: 2 kind 0 + 4 kind 3). A RAW+JPEG photo is **two captures**: the same key-11 one, then a second
+  with **key 2** (context 2, 4 requests) at 3200 x 2400 (request +1100 `0c80`/`0960` against `1440`/`0f30`): the
+  RAW's preview JPEG (analysis). All key-11 requests are configured before the second capture's mark.
+- **Fix try rj1 (2026-11-09, analysis / guess until the camera says):** the grain state is global and every job reset
+  it: `xb_su` cleared `xb_tx` and moved `xb_S`, `xb_wl` cleared `xb_sw`, also for the key-2 job, while the JPEG's
+  textured job (Grainy Film II's list, combiner 1 answered by `xb_sel2` only while `xb_tx` = 2) may still be running.
+  Now only a COLOR job (job+5352 = 11) touches that state; and since the state can then outlive other jobs,
+  `xb_dev` (attached case) and `xb_sel2` also require the request key 11. GUIDES.BIN only: 13248 B, sha256 70139a8f…;
+  firmware unchanged (836cafd6…, = sd3). Emulator: boots, block loads, films step (it cannot develop a photo).
+  On the owner's card 2026-11-09 (checksum verified). Test: RAW+JPEG with Grain; JPEG-only Grain; a non-COLOR
+  picture mode after a grain photo. If it still freezes: log the order of `xb_cap` / `xb_wl` / `xb_su` calls.
+- **rj1 camera result (owner, 2026-11-09): works; all four checks run** ("It took them and I did try all those").
+  Photos on the card, centre-crop fine-detail measure (residual against a 3x3 blur, 8-bit rms): PB091584 RAW+JPEG
+  light grain 8.6; PB091585 RAW+JPEG heavy grain 23.0; PB091586 JPEG only heavy grain 22.8 (same as the RAW+JPEG
+  one); PB091587 JPEG no grain 5.1; PB091588 RAW+JPEG no grain 5.3 (clean after the grain photos). Each RAW+JPEG
+  shot has its ORF. Keep rj1's GUIDES.BIN (70139a8f…) with sd3's firmware; goes into v0.26.2.
+
+### sd4: "FILM N" missing from the shooting screen when COLOR k itself is changed (owner, 2026-11-09)
+- **Camera (owner):** "if color profile 1 has had edits made, it shows up on the viewfinder for any of the film sets":
+  the screen reads COLOR 1 (with its '*') instead of FILM N. Not caused by the rj1 grain change (firmware was sd3's).
+  The owner's EDITS.BIN had record 20 (COLOR 1's own settings) valid with its changed flag (+63) set.
+- **Found (disassembly + emulator trace with the owner's card files):** the shooting screen's label builder
+  (0x61234c9d..) asks "COLOR changed?" (0x6129ba07, return 0x61234cb2; fl_pmod answers COLOR k's own flag there) and
+  on 1 swaps in the '*' pictures **15710..15713** for COLOR 1–4. ic_get sent only 15706..15709 to fl_lvp.
+- **Fix (sd4):** ic_get sends 15706..15713 to fl_lvp, which takes k = (id - 15706) & 3. A film reads "FILM N" on the
+  shooting screen whether or not COLOR k's own settings are changed (no '*' there for a changed film: not drawn yet).
+- **Emulator (owner's card files):** the request for 15710 now reaches fl_lvp and fl_sp draws FILM 1, FILM 2 after a
+  switch. Build sd4 = sd3 + rj1 + this: E1479999.BIN 4add99d3…, GUIDES.BIN 92b67919… (13248 B); ext11 65392 of 65536.
+  On the owner's card 2026-11-09 (DCOLYMP + OM3MOD/GUIDES.BIN, read back and checked by sha256). Camera: pending.
+- **Camera (owner, 2026-11-09): sd4 "everything works!"** (flashed; FILM N shows with COLOR 1 changed; camera-tested).
+- **Released as v0.26.2 (2026-11-09, owner: "Lets push out a .26 update"):** sd4 = `releases/v0.26.2`
+  (`patch.py --release v0.26.2` rebuilds E1479999.BIN 4add99d3… byte for byte; GUIDES.BIN 92b67919…). Credit to
+  fernandezk26 in the README, CHANGELOG and release notes. Not yet told to fernandezk26: their `tw_san` reads the
+  strengths unsigned (ours sign-extends). Issue #12 reply: still waiting for the owner's "post it".

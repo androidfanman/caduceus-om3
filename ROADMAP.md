@@ -21,7 +21,7 @@ last two pieces: with them the colour profiles are complete.
 
 | Bug | What happens | Status |
 |---|---|---|
-| **Film Grain with RAW+JPEG** | With image quality set to RAW+JPEG, a photo with Film Grain is saved, then the screen goes black and the camera freezes (battery out). Found 2026-11-09; v0.25 to v0.26.1 are most likely all affected. **Until fixed: use Film Grain with JPEG only, or switch Film Grain off for RAW+JPEG.** Probably the cause of [#12](https://github.com/androidfanman/caduceus-om3/issues/12). | Being fixed |
+| **Film Grain with RAW+JPEG** | With image quality set to RAW+JPEG, a photo with Film Grain was saved, then the screen went black and the camera froze (battery out). v0.25 to v0.26.1. A RAW+JPEG photo develops a second, smaller picture for the RAW file, and that upset the grain. Probably the cause of [#12](https://github.com/androidfanman/caduceus-om3/issues/12). | Fixed in v0.26.2 |
 | **Glow with grain** | Reported: the camera shuts down after taking a photo with Glow and grain together ([#12](https://github.com/androidfanman/caduceus-om3/issues/12)), and Med grain is much stronger when Glow is on ([#16](https://github.com/androidfanman/caduceus-om3/issues/16)). | Fixed in v0.26.1 |
 | **Playback while saving** | Pressing playback while the photo is still being written can freeze the camera (dark grey screen; only taking the battery out helps; the photo is fine) ([#15](https://github.com/androidfanman/caduceus-om3/issues/15)). | Fixed in v0.26.1 |
 
@@ -53,6 +53,7 @@ last two pieces: with them the colour profiles are complete.
 
 | Feature | Released |
 |---|---|
+| **Films load at power-on** (no half-press; from [fernandezk26](https://github.com/fernandezk26/camera-stuff)'s fork); the super control panel dials step through the films; fixes for Film Grain with RAW+JPEG, the shooting-screen label and `EDITS.BIN` | v0.26.2 (released 2026-11-09) |
 | **WB shift ±7 in films** (`LOOKS.BIN` −7..+7, like the camera's fine-tune); the 20 film sims tuned (draft 1) | v0.26.1 (released 2026-11-09) |
 | **Split toning**: Shadows and Highlights wheel pages (12 colours, −5..+5), in photos and live view; `TONES.BIN` guides; fix for a restart after changing the drive mode | v0.26 (released 2026-11-09) |
 | **Fast colour grain with every setting** (image processor, Grainy Film's texture route): Shading back; Glow row (+ Glow, − Clarity); WB row with the camera's own WB grid (OK opens the fine-tune screen on the look's A-B / G-M); no Art Effects (Frame removed); saving over power off fixed | v0.25 (released 2026-11-09) |

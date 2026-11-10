@@ -9,6 +9,8 @@ const zlib = await import('node:zlib');
 const { expandImage } = await import(EMU + '/src/fw/expand.mjs');
 const { loadBlock } = await import(EMU + '/bin/run.mjs');
 const { Player } = await import(EMU + '/src/lab/player.mjs');
+// om-emu builds without PlaySession.lab_created: the application's task allow-list takes the worker's entry directly
+if (process.env.OM_WORKER_ENTRY) { const ca = await import(EMU + '/src/lab/camapp.mjs'); ca.CA_TASK_ENTRIES.push((parseInt(process.env.OM_WORKER_ENTRY, 16) - 0x10021020) >>> 0); }
 const { PLAYER_PARSER } = await import(EMU + '/scenarios/session_replay.mjs');
 const { cardFromImage, cardImage } = await import(EMU + '/src/lab/sdcard.mjs');
 const STATE = 0x62b4dd16, POOL = 0xa2852000, HMAX = 0xae81;
@@ -46,6 +48,11 @@ if (WRANGE) { wdbg = Debugger.attach(lab.sim, { lab }); }
 if (WATCH.size) {
   const dbg = Debugger.attach(lab.sim, { lab });
   dbg.traceExec((r) => { const g = dbg.regs(); if (process.env.WIDS && !((g.d0 >>> 0) >= 928 && (g.d0 >>> 0) <= 975) && !(((g.d0 >>> 0) >> 4) >= 928 && ((g.d0 >>> 0) >> 4) <= 975 && (g.d0 >>> 0) < 0x10000)) return; if (process.env.WFROM && !globalThis.__armed) return; if (hits.length < 200000) { const h = { step: curStep, pc: r.pc.toString(16), mdr: (g.mdr >>> 0).toString(16), sp: (g.sp >>> 0), d0: g.d0 | 0, d1: g.d1 | 0, d2: g.d2 | 0, d3: g.d3 | 0, a0: (g.a0 >>> 0).toString(16), a1: (g.a1 >>> 0).toString(16), a2: (g.a2 >>> 0).toString(16), a3: (g.a3 >>> 0).toString(16) }; if (r.pc === 0x6051861a) { const out = u32((g.a2 >>> 0) + 12); h.rec = []; for (let i = 0; i < 12; i++) { const b = rd(out + 836 + 24 * i + 18, 6); const sh = (o) => ((b[o] | b[o + 1] << 8) << 16) >> 16; h.rec.push([sh(0), sh(2), sh(4)]); } } if (process.env.WSTACK) { h.stk = []; for (let k = 0; k < 160; k++) { const v = u32(((g.sp >>> 0) + 4 * k) >>> 0); if (v >= 0x60021020 && v < 0x62020fe0) h.stk.push(k * 4 + ':' + v.toString(16)); } } { const A=(g.a0>>>0); if (A>=0x60000000) { h.f116=u32(A+116); h.f92=u16(A+92); h.f94=u16(A+94); h.f148=u32(A+148); h.vt=u32(A).toString(16); h.f136=u32(A+136).toString(16); h.f132=rd(A+132,1)[0]; h.f131=rd(A+131,1)[0]; h.f140=u32(A+140).toString(16); } } hits.push(h); } }, { pcs: [...WATCH] });
+}
+// WVAL=n WRANGE=from,to (hex): the first pcs in the range where d0 or d1 holds n, once armed (WFROM) -> hits {pc, d0, d1, a0}
+if (process.env.WVAL) {
+  const dbg2 = Debugger.attach(lab.sim, { lab }); const val = Number(process.env.WVAL) >>> 0; const [f, t] = process.env.WRANGE.split(',').map((x) => parseInt(x, 16) >>> 0); const seenPc = new Set();
+  dbg2.traceExec((r) => { if (process.env.WFROM && !globalThis.__armed) return; const g = dbg2.regs(); if ((g.d0 >>> 0) !== val && (g.d1 >>> 0) !== val) return; if (seenPc.has(r.pc) || seenPc.size > 400) return; seenPc.add(r.pc); hits.push({ step: curStep, pc: r.pc.toString(16), d0: g.d0 | 0, d1: g.d1 | 0, a0: (g.a0 >>> 0).toString(16), mdr: (g.mdr >>> 0).toString(16) }); }, { from: f, to: t });
 }
 lab.sim.write(0xa32de590, new Uint8Array([0xff, 0x03, 0, 0])); lab.sim.write(0x60369308, new Uint8Array([0x00, 0xf0, 0, 0]));
 try {
@@ -184,9 +191,13 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     }
     dd.m.setRegs(saved); console.log('VALS ' + JSON.stringify(out));
   }
+  else if (t === 'autoload') {   // the SD loader's conditions, written by the harness (the lab runs no section loader): masks + the kind-4 medium word
+    lab.sim.write(0xa32de590, new Uint8Array([0xff, 0x03, 0, 0])); lab.sim.write(0xa32de58c, new Uint8Array([0xe9, 0x02, 0, 0])); lab.sim.write(0x60369308, new Uint8Array([0x00, 0xf0, 0, 0]));
+    for (let i = 0; i < 10; i++) { s.idle_slice(lab.lab_time() + 200e6); s.camapp.pump(); }
+  }
   else if (t.startsWith('hold2:')) { const k = t.slice(6); s.key(k, 'down'); for (let i = 0; i < 30; i++) { s.camapp.pump(); s.idle_slice(lab.lab_time() + 100e6); } s.key(k, 'up'); s.camapp.pump(); }
   else if (t.startsWith('hold:')) { const k = t.slice(5); s.key(k, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 2000e6); s.key(k, 'up'); s.camapp.pump(); }
-  else if (t !== 'wait') { s.key(t, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(t, 'up'); s.camapp.pump(); }
+  else if (t !== 'wait' && t !== 'autoload') { s.key(t, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(t, 'up'); s.camapp.pump(); }
   curStep = t; s.idle_slice(lab.lab_time() + 1200e6); snap(t);
   if (wdbg) { if (t === 'down') wdbg.watch(WRANGE.split(',').map((r, i) => { const [lo, n] = r.split(':'); return { id: i, lo: parseInt(lo, 16), len: parseInt(n, 16), kind: process.env.WKIND || 'r', action: 'log' }; })); for (const r of wdbg.watchLog()) wlog.push({ step: t, id: r.id, pc: r.pc.toString(16), addr: (r.addr >>> 0).toString(16) }); }
 }

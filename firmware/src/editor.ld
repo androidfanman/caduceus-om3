@@ -1,5 +1,7 @@
 SECTIONS {
   .hook_color   0x60518615 : { *(.hook_color) }
+  .hook_hb      0x60af0fb9 : { *(.hook_hb) }
+  .hook_hr      0x60af101c : { *(.hook_hr) }
   .hook_shutter 0x60415216 : { *(.hook_shutter) }
   .ext1         0x6031e920 : { *(.ext1) }
   .ext4         0x60a8f100 : { *(.ext4) }
@@ -14,6 +16,8 @@ SECTIONS {
   .hook_fx      0x60555e50 : { *(.hook_fx) }
   .hook_lv      0x6046b8bb : { *(.hook_lv) }
   .hook_wt      0x605048c1 : { *(.hook_wt) }
+  .hook_scw     0x61157d30 : { *(.hook_scw) }
+  .hook_stw     0x6128b1d3 : { *(.hook_stw) }
   .hook_nr1     0x603c8038 : { *(.hook_nr1) }
   .hook_nr2     0x603e7891 : { *(.hook_nr2) }
   .hook_sh      0x603e767f : { *(.hook_sh) }
@@ -171,3 +175,18 @@ lv_skip       = 0x6046b94f;
 wt_back       = 0x605048c7;
 XTAG          = 0x58000000;
 SEL           = 0x6052cf39;
+sdl_hls_loop     = 0x60af0fff;
+sdl_classifier   = 0x60af10da;
+sdl_resume       = 0x60af1021;
+sdl_next_receive = 0x60af10c6;
+sdl_drive_status = 0x608e7b48;
+sdl_heap_alloc   = 0x60dd92e0;
+sdl_heap_tag     = 0x60de941d;
+sdl_task_create  = 0x6004da3f;
+sdl_task_start   = 0x60030899;
+sdl_dly_tsk      = 0x60031581;
+sdl_queue_send   = 0x6004d171;
+sdl_ext_tsk      = 0x60031808;
+scw_set       = 0x6128abe0;
+stw_set       = 0x6128ab86;
+stw_back      = 0x6128b2c6;

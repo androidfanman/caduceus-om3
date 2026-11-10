@@ -1,10 +1,11 @@
-# Using Caduceus for OM-3 on the camera (v0.26.1)
+# Using Caduceus for OM-3 on the camera (v0.26.2)
 
 > **Color profiles only:** this is for Picture Mode COLOR 1–4. The Monochrome profiles keep the camera's own editor.
 > For v0.20–v0.22 (Film page, Extras page on the wheel) see this page as it was at
 > [v0.22](https://github.com/androidfanman/caduceus-om3/blob/v0.22/docs/USING.md).
 
-**After switching on, half-press the shutter once.** That loads your films and changes from the card.
+**Your films and changes load from the card by themselves when the camera starts** (v0.26.2). On v0.26.1 and older,
+half-press the shutter once after switching on.
 
 ## Films
 

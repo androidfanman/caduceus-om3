@@ -3,6 +3,25 @@
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## v0.26.2
+Films load at power-on, the dials step through the films, and three fixes. Firmware camera-tested (2026-11-09, build
+sd4).
+
+**Firmware**
+- **Films load at power-on:** the card files load by themselves a moment after the camera starts; no half-press
+  first. Live view and the labels follow as soon as they are loaded. A half-press or OK still loads them too.
+  From [fernandezk26](https://github.com/fernandezk26/camera-stuff)'s fork (the loader task); see [docs/SD_LOADER.md](docs/SD_LOADER.md).
+- **Super control panel:** the dials on the Picture Mode cell step COLOR 1–4, then FILM 1–20 (and back round); the
+  cell and the title follow.
+- **Fix: Film Grain with RAW+JPEG froze the camera** after the photo (v0.25 to v0.26.1). A RAW+JPEG photo develops a
+  second picture (the RAW's preview), which reset the grain's state while the JPEG was still being made.
+- **Fix: "FILM N" on the shooting screen and in the viewfinder** was replaced by "COLOR n" when COLOR n's own
+  settings had been changed.
+- **Fix: bad bytes in `EDITS.BIN`** (unused bytes saved as 0xFF could make a film's saved changes unreadable): they
+  are cleaned when saved and when read. Found and first fixed by [fernandezk26](https://github.com/fernandezk26/camera-stuff).
+- `GUIDES.BIN` is new (always copy it with the firmware); `LABELS.BIN`, `TONES.BIN` and the optional `LOOKS.BIN` are
+  as v0.26.1.
+
 ## v0.26.1
 WB shift up to ±7 in films, and the 20 film sims tuned from colour-checker photos. Firmware camera-tested (2026-11-09,
 build wb7).

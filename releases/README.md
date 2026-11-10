@@ -5,6 +5,7 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.26.2](v0.26.2/NOTES.md) | Films load at power-on (no half-press); the super control panel dials step through the films; fixes: Film Grain with RAW+JPEG froze the camera, FILM N missing from the shooting screen when COLOR n itself was changed, bad bytes in `EDITS.BIN` | Camera-tested |
 | [v0.26.1](v0.26.1/NOTES.md) | WB shift −7..+7 in `LOOKS.BIN` (v0.26 refused a file past ±5); the 20 film sims tuned from colour-checker photos (optional `LOOKS.BIN`) | Camera-tested (firmware) |
 | [v0.26](v0.26/NOTES.md) | Split toning (Shadows and Highlights wheel pages, shown in live view; new `TONES.BIN`); fix for a restart after changing the drive mode; the 20 film sims with light split tones (optional `LOOKS.BIN`) | Camera-tested (firmware) |
 | [v0.25](v0.25/NOTES.md) | Fast colour film grain with every setting; WB grid row (OK opens the camera's WB fine-tune screen); Glow row (+ Glow / − Clarity); Shading back; settings and the film kept over power off; no Art Effects; 20 new film sims (optional `LOOKS.BIN`) | Camera-tested (firmware) |
@@ -28,7 +29,7 @@ Always copy the version's own `GUIDES.BIN` (from v0.20 it carries code made for 
 
 **Going back to stock:** flash `SD card files/restore/E1479999.BIN`, the official firmware the patcher saved.
 
-Each version is also published on the repo's **Releases** page (tag `v0.16` … `v0.26.1`) with the whole project as
+Each version is also published on the repo's **Releases** page (tag `v0.16` … `v0.26.2`) with the whole project as
 it was at that version: a GitHub Action (`.github/workflows/releases.yml`) publishes every folder here once, so a
 new version only needs its folder.
 See [CHANGELOG.md](../CHANGELOG.md) for the full history.

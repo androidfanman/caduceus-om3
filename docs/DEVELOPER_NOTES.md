@@ -390,6 +390,20 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.26.2 release (branch feature/v0.26.2-sdload-ff; build sd4, camera-tested 2026-11-09)
+
+- SD loader (from fernandezk26's fork, `sdl_*`): task SDLOAD polls and wakes HLS_EVENT, which runs `pr_gate`; hooks
+  `.hook_hb` 0x60af0fb9 / `.hook_hr` 0x60af101c; `nm_load` moved to ext11. `sdl_poke` re-writes setting 2197 + k after
+  the load so live view and the labels are rebuilt. Emulator runs need `OM_WORKER_ENTRY` (= `sdl_worker_entry`).
+- EDITS.BIN: `sd_san` on save, `tw_san` on read (strengths sign-extended; +57..+62 cleared, +63 on films).
+- SCP dials: table 0x615384b4 entry 5 -> `fl_scr` (24 records); `fl_scw` (`.hook_scw` 0x61157d30) and `fl_stw`
+  (`.hook_stw` 0x6128b1d3) force the cell / title to redraw after a film step inside one COLOR.
+- Shooting screen: ic_get sends 15706..15713 (the plain and the '*' "COLOR n" pictures) to `fl_lvp`.
+- Grain (xblock, "rj1"): only a COLOR job (job+5352 = 11) touches `xb_S` / `xb_tx` / `xb_sw`; `xb_dev` (attached case)
+  and `xb_sel2` also require request key 11. A RAW+JPEG shot runs a second, key-2 job (3200 x 2400).
+- Firmware `E1479999.BIN` 4add99d3…, `GUIDES.BIN` 92b67919… (13248 B); `LABELS.BIN` / `TONES.BIN` / `LOOKS.BIN` as
+  v0.26.1. Space: ext11 65392 of 65536, ext4 1588 of 1776. Control Panel unchanged.
+
 ## v0.26.1 release (branch feature/v0.26.1-wb7; build wb7, camera-tested 2026-11-09)
 
 - `pf_lo` record +37 / +38 (A-B / G-M) −7 instead of −5: `pf_load`'s range check refused the whole `LOOKS.BIN` for a

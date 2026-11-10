@@ -8,7 +8,7 @@ Saturation), and adds the look's settings to the camera's own Picture Mode scree
 Noise Filter, lens vignette correction, Shading, Glow / Clarity and fast colour film grain. Films are made in the browser with the **Caduceus Control
 Panel**; changes you make on the camera are kept per film.
 
-**Latest: v0.26.1** ([changelog](CHANGELOG.md)) · **▶ [Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Install guide](docs/INSTALL.md)** ·
+**Latest: v0.26.2** ([changelog](CHANGELOG.md)) · **▶ [Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Install guide](docs/INSTALL.md)** ·
 **[Using it](#using-it)** · **[Roadmap](ROADMAP.md)** · Caduceus for the E-P7: [cakelesscoder/caduceus-ep7](https://github.com/cakelesscoder/caduceus-ep7).
 
 > [!WARNING]
@@ -34,6 +34,8 @@ Panel**; changes you make on the camera are kept per film.
 | **20 film sims** | Portra 400, Gold 200, Kodachrome 64, Portra 800, CineStill 800T, Ektar 100, Ultramax 400, Pro 400H, Velvia 50, Superia 400, ColorPlus 200, CineStill 400D, Fuji C200, Ektachrome E100, Reala 100, Provia 100F, Vision3 250D, Fuji Eterna, Astia 100F, Agfa Ultra 100: our own looks, in this order as FILM 1–20 (see [the list](#the-20-film-sims)). | New in v0.25 (tuned on the Control Panel preview) |
 | **Changes kept** | What you change on a film, or on COLOR 1–4, stays when you switch away and back and **over power off**, with the film you were on (kept by the camera in `EDITS.BIN` and `LOOKS.BIN`). **Hold OK** on a film: back as built; on COLOR n: back to the factory. A `*` marks what is changed. | Camera-tested (v0.25) |
 | **Hue and Luminance** | The Color Profile wheel (the **HSL** row) gains pages: **INFO** goes Color → Color All → Hue → Luminance. Hue turns a colour toward its neighbour; Luminance brightens or darkens it, for each of the 12 colours. | Camera-tested |
+| **Films load at power-on** | Your films and changes load from the card by themselves when the camera starts: no half-press first (from [fernandezk26](https://github.com/fernandezk26/camera-stuff)'s fork). | Camera-tested (v0.26.2) |
+| **Dials step through the films** | On the super control panel, the dials on the Picture Mode cell go COLOR 1–4, then FILM 1–20, and the label follows. | Camera-tested (v0.26.2) |
 | **WB shift ±7 in films** | A film's WB shift goes −7..+7 each way, like the camera's own fine-tune (v0.26 stopped `LOOKS.BIN` at ±5). | Camera-tested (v0.26.1) |
 | **Split toning** | Two more wheel pages, **Shadows** and **Highlights** (INFO after Luminance): tint the shadows and the highlights toward any of the wheel's 12 colours, strength −5..+5. Shows in live view; kept per film. | Camera-tested (v0.26) |
 | **Picture Mode rows** | On COLOR 1–4 and films: **Blk** / **Wht** (Blacks / Whites −5..+5), **WB** (a grid with the film's A-B / G-M shift; OK opens the camera's own WB fine-tune screen; works in every WB mode, Auto WB included), **Sharpness** (−5 Off..+2), **Noise Filter** (Off / Low / Std / High), **Vignette Correction** (Off / On), **Shading**, **Glow** (+ Glow, − Clarity) and **Film Grain**, next to the camera's Contrast and Highlight & Shadow. | Camera-tested (v0.25) |
@@ -89,7 +91,8 @@ the card (next to the `DCIM` folder). Eject the card properly.
 
 ### 5. Shoot
 
-Switch on, **half-press the shutter once** (that loads your films and settings from the card), then open Picture
+Switch on (your films and settings load from the card by themselves; before v0.26.2: half-press the shutter once
+first), then open Picture
 Mode: your films follow COLOR 1–4 in the list. See [Using it](#using-it).
 
 ### Go back to an earlier version
@@ -130,7 +133,7 @@ films (the creative profiles the camera lists as FILM 1–20) in your browser:
    shows in the preview too.
 5. **Export › Save to card…** (Chrome or Edge on a computer) writes `OM3MOD/LOOKS.BIN` (and `NAMES.BIN`) straight
    onto the card; **Card folder (.zip)** downloads them. Keep **Firmware on the camera: v0.26.1 or later** (it saves split toning and WB past ±5).
-6. On the camera: switch on, half-press once, and your films are FILM 1–20 in Picture Mode. A film you changed in the
+6. On the camera: switch on, and your films are FILM 1–20 in Picture Mode. A film you changed in the
    Control Panel starts as built on the camera; the others keep the changes you made on the camera.
 
 More:
@@ -192,8 +195,8 @@ OM3MOD/TONES.BIN      the split toning pages' guides (from the release, v0.26)
 OM3MOD/NAMES.BIN      name pictures for v0.17–v0.22 (not needed from v0.24; harmless)
 ```
 
-**Every time you switch on:** **half-press the shutter once.** That loads your films and changes from the card
-(nothing is read at power-on). Until then Picture Mode works as stock.
+**Every time you switch on:** your films and changes load from the card by themselves a moment after the camera
+starts (v0.26.2; a half-press or OK loads them too). Before v0.26.2: half-press the shutter once first.
 
 **Choosing a film:** Picture Mode › the COLOR position. The top row lists **COLOR 1–4, then FILM 1–20**: turn to a
 film and its name shows as the big title; the quick menu, the shooting screen and the viewfinder show it from then on.
@@ -229,7 +232,7 @@ from how the film was built. Rows show their own `*` too.
 with every other setting.
 
 **Quick answers**
-- *No films in the list?* Half-press once after switching on, and check `OM3MOD/LOOKS.BIN` is on the card.
+- *No films in the list?* Check `OM3MOD/LOOKS.BIN` is on the card.
 - *Settings change but nothing happens in the photo?* The card's `GUIDES.BIN` must come from the same release as the
   firmware. Copy the release's `GUIDES.BIN` again.
 - *My changes were lost?* They save at the next half-press, and only when the card has an `OM3MOD` folder.
@@ -259,7 +262,7 @@ More: [docs/USING.md](docs/USING.md). Card file formats: [docs/FORMATS.md](docs/
 ## For developers
 
 - `firmware/src/editor.s`, `editor.ld`: the patch source (MN10300 / AM33 assembly). `firmware/src/xblock.s`: the
-  Extras code block (relocatable, appended to `GUIDES.BIN` and loaded from the card at the first half-press).
+  Extras code block (relocatable, appended to `GUIDES.BIN` and loaded from the card at power-on, from v0.26.2).
 - `firmware/frames.py`: the white Frame layers (our own JPEGs, written into the resource component).
 - `firmware/build.py`: builds the update file from source (needs binutils built for `--target=mn10300-elf`):
   `python3 firmware/build.py --stock OLY_E_147_1100_0000_0000_3.BIN --toolchain BINUTILS_BUILD --out NEW_DIR`.
@@ -281,7 +284,7 @@ More: [docs/USING.md](docs/USING.md). Card file formats: [docs/FORMATS.md](docs/
 
 Built on **[Caduceus](https://github.com/cakelesscoder/caduceus-ep7)** by cakelesscoder (Apache-2.0), firmware patches
 for the Olympus PEN E-P7: the on-camera editor design, the bundle-table layout, the Caduceus Control Panel this tool started from, its tone
-model and the starter film looks. Sample photos are public domain (CC0), except the sunset by Joonas Lyytinen (CC BY 2.0); see [webapp/public/samples/CREDITS.md](webapp/public/samples/CREDITS.md). Camera emulation by
+model and the starter film looks. Loading the films at power-on (no half-press) and the fix for bad bytes in `EDITS.BIN` come from **[fernandezk26](https://github.com/fernandezk26/camera-stuff)**'s fork (v0.26.2). Sample photos are public domain (CC0), except the sunset by Joonas Lyytinen (CC BY 2.0); see [webapp/public/samples/CREDITS.md](webapp/public/samples/CREDITS.md). Camera emulation by
 [om-emu](https://github.com/flatpanda/om-emu).
 
 "OM SYSTEM", "Olympus" and "OM-3" are trademarks of their owners, as are the film names used for the starter looks.
