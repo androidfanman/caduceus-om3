@@ -6,6 +6,8 @@ Ideas and requests are welcome in [Issues](https://github.com/androidfanman/cadu
 The order (owner, 2026-11-09): first finish the colour profiles, then video. The lens, focus and button requests
 below are planned too; their place in that order isn't set yet.
 
+
+Feature parity with Caduceus for the E-P7 (what both have, what lines up, what to do): [docs/PARITY.md](docs/PARITY.md).
 ## Next: finishing the colour profiles
 
 The goal is for Color Profile mode to be the best JPEG maker of any camera. Halation and custom crop modes are the

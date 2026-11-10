@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caduceus Parity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Plan: graphite camera-body neutrals, a brass accent (the Control Panel's), one status colour per parity class.
+   Layout: summary tiles that double as filters, the to-do list, then one table per area (cards on a phone). */
+:root {
+  --bg: #f4f3f0; --panel: #ffffff; --ink: #1d1c1a; --muted: #67645d; --line: #e0ddd5; --soft: #efede7;
+  --accent: #9c7a2c; --accent-ink: #ffffff;
+  --same: #2f7d4a; --same-bg: #e3f1e7; --differs: #9a6a00; --differs-bg: #f8edd2;
+  --ep7: #2f5f9e; --ep7-bg: #e2ebf7; --om3: #7a4a9a; --om3-bg: #efe5f6; --neither: #6a6862; --neither-bg: #ecebe7;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141412; --panel: #1c1c1a; --ink: #ecebe6; --muted: #a29f97; --line: #2f2e2b; --soft: #252421;
+    --accent: #d4ad5a; --accent-ink: #161512;
+    --same: #8fd0a2; --same-bg: #1f3326; --differs: #e6c06a; --differs-bg: #3a3016; --ep7: #9dbdf0; --ep7-bg: #1d2a3d;
+    --om3: #d0a8ec; --om3-bg: #2f2239; --neither: #b5b2aa; --neither-bg: #2a2926; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141412; --panel: #1c1c1a; --ink: #ecebe6; --muted: #a29f97; --line: #2f2e2b; --soft: #252421;
+  --accent: #d4ad5a; --accent-ink: #161512;
+  --same: #8fd0a2; --same-bg: #1f3326; --differs: #e6c06a; --differs-bg: #3a3016; --ep7: #9dbdf0; --ep7-bg: #1d2a3d;
+  --om3: #d0a8ec; --om3-bg: #2f2239; --neither: #b5b2aa; --neither-bg: #2a2926; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 48px; display: grid; gap: 22px; }
+header h1 { font: 600 30px/1.15 var(--display); margin: 0 0 6px; letter-spacing: .01em; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 72ch; }
+header code, td code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+.tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.tile { all: unset; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.tile .n { font: 600 28px/1 var(--display); font-variant-numeric: tabular-nums; }
+.tile:hover { border-color: var(--muted); }
+.tile[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tile:focus-visible, select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chip { display: inline-block; justify-self: start; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.chip.same { color: var(--same); background: var(--same-bg); } .chip.differs { color: var(--differs); background: var(--differs-bg); }
+.chip.ep7 { color: var(--ep7); background: var(--ep7-bg); } .chip.om3 { color: var(--om3); background: var(--om3-bg); }
+.chip.neither { color: var(--neither); background: var(--neither-bg); }
+.todo { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 16px 20px; }
+.todo h2, section h2 { font: 600 19px/1.2 var(--display); margin: 0 0 10px; letter-spacing: .01em; }
+.todo ol { margin: 0; padding-left: 22px; display: grid; gap: 7px; max-width: 95ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.controls label { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+select, input[type="search"] { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+input[type="search"] { min-width: 240px; }
+.reset { font: inherit; font-size: 13px; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 4px; }
+.count { font-size: 13px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+section { display: grid; gap: 8px; }
+section[hidden] { display: none; }
+.tbl { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--soft); }
+td { padding: 11px 14px; border-top: 1px solid var(--line); vertical-align: top; }
+tr:first-child td { border-top: 0; }
+td.f { font-weight: 600; width: 19%; }
+td.c { width: 23%; }
+td.p { width: 10%; }
+td.n { color: var(--muted); }
+tr[hidden] { display: none; }
+footer { color: var(--muted); font-size: 13px; }
+@media (max-width: 760px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  input[type="search"] { min-width: 0; width: 100%; }
+  .controls label { flex: 1 1 100%; }
+  .count { margin-left: 0; }
+  thead { display: none; }
+  table, tbody, tr, td { display: block; width: 100% !important; }
+  tr { padding: 10px 14px; border-top: 1px solid var(--line); }
+  tbody tr:first-child { border-top: 0; }
+  td { border: 0; padding: 3px 0; }
+  td.c::before { content: attr(data-l) " · "; font-weight: 600; color: var(--muted); }
+  td.n:empty { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) { .tile { transition: border-color .12s; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Caduceus parity: E-P7 and OM-3</h1>
+    <p>What each project has, what lines up and what doesn't, so one look format, one set of share links and one Control Panel can serve both cameras. Compared 2026-11-09 from <code>cakelesscoder/caduceus-ep7</code> at <code>%%EP7%%</code> and <code>androidfanman/caduceus-om3</code> at <code>%%OM3%%</code>. Statuses are as each project reports them.</p>
+  </header>
+
+  <div class="tiles" role="group" aria-label="Filter by parity">%%TILES%%</div>
+
+  <div class="todo">
+    <h2>What to do for parity</h2>
+    <ol>%%PRI%%</ol>
+  </div>
+
+  <div class="controls">
+    <label for="area">Area <select id="area"><option value="">All areas</option>%%AREAS%%</select></label>
+    <label for="q">Search <input id="q" type="search" placeholder="grain, share code, WB…" autocomplete="off"></label>
+    <button class="reset" id="reset" type="button">Show everything</button>
+    <span class="count" id="count" aria-live="polite"></span>
+  </div>
+
+  <div id="out"></div>
+
+  <footer>The same table is kept in the OM-3 repo as <code>docs/PARITY.md</code>. "Not researched" means nobody has looked yet; "Not found" means it wasn't in the other project's docs or code.</footer>
+</div>
+<script>
+const ROWS = %%DATA%%;
+const LABEL = %%LABELS%%;
+const AREAS = [...new Set(ROWS.map((r) => r.area))];
+const out = document.getElementById('out'), area = document.getElementById('area'), q = document.getElementById('q'), count = document.getElementById('count');
+const tiles = [...document.querySelectorAll('.tile')];
+let parity = '';
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const tr = (r) => `<tr data-a="${esc(r.area)}" data-p="${r.parity}" data-t="${esc((r.feature + ' ' + r.ep7 + ' ' + r.om3 + ' ' + r.note).toLowerCase())}">
+  <td class="f">${esc(r.feature)}</td><td class="c" data-l="E-P7">${esc(r.ep7)}</td><td class="c" data-l="OM-3">${esc(r.om3)}</td>
+  <td class="p"><span class="chip ${r.parity}">${LABEL[r.parity]}</span></td><td class="n">${esc(r.note)}</td></tr>`;
+out.innerHTML = AREAS.map((a) => `<section data-a="${esc(a)}"><h2>${esc(a)}</h2><div class="tbl"><table>
+  <thead><tr><th>Feature</th><th>E-P7</th><th>OM-3</th><th>Parity</th><th>Notes and next step</th></tr></thead>
+  <tbody>${ROWS.filter((r) => r.area === a).map(tr).join('')}</tbody></table></div></section>`).join('');
+function apply() {
+  const t = q.value.trim().toLowerCase(), a = area.value; let n = 0;
+  document.querySelectorAll('tbody tr').forEach((row) => {
+    const show = (!parity || row.dataset.p === parity) && (!a || row.dataset.a === a) && (!t || row.dataset.t.includes(t));
+    row.hidden = !show; if (show) n++;
+  });
+  document.querySelectorAll('section[data-a]').forEach((s) => { s.hidden = !s.querySelector('tbody tr:not([hidden])'); });
+  tiles.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === parity)));
+  count.textContent = n === ROWS.length ? `${n} features` : `${n} of ${ROWS.length} features`;
+  try { localStorage.setItem('parity.filters', JSON.stringify({ parity, a, t: q.value })); } catch (e) { /* storage off */ }
+}
+tiles.forEach((b) => b.addEventListener('click', () => { parity = parity === b.dataset.p ? '' : b.dataset.p; apply(); }));
+area.addEventListener('change', apply); q.addEventListener('input', apply);
+document.getElementById('reset').addEventListener('click', () => { parity = ''; area.value = ''; q.value = ''; apply(); });
+try { const s = JSON.parse(localStorage.getItem('parity.filters') || 'null'); if (s) { parity = s.parity || ''; area.value = s.a || ''; q.value = s.t || ''; } } catch (e) { /* storage off */ }
+apply();
+</script>
+</body>
+</html>

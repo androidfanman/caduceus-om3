@@ -2343,3 +2343,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (op1_ / ob1_) and the .om3.json file carry them; the bank object gets `min_fw` too. LOOKS.BIN unchanged.
 - Checked: unit tests (format and rules), and in a browser: the site's link has schema / min_fw first; an old link
   without them opens ("needs Caduceus v0.26.1 or later" for WB +6); a format-2 link is refused with the reload message.
+
+### Parity with Caduceus for the E-P7 (2026-11-09; read only, nothing changed in their repo)
+- Owner: compare both repos and show what both have, what aligns and what doesn't; "if this is going to be a tool,
+  we will need to keep it on parity". Read cakelesscoder/caduceus-ep7 at 78dbbc4 (v0.31b) as data, ours at edbb130.
+- Result: `docs/PARITY.md` (49 features: 12 same, 18 both but different, 11 E-P7 only, 6 OM-3 only, 2 neither) and a
+  page published for the owner (artifact "Caduceus Parity"). Source data + generator: `research/tools/parity/`.
+- Key findings: their AGENTS.md asks ports to keep one look format, one set of share codes and one panel hosted in
+  their repo; their panel copies our om3.ts / om3names.ts / split.ts / om3films.ts unchanged (synced to our v0.26.1)
+  and opens our op1_ / ob1_ links; ours went OM-3 only and no longer opens their pk1_ / look codes. Today's
+  schema / min_fw (pack.ts LOOK_SCHEMA, om3.ts exportLook) is not in theirs: their next sync of om3.ts will need
+  LOOK_SCHEMA. Open question there: hue direction may be opposite on the two bodies.
+- Any message to cakelesscoder (issue / PR) is the owner's call; nothing sent.
