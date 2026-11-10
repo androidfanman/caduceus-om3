@@ -1,3 +1,9 @@
+> [!WARNING]
+> **Experiment branch `experiment/firmware-space-probe-256k` (GX3), not a release.** On top of v0.26.2: section 6 loads
+> 256 KiB more (0x60f59800 -> 0x60f99800) holding a probe and a known pattern; at half-presses the probe checks the
+> pattern and that nothing writes into the unloaded gaps, and writes `OM3MOD/GAPTEST.BIN`. Emulator: 19 passes, 0 bad
+> of 65400 words. Camera: pending. Afterwards flash v0.26.2 again with its own `GUIDES.BIN`.
+
 # Caduceus for OM-3
 
 **Caduceus for OM-3** is the OM SYSTEM OM-3 member of the [Caduceus](https://github.com/cakelesscoder/caduceus-ep7)

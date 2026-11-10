@@ -2422,3 +2422,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   704-729 (26 frames, 17.7 then 14.7). So the shared grain state does not break bursts here (my guess that it would
   was wrong for this camera). Not reproduced: remaining differences are their card (speed, fill, health), lens, or
   unit. Asked for the card.
+
+### GX3 space probe, 256 KiB more of section 6 (2026-11-10; branch experiment/firmware-space-probe-256k)
+- Why: the owner wants room for housekeeping features (Caduceus version next to OM's, a debug log from a menu), the
+  up key (PR #26 needs 4 KiB), halation and quick film switching; v0.26.2 fills ext11 (112 B left).
+- Build = v0.26.2 + GX2's probe, moved: section 6's loaded end 0x60f59800 -> **0x60f99800** (loader word
+  0x60045e9c), `.gx` at 0x60f59800 ('GXT3' header, probe, 65400-word pattern to 0x60f99800). ext1 had no room for the
+  longer call, so `pr_ed` now jumps to `gx_pr` (ext11: `call gx_go` -> probe if the header loaded -> `ed_trig`; then
+  `jmp trig_resume`). GAPTEST.BIN magic 'GXR3'; gap list as GX2 with section 6's gap from 0x60f99800.
+- Package E1479999.BIN 2791925c…, GUIDES.BIN c501…. Emulator (om-emu maps everything, so it only shows the code runs):
+  10 half-presses -> 19 passes, bad 0 of 65400, no gap changed.
+- Camera test: flash, use the camera normally (photos incl. a burst and RAW+JPEG, a video, Wi-Fi, playback, menus),
+  half-press often, then read GAPTEST.BIN. Then flash v0.26.2 back with its GUIDES.BIN.

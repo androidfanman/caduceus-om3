@@ -293,7 +293,7 @@ pr_hook:                          /* entered by jmp from 0x60415216; frame = 0x6
  call pr_gate,[d2,d3,a2,a3],36
  bra pr_back
 pr_ed:
- call ed_trig,[d2,d3,a2,a3],36    /* editor: save the edits to the card when dirty */
+ jmp gx_pr                        /* GX3 test: gx_pr (ext11) = the space probe, then ed_trig, as here (ext1 is full) */
 pr_back:
  jmp trig_resume
 
@@ -8603,3 +8603,164 @@ fl_stw:
  call stw_set,[],4
  jmp stw_back
 
+
+
+/* ================================================================== GX3 space test (experiment, not a release)
+ * Section 6's load end is raised once more by 256 KiB (0x60f59800 -> 0x60f99800, build.py; GX1 proved +4 KiB, GX2
+ * +64 KiB, now the v0.23+ ext11), so the loader copies the area below from the update file into RAM: a header, the
+ * probe and a known pattern. At every half-press save point, gx_go calls the probe when the header is there, then
+ * goes on to ed_trig as before. The probe (same task / media gate as the saves): 1. checks the pattern word by word;
+ * 2. sums one never-loaded gap per pass, round robin over 8 (the first round is the baseline, later rounds count
+ * changes); 3. writes OM3MOD/GAPTEST.BIN. Read-only on the gaps. Copied from GX2 (experiment/firmware-space-probe-64k). */
+.section .ext11,"ax"
+gx_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call ed_trig; jmp trig_resume` there */
+ call gx_go,[d2,d3,a2,a3],36
+ jmp trig_resume
+gx_go:                            /* call gx_go,[d2,d3,a2,a3],36: the probe, then ed_trig (its ret returns from here) */
+ mov (gx_hdr),d0
+ cmp 0x33545847,d0                /* 'GXT3': the extension was loaded */
+ bne 1f
+ call gx_probe,[d2,d3,a2,a3],40
+1:
+ jmp ed_trig
+
+.section .gx,"ax"
+gx_hdr:
+ .long 0x33545847, 0x40000, 0, 0
+gx_probe:                         /* frame 40: (0) call slot, (4) handle, (12) tid */
+ mov (SECBITS),d0
+ and 0x3ff,d0
+ cmp 0x3ff,d0
+ bne gx_out
+ mov sp,a0
+ add 12,a0
+ call get_tid,[a2],4
+ cmp 0,d0
+ bne gx_out
+ movhu (HLS_TID),d1
+ cmp 0,d1
+ beq gx_out
+ btst 0x8000,d1
+ bne gx_out
+ movhu (12,sp),d0
+ cmp d1,d0
+ bne gx_out
+ mov 61440,d1
+ mov (MS_A),d0
+ cmp d1,d0
+ beq 1f
+ mov (MS_B),d0
+ cmp d1,d0
+ beq 1f
+ mov (MS_C),d0
+ cmp d1,d0
+ bne gx_out
+1:
+ mov (gx_pass),d2                 /* pass number 1, 2, ... */
+ inc d2
+ mov d2,(gx_pass)
+ /* 1. the pattern: word i = (i + (i << 16)) ^ 0x5a3c96e1 */
+ mov gx_pat,a0
+ clr d3
+ clr d1
+ mov d1,(gx_bad)
+2:
+ mov d3,d0
+ asl 16,d0
+ add d3,d0
+ xor 0x5a3c96e1,d0
+ mov (a0),d1
+ cmp d0,d1
+ beq 3f
+ mov (gx_bad),d1
+ inc d1
+ mov d1,(gx_bad)
+3:
+ inc4 a0
+ inc d3
+ cmp GX_NPAT,d3
+ bne 2b
+ /* 2. one gap: r = (pass - 1) & 7, round = (pass - 1) >> 3 */
+ mov d2,d3
+ add -1,d3
+ and 7,d3
+ mov d3,d0
+ asl 3,d0
+ mov gx_rg,a0
+ add d0,a0
+ mov (4,a0),a1                    /* end */
+ mov (a0),a0                      /* start */
+ clr d0
+4:
+ mov (a0),d1
+ add d1,d0
+ inc4 a0
+ cmp a1,a0
+ bcs 4b
+ mov d3,d1
+ asl2 d1
+ mov gx_last,a0
+ add d1,a0
+ mov d0,(a0)                      /* this round's sum */
+ mov d2,d1
+ add -1,d1
+ lsr 3,d1
+ cmp 0,d1
+ bne 5f
+ mov gx_base - gx_last,d1         /* first round: the baseline */
+ add d1,a0
+ mov d0,(a0)
+ bra 6f
+5:
+ mov gx_base - gx_last,d1
+ add d1,a0
+ mov (a0),d1
+ cmp d0,d1
+ beq 6f
+ mov gx_chg - gx_base,d1          /* changed since the baseline */
+ add d1,a0
+ mov (a0),d1
+ inc d1
+ mov d1,(a0)
+6:
+ /* 3. the results file */
+ mov gx_path,a0
+ mov gx_mode,a1
+ call fopen,[],4
+ cmp 0,a0
+ beq gx_out
+ mov a0,(4,sp)
+ mov (4,sp),a1
+ mov gx_res_end - gx_res,d1
+ mov 1,d0
+ mov gx_res,a0
+ call fwrite,[d2,d3,a2,a3],24
+ mov (4,sp),a0
+ call fclose,[d2,a2,a3],16
+gx_out:
+ ret [d2,d3,a2,a3],40
+ .balign 4
+gx_rg:                            /* the never-loaded gaps (section 6's starts after this extension) */
+ .long 0x60718800, 0x6075a800, 0x60820000, 0x60828000, 0x60a8f800, 0x60ad8000, 0x60adb800, 0x60adc000
+ .long 0x60f99800, 0x6103f000, 0x6164b000, 0x6169e800, 0x617e4800, 0x61809000, 0x619a9800, 0x619fd000
+gx_res:                           /* GAPTEST.BIN: 'GXR3', passes, bad pattern words (last pass), pattern words */
+ .long 0x33525847                 /* 'GXR3' */
+gx_pass:
+ .long 0
+gx_bad:
+ .long 0
+ .long GX_NPAT
+gx_base:
+ .space 32
+gx_last:
+ .space 32
+gx_chg:
+ .space 32
+gx_res_end:
+gx_path:
+ .asciz "C:\\OM3MOD\\GAPTEST.BIN"
+gx_mode:
+ .asciz "w"
+ .balign 16
+gx_pat:                           /* filled by build.py up to 0x60f99800 */
+ .set GX_NPAT, (0x40000 - (gx_pat - gx_hdr)) / 4

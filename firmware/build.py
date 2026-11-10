@@ -219,7 +219,7 @@ def build(defaults, testfile, out):
     subprocess.run([P.AS, '-I', out, '-o', out / 'p.o', HERE / 'src' / 'editor.s'], check=True)
     subprocess.run([P.LD, '-T', HERE / 'src' / 'editor.ld', '-o', out / 'p.elf', out / 'p.o'], check=True)
     blobs = {}
-    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11']:
+    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.gx']:
         subprocess.run([P.OBJCOPY, '-O', 'binary', '-j', s, out / 'p.elf', out / (s[1:] + '.bin')], check=True)
         blobs[s] = (out / (s[1:] + '.bin')).read_bytes()
     raw = Path(P.STOCK).read_bytes()
@@ -314,6 +314,15 @@ def build(defaults, testfile, out):
     assert m[o(0x60045e9a):o(0x60045e9a) + 6] == b'\xfc\xcc' + struct.pack('<I', EXT11[0])
     struct.pack_into('<I', m, o(0x60045e9c), EXT11[1])
     m[o(EXT11[0]):o(EXT11[0]) + len(blobs['.ext11'])] = blobs['.ext11']
+    # GX3 space test (experiment, not a release): section 6 loads 256 KiB more again (0x60f59800 -> 0x60f99800),
+    # holding the probe (.gx) and a known pattern; gx_go (ext11) runs the probe at the half-press when it loaded
+    GX_LO, GX_HI = EXT11[1], 0x60f99800
+    assert set(m[o(GX_LO):o(GX_HI)]) == {0xff}
+    struct.pack_into('<I', m, o(0x60045e9c), GX_HI)
+    gx = bytearray(blobs['.gx']); pat = sy['gx_pat']; assert pat == GX_LO + len(gx) and pat % 4 == 0
+    for i in range((GX_HI - pat) // 4): gx += struct.pack('<I', ((i + (i << 16)) ^ 0x5a3c96e1) & 0xffffffff)
+    assert len(gx) == GX_HI - GX_LO
+    m[o(GX_LO):o(GX_HI)] = gx
     # v0.23 new Picture Mode choice rows (Noise Filter, Shading Comp.): the item table (17 x 40 B at 0x6154c2a8) -> it_tab
     # (the stock 17, then our 4), at both lookups (mov table,a0 ... cmp 17,d1); the rows join the column's 9 row switches
     IT = 0x6154c2a8
