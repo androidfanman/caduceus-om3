@@ -2408,3 +2408,9 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Glow 3 + Grain Low + NR Low. Stored values are all inside the ranges the firmware checks: nothing corrupt found.
   Next: run their three files on the owner's camera (owner's own files backed up in `cardbak-1110`); ask them for the
   camera settings that are not in these files (shutter / drive mode, image quality, ISO, IS, lens).
+- **Reporter's files on the owner's camera (2026-11-10, v0.26.2, JPEG; camera-tested): no crash.** PB101606 FILM 1
+  (their edit: Glow 5 + Grain High + NR Off + Sharp −2) Y hp 14.6; PB101607 FILM 2 (owner set Grain Low, Glow 1)
+  8.0; PB101608 FILM 7 (Glow 3 + Med) 10.9; PB101609 FILM 14 (Glow 3 + Low, NR Low) 6.7; PB101610 FILM 1 with
+  **Clarity 3 + Grain High** 25.9. Grain applied in every one. (FILM 2's own saved edit had Grain Off; the
+  as-built film has Low.) Owner's files restored afterwards (checked by sha256 against `cardbak-1110`).
+  => Their card files don't reproduce it on the owner's camera: the cause is in their camera's settings or unit.
