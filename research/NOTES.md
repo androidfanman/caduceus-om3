@@ -2216,3 +2216,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   firmware unchanged (836cafd6…, = sd3). Emulator: boots, block loads, films step (it cannot develop a photo).
   On the owner's card 2026-11-09 (checksum verified). Test: RAW+JPEG with Grain; JPEG-only Grain; a non-COLOR
   picture mode after a grain photo. If it still freezes: log the order of `xb_cap` / `xb_wl` / `xb_su` calls.
+- **rj1 camera result (owner, 2026-11-09): "that seemed to work"** - RAW+JPEG with Grain no longer freezes
+  (camera-tested, first try; which of the four checks were run is not recorded). Keep rj1's GUIDES.BIN (70139a8f…)
+  with sd3's firmware for the longer test; goes into v0.26.2.
