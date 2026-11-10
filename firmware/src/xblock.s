@@ -543,6 +543,9 @@ xb_dev:
  mov (xb_rq),d1                   /* attached: the same request configured again -> combiner 1 again */
  cmp a1,d1
  bne 9f
+ movbu (10,a1),d1                 /* rj1: only while it is still a COLOR request (the state now outlives other jobs) */
+ cmp 11,d1
+ bne 9f
  bra 3f
 1:
  movhu (14,a1),d1
@@ -622,10 +625,19 @@ xb_dev:
 xb_su:
  movm [d2,d3,a2,a3],(sp)
  add -4,sp
+ mov (10276,a0),a1                /* rj1 (2026-11-09): only a COLOR job touches the grain state. A RAW+JPEG shot runs
+                                     a second job (key 2, 3200 x 2400: the RAW's preview, camera log lg1) whose set-up
+                                     cleared xb_tx / moved xb_S while the JPEG's textured job was still running */
+ cmp 0,a1
+ beq 1f
+ mov (5352,a1),d0
+ cmp 11,d0
+ bne 1f
  mov a0,(xb_S)
  clr d0
  movbu d0,(xb_tx)
  call xb_tex,[d2,d3,a2,a3],32     /* a0 = S */
+1:
  add 4,sp
  movm (sp),[d2,d3,a2,a3]
  rets
@@ -723,6 +735,10 @@ xb_sel2:
  mov (xb_rq),d1
  cmp d0,d1
  bne 9f
+ mov d0,a2                        /* rj1: and still a COLOR request (a2 is the frame's: free, as in xb_dev) */
+ movbu (10,a2),d0
+ cmp 11,d0
+ bne 9f
  movbu (xb_tl),d0                 /* ft4: put COLOR's chroma back at the end of combiner 1's set-up (and the gain) */
  movbu d0,(xb_fx1)
  mov 1,d0
@@ -775,7 +791,6 @@ xb_wl:                            /* a0 = S (ft8b: the builder's (4,sp)) */
  movm [d2,d3,a2,a3],(sp)
  add -4,sp
  clr d2
- movbu d2,(xb_sw)
  mov a0,a3
  mov (10276,a3),a2
  cmp 0,a2
@@ -783,6 +798,7 @@ xb_wl:                            /* a0 = S (ft8b: the builder's (4,sp)) */
  mov (5352,a2),d0
  cmp 11,d0
  bne 9f
+ movbu d2,(xb_sw)                 /* rj1: only a COLOR job resets it (see xb_su) */
  call xb_slot,[d2,d3],12
  cmp 0,a1
  beq 9f
