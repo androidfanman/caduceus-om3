@@ -235,6 +235,10 @@ with every other setting.
 - *No films in the list?* Check `OM3MOD/LOOKS.BIN` is on the card.
 - *Settings change but nothing happens in the photo?* The card's `GUIDES.BIN` must come from the same release as the
   firmware. Copy the release's `GUIDES.BIN` again.
+- *The camera freezes or switches off after a photo?* Take the battery out for a few seconds. Check that the firmware
+  and `OM3MOD/GUIDES.BIN` come from the same release (the launcher's `SD card files` folder has both; `VERSION.txt` in
+  it says which). If it keeps happening, turn Film Grain off on that film and
+  [report it](https://github.com/androidfanman/caduceus-om3/issues) with your `OM3MOD` files.
 - *My changes were lost?* They save at the next half-press, and only when the card has an `OM3MOD` folder.
 - *New films from the Control Panel?* Export `LOOKS.BIN` (choose "v0.26.1 or later") and copy it to `OM3MOD`. A film
   you changed in the Control Panel starts again as built; the others keep your camera changes. Deleting `EDITS.BIN`

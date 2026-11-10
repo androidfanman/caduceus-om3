@@ -2392,3 +2392,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Reporter's film: hue / colour changed, NR Off, Vignette Correction On, Sharpness 0, Shading 0. Asked for their
   `OM3MOD` files and whether holding OK (reset) clears the repeat crash. Owner's card files backed up in the session
   scratchpad (cardbak-1110) before the test.
+- **Install path check (2026-11-10, owner's ask after the report):** GitHub's latest release is v0.26.2; its six
+  downloads equal `releases/v0.26.2` (GUIDES 92b67919…, LABELS d6c1b4ab…, TONES a5cd04e9…, LOOKS 26998eeb…, patch.json,
+  SHA256SUMS). Tag v0.26.2 = f958fdb holds releases up to v0.26.2, so its Source code zip makes v0.26.2 by default.
+  A fresh clone of main + `patch.py` with no options: v0.26.2, E1479999.BIN 4add99d3…, GUIDES 92b67919… (= SHA256SUMS),
+  LABELS / TONES copied with it, VERSION.txt written. Control Panel "Install firmware" points to releases/latest.
+  Weak spot: a GUIDES.BIN from another release fails silently (no grain / glow), as the reporter saw once; README
+  quick answers now cover freezes (battery out, same-release files, Film Grain off, report with OM3MOD files).
