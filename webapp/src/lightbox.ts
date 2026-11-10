@@ -116,14 +116,14 @@ const SOFT = ['#f3d2bd', '#c99472', '#7d5236', '#6f9ccb', '#4c7a3d', '#a8553f'];
 function patchSrgb(): RGB[] {
   const out: RGB[] = [];
   for (let r = 0; r < CHART_ROWS; r++) {
-    const L = 96 - (96 - 8) * (r / 5), y = L > 8 ? ((L + 16) / 116) ** 3 : L / 903.3, e = y <= 0.0031308 ? 12.92 * y : 1.055 * y ** (1 / 2.4) - 0.055;
+    const L = 96 - (96 - 16) * (r / 5), y = L > 8 ? ((L + 16) / 116) ** 3 : L / 903.3, e = y <= 0.0031308 ? 12.92 * y : 1.055 * y ** (1 / 2.4) - 0.055;
     out.push([e, e, e], hsv(r * 60, 0.8, 0.86), hex(SOFT[r]));
   }
   return out;
 }
 /** Patch reflectances (linear), kept inside what real paint can do. */
 const PATCHES: RGB[] = patchSrgb().map((c) => c.map((v) => Math.max(0.006, Math.min(0.92, dec(v)))) as RGB);
-const CARD: RGB = [0.035, 0.035, 0.035], TABLE: RGB = [0.16, 0.16, 0.16];
+const CARD: RGB = [0.004, 0.004, 0.004], TABLE: RGB = [0.16, 0.16, 0.16];
 
 /** Soft highlight clip, then the sRGB curve, as a table over linear 0..4. */
 const TONE_N = 4096, TONE_MAX = 4;

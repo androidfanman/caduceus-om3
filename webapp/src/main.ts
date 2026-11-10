@@ -654,7 +654,10 @@ function buildPreview() {
 async function pickImage(id: string) {
   S.image = id;
   document.querySelectorAll('.thumb').forEach((t) => t.classList.toggle('on', (t as HTMLElement).dataset.id === id));
-  document.getElementById('chart-opts')?.toggleAttribute('hidden', id !== 'chart');
+  const opts = document.getElementById('chart-opts'), thumbsEl = document.querySelector<HTMLElement>('#preview .thumbs');
+  opts?.toggleAttribute('hidden', id !== 'chart');
+  // on the colour chart its light controls come right under the chart, the other pictures below them (owner 2026-11-09)
+  if (opts && thumbsEl) { if (id === 'chart') opts.after(thumbsEl); else opts.before(thumbsEl); }
   if (id === 'user') { srcData = userPhoto; schedulePreview(); return; }
   if (id === 'chart') { drawChart(); return; }
   try {

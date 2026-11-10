@@ -2277,3 +2277,5 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   chart is an upright card, 3 columns x 6 rows: a wider column of six greys (white at the top), six strong wheel
   colours (red, yellow, green, cyan, blue, magenta), and three skin tones, sky, leaves, brick. Our own layout and
   colours; nothing taken from that card (no name, artwork or values). Published.
+- Then (owner): the card's border and grid black (the darkest grey lifted to L* 16 so it still shows on it); on the
+  chart, the light controls sit right under the chart and the other pictures' thumbnails below them. Published.

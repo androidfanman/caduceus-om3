@@ -165,7 +165,7 @@ canvas.pv { width: 100%; height: auto; display: block; max-height: 70vh; object-
 p.warn { background: #fff4d6; color: #5a4300; border-left: 3px solid #d39b00; padding: 8px 12px; border-radius: 6px; margin: 8px 0 0; font-size: 13px; line-height: 1.45; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) p.warn { background: #3a3013; color: #f3dfa6; } }
 :root[data-theme="dark"] p.warn { background: #3a3013; color: #f3dfa6; }
-.chart-opts { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 0 0 10px; background: var(--panel); }
+.chart-opts { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 10px 0; background: var(--panel); }
 .chart-opts[hidden] { display: none; }
 .chart-cols { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: flex-start; margin-bottom: 6px; }
 .chart-cols > .cf.sun { flex: 0 0 300px; max-width: 100%; }
