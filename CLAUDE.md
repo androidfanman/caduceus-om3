@@ -61,7 +61,9 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
   camera even though the emulator maps them (a sliders test made this mistake: `research/NOTES.md`). They become
   usable only by moving a section's loaded-end word, and only as far as a camera probe has proven (2026-11-07: section 6
   +64 KiB, 0x60f49800..0x60f59800, `experiment/firmware-space-probe-64k`; see `research/NOTES.md`). The sliders
-  branch's code (`.ext11`) already uses it, from 0x60f49800; put new code after it.
+  branch's code (`.ext11`) already uses it, from 0x60f49800; put new code after it. **2026-11-10: GX3 proved
+  section 6 +256 KiB more, 0x60f59800..0x60f99800** (`experiment/firmware-space-probe-256k`, camera: 72 passes, 0 bad);
+  a build that uses it must raise the loader's end word to 0x60f99800 as that branch does.
 - **Calling convention:** `call f,[regs],N` writes the return address at `(0,sp)` and overwrites MDR (details in
   `research/NOTES.md`, "Picture-mode sliders").
 - **Test order:** build → emulator (`tools/emulator/session_ed1.mjs`) → package for the owner → camera test by the
