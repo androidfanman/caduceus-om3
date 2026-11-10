@@ -415,7 +415,8 @@ assigned function.
   v0.25+ gives film j's list cell the id `IC_FM0` (0x7f90) + j, and the row's left cell `IC_FL0` (0x7fb0) + j, so
   Caduceus uses 0x7f80..0x7fc3. `up_ic` answers first, so it took film 17's id. ▲ is now 0x7fe0 (package
   `be17717a…`, GUIDES `5c06ddb1…`); om-emu: ▲ row and picker title as before (the film list itself needs a card image
-  with `LOOKS.BIN`, which needs mtools; not checked there).
+  with `LOOKS.BIN`, which needs mtools; not checked there). **Camera-tested 2026-11-10: FILM 17 shows its own
+  picture again, ▲ still shows in Button Function.**
 - Before a release: own validator / row / descriptor records instead of sid 1957's (lookup hooks; the validator table
   is fixed at 1712), the movie up key (1280), and space that a probe has proven (or code in the GUIDES.BIN block).
 
