@@ -2399,3 +2399,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   LABELS / TONES copied with it, VERSION.txt written. Control Panel "Install firmware" points to releases/latest.
   Weak spot: a GUIDES.BIN from another release fails silently (no grain / glow), as the reporter saw once; README
   quick answers now cover freezes (battery out, same-release files, Film Grain off, report with OM3MOD files).
+- **Reporter's OM3MOD (2026-11-10, via the owner; files kept out of the repo, copy in the session scratchpad
+  `rep/files`):** GUIDES / LABELS / TONES = v0.26.2's (92b67919… / d6c1b4ab… / a5cd04e9…), so no file mismatch.
+  LOOKS.BIN (f38ad600…) is their own 20 films, valid (CRC, ranges); EDITS.BIN valid, every check matching; BUNDLES.BIN
+  valid, firmware fingerprint 5e8d376e (the same as the owner's). No Art Effect anywhere, no split toning.
+  Films with grain: FILM 1 "Classic Chrome" edited to **Glow 5 (stored −5) + Grain High + NR Off + Sharp −2**, lens
+  correction on; FILM 2 "Classic Neg" built with Glow 1 + Grain Low + NR Off; FILM 7 Glow 3 + Grain Med; FILM 14
+  Glow 3 + Grain Low + NR Low. Stored values are all inside the ranges the firmware checks: nothing corrupt found.
+  Next: run their three files on the owner's camera (owner's own files backed up in `cardbak-1110`); ask them for the
+  camera settings that are not in these files (shutter / drive mode, image quality, ISO, IS, lens).
