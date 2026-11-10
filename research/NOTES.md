@@ -2484,3 +2484,27 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   this firmware", all six lines right; file exactly 5120 B, no leftover text. Camera-tested: fixed length, COLOR / FILM,
   card-file check (matching case only; the mismatch cases are emulator only).
 
+## v0.27 "buttons" release: plan and first research (2026-11-10; branch feature/v0.27-buttons)
+- Owner: v0.27 is about customising the buttons: (1) all four arrow keys remappable (owner chose: ▲ ◀ ▼ ▶ in the
+  camera's Button Function menu, each with the full Fn function list); (2) issue #30, both parts, shortcut first: a
+  button function that opens the Picture Mode list ready for the dial, then a toggle that turns the front dial into a
+  profile dial; (3) the front Creative Dial's positions (CRT / ART / COLOR / MONO) mappable to any profile (e.g. COLOR 1,
+  FILM 3, FILM 10, FILM 11), **set in the Control Panel** (owner's choice; stored with the films on the card).
+- The E-P7 project has no software shortcut to reuse (its quick access is the body's own profile switch;
+  docs/LOOK_PICKER.md rejected a button cycle). Arrow keys: research/BUTTONS.md + PR #26 (▲ camera-tested).
+- **Creative Dial (static + emulator):** sid **897 = the active picture-mode family**, one of the setting ids of the
+  Picture Mode tables (0x6152f8a0): **901 COLOR 1-4**, **988 MONO 1-4**, **899 ART** (31 values), **898 CRT** (8),
+  **900** (1 value; which physical position, if any, is not known). The routine at 0x602168c5.. ("picd_00n!" debug
+  strings 0x602ecfab..) reads the dial with 0x601780e5(0x02021906) and sets 897 (`call 0x603f0324`, d0 897, d1 family):
+  1 -> 900, 2 -> 899, 3 -> 898, 4 -> 901, 5 -> 988. Seen so far in a power-on path; whether the same code runs when
+  the dial is turned is not known yet.
+- om-emu: the dial is several group-4 switch bits (codes 0x1906..0x1909, set through the G4SET producer). A local
+  om-emu change (`OM_SWITCH_POS`, `POSITION_SWITCH_LISTS` in src/lab/play.mjs; not in this repo) picks the power-on
+  position: GetValue(897) then reads 988 / 901 / 898 / 899 / 900 for positions 0..4 (emulator only; the mapping of
+  emulator positions to the physical labels is not checked). Turning it at run time (`cdial:K` in
+  research/upkey/drive.mjs) does not reach the firmware yet (group 4 needs the G4SET path).
+- Plan for the dial (analysis): Control Panel stores a target per position (stock / COLOR k / FILM j / MONO k);
+  firmware hooks where 897 is set from the dial and, for a mapped position, sets family 901 and loads the target the
+  way `fl_set` does for a film. Open: the run-time dial handler, what the Picture Mode list shows on a mapped position,
+  and where the mapping lives (LOOKS.BIN header bytes 20..31 are zero and preserved, or a new file).
+

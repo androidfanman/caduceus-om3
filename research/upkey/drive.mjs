@@ -11,7 +11,7 @@ const { loadBlock } = await import(EMU + '/bin/run.mjs');
 const { Player } = await import(EMU + '/src/lab/player.mjs');
 const { PLAYER_PARSER } = await import(EMU + '/scenarios/session_replay.mjs');
 const { cardFromImage } = await import(EMU + '/src/lab/sdcard.mjs');
-const { MODE_DIAL } = await import(EMU + '/src/lab/play.mjs');
+const { MODE_DIAL, POSITION_SWITCH_LISTS, set_bit } = await import(EMU + '/src/lab/play.mjs');   // POSITION_SWITCH_LISTS: a local om-emu addition (v0.27 notes)
 const { Debugger } = await import(EMU + '/src/debug/debugger.mjs');
 // OM_WORKER_ENTRY=hex (image address): allow a Caduceus worker task (v0.25+ starts one at power-on), as Caduceus'
 // tools/emulator/session_autoload.mjs does
@@ -78,6 +78,17 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   cur = t + '#' + log.length;
   const dm = /^(main|sub)([+-]\d+)$/.exec(t);
   if (dm) { s.dial_input(dm[1], parseInt(dm[2], 10)); s.camapp.pump(); }
+  else if (t.startsWith('cdial:')) {   // cdial:K: the Creative Dial (E147 0x1909) to position K at run time
+    const k = Number(t.slice(6)), l = (POSITION_SWITCH_LISTS ?? [])[0];
+    if (!l) throw new Error('cdial: needs the om-emu POSITION_SWITCH_LISTS addition');
+    s.begin(`cdial ${k}`);
+    const gs = new Set();
+    l.forEach(([g, b, bit, pol], i) => { set_bit(s.images[g], b, bit, i === k ? pol : 1 - pol); gs.add(g); });
+    const posted = [];
+    for (const g of gs) { const [codes] = s.push_group(g); for (const c of codes) { const [idx] = s.keymap(c); if (idx !== null) { s.event(idx); posted.push(idx); } } }
+    console.error("cdial", k, JSON.stringify(l), [...gs], posted); s.end(`cdial ${k}`, 'switch', posted, [], {});
+    s.camapp.pump(); s.idle_slice(lab.lab_time() + 800e6);
+  }
   else if (t === 'lever') { s.switch_input('lever', 1 - s.bit_of('lever')); s.camapp.pump(); s.idle_slice(lab.lab_time() + 800e6); }
   else if (t.startsWith('mode:')) {
     const k = MODE_DIAL.names.findIndex((p) => p.name === t.slice(5));

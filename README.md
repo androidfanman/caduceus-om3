@@ -1,8 +1,7 @@
 > [!WARNING]
-> **Work-in-progress branch `feature/debug-log`, not a release.** v0.26.2 plus a debug log: section 6 now loads the
-> camera-proven GX3 space (to 0x60f99800) and the log code lives there (ext12). With `OM3MOD/DEBUG.TXT` on the card the
-> camera rewrites `OM3MOD/CADLOG.TXT` at each shutter-button event; without it nothing is written. **Status: dl7 camera-tested
-> (2026-11-10; mismatch reports emulator only)**: E1479999.BIN bece52e5…, GUIDES.BIN 11cd0b8e… (LABELS / TONES as v0.26.2).
+> **Work-in-progress branch `feature/v0.27-buttons`, not a release.** v0.27 = button customisation (arrow
+> keys, quick film switching #30, Creative Dial mapping) on top of the debug log. Status: research (2026-11-10);
+> nothing to flash yet. See `research/NOTES.md`, "v0.27 buttons".
 
 # Caduceus for OM-3
 
