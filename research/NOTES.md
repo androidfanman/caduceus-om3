@@ -2479,4 +2479,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Emulator only: matching card -> all match; old v0.26.2 GUIDES + v0.24.1 LABELS + damaged LOOKS -> exactly those three
   named. Not tried: a missing file. dl7: E1479999.BIN bece52e5…, GUIDES.BIN 11cd0b8e….
   Limits: LABELS damage after its header is not seen (the code block holds its copy); a file read once per power-on.
+- **Camera (dl7 "debug log 4", 2026-11-10): works.** 24 events: FILM 4 (COLOR 1) -> FILM 6 -> FILM 9 (COLOR 2), each
+  switch shown as "edits waiting yes -> saved" (a film choice is saved to LOOKS.BIN, as designed); "Card files: all match
+  this firmware", all six lines right; file exactly 5120 B, no leftover text. Camera-tested: fixed length, COLOR / FILM,
+  card-file check (matching case only; the mismatch cases are emulator only).
 
