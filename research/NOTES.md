@@ -2200,3 +2200,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Plan: a logging build (the fg1–fg3 GLOG logger on the current branch) and two grain-off photos from the owner, one
   JPEG and one RAW+JPEG, to see what the RAW capture adds; then keep the texture route off those requests (CPU grain
   or no grain there). Until then: grain with JPEG only.
+- **Logging build lg1** (2026-11-09): sd3 with `XB_LOG 1` (not committed as the default). Firmware identical to sd3
+  (836cafd6…), so GUIDES.BIN only: 43f35661…, 13756 B. Emulator: boots, Picture Mode, the half-press save runs. Run
+  asked of the owner (as fg2 run 3: a row changed and back before the first and the last half-press): JPEG grain off,
+  RAW+JPEG grain off, JPEG grain Low; then GLOG.BIN from the card. Afterwards sd3's GUIDES.BIN (c6b6728d…) back.
