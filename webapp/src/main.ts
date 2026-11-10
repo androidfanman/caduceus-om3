@@ -631,7 +631,7 @@ function buildPreview() {
   };
   let dragging = false;
   const at = (e: PointerEvent) => { const r = frame.getBoundingClientRect(); setCut(((e.clientX - r.left) / r.width) * 100); };
-  frame.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; dragging = true; frame.setPointerCapture(e.pointerId); at(e); e.preventDefault(); });
+  frame.addEventListener('pointerdown', (e) => { if (e.button !== 0 || frame.classList.contains('pair')) return; dragging = true; frame.setPointerCapture(e.pointerId); at(e); e.preventDefault(); });
   frame.addEventListener('pointermove', (e) => { if (dragging) at(e); });
   frame.addEventListener('pointerup', () => { dragging = false; }); frame.addEventListener('pointercancel', () => { dragging = false; });
   divider.addEventListener('keydown', (e) => {
@@ -682,7 +682,7 @@ function drawChart() {
   requestAnimationFrame(() => {
     chartQueued = false;
     if (S.image !== 'chart') return;
-    srcData = chartImage(CHART, Math.min(1536, previewPx()));
+    srcData = chartImage(CHART, Math.min(900, Math.ceil(previewPx() / 2)));
     schedulePreview();
   });
 }
@@ -772,7 +772,7 @@ function chartPanel(): HTMLElement {
     }
     note();
     box.replaceChildren(h('div', { class: 'chart-cols' }, arc, h('div', { class: 'chart-grid' }, ...kids)), noteEl,
-      h('p', { class: 'help' }, 'A drawn chart with simulated light: greys, the wheel\'s 12 colours (soft, medium, strong), skin tones and everyday colours. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top). Double-click a slider or the arc to reset it.'));
+      h('p', { class: 'help' }, 'A drawn chart with simulated light: greys, the wheel\'s 12 colours, skin tones and sky, leaves and brick. Before is on the left, your film on the right. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top). Double-click a slider or the arc to reset it.'));
   }
   build();
   box.toggleAttribute('hidden', S.image !== 'chart');
@@ -813,6 +813,10 @@ async function onPhoto(e: Event) {
 function sizeFrame(w: number, h: number) {
   const frame = canvas.parentElement as HTMLElement | null;
   if (!frame) return;
+  // the colour chart (owner 2026-11-09): before and after as two pictures side by side, no dividing line
+  const pair = S.image === 'chart';
+  frame.classList.toggle('pair', pair);
+  if (pair) { frame.style.aspectRatio = ''; frame.style.width = `min(100%, ${(2 * 46 * w / h).toFixed(2)}vh)`; return; }
   frame.style.aspectRatio = `${w} / ${h}`;
   frame.style.width = `min(100%, ${(70 * w / h).toFixed(2)}vh)`;
 }

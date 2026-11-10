@@ -98,15 +98,22 @@ function hsv(hDeg: number, s: number, v: number): RGB {
 }
 const hex = (s: string): RGB => [parseInt(s.slice(1, 3), 16) / 255, parseInt(s.slice(3, 5), 16) / 255, parseInt(s.slice(5, 7), 16) / 255];
 
-/** The chart: 12 columns x 5 rows of patches (sRGB as drawn in neutral light). Row 1 greys from black to white,
- *  rows 2-4 the wheel's 12 colours (soft, medium, strong), row 5 six skin tones and six everyday colours. */
-export const CHART_COLS = 12, CHART_ROWS = 5;
-const SKIN = ['#f3d2bd', '#e3b596', '#c99472', '#a87453', '#7d5236', '#52341f'];
-const EVERYDAY = ['#6f9ccb', '#4c7a3d', '#a8553f', '#d9c08a', '#e3cf3e', '#6b4a8c'];   // sky, leaves, brick, sand, lemon, plum
+/** The chart: 6 columns x 4 rows of square patches (sRGB as drawn in neutral light; owner 2026-11-09: fewer colours,
+ *  a smaller chart). Row 1 six greys from black to white, rows 2-3 the wheel's 12 colours (strong) in wheel order,
+ *  row 4 three skin tones and three everyday colours (sky, leaves, brick). */
+export const CHART_COLS = 6, CHART_ROWS = 4;
+/** The picture's shape (height / width) and its layout as fractions of the width: table margin, card padding. */
+const CHART_MARGIN = 0.05, CHART_PAD = 0.03, CHART_CELL = (1 - 2 * CHART_MARGIN - 2 * CHART_PAD) / CHART_COLS;
+export const CHART_ASPECT = 2 * CHART_MARGIN + 2 * CHART_PAD + CHART_ROWS * CHART_CELL;
+/** The middle of patch (col, row) as fractions of the picture's width and height. */
+export const patchCentre = (col: number, row: number): [number, number] =>
+  [CHART_MARGIN + CHART_PAD + CHART_CELL * (col + 0.5), (CHART_MARGIN + CHART_PAD + CHART_CELL * (row + 0.5)) / CHART_ASPECT];
+const SKIN = ['#f3d2bd', '#c99472', '#7d5236'];
+const EVERYDAY = ['#6f9ccb', '#4c7a3d', '#a8553f'];   // sky, leaves, brick
 function patchSrgb(): RGB[] {
   const out: RGB[] = [];
-  for (let i = 0; i < 12; i++) { const L = 8 + (96 - 8) * (i / 11), y = L > 8 ? ((L + 16) / 116) ** 3 : L / 903.3, e = y <= 0.0031308 ? 12.92 * y : 1.055 * y ** (1 / 2.4) - 0.055; out.push([e, e, e]); }
-  for (const [s, v] of [[0.3, 0.92], [0.58, 0.8], [0.88, 0.86]]) for (let i = 0; i < 12; i++) out.push(hsv(i * 30, s, v));
+  for (let i = 0; i < 6; i++) { const L = 8 + (96 - 8) * (i / 5), y = L > 8 ? ((L + 16) / 116) ** 3 : L / 903.3, e = y <= 0.0031308 ? 12.92 * y : 1.055 * y ** (1 / 2.4) - 0.055; out.push([e, e, e]); }
+  for (let i = 0; i < 12; i++) out.push(hsv(i * 30, 0.8, 0.86));
   for (const c of [...SKIN, ...EVERYDAY]) out.push(hex(c));
   return out;
 }
@@ -136,9 +143,9 @@ function shade2(refl: RGB, cri: number, main: RGB, sky: RGB, gain: RGB): [RGB, R
     [refl[0] * sky[0] * gain[0], refl[1] * sky[1] * gain[1], refl[2] * sky[2] * gain[2]]];
 }
 
-/** Draw the chart, 3:2, `width` px wide, in the given light as the camera would record it (before any film). */
+/** Draw the chart, `width` px wide (CHART_ASPECT gives its height), in the given light as the camera would record it (before any film). */
 export function renderChart(p: ChartLight, width: number): ChartImage {
-  const W = Math.max(48, Math.round(width)), H = Math.round((W * 2) / 3);
+  const W = Math.max(48, Math.round(width)), H = Math.round(W * CHART_ASPECT);
   const src = SOURCES[p.source];
   const main = lightColor(lightKelvin(p), src.tint);
   // the shade inside a sunny scene: blue skylight, about two stops down
@@ -150,8 +157,8 @@ export function renderChart(p: ChartLight, width: number): ChartImage {
 
   const surf = [shade2(TABLE, src.cri, main, sky, gain), shade2(CARD, src.cri, main, sky, gain), ...PATCHES.map((c) => shade2(c, src.cri, main, sky, gain))];
   // layout (fractions of the width): the card inside the table, the patches inside the card
-  const cx0 = 0.045 * W, cy0 = 0.06 * H, cx1 = W - cx0, cy1 = H - cy0;
-  const pad = 0.022 * W, gx = (cx1 - cx0 - 2 * pad) / CHART_COLS, gy = (cy1 - cy0 - 2 * pad) / CHART_ROWS, gap = 0.1;
+  const cx0 = CHART_MARGIN * W, cy0 = cx0, cx1 = W - cx0, cy1 = H - cy0;
+  const pad = CHART_PAD * W, gx = CHART_CELL * W, gy = gx, gap = 0.1;
   const data = new Uint8ClampedArray(W * H * 4);
   // the shadow's edge: a soft diagonal line that moves across the chart as the shadow grows
   const soft = 0.035, edge = shadow <= 0 ? -1 : shadow >= 1 ? 3 : shadow * (1.3 + 2 * soft) - soft;

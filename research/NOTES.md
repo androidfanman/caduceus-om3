@@ -2269,3 +2269,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   of the look before it goes into `looklab/`.
 - **Published 2026-11-09** (owner: "I love this! Lets publish it but make it the default image"): the chart is the
   first picture and the first thumbnail; `looklab/` rebuilt on `main`.
+- Same day, owner's asks after seeing it live: the sun arc gets its own fixed 300 px column (it shrank in a wide
+  window); the chart is smaller with fewer colours (6 x 4 square patches: 6 greys, the 12 wheel hues, 3 skin, sky /
+  leaves / brick) and, for the chart only, before and after are two pictures side by side (no dividing line; photos
+  keep the line). Checked in Chromium at desktop and phone widths; not checked in Safari itself (no WebKit here).

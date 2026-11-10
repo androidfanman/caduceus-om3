@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CHART_DEFAULT, chartLight, lightColor, lightKelvin, renderChart, sunHeight, sunKelvin, wbKelvin, type ChartLight } from '../src/lightbox';
+import { CHART_DEFAULT, chartLight, lightColor, lightKelvin, patchCentre, renderChart, sunHeight, sunKelvin, wbKelvin, type ChartLight } from '../src/lightbox';
 
 const px = (im: { width: number; data: Uint8ClampedArray }, u: number, v: number, h: number) => {
   const o = (Math.round(v * h) * im.width + Math.round(u * im.width)) * 4;
   return [im.data[o], im.data[o + 1], im.data[o + 2]];
 };
 // the middle of the grey patch in column c (row 1)
-const grey = (im: { width: number; height: number; data: Uint8ClampedArray }, c: number) => {
-  const W = im.width, H = im.height, cx0 = 0.045 * W, pad = 0.022 * W, gx = (W - 2 * cx0 - 2 * pad) / 12, cy0 = 0.06 * H, gy = (H - 2 * cy0 - 2 * pad) / 5;
-  return px(im, (cx0 + pad + gx * (c + 0.5)) / W, (cy0 + pad + gy * 0.5) / H, H);
-};
+const grey = (im: { width: number; height: number; data: Uint8ClampedArray }, c: number) => { const [u, v] = patchCentre(c, 0); return px(im, u, v, im.height); };
 const L = (p: Partial<ChartLight>): ChartLight => ({ ...CHART_DEFAULT, ...p });
 
 describe('light box', () => {
@@ -25,29 +22,29 @@ describe('light box', () => {
   });
   it('Auto WB keeps greys grey in daylight and tungsten', () => {
     for (const source of ['sun', 'shade', 'cloudy', 'tungsten', 'fluor'] as const) {
-      const [r, g, b] = grey(renderChart(L({ source }), 600), 6);
+      const [r, g, b] = grey(renderChart(L({ source }), 600), 3);
       expect(Math.abs(r - g)).toBeLessThanOrEqual(4); expect(Math.abs(b - g)).toBeLessThanOrEqual(4);
     }
   });
   it('a fixed WB shows the light\'s colour', () => {
-    const [r, , b] = grey(renderChart(L({ source: 'tungsten', wb: 'sunny' }), 600), 6); expect(r).toBeGreaterThan(b + 40);
-    const [r2, , b2] = grey(renderChart(L({ source: 'shade', wb: 'sunny' }), 600), 6); expect(b2).toBeGreaterThan(r2 + 8);
-    const [r3, , b3] = grey(renderChart(L({ source: 'sun', time: 720, wb: 'custom', kelvin: 9000 }), 600), 6); expect(r3).toBeGreaterThan(b3 + 15);
+    const [r, , b] = grey(renderChart(L({ source: 'tungsten', wb: 'sunny' }), 600), 3); expect(r).toBeGreaterThan(b + 40);
+    const [r2, , b2] = grey(renderChart(L({ source: 'shade', wb: 'sunny' }), 600), 3); expect(b2).toBeGreaterThan(r2 + 8);
+    const [r3, , b3] = grey(renderChart(L({ source: 'sun', time: 720, wb: 'custom', kelvin: 9000 }), 600), 3); expect(r3).toBeGreaterThan(b3 + 15);
   });
   it('a street lamp stays orange under Auto WB', () => {
     const p = L({ source: 'street' }); expect(wbKelvin(p)).toBeGreaterThan(lightKelvin(p));
-    const [r, , b] = grey(renderChart(p, 600), 6); expect(r).toBeGreaterThan(b + 20);
+    const [r, , b] = grey(renderChart(p, 600), 3); expect(r).toBeGreaterThan(b + 20);
   });
   it('brightness and shadow darken, grey ramp rises', () => {
-    const a = grey(renderChart(L({}), 600), 6)[1], d = grey(renderChart(L({ ev: -6 }), 600), 6)[1];
+    const a = grey(renderChart(L({}), 600), 3)[1], d = grey(renderChart(L({ ev: -6 }), 600), 3)[1];
     expect(d).toBeLessThan(a - 30);
     const sh = renderChart(L({ shadow: 50 }), 600);
-    expect(grey(sh, 11)[1]).toBeLessThan(grey(renderChart(L({}), 600), 11)[1] - 40);   // the right side is in shadow
-    expect(grey(sh, 11)[2]).toBeGreaterThan(grey(sh, 11)[0]);                            // and bluer
+    expect(grey(sh, 5)[1]).toBeLessThan(grey(renderChart(L({}), 600), 5)[1] - 40);   // the right side is in shadow
+    expect(grey(sh, 5)[2]).toBeGreaterThan(grey(sh, 5)[0]);                            // and bluer
     const pm = renderChart(L({ shadow: 50, time: 900 }), 600);                              // afternoon: the shadow is on the left
-    expect(grey(pm, 0)[1]).toBeLessThan(grey(renderChart(L({ time: 900 }), 600), 0)[1]); expect(grey(pm, 11)[1]).toBe(grey(renderChart(L({ time: 900 }), 600), 11)[1]);
+    expect(grey(pm, 0)[1]).toBeLessThan(grey(renderChart(L({ time: 900 }), 600), 0)[1]); expect(grey(pm, 5)[1]).toBe(grey(renderChart(L({ time: 900 }), 600), 5)[1]);
     const im = renderChart(L({}), 600); let last = -1;
-    for (let c = 0; c < 12; c++) { const g = grey(im, c)[1]; expect(g).toBeGreaterThan(last); last = g; }
+    for (let c = 0; c < 6; c++) { const g = grey(im, c)[1]; expect(g).toBeGreaterThan(last); last = g; }
   });
   it('cleans stored settings', () => {
     expect(chartLight(null)).toEqual(CHART_DEFAULT);
