@@ -40,7 +40,7 @@ last two pieces: with them the colour profiles are complete.
 | Feature | What it means | Status |
 |---|---|---|
 | **More button functions** | Button functions to switch S-AF / C-AF, and to switch between normal and high-speed sequential shooting ([#10](https://github.com/androidfanman/caduceus-om3/issues/10)). | Requested |
-| **All arrow keys configurable** | Every arrow key can be a custom button, not only right and down ([#9](https://github.com/androidfanman/caduceus-om3/issues/9)). | Requested |
+| **All arrow keys configurable** | Every arrow key can be a custom button, not only right and down ([#9](https://github.com/androidfanman/caduceus-om3/issues/9)). The up key (▲) for stills is done as research by ryanbughuang ([#26](https://github.com/androidfanman/caduceus-om3/pull/26), camera-tested on their OM-3 as a test build on v0.26.2; `research/BUTTONS.md`). Before a release: proven code space, its own menu entries, the up key in video mode, and a build inside `firmware/`. | Research |
 | **Quick WB / ISO page** | A button that opens a quick WB / ISO page as on the PEN-F and E-P7 ([#8](https://github.com/androidfanman/caduceus-om3/issues/8)). | Requested |
 
 ## Video (after the photo side is finished)
