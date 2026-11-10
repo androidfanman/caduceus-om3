@@ -16,6 +16,7 @@ last two pieces: with them the colour profiles are complete.
 | Feature | What it means | Status |
 |---|---|---|
 | **Halation** | The red glow around bright lights of cinema film (CineStill and others), as a film setting. Caduceus for the E-P7 has it; the OM-3 version would ride on the Glow row's route. | Next |
+| **Gentler Shading** | Shading is much too strong in both directions. Make the camera's own Shading steps weaker so that −5 / +5 look like today's −2 / +2 (owner, 2026-11-10), with finer steps in between; match the Control Panel preview. Likely a small change to the camera's Shading strength data (needs research, then a flash and a before / after camera test). | Planned |
 | **Custom crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9 (as in Caduceus for the E-P7), and your own. | Planned |
 | **Colour chart with changeable light** (Control Panel) | A drawn colour chart to judge a film in sun at different times of day, shade, lamp light and at different camera WB / Kelvin. Built and tried on 2026-11-09, then taken out: it needs a clearer design first. Notes and the kept code: [docs/CHART_LIGHTBOX.md](docs/CHART_LIGHTBOX.md). | Parked |
 | **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size, still at no extra time. | Investigating |
