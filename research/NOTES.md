@@ -2414,3 +2414,11 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   **Clarity 3 + Grain High** 25.9. Grain applied in every one. (FILM 2's own saved edit had Grain Off; the
   as-built film has Low.) Owner's files restored afterwards (checked by sha256 against `cardbak-1110`).
   => Their card files don't reproduce it on the owner's camera: the cause is in their camera's settings or unit.
+- **Reporter: the crashes happen in sequential (burst) drive, mechanical shutter; Single is fine** (LSF JPEG, Auto
+  ISO, 17mm f1.8 II). Burst + grain had never been tested (ft6 "not yet checked: … burst").
+- **Owner's camera, bursts with grain (2026-11-10, v0.26.2; camera-tested): no crash, grain in every frame.**
+  PB101635-637 (3 frames, 1/40 s), PB101638-664 (27 frames in ~2 s, 1/160 s), RAW+JPEG bursts PB101665-670,
+  671-675 (Grain High, Y hp ~30 on first and last), 676-680, 681-703 (23 frames, Y hp 14.8 first / middle / last),
+  704-729 (26 frames, 17.7 then 14.7). So the shared grain state does not break bursts here (my guess that it would
+  was wrong for this camera). Not reproduced: remaining differences are their card (speed, fill, health), lens, or
+  unit. Asked for the card.
