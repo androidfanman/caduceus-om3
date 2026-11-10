@@ -2291,3 +2291,27 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Control Panel source and `looklab/` are back to the build before it (same asset files as v0.26.2's site,
   index-CsE7MpWk.js / index-CtM6tPCp.css; colour frames first). The full version stays on `feature/chart-lightbox`
   (0588953); the write-up to rebuild it is `docs/CHART_LIGHTBOX.md`; ROADMAP: Parked.
+
+### Research: the film / colour profile in the photo's EXIF (2026-11-09; no code, analysis from photos + firmware tables)
+- Owner: "how possible would it be to put the color profile info into the exif data?"
+- **What the camera already writes (camera photos PB091585 / PB091587, maker notes decoded by hand; "OM SYSTEM" header,
+  CameraSettings IFD 0x2020):** PictureMode 0x520 = 9 (Color Profile 1) or 2 (Natural); PictureModeContrast 0x523,
+  PictureModeSharpness 0x524, NoiseFilter 0x527, the tone levels 0x52e (Sh / Mid / Hi), and at 0x539 fourteen values =
+  {-5, 5, then the 12 colours' saturation}: so the film's Saturation wheel, Contrast, Sharp and the Sh / Mid / Hi curve
+  are in every photo today. **Not there:** the film's number or name, Hue, Luminance, split toning, Blk / Wht, our
+  grain (0x538 reads 0: our grain is not the camera's setting), Glow, Shading. WB shift: not checked.
+- **Empty fields with room (same photos):** ImageDescription 0x010e = 32 bytes, blank; UserComment 0x9286 = 125 bytes,
+  blank. (Artist 0x013b and Copyright 0x8298, 64 bytes each, hold the owner's Copyright Info settings.)
+- **Firmware:** the EXIF writer is table-driven. Table of 12-byte entries {tag, type, count, offset into an EXIF data
+  block} at 0x6062abc0.. (main block): 0x010e -> 32 B at block +0x5a8; 0x9286 -> 125 B at +0xf7c; 0x013b -> +0x568;
+  0x8298 -> +0xf12; 0x02bc (XMP) 2301 B at +0x612; 0x927c maker note at +0xf78. Pointers to the entries at
+  0x6062c66c.. / 0x6062cf18... Not found yet: where the block lives and which routine fills +0x5a8 / +0xf7c for a shot.
+- **Text is at hand:** LOOKS.BIN carries 20 x 16-byte film names at 1312 (card/mkprofiles.py), the 64-byte record
+  holds the settings (53 used bytes).
+- **Idea:** at capture (xb_cap already runs there, in the GUIDES.BIN block, ~3 KB free; ext11 has 144 B) copy
+  "FILM n name" into the block's ImageDescription (32 B) and a compact code of the whole look into UserComment (125 B:
+  an 8-byte "ASCII\0\0\0" prefix + up to 117 characters; 53 bytes as base64 = 72 characters). The Control Panel could
+  then read a photo and rebuild the film. Fixed-size fields only, so the file's layout does not change.
+- **Open / risks:** find the fill routine and the block (the emulator cannot take a photo: camera tests); check the
+  ORF gets the same fields; check what apps show (Description / caption, User Comment); the stock blank value (spaces or
+  zeros) must be matched for a COLOR with no film. Status: analysis / guess, nothing built.
