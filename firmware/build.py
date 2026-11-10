@@ -432,14 +432,19 @@ def build(defaults, testfile, out):
         assert tab == bytes(m[o(stock):o(stock) + 40]) + tab[40:48] + bytes(m[o(stock) + 48:o(stock) + 88]) or True
         struct.pack_into('<I', m, o(a) + 2, sy[name])
         m[o(a) + 7] = 22
+    # v0.27 debug log: this build's LABELS.BIN / TONES.BIN header checksums, for the "card files match" check (lg_ft)
+    subprocess.run([sys.executable, ROOT / 'card' / 'mkguides.py', out / 'pictures.bin', '--tones', out / 'TONES.BIN'], check=True)   # v0.26: TONES.BIN
+    subprocess.run([sys.executable, ROOT / 'card' / 'mklabels.py', out / 'LABELS.BIN'], check=True)
+    for i, f in ((1, 'LABELS.BIN'), (2, 'TONES.BIN')):
+        a = o(sy['lg_ft'] + 20 * i + 8)
+        assert struct.unpack_from('<I', m, a)[0] == 0x4c475831
+        struct.pack_into('<I', m, a, struct.unpack_from('<I', (out / f).read_bytes(), 8)[0])
     # v0.20: the code-block tag = 'X' + 3 bytes of the image's SHA-256 (with the placeholder in place)
     tr = sy['x_tagref']
     assert m[o(tr):o(tr) + 2] == b'\xfc\xc8' and struct.unpack_from('<I', m, o(tr) + 2)[0] == 0x58000000
     xtag = 0x58000000 | int.from_bytes(hashlib.sha256(bytes(m)).digest()[:3], 'little')
     struct.pack_into('<I', m, o(tr) + 2, xtag)
     xblock = make_xblock(out, sy, xtag)
-    subprocess.run([sys.executable, ROOT / 'card' / 'mkguides.py', out / 'pictures.bin', '--tones', out / 'TONES.BIN'], check=True)   # v0.26: TONES.BIN
-    subprocess.run([sys.executable, ROOT / 'card' / 'mklabels.py', out / 'LABELS.BIN'], check=True)
     g = bytearray((out / 'pictures.bin').read_bytes()); assert g[:4] == b'OM3G' and len(g) % 4 == 0
     g += xblock
     struct.pack_into('<I', g, 4, len(g)); struct.pack_into('<I', g, 8, zlib.crc32(bytes(g[12:])) & 0xffffffff)

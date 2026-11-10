@@ -8679,6 +8679,7 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  call fclose,[d2,a2,a3],16
  mov 1,d0
  movbu d0,(lg_on)
+ call lg_chk,[d2,d3,a2,a3],40     /* dl6: the card files' presence and header checksums, once */
 2:
  mov (lg_n),d2                    /* the event: number, picture mode, edits waiting, save result after */
  inc d2
@@ -8793,6 +8794,62 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  LGD
  LGS lg_k0
 7:
+ PVAL 15f                         /* dl6: card files vs this firmware (a2 = P, or 0) */
+ bra 16f
+15:
+ mov 0,a2
+16:
+ LGS lg_c0
+ clr d2
+ mov lg_ft,a3
+ mov LG_NF,d3
+17:
+ call lg_vd,[],0
+ cmp 1,d0
+ bcs 18f
+ cmp 5,d0
+ bcc 18f
+ inc d2                           /* verdicts 1..4: a mismatch */
+18:
+ add 20,a3
+ add -1,d3
+ cmp 0,d3
+ bne 17b
+ mov lg_c1,a0
+ cmp 0,d2
+ beq 19f
+ mov lg_c2,a0
+19:
+ call lg_s,[],0
+ mov lg_ft,a3
+ mov LG_NF,d3
+20:
+ LGS lg_nl
+ mov (a3),a0
+ add 10,a0                        /* the name after C:\OM3MOD\ */
+ call lg_s,[],0
+ LGS lg_c3
+ call lg_vd,[],0
+ mov d0,d2
+ asl2 d0
+ mov lg_vt,a0
+ add d0,a0
+ mov (a0),a0
+ call lg_s,[],0
+ cmp 3,d2
+ bne 21f
+ LGS lg_c4
+ mov (16,a3),d0
+ call lg_h,[],0
+ LGS lg_c5
+ mov (8,a3),d0
+ call lg_h,[],0
+ LGS lg_k0
+21:
+ add 20,a3
+ add -1,d3
+ cmp 0,d3
+ bne 20b
  LGS lg_t7                        /* the last 32 events, oldest first */
  mov (lg_n),d2
  clr d3
@@ -8864,6 +8921,99 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
 lg_out:
  ret [d2,d3,a2,a3],40
 
+lg_chk:                           /* `call lg_chk,[d2,d3,a2,a3],40`: each lg_ft file -> found 1 missing / 2 there, and
+                                   * its header's CRC word (+8). Frame: (0) call slot, (4) handle */
+ mov lg_ft,a3
+ mov LG_NF,d3
+1:
+ mov (a3),a0
+ mov lg_mr,a1
+ call fopen,[],4
+ mov 1,d0
+ cmp 0,a0
+ beq 2f
+ mov a0,(4,sp)
+ clr d0
+ mov d0,(lg_hdr+8)
+ mov 1,d0
+ mov 16,d1
+ mov lg_hdr,a0
+ mov (4,sp),a1
+ call fread,[d2,d3,a2,a3],24
+ mov (4,sp),a0
+ call fclose,[d2,a2,a3],16
+ mov (lg_hdr+8),d0
+ mov d0,(16,a3)
+ mov 2,d0
+2:
+ mov d0,(12,a3)
+ add 20,a3
+ add -1,d3
+ cmp 0,d3
+ bne 1b
+ ret [d2,d3,a2,a3],40
+lg_vd:                            /* `call lg_vd,[],0`: a3 = lg_ft row, a2 = P or 0 -> d0 verdict (lg_vt) */
+ mov (12,a3),d0
+ mov (4,a3),d1
+ cmp 2,d0
+ beq 1f
+ mov 1,d0                         /* missing */
+ cmp 4,d1
+ bne 9f
+ mov 7,d0                         /* the camera's own file: not made yet */
+ bra 9f
+1:
+ cmp 4,d1
+ bne 2f
+ mov 6,d0
+ bra 9f
+2:
+ cmp 3,d1
+ bcc 4f
+ cmp 0,d1
+ beq 4f
+ mov (16,a3),d0                   /* LABELS / TONES: the header checksum vs this build's copy (TONES loads only */
+ mov (8,a3),d1                    /* after LOOKS, so its own content decides, not whether it is loaded) */
+ cmp d1,d0
+ beq 8f
+ mov (4,a3),d1
+ cmp 2,d1
+ bne 3f
+ mov (tg_ptr),d0                  /* a different TONES.BIN the camera refused */
+ cmp 0,d0
+ beq 7f
+3:
+ mov 3,d0
+ bra 9f
+4:
+ cmp 0,a2
+ bne 5f
+ mov 8,d0
+ bra 9f
+5:
+ cmp 3,d1
+ bne 6f
+ mov (LPTR,a2),d0                 /* LOOKS.BIN: loaded = valid */
+ cmp 0,d0
+ beq 7f
+ mov 5,d0
+ bra 9f
+6:
+ mov (GPTR,a2),d0                 /* GUIDES.BIN: pictures loaded = valid; code block = same build (x_load's tag) */
+ cmp 0,d0
+ beq 7f
+ mov (XPTR,a2),d0
+ cmp 0,d0
+ bne 8f
+ mov 2,d0
+ bra 9f
+7:
+ mov 4,d0
+ bra 9f
+8:
+ clr d0
+9:
+ ret [],0
 lg_s:                             /* `call lg_s,[],0`: a0 = string -> appended (stops near the buffer's end) */
  mov (lg_cur),a1
 1:
@@ -8879,6 +9029,29 @@ lg_s:                             /* `call lg_s,[],0`: a0 = string -> appended (
  bra 1b
 2:
  mov a1,(lg_cur)
+ ret [],0
+lg_h:                             /* `call lg_h,[],0`: d0 -> 8 hex digits (uses d0, d1, a0, a1) */
+ mov (lg_cur),a1
+ mov lg_bend,d1
+ cmp a1,d1
+ bcs 3f
+ mov 8,a0
+1:
+ mov d0,d1
+ lsr 28,d1
+ cmp 10,d1
+ bcs 2f
+ add 7,d1
+2:
+ add 48,d1
+ movbu d1,(a1)
+ inc a1
+ asl 4,d0
+ add -1,a0
+ cmp 0,a0
+ bne 1b
+ mov a1,(lg_cur)
+3:
  ret [],0
 lg_y:                             /* `call lg_y,[],0`: d0 != 0 -> "yes", else "no" */
  mov lg_yes,a0
@@ -8947,12 +9120,26 @@ lg_on:
  .byte 0
 lg_dty:
  .byte 0
+ .balign 4
+lg_ft:                            /* {path, kind, this build's header CRC (build.py), found, header CRC} (20 B):
+                                   * kind 0 GUIDES, 1 LABELS, 2 TONES, 3 LOOKS, 4 written by the camera */
+ .long lg_f0, 0, 0, 0, 0
+ .long lg_f1, 1, 0x4c475831, 0, 0
+ .long lg_f2, 2, 0x4c475831, 0, 0
+ .long lg_f3, 3, 0, 0, 0
+ .long lg_f4, 4, 0, 0, 0
+ .long lg_f5, 4, 0, 0, 0
+ .set LG_NF, 6
+lg_vt:
+ .long lg_v0, lg_v1, lg_v2, lg_v3, lg_v4, lg_v5, lg_v6, lg_v7, lg_v8
+lg_hdr:
+ .space 16
  .balign 16
 lg_ring:                          /* 32 x {u32 number, u32 picture mode, u8 edits waiting, u8 save result (255 = no P),
                                    * u8 film 1..20 (0 = none), u8 COLOR k (255 = none)} */
  .space 32 * 16
 lg_buf:
- .space 4096
+ .space 5120
 lg_bend:                          /* lg_s / lg_d stop 64 bytes before the end */
  .space 64
 lg_pon:
@@ -8984,6 +9171,48 @@ lg_miss:
  .asciz "missing (state "
 lg_k0:
  .asciz ")"
+lg_f0:
+ .asciz "C:\\OM3MOD\\GUIDES.BIN"
+lg_f1:
+ .asciz "C:\\OM3MOD\\LABELS.BIN"
+lg_f2:
+ .asciz "C:\\OM3MOD\\TONES.BIN"
+lg_f3:
+ .asciz "C:\\OM3MOD\\LOOKS.BIN"
+lg_f4:
+ .asciz "C:\\OM3MOD\\EDITS.BIN"
+lg_f5:
+ .asciz "C:\\OM3MOD\\BUNDLES.BIN"
+lg_c0:
+ .asciz "\r\n\r\nCard files: "
+lg_c1:
+ .asciz "all match this firmware"
+lg_c2:
+ .asciz "MISMATCH - see the lines marked MISMATCH or MISSING"
+lg_c3:
+ .asciz ": "
+lg_c4:
+ .asciz " (its checksum "
+lg_c5:
+ .asciz ", this firmware's copy "
+lg_v0:
+ .asciz "matches this firmware"
+lg_v1:
+ .asciz "MISSING"
+lg_v2:
+ .asciz "MISMATCH - made for a different firmware build"
+lg_v3:
+ .asciz "MISMATCH - a different version, not the copy made for this firmware"
+lg_v4:
+ .asciz "MISMATCH - damaged or the wrong format (the camera refused it)"
+lg_v5:
+ .asciz "OK (your own films)"
+lg_v6:
+ .asciz "OK (written by the camera)"
+lg_v7:
+ .asciz "not made yet (normal: the camera makes it when you save edits)"
+lg_v8:
+ .asciz "not checked (no settings block)"
 lg_k1:
  .asciz "\r\nLOOKS.BIN looks loaded: "
 lg_k2:

@@ -2468,4 +2468,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (54/55/56/64); the film is that COLOR's look number P+LIDX+k (as fl_get). dl5 logs COLOR k and FILM 5k + n
   (+10/+11 in each event). Emulator, LOOKS.BIN selection 3,2,0,0: "54 = COLOR 1, FILM 3". dl5: E1479999.BIN b1749259…,
   GUIDES.BIN a0c0da82…. Emulator only.
+- Owner: the log should say whether the card files match the firmware, and name what does not. dl7 (VERSION "debug log
+  4"): once per power-on (when the log turns on) `lg_chk` opens each of GUIDES, LABELS, TONES, LOOKS, EDITS, BUNDLES and
+  reads its 16-byte header; each write `lg_vd` gives a verdict. GUIDES: pictures loaded (GPTR) = valid, code block
+  (XPTR, x_load's build tag) = same build. LABELS / TONES: header CRC word vs this build's copy (build.py patches the two
+  expected CRCs into `lg_ft`); a different TONES the camera refused = damaged. LOOKS: loaded (LPTR) = valid. EDITS /
+  BUNDLES: written by the camera, missing = normal. Summary line "Card files: all match this firmware" or "MISMATCH",
+  then one line per file; a different LABELS / TONES shows both checksums. TONES loads only after LOOKS, so its own CRC
+  decides (first try called a good TONES "damaged" when LOOKS was the bad file). Report now 5120 B.
+  Emulator only: matching card -> all match; old v0.26.2 GUIDES + v0.24.1 LABELS + damaged LOOKS -> exactly those three
+  named. Not tried: a missing file. dl7: E1479999.BIN bece52e5…, GUIDES.BIN 11cd0b8e….
+  Limits: LABELS damage after its header is not seen (the code block holds its copy); a file read once per power-on.
 
