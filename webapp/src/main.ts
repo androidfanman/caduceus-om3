@@ -38,7 +38,7 @@ let libNotice = '';
 const S = {
   tab: 'sat' as Tab,
   sector: 0,            // the wheel's selected colour (the camera's front dial)
-  image: 'frames',
+  image: 'chart',         // owner 2026-11-09: the colour chart light box is the first picture a visitor sees
   cut: 50,
 };
 
@@ -614,10 +614,10 @@ let previewQueued = false;
 function buildPreview() {
   canvas = h('canvas', { class: 'pv', 'aria-label': 'Approximate preview of the selected look' });
   const thumbs = h('div', { class: 'thumbs' },
-    ...samples().map((s) => h('button', { class: `thumb${S.image === s.id ? ' on' : ''}`, 'data-id': s.id, onclick: () => pickImage(s.id), title: s.label },
-      h('img', { src: `./samples/${s.id}.jpg?v=${SAMPLE_REV}`, alt: s.label, loading: 'lazy' }))),
     h('button', { class: `thumb${S.image === 'chart' ? ' on' : ''}`, 'data-id': 'chart', onclick: () => pickImage('chart'), title: 'Colour chart: change the light and the camera\'s white balance' },
       h('img', { src: chartThumb(), alt: 'Colour chart' })),
+    ...samples().map((s) => h('button', { class: `thumb${S.image === s.id ? ' on' : ''}`, 'data-id': s.id, onclick: () => pickImage(s.id), title: s.label },
+      h('img', { src: `./samples/${s.id}.jpg?v=${SAMPLE_REV}`, alt: s.label, loading: 'lazy' }))),
     h('button', { class: `thumb own${S.image === 'user' ? ' on' : ''}`, 'data-id': 'user', onclick: () => (userPhoto ? pickImage('user') : $<HTMLInputElement>('#photo').click()), title: 'Your photo (stays on this device)' },
       h('span', {}, '+ Your photo')));
   // before / after: the untouched photo on its own canvas, clipped at a line you drag on the photo (or arrow keys)
