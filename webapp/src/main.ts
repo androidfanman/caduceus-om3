@@ -19,6 +19,7 @@ import { namesBin } from './om3names';
 import { SPLIT_COLOURS, SPLIT_MAX, type Split } from './split';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
+import { CHART_DEFAULT, SOURCES, SOURCE_ORDER, WB_MODES, WB_ORDER, chartLight, lightKelvin, renderChart, wbKelvin, type ChartLight, type Source, type WbMode } from './lightbox';
 // ---------------------------------------------------------------- state
 const LIBRARY = parsePack(libraryJson);
 // The colour-frames test photo first, then public-domain (CC0) photos picked for skin, strong colour, greens, blues,
@@ -615,6 +616,8 @@ function buildPreview() {
   const thumbs = h('div', { class: 'thumbs' },
     ...samples().map((s) => h('button', { class: `thumb${S.image === s.id ? ' on' : ''}`, 'data-id': s.id, onclick: () => pickImage(s.id), title: s.label },
       h('img', { src: `./samples/${s.id}.jpg?v=${SAMPLE_REV}`, alt: s.label, loading: 'lazy' }))),
+    h('button', { class: `thumb${S.image === 'chart' ? ' on' : ''}`, 'data-id': 'chart', onclick: () => pickImage('chart'), title: 'Colour chart: change the light and the camera\'s white balance' },
+      h('img', { src: chartThumb(), alt: 'Colour chart' })),
     h('button', { class: `thumb own${S.image === 'user' ? ' on' : ''}`, 'data-id': 'user', onclick: () => (userPhoto ? pickImage('user') : $<HTMLInputElement>('#photo').click()), title: 'Your photo (stays on this device)' },
       h('span', {}, '+ Your photo')));
   // before / after: the untouched photo on its own canvas, clipped at a line you drag on the photo (or arrow keys)
@@ -640,6 +643,7 @@ function buildPreview() {
   $('#preview').replaceChildren(
     h('div', { class: 'pv-wrap' }, frame, h('span', { class: 'badge' }, 'Before'), h('span', { class: 'badge r' }, 'After · approximate')),
     thumbs,
+    chartPanel(),
     h('div', { class: 'pv-opts' },
       h('span', { class: 'help' }, 'Includes Contrast, Sharp and Shading.'),
       h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Use your own photo…')),
@@ -650,7 +654,9 @@ function buildPreview() {
 async function pickImage(id: string) {
   S.image = id;
   document.querySelectorAll('.thumb').forEach((t) => t.classList.toggle('on', (t as HTMLElement).dataset.id === id));
+  document.getElementById('chart-opts')?.toggleAttribute('hidden', id !== 'chart');
   if (id === 'user') { srcData = userPhoto; schedulePreview(); return; }
+  if (id === 'chart') { drawChart(); return; }
   try {
     const img = new Image();
     img.src = `./samples/${id}.jpg?v=${SAMPLE_REV}`;
@@ -658,6 +664,70 @@ async function pickImage(id: string) {
     srcData = toImageData(img, img.naturalWidth, img.naturalHeight);
     if (S.image === id) schedulePreview();
   } catch { toast('Could not load the sample image', 'err'); }
+}
+
+// ---- the colour chart "light box": a drawn chart, the light on it and the camera's white balance (lightbox.ts)
+const STORE_CHART = 'caduceus.om3.chart.v1';
+const CHART: ChartLight = (() => { try { return chartLight(JSON.parse(localStorage.getItem(STORE_CHART) ?? 'null')); } catch { return { ...CHART_DEFAULT }; } })();
+function chartImage(p: ChartLight, px: number): ImageData { const c = renderChart(p, px); return new ImageData(c.data as Uint8ClampedArray<ArrayBuffer>, c.width, c.height); }
+function chartThumb(): string {
+  const c = document.createElement('canvas'), im = chartImage(CHART_DEFAULT, 240);
+  c.width = im.width; c.height = im.height; c.getContext('2d')!.putImageData(im, 0, 0);
+  return c.toDataURL('image/png');
+}
+let chartQueued = false;
+function drawChart() {
+  if (chartQueued) return;
+  chartQueued = true;
+  requestAnimationFrame(() => {
+    chartQueued = false;
+    if (S.image !== 'chart') return;
+    srcData = chartImage(CHART, Math.min(1536, previewPx()));
+    schedulePreview();
+  });
+}
+/** The chart's controls, under the thumbnails; shown only while the chart is the picture. */
+function chartPanel(): HTMLElement {
+  const box = h('div', { id: 'chart-opts', class: 'chart-opts' });
+  const store = () => { try { localStorage.setItem(STORE_CHART, JSON.stringify(CHART)); } catch { /* private window: not kept */ } };
+  const upd = () => { store(); build(); drawChart(); };
+  const sel = <T extends string>(label: string, order: T[], names: (v: T) => string, value: T, on: (v: T) => void) =>
+    h('label', { class: 'cf' }, h('span', { class: 'lbl' }, label),
+      h('select', { onchange: (e: Event) => { on((e.target as HTMLSelectElement).value as T); upd(); } },
+        ...order.map((v) => h('option', { value: v, selected: v === value }, names(v)))));
+  const range = (label: string, min: number, max: number, step: number, value: number, fmt: (v: number) => string, on: (v: number) => void, reset: number) => {
+    const out = h('output', {}, fmt(value));
+    const inp = h('input', { type: 'range', min, max, step, value, 'aria-label': label,
+      oninput: (e: Event) => { const v = Number((e.target as HTMLInputElement).value); on(v); out.textContent = fmt(v); store(); drawChart(); note(); },
+      ondblclick: () => { on(reset); upd(); } });
+    return h('label', { class: 'cf' }, h('span', { class: 'lbl' }, label), h('span', { class: 'cf-row' }, inp, out));
+  };
+  const noteEl = h('p', { class: 'help' });
+  const note = () => {
+    const lk = lightKelvin(CHART), wk = wbKelvin(CHART);
+    const cast = CHART.wb === 'auto' && wk === lk ? 'Auto WB follows it, so greys stay grey.'
+      : wk > lk + 150 ? 'so the picture comes out warmer (more amber).' : wk < lk - 150 ? 'so the picture comes out cooler (more blue).' : 'so greys stay about grey.';
+    noteEl.textContent = `Light about ${lk} K, camera WB ${wk} K: ${cast}`;
+  };
+  const ev = (v: number) => (v === 0 ? '0 EV' : `${v > 0 ? '+' : '−'}${(Math.abs(v) / 3).toFixed(1)} EV`);
+  function build() {
+    const kids: Node[] = [
+      sel<Source>('Light', SOURCE_ORDER, (v) => SOURCES[v].label, CHART.source, (v) => { CHART.source = v; }),
+    ];
+    if (CHART.source === 'sun') {
+      kids.push(range('Sun height', 2, 90, 1, CHART.sun, (v) => `${v}°`, (v) => { CHART.sun = v; }, CHART_DEFAULT.sun));
+      kids.push(range('Shadow', 0, 100, 5, CHART.shadow, (v) => (v ? `${v}%` : 'none'), (v) => { CHART.shadow = v; }, 0));
+    }
+    kids.push(range('Brightness', -9, 9, 1, CHART.ev, ev, (v) => { CHART.ev = v; }, 0));
+    kids.push(sel<WbMode>('Camera WB', WB_ORDER, (v) => WB_MODES[v].label, CHART.wb, (v) => { CHART.wb = v; }));
+    if (CHART.wb === 'custom') kids.push(range('Kelvin', 2000, 14000, 100, CHART.kelvin, (v) => `${v}K`, (v) => { CHART.kelvin = v; }, CHART_DEFAULT.kelvin));
+    note();
+    box.replaceChildren(h('div', { class: 'chart-grid' }, ...kids), noteEl,
+      h('p', { class: 'help' }, 'A drawn chart with simulated light: greys, the wheel\'s 12 colours (soft, medium, strong), skin tones and everyday colours. Good for comparing films and lights; lamp light on a real camera can differ. Double-click a slider to reset it.'));
+  }
+  build();
+  box.toggleAttribute('hidden', S.image !== 'chart');
+  return box;
 }
 
 /** The preview's working size (long side, px): enough for the preview at this screen's pixel density (sharp on

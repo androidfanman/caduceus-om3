@@ -2251,3 +2251,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Next on the list (owner): per-film WB mode / Kelvin with a Control Panel sidebar control; then halation, custom crops.
 - Tool note: the Mac shell bridge could not reach the card after it was re-inserted mid-session (listing and copying
   still worked; deleting did not). A fresh session with the card already in restores it.
+
+### Control Panel: colour chart "light box" (2026-11-09, branch feature/chart-lightbox; not published yet)
+- Owner: a colour chart whose light can be changed (sun angle, brightness, shadow / cloudy, street lamp, fluorescent)
+  and camera WB options "like in camera so we can see the film sims at different K values".
+- Built: `webapp/src/lightbox.ts` (drawn 12 x 5 chart: greys, the 12 wheel hues at three strengths, skin tones,
+  everyday colours; light = Kelvin + green/magenta tint + colour-showing factor; camera WB = Auto / Sunny 5300 /
+  Shadow 7500 / Cloudy 6000 / Incandescent 3000 / Fluorescent 4000 / Flash 5500 / CWB 2000-14000 K; sun height sets
+  the sun's Kelvin; Shadow puts part of the chart in blue skylight; lamps fall off from the centre). A thumbnail
+  "Colour chart" after the sample photos, its controls under the thumbnails; settings kept in the browser.
+- Status: a model (analysis / guess), not measured against the camera. The WB preset Kelvin values are from memory of
+  the OM menu: check on the owner's camera. Tests: `webapp/tests/lightbox.test.ts`. Waiting for the owner's approval
+  of the look before it goes into `looklab/`.
