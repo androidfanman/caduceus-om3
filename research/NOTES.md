@@ -2315,3 +2315,22 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **Open / risks:** find the fill routine and the block (the emulator cannot take a photo: camera tests); check the
   ORF gets the same fields; check what apps show (Description / caption, User Comment); the stock blank value (spaces or
   zeros) must be matched for a COLOR with no film. Status: analysis / guess, nothing built.
+- **EXIF research, step 2 (2026-11-09, disassembly only; owner: JPEG only is enough, "important for sharing, and
+  sorting of images"):** the two routines that fill the EXIF data block are found.
+  - **Set-up, about 0x60455f30..0x60456040** (block pointer at `(4,sp)`): Make = `call 0x60458165` (a0 = block + 1480,
+    d0 = 24, d1 = setting 11073: "copy a string setting"), Model = block + 1504 (17, setting 25329), Software = block
+    + 1522 (32 B, from the constant "Version x.x" at 0x6062e194 through `0x6045812d`, digits patched in), then
+    **UserComment: block + 3972 (= 0xf7c + 8) filled with 117 spaces** (the loop at 0x60455ff7..0x60456007), then
+    the XMP packet (block + 1554, 2301 B zeroed, strings appended with 0x60024867).
+  - **Per shot, about 0x60457500..0x60457578** (block pointer at `(8,sp)`): when setting 24305 (Copyright Info) is on,
+    Artist = `0x60458165(block + 1384, 64, setting 24321)` and Copyright = `(block + 3858, 64, setting 24337)`. It
+    reads settings with the stock getter 0x60063380, so the getter is usable in that task.
+  - `0x603dafa1`: image handle (d0) -> its EXIF block (a0), used by 0x6055bc0e (copies Artist / Copyright from one
+    image's block to another's).
+  - ImageDescription (block + 0x5a8, 32 B): no writer found; it stays as the block is cleared (blank in the photos).
+  - **Hook idea:** at 0x60457578 (right after the Artist / Copyright copy; `mov (8,sp),a0` + `movhu (37666,a0),d0`,
+    2 + 6 bytes) jump to our code with the block in a0: film on COLOR k (as fl_lvp decides) -> "FILM n name" into
+    block + 0x5a8 and the recipe text into block + 3972 (117 characters); no film -> leave both as stock.
+  - **Next step (not built):** a camera probe that writes a fixed test text into both fields at that hook, to prove
+    the hook runs for every JPEG and to see what the Mac / phone apps show. Then the real text. Space: ext11 144 B
+    (enough for the probe's jump and a short copy; the real code goes in the GUIDES.BIN block).
