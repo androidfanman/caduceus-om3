@@ -19,6 +19,7 @@ import { namesBin } from './om3names';
 import { SPLIT_COLOURS, SPLIT_MAX, type Split } from './split';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
+import { CHART_DEFAULT, SOURCES, SOURCE_ORDER, WB_MODES, WB_ORDER, SUN_RISE, SUN_SET, chartLight, lightKelvin, renderChart, sunHeight, wbKelvin, type ChartLight, type Source, type WbMode } from './lightbox';
 // ---------------------------------------------------------------- state
 const LIBRARY = parsePack(libraryJson);
 // The colour-frames test photo first, then public-domain (CC0) photos picked for skin, strong colour, greens, blues,
@@ -37,7 +38,7 @@ let libNotice = '';
 const S = {
   tab: 'sat' as Tab,
   sector: 0,            // the wheel's selected colour (the camera's front dial)
-  image: 'frames',
+  image: 'chart',         // owner 2026-11-09: the colour chart light box is the first picture a visitor sees
   cut: 50,
 };
 
@@ -613,6 +614,8 @@ let previewQueued = false;
 function buildPreview() {
   canvas = h('canvas', { class: 'pv', 'aria-label': 'Approximate preview of the selected look' });
   const thumbs = h('div', { class: 'thumbs' },
+    h('button', { class: `thumb${S.image === 'chart' ? ' on' : ''}`, 'data-id': 'chart', onclick: () => pickImage('chart'), title: 'Colour chart: change the light and the camera\'s white balance' },
+      h('img', { src: chartThumb(), alt: 'Colour chart' })),
     ...samples().map((s) => h('button', { class: `thumb${S.image === s.id ? ' on' : ''}`, 'data-id': s.id, onclick: () => pickImage(s.id), title: s.label },
       h('img', { src: `./samples/${s.id}.jpg?v=${SAMPLE_REV}`, alt: s.label, loading: 'lazy' }))),
     h('button', { class: `thumb own${S.image === 'user' ? ' on' : ''}`, 'data-id': 'user', onclick: () => (userPhoto ? pickImage('user') : $<HTMLInputElement>('#photo').click()), title: 'Your photo (stays on this device)' },
@@ -640,6 +643,7 @@ function buildPreview() {
   $('#preview').replaceChildren(
     h('div', { class: 'pv-wrap' }, frame, h('span', { class: 'badge' }, 'Before'), h('span', { class: 'badge r' }, 'After · approximate')),
     thumbs,
+    chartPanel(),
     h('div', { class: 'pv-opts' },
       h('span', { class: 'help' }, 'Includes Contrast, Sharp and Shading.'),
       h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Use your own photo…')),
@@ -650,7 +654,9 @@ function buildPreview() {
 async function pickImage(id: string) {
   S.image = id;
   document.querySelectorAll('.thumb').forEach((t) => t.classList.toggle('on', (t as HTMLElement).dataset.id === id));
+  document.getElementById('chart-opts')?.toggleAttribute('hidden', id !== 'chart');
   if (id === 'user') { srcData = userPhoto; schedulePreview(); return; }
+  if (id === 'chart') { drawChart(); return; }
   try {
     const img = new Image();
     img.src = `./samples/${id}.jpg?v=${SAMPLE_REV}`;
@@ -658,6 +664,119 @@ async function pickImage(id: string) {
     srcData = toImageData(img, img.naturalWidth, img.naturalHeight);
     if (S.image === id) schedulePreview();
   } catch { toast('Could not load the sample image', 'err'); }
+}
+
+// ---- the colour chart "light box": a drawn chart, the light on it and the camera's white balance (lightbox.ts)
+const STORE_CHART = 'caduceus.om3.chart.v1';
+const CHART: ChartLight = (() => { try { return chartLight(JSON.parse(localStorage.getItem(STORE_CHART) ?? 'null')); } catch { return { ...CHART_DEFAULT }; } })();
+function chartImage(p: ChartLight, px: number): ImageData { const c = renderChart(p, px); return new ImageData(c.data as Uint8ClampedArray<ArrayBuffer>, c.width, c.height); }
+function chartThumb(): string {
+  const c = document.createElement('canvas'), im = chartImage(CHART_DEFAULT, 240);
+  c.width = im.width; c.height = im.height; c.getContext('2d')!.putImageData(im, 0, 0);
+  return c.toDataURL('image/png');
+}
+let chartQueued = false;
+function drawChart() {
+  if (chartQueued) return;
+  chartQueued = true;
+  requestAnimationFrame(() => {
+    chartQueued = false;
+    if (S.image !== 'chart') return;
+    srcData = chartImage(CHART, Math.min(1536, previewPx()));
+    schedulePreview();
+  });
+}
+const clock = (m: number) => (m === 720 ? 'Noon' : `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`);
+/** The sun's path as an arc: sunrise on the left, noon at the top centre, sunset on the right. Drag the sun (or use
+ *  the arrow keys) to set the time of day; its height sets the light's colour. */
+function sunArc(changed: () => void): HTMLElement {
+  const W = 280, H = 118, X0 = 22, X1 = W - 22, BASE = 92, TOP = 18;
+  const X = (m: number) => X0 + ((m - SUN_RISE) / (SUN_SET - SUN_RISE)) * (X1 - X0);
+  const Y = (m: number) => BASE - (BASE - TOP) * Math.sin((Math.PI * (m - SUN_RISE)) / (SUN_SET - SUN_RISE));
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'sun-arc', role: 'slider', tabindex: 0, 'aria-label': 'Time of day', 'aria-valuemin': SUN_RISE, 'aria-valuemax': SUN_SET });
+  let d = '';
+  for (let m = SUN_RISE; m <= SUN_SET; m += 15) d += `${m === SUN_RISE ? 'M' : 'L'}${X(m).toFixed(1)} ${Y(m).toFixed(1)}`;
+  svg.append(svgEl('line', { x1: 8, y1: BASE, x2: W - 8, y2: BASE, class: 'sa-ground' }), svgEl('path', { d, class: 'sa-path' }));
+  for (const [m, t] of [[360, '6 AM'], [540, '9'], [720, 'Noon'], [900, '3'], [1080, '6 PM']] as [number, string][]) {
+    const x = X(m), y = Y(m);
+    svg.append(svgEl('line', { x1: x, y1: y - 4, x2: x, y2: y + 4, class: 'sa-tick' }));
+    const tx = svgEl('text', { x, y: m === 720 ? TOP - 7 : BASE + 15, class: 'sa-lbl', 'text-anchor': 'middle' }); tx.textContent = t; svg.append(tx);
+  }
+  const sun = svgEl('circle', { r: 8, class: 'sa-sun' }); svg.append(sun);
+  const read = h('output', {});
+  const draw = () => {
+    sun.setAttribute('cx', X(CHART.time).toFixed(1)); sun.setAttribute('cy', Y(CHART.time).toFixed(1));
+    read.textContent = `${clock(CHART.time)} · ${Math.round(sunHeight(CHART.time))}° · ${lightKelvin(CHART)} K`;
+    svg.setAttribute('aria-valuenow', String(CHART.time)); svg.setAttribute('aria-valuetext', read.textContent);
+  };
+  const set = (m: number) => { const v = Math.max(SUN_RISE, Math.min(SUN_SET, Math.round(m / 15) * 15)); if (v === CHART.time) return; CHART.time = v; draw(); changed(); };
+  const at = (e: PointerEvent) => { const r = svg.getBoundingClientRect(); set(SUN_RISE + (((e.clientX - r.left) / r.width) * W - X0) / (X1 - X0) * (SUN_SET - SUN_RISE)); };
+  let drag: number | null = null;
+  svg.addEventListener('pointerdown', (e) => { if (e.button) return; drag = e.pointerId; svg.setPointerCapture(e.pointerId); at(e); e.preventDefault(); svg.focus({ preventScroll: true }); });
+  svg.addEventListener('pointermove', (e) => { if (drag === e.pointerId) at(e); });
+  const end = (e: PointerEvent) => { if (drag === e.pointerId) drag = null; };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  svg.addEventListener('dblclick', () => set(720));
+  svg.addEventListener('keydown', (e) => {
+    const k = (e as KeyboardEvent).key, stepBy = ({ ArrowLeft: -15, ArrowDown: -15, ArrowRight: 15, ArrowUp: 15, PageDown: -60, PageUp: 60 } as Record<string, number>)[k];
+    if (stepBy) { set(CHART.time + stepBy); e.preventDefault(); } else if (k === 'Home') { set(SUN_RISE); e.preventDefault(); } else if (k === 'End') { set(SUN_SET); e.preventDefault(); }
+  });
+  draw();
+  return h('div', { class: 'cf sun' }, h('span', { class: 'cf-head' }, h('span', { class: 'lbl' }, 'Time of day'), read), svg);
+}
+
+/** The chart's controls, under the thumbnails; shown only while the chart is the picture. */
+function chartPanel(): HTMLElement {
+  const box = h('div', { id: 'chart-opts', class: 'chart-opts' });
+  const store = () => { try { localStorage.setItem(STORE_CHART, JSON.stringify(CHART)); } catch { /* private window: not kept */ } };
+  const upd = () => { store(); build(); drawChart(); };
+  const sel = <T extends string>(label: string, order: T[], names: (v: T) => string, value: T, on: (v: T) => void) =>
+    h('label', { class: 'cf' }, h('span', { class: 'lbl' }, label),
+      h('select', { onchange: (e: Event) => { on((e.target as HTMLSelectElement).value as T); upd(); } },
+        ...order.map((v) => h('option', { value: v, selected: v === value }, names(v)))));
+  const range = (label: string, min: number, max: number, step: number, value: number, fmt: (v: number) => string, on: (v: number) => void, reset: number) => {
+    const out = h('output', {}, fmt(value));
+    const inp = h('input', { type: 'range', min, max, step, value, 'aria-label': label,
+      oninput: (e: Event) => { const v = Number((e.target as HTMLInputElement).value); on(v); out.textContent = fmt(v); store(); drawChart(); note(); },
+      ondblclick: () => { on(reset); upd(); } });
+    return h('label', { class: 'cf' }, h('span', { class: 'lbl' }, label), h('span', { class: 'cf-row' }, inp, out));
+  };
+  const noteEl = h('p', { class: 'help' });
+  const note = () => {
+    const lk = lightKelvin(CHART), wk = wbKelvin(CHART);
+    const cast = CHART.wb === 'auto' && wk === lk ? 'Auto WB follows it, so greys stay grey.'
+      : wk > lk + 150 ? 'so the picture comes out warmer (more amber).' : wk < lk - 150 ? 'so the picture comes out cooler (more blue).' : 'so greys stay about grey.';
+    noteEl.textContent = `Light about ${lk} K, camera WB ${wk} K: ${cast}`;
+  };
+  const ev = (v: number) => (v === 0 ? '0 EV' : `${v > 0 ? '+' : '−'}${(Math.abs(v) / 3).toFixed(1)} EV`);
+  function build() {
+    const kids: Node[] = [
+      sel<Source>('Light', SOURCE_ORDER, (v) => SOURCES[v].label, CHART.source, (v) => { CHART.source = v; }),
+    ];
+    if (CHART.source === 'sun') {
+      kids.push(sunArc(() => { store(); drawChart(); note(); }));
+      kids.push(range('Shadow', 0, 100, 5, CHART.shadow, (v) => (v ? `${v}%` : 'none'), (v) => { CHART.shadow = v; }, 0));
+    }
+    kids.push(range('Brightness', -9, 9, 1, CHART.ev, ev, (v) => { CHART.ev = v; }, 0));
+    kids.push(sel<WbMode>('Camera WB', WB_ORDER, (v) => WB_MODES[v].label, CHART.wb, (v) => { CHART.wb = v; }));
+    if (CHART.wb === 'custom') {
+      // CWB: type a Kelvin value (2000 to 14000) or drag; the two follow each other
+      const clampK = (v: number) => Math.max(2000, Math.min(14000, Math.round(v)));
+      const num = h('input', { type: 'number', class: 'kelvin', min: 2000, max: 14000, step: 100, value: CHART.kelvin, 'aria-label': 'Kelvin, typed', inputmode: 'numeric' });
+      const sl = h('input', { type: 'range', min: 2000, max: 14000, step: 100, value: CHART.kelvin, 'aria-label': 'Kelvin' });
+      const setK = (v: number, from: 'num' | 'sl') => { CHART.kelvin = clampK(v); if (from === 'num') sl.value = String(CHART.kelvin); else num.value = String(CHART.kelvin); store(); drawChart(); note(); };
+      num.addEventListener('input', () => { const v = Number(num.value); if (Number.isFinite(v) && v >= 2000 && v <= 14000) setK(v, 'num'); });
+      num.addEventListener('change', () => { const v = Number(num.value); CHART.kelvin = clampK(Number.isFinite(v) && num.value !== '' ? v : CHART.kelvin); num.value = String(CHART.kelvin); sl.value = num.value; store(); drawChart(); note(); });
+      sl.addEventListener('input', () => setK(Number(sl.value), 'sl'));
+      kids.push(h('label', { class: 'cf' }, h('span', { class: 'lbl' }, 'Kelvin (2000–14000)'), h('span', { class: 'cf-row' }, num, h('span', { class: 'unit' }, 'K'), sl)));
+    }
+    note();
+    box.replaceChildren(h('div', { class: 'chart-grid' }, ...kids), noteEl,
+      h('p', { class: 'help' }, 'A drawn chart with simulated light: greys, the wheel\'s 12 colours (soft, medium, strong), skin tones and everyday colours. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top). Double-click a slider or the arc to reset it.'));
+  }
+  build();
+  box.toggleAttribute('hidden', S.image !== 'chart');
+  return box;
 }
 
 /** The preview's working size (long side, px): enough for the preview at this screen's pixel density (sharp on
