@@ -2378,3 +2378,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   says); (3) move it into `firmware/` (editor.s / build.py) and plan the space with our next features; (4) the sid
   1280 branch changes the up key wherever 1280 is read (the PR calls it movie, "not done yet"): camera-check movie
   mode's up key in each arrow-pad setting; (5) only one camera so far.
+
+### Freeze report: Clarity + grain (Reddit Grand-Temperature763, GitHub #12 codefist) (2026-11-10)
+- Reports: on v0.26.2 (JPEG only), Grain Low + Glow row −2 / −3 (= Clarity) -> photo taken, black screen, camera off;
+  Glow +3 fine. After that first crash, **Grain alone (Glow 0) kept shutting the camera off on every film, even after a
+  battery pull**; without grain fine; camera hot. Earlier in the same thread, after one re-flash, grain and glow did
+  nothing at all (likely a firmware / GUIDES.BIN mismatch, fixed by the next flash: analysis). #12 (closed):
+  codefist on v0.26.1, "negative glow 'clarity' and low grain", same symptom.
+- **Owner's camera, v0.26.2, FILM 1, 2026-11-10 (camera-tested): no crash in any of the five.** Centre Y high-pass
+  (no grain ~5): PB101596 Grain Low, Glow 0: 8.1; PB101597 Low, Glow +2: 7.1 (glow softens); PB101598 Low, **Glow −2
+  (Clarity): 9.2**; PB101599 High, **Glow −5**: 29.8; PB101600 Low, Glow −2, **RAW+JPEG**: 9.3 (ORF saved). Grain and
+  Clarity both applied. So Clarity + grain alone does not crash here: the reporters' setups differ somehow.
+- Reporter's film: hue / colour changed, NR Off, Vignette Correction On, Sharpness 0, Shading 0. Asked for their
+  `OM3MOD` files and whether holding OK (reset) clears the repeat crash. Owner's card files backed up in the session
+  scratchpad (cardbak-1110) before the test.
