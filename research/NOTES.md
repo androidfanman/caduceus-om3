@@ -2440,3 +2440,21 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   112 MB), menus, half-presses. **So 0x60f59800..0x60f99800 is proven code space** (a build must raise the loader's
   end word 0x60045e9c to 0x60f99800). The unloaded rest of section 6's gap (to 0x6103f000) was not written by
   anything during the test either. Owner's camera put back to v0.26.2 (card checked: 4add99d3… / 92b67919…).
+
+### Debug log dl3 (2026-11-10; branch feature/debug-log)
+- Owner: a debug log to test features and check quality; chose "file on the card" (a menu command may come later).
+- Build = v0.26.2 + section 6 loaded to 0x60f99800 (GX3's range, loader word 0x60045e9c) + `.ext12` at 0x60f59800
+  (8720 B used of 256 KiB). `pr_ed` jumps to `lg_pr`: `lg_pre` (note DIRTY), `ed_trig`, `lg_write`, `jmp trig_resume`.
+  `lg_write` uses the GX probes' card gate; the first gated event of a power-on opens `C:\OM3MOD\DEBUG.TXT` ("r") once:
+  missing = off for this power-on (no further card access). On: an event {number, picture mode `sget(111)`, DIRTY before,
+  STATUS after} into a 32-entry ring, then the whole report is rebuilt as text and written to `CADLOG.TXT` ("w").
+  The build name comes from `firmware/VERSION` (build.py writes `lgver.inc`).
+- Emulator only: with DEBUG.TXT the file is written at every event, correct counts, ring wraps (71 events -> #40..#71,
+  2640 B); without it no file. pr_hook fires about twice per half-press (press and release), so the log says "shutter
+  button events", not half-presses. **First try used `DEBUG.ON`: the firmware's fopen did not find it in the emulator**
+  (a 2-letter extension?); `DEBUG.TXT` is found. Not checked on the camera.
+- Harness note: sess7 `WATCH` on a PC where a0 holds an unmapped address (0x970000xx after fopen) stops the session with
+  "CRASH GDB m970000b4": the trace's field reads, not the firmware.
+- Not yet logged: shots (would need a call from xb_cap through the code block), errors inside the loaders, the time.
+- Camera test: flash with its GUIDES.BIN, copy DEBUG.TXT to OM3MOD, half-press a few times, take photos, open an editor
+  and change something, half-press again; read CADLOG.TXT. Then delete DEBUG.TXT and check no new log is written.

@@ -293,7 +293,7 @@ pr_hook:                          /* entered by jmp from 0x60415216; frame = 0x6
  call pr_gate,[d2,d3,a2,a3],36
  bra pr_back
 pr_ed:
- call ed_trig,[d2,d3,a2,a3],36    /* editor: save the edits to the card when dirty */
+ jmp lg_pr                        /* v0.27: ed_trig (save the edits when dirty) with the debug log around it */
 pr_back:
  jmp trig_resume
 
@@ -8603,3 +8603,379 @@ fl_stw:
  call stw_set,[],4
  jmp stw_back
 
+
+/* ---------------------------------------------------------------- v0.27 debug log (feature/debug-log)
+ * Off unless the card holds OM3MOD/DEBUG.TXT (any content) (checked once, at the first gated half-press of a power-on).
+ * When on, every shutter button event (half-press, release; after the editor's save) rewrites OM3MOD/CADLOG.TXT, a plain text report: the build,
+ * counters, the picture mode, which card files are loaded, the last save result, and the last 32 half-presses.
+ * Lives in ext12 (section 6 +256 KiB, camera-proven GX3, 2026-11-10); its variables are in the same loaded RAM
+ * (power-on: all 0). Stores: its own variables and buffer, its own frames. Reads P (PVAL) and tg_ptr only. */
+.section .ext12,"ax"
+ .macro LGS s                     /* append the string at \s (uses d0, a0, a1) */
+ mov \s,a0
+ call lg_s,[],0
+ .endm
+ .macro LGD                       /* append d0 in decimal (uses d0, d1, a0, a1) */
+ call lg_d,[d2,d3],12
+ .endm
+ .macro LGY                       /* append "yes" (d0 != 0) or "no" */
+ call lg_y,[],0
+ .endm
+lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call ed_trig; jmp trig_resume` there */
+ call lg_pre,[d2,d3,a2,a3],36
+ call ed_trig,[d2,d3,a2,a3],36
+ call lg_write,[d2,d3,a2,a3],40
+ jmp trig_resume
+lg_pre:                           /* edits waiting before ed_trig (it saves them and clears DIRTY) */
+ clr d0
+ movbu d0,(lg_dty)
+ PVAL 1f
+ movbu (DIRTY,a2),d0
+ movbu d0,(lg_dty)
+1:
+ ret [d2,d3,a2,a3],36
+
+lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) tid */
+ mov (SECBITS),d0                 /* the card gate (as the loaders and the GX probes) */
+ and 0x3ff,d0
+ cmp 0x3ff,d0
+ bne lg_out
+ mov sp,a0
+ add 12,a0
+ call get_tid,[a2],4
+ cmp 0,d0
+ bne lg_out
+ movhu (HLS_TID),d1
+ cmp 0,d1
+ beq lg_out
+ btst 0x8000,d1
+ bne lg_out
+ movhu (12,sp),d0
+ cmp d1,d0
+ bne lg_out
+ mov 61440,d1
+ mov (MS_A),d0
+ cmp d1,d0
+ beq 1f
+ mov (MS_B),d0
+ cmp d1,d0
+ beq 1f
+ mov (MS_C),d0
+ cmp d1,d0
+ bne lg_out
+1:
+ movbu (lg_on),d0                 /* 0 not checked yet, 1 on, 2 off */
+ cmp 2,d0
+ beq lg_out
+ cmp 1,d0
+ beq 2f
+ mov 2,d0
+ movbu d0,(lg_on)
+ mov lg_pon,a0
+ mov lg_mr,a1
+ call fopen,[],4
+ cmp 0,a0
+ beq lg_out
+ call fclose,[d2,a2,a3],16
+ mov 1,d0
+ movbu d0,(lg_on)
+2:
+ mov (lg_n),d2                    /* the event: number, picture mode, edits waiting, save result after */
+ inc d2
+ mov d2,(lg_n)
+ mov d2,d1
+ and 31,d1
+ asl 4,d1
+ mov lg_ring,a3
+ add d1,a3
+ mov d2,(a3)
+ mov 111,d0
+ call sget,[],4                   /* d0 = the picture mode setting (keeps d2/d3/a2/a3) */
+ mov d0,(4,a3)
+ movbu (lg_dty),d0
+ movbu d0,(8,a3)
+ mov 255,d0
+ movbu d0,(9,a3)
+ PVAL 3f
+ movbu (STATUS,a2),d0
+ movbu d0,(9,a3)
+3:
+ mov (lg_w),d0
+ inc d0
+ mov d0,(lg_w)
+ mov lg_buf,a0                    /* the text */
+ mov a0,(lg_cur)
+ LGS lg_t1
+ LGS lg_ver
+ LGS lg_t2
+ mov (lg_n),d0
+ LGD
+ LGS lg_t3
+ mov (lg_w),d0
+ LGD
+ LGS lg_t4
+ mov (4,a3),d0
+ LGD
+ mov (4,a3),d2
+ add -FV0,d2
+ cmp NF,d2
+ bcc 4f
+ LGS lg_t5
+ mov d2,d0
+ inc d0
+ LGD
+4:
+ LGS lg_t6
+ PVAL 5f
+ LGS lg_found
+ LGS lg_k1
+ mov (LPTR,a2),d0
+ LGY
+ LGS lg_k2
+ mov (XPTR,a2),d0
+ LGY
+ LGS lg_k3
+ mov (GPTR,a2),d0
+ LGY
+ LGS lg_k4
+ mov (tg_ptr),d0
+ LGY
+ LGS lg_k5
+ mov (TORG,a2),d0
+ LGY
+ LGS lg_k6
+ mov (NPTR,a2),d0
+ LGY
+ LGS lg_k7
+ mov (EMARK,a2),d1
+ clr d0
+ cmp EMAGIC,d1
+ bne 6f
+ mov 1,d0
+6:
+ LGY
+ LGS lg_k8
+ movbu (DIRTY,a2),d0
+ LGY
+ LGS lg_k9
+ movbu (STATUS,a2),d0
+ call lg_st,[d2,d3],12
+ bra 7f
+5:
+ LGS lg_miss
+ movhu (STATE),d0
+ LGD
+ LGS lg_k0
+7:
+ LGS lg_t7                        /* the last 32 events, oldest first */
+ mov (lg_n),d2
+ clr d3
+ cmp 33,d2
+ bcs 8f
+ mov d2,d3
+ add -32,d3
+8:
+ inc d3
+9:
+ cmp d3,d2
+ bcs 10f
+ mov d3,d1
+ and 31,d1
+ asl 4,d1
+ mov lg_ring,a3
+ add d1,a3
+ LGS lg_e1
+ mov (a3),d0
+ LGD
+ LGS lg_e2
+ mov (4,a3),d0
+ LGD
+ LGS lg_e3
+ movbu (8,a3),d0
+ LGY
+ LGS lg_e4
+ movbu (9,a3),d0
+ call lg_st,[d2,d3],12
+ LGS lg_nl
+ inc d3
+ bra 9b
+10:
+ mov lg_plog,a0                   /* CADLOG.TXT */
+ mov lg_mw,a1
+ call fopen,[],4
+ cmp 0,a0
+ beq lg_out
+ mov a0,(4,sp)
+ mov (4,sp),a1
+ mov (lg_cur),d1
+ mov lg_buf,d0
+ sub d0,d1
+ mov 1,d0
+ mov lg_buf,a0
+ call fwrite,[d2,d3,a2,a3],24
+ mov (4,sp),a0
+ call fclose,[d2,a2,a3],16
+lg_out:
+ ret [d2,d3,a2,a3],40
+
+lg_s:                             /* `call lg_s,[],0`: a0 = string -> appended (stops near the buffer's end) */
+ mov (lg_cur),a1
+1:
+ mov lg_bend,d0
+ cmp a1,d0                        /* d0 - a1 */
+ bcs 2f
+ movbu (a0),d0
+ cmp 0,d0
+ beq 2f
+ movbu d0,(a1)
+ inc a0
+ inc a1
+ bra 1b
+2:
+ mov a1,(lg_cur)
+ ret [],0
+lg_y:                             /* `call lg_y,[],0`: d0 != 0 -> "yes", else "no" */
+ mov lg_yes,a0
+ cmp 0,d0
+ bne lg_s
+ mov lg_no,a0
+ bra lg_s
+lg_st:                            /* `call lg_st,[d2,d3],12`: d0 = a save result -> its number and meaning */
+ mov d0,d2
+ LGD
+ cmp 5,d2
+ bcc 1f
+ asl2 d2
+ mov lg_stt,a0
+ add d2,a0
+ mov (a0),a0
+ call lg_s,[],0
+1:
+ ret [d2,d3],12
+lg_d:                             /* `call lg_d,[d2,d3],12`: d0 -> unsigned decimal */
+ mov (lg_cur),a1
+ mov lg_bend,d1
+ cmp a1,d1
+ bcs 5f
+ mov lg_p10,a0
+ clr d3                           /* a digit seen */
+1:
+ mov (a0),d1
+ clr d2
+2:
+ cmp d1,d0                        /* d0 - d1 */
+ bcs 3f
+ sub d1,d0
+ inc d2
+ bra 2b
+3:
+ or d2,d3
+ cmp 1,d1
+ beq 4f
+ cmp 0,d3
+ beq 6f
+4:
+ add 48,d2
+ movbu d2,(a1)
+ inc a1
+6:
+ inc4 a0
+ cmp 1,d1
+ bne 1b
+ mov a1,(lg_cur)
+5:
+ ret [d2,d3],12
+
+ .balign 4
+lg_p10:
+ .long 1000000000, 100000000, 10000000, 1000000, 100000, 10000, 1000, 100, 10, 1
+lg_stt:
+ .long lg_s0, lg_s1, lg_s2, lg_s3, lg_s4
+lg_n:                             /* events so far this power-on */
+ .long 0
+lg_w:                             /* CADLOG.TXT writes this power-on */
+ .long 0
+lg_cur:
+ .long 0
+lg_on:
+ .byte 0
+lg_dty:
+ .byte 0
+ .balign 16
+lg_ring:                          /* 32 x {u32 number, u32 picture mode, u8 edits waiting, u8 save result (255 = no P)} */
+ .space 32 * 16
+lg_buf:
+ .space 6144
+lg_bend:                          /* lg_s / lg_d stop 64 bytes before the end */
+ .space 64
+lg_pon:
+ .asciz "C:\\OM3MOD\\DEBUG.TXT"
+lg_plog:
+ .asciz "C:\\OM3MOD\\CADLOG.TXT"
+lg_mr:
+ .asciz "r"
+lg_mw:
+ .asciz "w"
+ .include "lgver.inc"
+lg_t1:
+ .asciz "Caduceus for OM-3 debug log\r\nBuild: "
+lg_t2:
+ .asciz "\r\nShutter button events since power-on: "
+lg_t3:
+ .asciz "\r\nLog file writes (this one included): "
+lg_t4:
+ .asciz "\r\nPicture mode setting: "
+lg_t5:
+ .asciz " = FILM "
+lg_t6:
+ .asciz "\r\n\r\nSettings block: "
+lg_found:
+ .asciz "found"
+lg_miss:
+ .asciz "missing (state "
+lg_k0:
+ .asciz ")"
+lg_k1:
+ .asciz "\r\nLOOKS.BIN looks loaded: "
+lg_k2:
+ .asciz "\r\nGUIDES.BIN code block loaded: "
+lg_k3:
+ .asciz "\r\nGUIDES.BIN guide pictures loaded: "
+lg_k4:
+ .asciz "\r\nTONES.BIN loaded: "
+lg_k5:
+ .asciz "\r\nEDITS.BIN and film pictures loaded: "
+lg_k6:
+ .asciz "\r\nNAMES.BIN loaded (optional): "
+lg_k7:
+ .asciz "\r\nEditor opened since power-on: "
+lg_k8:
+ .asciz "\r\nEdits waiting to be saved: "
+lg_k9:
+ .asciz "\r\nLast save result: "
+lg_t7:
+ .asciz "\r\n\r\nLast 32 shutter button events (half-press and release), oldest first:\r\n"
+lg_e1:
+ .asciz "#"
+lg_e2:
+ .asciz "  picture mode "
+lg_e3:
+ .asciz "  edits waiting "
+lg_e4:
+ .asciz "  save result "
+lg_nl:
+ .asciz "\r\n"
+lg_yes:
+ .asciz "yes"
+lg_no:
+ .asciz "no"
+lg_s0:
+ .asciz " (none yet)"
+lg_s1:
+ .asciz " (saved)"
+lg_s2:
+ .asciz " (no memory)"
+lg_s3:
+ .asciz " (BUNDLES.NEW write failed)"
+lg_s4:
+ .asciz " (BUNDLES.BIN write failed)"

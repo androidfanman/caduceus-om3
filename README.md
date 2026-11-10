@@ -1,3 +1,9 @@
+> [!WARNING]
+> **Work-in-progress branch `feature/debug-log`, not a release.** v0.26.2 plus a debug log: section 6 now loads the
+> camera-proven GX3 space (to 0x60f99800) and the log code lives there (ext12). With `OM3MOD/DEBUG.TXT` on the card the
+> camera rewrites `OM3MOD/CADLOG.TXT` at each shutter-button event; without it nothing is written. **Status: emulator
+> only (2026-11-10)**; camera test package E1479999.BIN 21bae3ed…, GUIDES.BIN c72652b0… (LABELS / TONES as v0.26.2).
+
 # Caduceus for OM-3
 
 **Caduceus for OM-3** is the OM SYSTEM OM-3 member of the [Caduceus](https://github.com/cakelesscoder/caduceus-ep7)

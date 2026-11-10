@@ -113,6 +113,7 @@ EXT4 = (0x60a8f100, 0x60a8f7f0)
 EXT10 = (0x61aa4300, 0x61aa47f0)
 EXT8 = (0x617e45f0, 0x617e47f0)            # section-8 tail (FF from 0x617e45e0, end 0x617e4800)
 EXT11 = (0x60f49800, 0x60f59800)           # v0.23: section 6 extended by 64 KiB (loader end word 0x60045e9c raised; camera-proven GX2)
+EXT12 = (0x60f59800, 0x60f99800)           # v0.27: section 6 extended by 256 KiB more (camera-proven GX3, 2026-11-10)
 EXT3 = (0x6081fe10, 0x6081fffc)            # section-3 tail (FF from 0x6081fe00, end 0x60820000)
 EXT5 = (0x60adb5b0, 0x60adb7f0)            # section-5 tail (FF from 0x60adb5a0, end 0x60adb800)
 EXT6 = (0x60f49590, 0x60f497f0)            # section-6 tail (FF from 0x60f49580, end 0x60f49800)          # section-10 tail (FF from 0x61aa42f0, end 0x61aa4800)          # section-4 tail (FF from 0x60a8f088, end 0x60a8f800)
@@ -197,6 +198,10 @@ def build(defaults, testfile, out):
     hlab, llab = (mkicons.encode11(bytes(a.flatten().tolist()), 70, 30) for a in mkicons.hsl_labels())
     fwp, fwi, boxes, dw = mkicons.sp_parts()     # the quick menu's "FILM n" (fl_sp draws it)
     assert fwp.shape[0] == mkicons.SPH == 48 and boxes[0].shape[1] % 2 == 0
+    # v0.27 debug log: the build's name (firmware/VERSION, one line), written into CADLOG.TXT
+    ver = (HERE / 'VERSION').read_text().strip().replace('"', "'")
+    assert ver.isprintable() and len(ver) < 60
+    (out / 'lgver.inc').write_text(f'lg_ver:\n .asciz "{ver}"\n')
     (out / 'films.inc').write_text('.balign 4\nfl_top:\n' + db(mkicons.pack4(mkicons.film_top())) + 'fl_tops:\n' +
                                    db(mkicons.pack4(mkicons.film_top(True))) + 'fl_dig:\n' +
                                    ''.join(db(mkicons.pack4(d)) for d in digs) +
@@ -219,7 +224,7 @@ def build(defaults, testfile, out):
     subprocess.run([P.AS, '-I', out, '-o', out / 'p.o', HERE / 'src' / 'editor.s'], check=True)
     subprocess.run([P.LD, '-T', HERE / 'src' / 'editor.ld', '-o', out / 'p.elf', out / 'p.o'], check=True)
     blobs = {}
-    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11']:
+    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12']:
         subprocess.run([P.OBJCOPY, '-O', 'binary', '-j', s, out / 'p.elf', out / (s[1:] + '.bin')], check=True)
         blobs[s] = (out / (s[1:] + '.bin')).read_bytes()
     raw = Path(P.STOCK).read_bytes()
@@ -238,7 +243,7 @@ def build(defaults, testfile, out):
     for a, (stock, name) in WORDS.items():
         assert struct.unpack_from('<I', m, o(a))[0] == stock, hex(a)
         assert bytes(m).count(struct.pack('<I', stock)) == sum(1 for v in WORDS.values() if v[0] == stock), hex(stock)
-    for (lo_, hi_), s, ff_from, end in ((EXT1, '.ext1', 0x6031e910, 0x6031f000), (EXT4, '.ext4', 0x60a8f088, 0x60a8f800), (EXT10, '.ext10', 0x61aa42f0, 0x61aa4800), (EXT6, '.ext6', 0x60f49580, 0x60f49800), (EXT5, '.ext5', 0x60adb5a0, 0x60adb800), (EXT3, '.ext3', 0x6081fe00, 0x60820000), (EXT8, '.ext8', 0x617e45e0, 0x617e4800), (EXT9, '.ext9', 0x619a966c, 0x619a9800), (EXT2, '.ext2', 0x607187a4, 0x60718800), (EXT7, '.ext7', 0x6164afcc, 0x6164b000), (EXT11, '.ext11', 0x60f49580, 0x60f59800)):
+    for (lo_, hi_), s, ff_from, end in ((EXT1, '.ext1', 0x6031e910, 0x6031f000), (EXT4, '.ext4', 0x60a8f088, 0x60a8f800), (EXT10, '.ext10', 0x61aa42f0, 0x61aa4800), (EXT6, '.ext6', 0x60f49580, 0x60f49800), (EXT5, '.ext5', 0x60adb5a0, 0x60adb800), (EXT3, '.ext3', 0x6081fe00, 0x60820000), (EXT8, '.ext8', 0x617e45e0, 0x617e4800), (EXT9, '.ext9', 0x619a966c, 0x619a9800), (EXT2, '.ext2', 0x607187a4, 0x60718800), (EXT7, '.ext7', 0x6164afcc, 0x6164b000), (EXT11, '.ext11', 0x60f49580, 0x60f59800), (EXT12, '.ext12', 0x60f49580, 0x60f99800)):
         print('SIZE', s, len(blobs[s]), hi_ - lo_, file=sys.stderr)
         assert lo_ + len(blobs[s]) <= hi_, (s, len(blobs[s]))
         assert set(m[o(ff_from):o(end)]) == {0xff} and m[o(ff_from) - 1] != 0xff, s
@@ -312,8 +317,9 @@ def build(defaults, testfile, out):
     m[o(EXT7[0]):o(EXT7[0]) + len(blobs['.ext7'])] = blobs['.ext7']
     # section 6 loads 64 KiB more: raise the loader's end constant (same patch as the camera-tested GX2 probe)
     assert m[o(0x60045e9a):o(0x60045e9a) + 6] == b'\xfc\xcc' + struct.pack('<I', EXT11[0])
-    struct.pack_into('<I', m, o(0x60045e9c), EXT11[1])
+    struct.pack_into('<I', m, o(0x60045e9c), EXT12[1])   # v0.27: to the end of ext12 (GX3: 0x60f99800 loads)
     m[o(EXT11[0]):o(EXT11[0]) + len(blobs['.ext11'])] = blobs['.ext11']
+    m[o(EXT12[0]):o(EXT12[0]) + len(blobs['.ext12'])] = blobs['.ext12']
     # v0.23 new Picture Mode choice rows (Noise Filter, Shading Comp.): the item table (17 x 40 B at 0x6154c2a8) -> it_tab
     # (the stock 17, then our 4), at both lookups (mov table,a0 ... cmp 17,d1); the rows join the column's 9 row switches
     IT = 0x6154c2a8
