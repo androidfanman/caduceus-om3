@@ -2183,3 +2183,20 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **Camera (owner, 2026-11-09):** flashing sd3 from sd2 started normally ("flashed fine"), nothing odd in the menus so
   far. So the one failed start from sd1 looks like the timing of the press, not the loader (one good flash from a
   loader build; keep an eye on it).
+
+### Grain + RAW+JPEG: the camera goes black after the photo (owner, 2026-11-09, on sd3)
+- **Camera (owner):** with image quality RAW+JPEG, a photo with Film Grain (Low, Med or High alike) is saved, then the
+  screen goes black, the camera tries to restart and freezes (battery out). JPEG only: fine. All the owner's grain
+  tests so far were JPEG only. FILM 1, Contrast −1, Blk +1, WB A2, Sharpness −1 when found; the grain level does not
+  matter. GitHub #12 (2026-11-09, "the image gets recorded, but then black screen and crash", glow + grain) reads the same.
+- Not known: whether v0.25 / v0.26 / v0.26.1 do it too (likely: the fast grain route is unchanged since v0.25, and
+  sd1–sd3 do not touch it), and why. The fast route gives a COLOR still Grainy Film II's work list and texture
+  (`xb_wl`, `xb_tex`, `xb_dev`, `xb_c1e`); a RAW+JPEG capture presumably runs another development (the RAW's
+  preview) or a different list through the same hooks. Analysis / guess; the emulator does not develop photos.
+- The v0.21–v0.24 CPU grain was used with JPEG+ORF on 2026-11-07 (photos PB071392 / 93) without this.
+- Dead end while looking for a way to tell RAW from the settings: the emulator docs' MODE_RAW (22) is about the mode
+  dial's custom banks, not the image quality; the panel's image-quality cell (cursor id 861) does not open in the
+  emulator. Getters during the capture are risky (v0.24's restart).
+- Plan: a logging build (the fg1–fg3 GLOG logger on the current branch) and two grain-off photos from the owner, one
+  JPEG and one RAW+JPEG, to see what the RAW capture adds; then keep the texture route off those requests (CPU grain
+  or no grain there). Until then: grain with JPEG only.
