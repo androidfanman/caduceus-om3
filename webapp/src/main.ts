@@ -690,17 +690,17 @@ const clock = (m: number) => (m === 720 ? 'Noon' : `${((Math.floor(m / 60) + 11)
 /** The sun's path as an arc: sunrise on the left, noon at the top centre, sunset on the right. Drag the sun (or use
  *  the arrow keys) to set the time of day; its height sets the light's colour. */
 function sunArc(changed: () => void): HTMLElement {
-  const W = 280, H = 118, X0 = 22, X1 = W - 22, BASE = 92, TOP = 18;
+  const W = 280, H = 118, X0 = 22, X1 = W - 22, BASE = 92, TOP = 26;
   const X = (m: number) => X0 + ((m - SUN_RISE) / (SUN_SET - SUN_RISE)) * (X1 - X0);
   const Y = (m: number) => BASE - (BASE - TOP) * Math.sin((Math.PI * (m - SUN_RISE)) / (SUN_SET - SUN_RISE));
-  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'sun-arc', role: 'slider', tabindex: 0, 'aria-label': 'Time of day', 'aria-valuemin': SUN_RISE, 'aria-valuemax': SUN_SET });
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, preserveAspectRatio: 'xMidYMid meet', class: 'sun-arc', role: 'slider', tabindex: 0, 'aria-label': 'Time of day', 'aria-valuemin': SUN_RISE, 'aria-valuemax': SUN_SET });
   let d = '';
   for (let m = SUN_RISE; m <= SUN_SET; m += 15) d += `${m === SUN_RISE ? 'M' : 'L'}${X(m).toFixed(1)} ${Y(m).toFixed(1)}`;
   svg.append(svgEl('line', { x1: 8, y1: BASE, x2: W - 8, y2: BASE, class: 'sa-ground' }), svgEl('path', { d, class: 'sa-path' }));
   for (const [m, t] of [[360, '6 AM'], [540, '9'], [720, 'Noon'], [900, '3'], [1080, '6 PM']] as [number, string][]) {
     const x = X(m), y = Y(m);
     svg.append(svgEl('line', { x1: x, y1: y - 4, x2: x, y2: y + 4, class: 'sa-tick' }));
-    const tx = svgEl('text', { x, y: m === 720 ? TOP - 7 : BASE + 15, class: 'sa-lbl', 'text-anchor': 'middle' }); tx.textContent = t; svg.append(tx);
+    const tx = svgEl('text', { x, y: m === 720 ? TOP - 13 : BASE + 15, class: 'sa-lbl', 'text-anchor': 'middle' }); tx.textContent = t; svg.append(tx);
   }
   const sun = svgEl('circle', { r: 8, class: 'sa-sun' }); svg.append(sun);
   const read = h('output', {});
@@ -753,8 +753,8 @@ function chartPanel(): HTMLElement {
     const kids: Node[] = [
       sel<Source>('Light', SOURCE_ORDER, (v) => SOURCES[v].label, CHART.source, (v) => { CHART.source = v; }),
     ];
+    const arc = CHART.source === 'sun' ? sunArc(() => { store(); drawChart(); note(); }) : null;
     if (CHART.source === 'sun') {
-      kids.push(sunArc(() => { store(); drawChart(); note(); }));
       kids.push(range('Shadow', 0, 100, 5, CHART.shadow, (v) => (v ? `${v}%` : 'none'), (v) => { CHART.shadow = v; }, 0));
     }
     kids.push(range('Brightness', -9, 9, 1, CHART.ev, ev, (v) => { CHART.ev = v; }, 0));
@@ -771,7 +771,7 @@ function chartPanel(): HTMLElement {
       kids.push(h('label', { class: 'cf' }, h('span', { class: 'lbl' }, 'Kelvin (2000–14000)'), h('span', { class: 'cf-row' }, num, h('span', { class: 'unit' }, 'K'), sl)));
     }
     note();
-    box.replaceChildren(h('div', { class: 'chart-grid' }, ...kids), noteEl,
+    box.replaceChildren(h('div', { class: 'chart-cols' }, arc, h('div', { class: 'chart-grid' }, ...kids)), noteEl,
       h('p', { class: 'help' }, 'A drawn chart with simulated light: greys, the wheel\'s 12 colours (soft, medium, strong), skin tones and everyday colours. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top). Double-click a slider or the arc to reset it.'));
   }
   build();
