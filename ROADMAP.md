@@ -15,7 +15,7 @@ last two pieces: with them the colour profiles are complete.
 |---|---|---|
 | **Halation** | The red glow around bright lights of cinema film (CineStill and others), as a film setting. Caduceus for the E-P7 has it; the OM-3 version would ride on the Glow row's route. | Next |
 | **Custom crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9 (as in Caduceus for the E-P7), and your own. | Planned |
-| **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size, still at no extra time. | Planned |
+| **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size, still at no extra time. | Investigating |
 
 ## Bugs being looked at
 
