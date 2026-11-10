@@ -2422,3 +2422,37 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   704-729 (26 frames, 17.7 then 14.7). So the shared grain state does not break bursts here (my guess that it would
   was wrong for this camera). Not reproduced: remaining differences are their card (speed, fill, health), lens, or
   unit. Asked for the card.
+
+## Hidden debug logs in the stock firmware (2026-11-10; static analysis of OM-3 1.1 only, nothing run)
+
+Owner's question: is there a complete debug log that can be saved to the card (automatically, or from a menu)?
+All of this is **analysis**: nothing emulated or camera-tested yet.
+
+- **Console capture "dbgterm" (best lead).** Every line the firmware prints to its serial debug console goes through
+  0x60023deb (puts; printf wrapper 0x60023d68). Besides the UART (0x600213f3) it copies the text into an **8 KB
+  buffer** 0xa32d3e64 (write index 0xa32d5e64, read index 0xa32d5e68, mask 0x1fff) when the mode byte 0xa32d5e6c is
+  1 (fill once) or 2 (ring, keeps the newest 8 KB). Mode setter 0x60023d48(d0 = 0/1/2), getter 0x60023d5f.
+  At boot 0x60062243 reads **hidden setting 63873** with the stock getter 0x60063380 and passes it to the setter; no
+  stock code writes 63873 (probably a service-tool setting), so the capture is off on customer cameras.
+  Saver 0x601555e5 (`call ...,[d2,d3,a2,a3],108`): if mode != 0 and the buffer is not empty, makes `X:\dbgterm`
+  (string 0x6022bc49), writes the text to a dated `.txt` there (16 KB malloc, file calls 0x608d4d22 open /
+  0x608d4da9 write / 0x608d4d2b close), then empties the buffer. Its only caller is 0x60066846, in a shutdown-like
+  sequence (0x60066827, no direct caller found; guess: power-off path).
+  Limits: 8 KB only (size and mask are fixed in the code); how much a customer camera prints is unknown (could be
+  little: many prints sit behind debug levels).
+- **"dbg logger" (structured trace).** Shell commands `dbg logger start|stop|write|print` (strings 0x61a604aa..)
+  and `disp ... log write`; `write` calls 0x600699fa (a0 = request: byte 0 = 0 -> all 4 buffers, else one; d0 =
+  index), which makes `X:\DBGLOG` (0x60121cf0) and writes `.CSV` / `.DAT` files (lines `CPU%d`, `,%u`, `,%X`;
+  4 buffers, 48-byte records). Callers 0x601f69d2 and 0x61a07e19/27 are shell handlers only. What it records and
+  whether it runs without `start`: not checked.
+- **Other logs (not card logs):** `(mec_log)`, `(cam_log)`, `(stb_log)` "Log File Write ... LogBlockNum" (mechanism,
+  camera, stabiliser; file name "LOG", likely internal flash blocks), `dbg_put` with "preserved" entries kept across
+  reboots ("latest log", `dbg_put_reboot`; probably the error history the service screen shows), per-driver debug
+  levels (`per acc lv` bit 4 SDDUMP, `lens log`, `stbd dbglog`, display debug levels).
+- **Serial shell.** The firmware has a large debug shell (mdump, flash dump, task list, WDT on/off ...), reached over
+  a serial port (strings mention ARM UART1 on "sd0/sd1/sd2" ports: hardware access, not usable for the owner).
+- **Feasible Caduceus route (plan, untested):** (1) turn the capture on: call 0x60023d48(2) early (or set 63873 = 2
+  with our sl_set and restart); (2) save: call 0x601555e5 from our half-press save (as the GLOG logger did) or a menu
+  row, and maybe add our own lines through 0x60023deb. The stock power-off path may then save by itself. Needs: the
+  getter/setter type of 63873, the drive letter / card-ready state at the time of the call, and a camera test of how
+  much text a normal session produces. A bigger buffer would need our own copy hook (8 KB is fixed).
