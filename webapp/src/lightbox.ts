@@ -6,7 +6,7 @@
  *  colour of the light it is set for. Everything is our own drawing: no photo and no maker's chart is used. */
 
 export type Source = 'sun' | 'shade' | 'cloudy' | 'tungsten' | 'street' | 'fluor' | 'led';
-/** The camera's WB modes with their Kelvin, as the OM-3's menu lists them; 'custom' is CWB (2000 to 14000 K). */
+/** The camera's WB modes with their Kelvin, as the OM-3's menu lists them (values confirmed by the owner 2026-11-09); 'custom' is CWB (2000 to 14000 K). */
 export type WbMode = 'auto' | 'sunny' | 'shadow' | 'cloudy' | 'incand' | 'fluor' | 'flash' | 'custom';
 
 export interface ChartLight {
@@ -45,8 +45,8 @@ export const WB_MODES: Record<WbMode, { label: string; k: number; tint: number }
   cloudy: { label: 'Cloudy 6000K', k: 6000, tint: 0 },
   incand: { label: 'Incandescent 3000K', k: 3000, tint: 0 },
   fluor: { label: 'Fluorescent 4000K', k: 4000, tint: 0.08 },
-  flash: { label: 'Flash 5500K', k: 5500, tint: 0 },
-  custom: { label: 'Custom (CWB)', k: 0, tint: 0 },
+  flash: { label: 'WB Flash 5500K', k: 5500, tint: 0 },
+  custom: { label: 'Custom Kelvin (CWB)', k: 0, tint: 0 },
 };
 export const WB_ORDER: WbMode[] = ['auto', 'sunny', 'shadow', 'cloudy', 'incand', 'fluor', 'flash', 'custom'];
 /** Auto WB follows the light only inside this range (a sodium street lamp stays orange, as on a camera). */

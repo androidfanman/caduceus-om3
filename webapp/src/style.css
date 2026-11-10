@@ -167,6 +167,8 @@ p.warn { background: #fff4d6; color: #5a4300; border-left: 3px solid #d39b00; pa
 .chart-grid select { width: 100%; }
 .chart-grid .cf-row { display: flex; align-items: center; gap: 8px; }
 .chart-grid .cf-row input { flex: 1; min-width: 0; }
+.chart-grid input.kelvin { width: 84px; flex: none; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); font-variant-numeric: tabular-nums; }
+.chart-grid .unit { font-size: 12px; color: var(--muted); }
 .chart-grid output { font-size: 12px; color: var(--muted); min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
 .pv-opts { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .check { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; cursor: pointer; }

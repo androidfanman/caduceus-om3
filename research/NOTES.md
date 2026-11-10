@@ -2261,5 +2261,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   the sun's Kelvin; Shadow puts part of the chart in blue skylight; lamps fall off from the centre). A thumbnail
   "Colour chart" after the sample photos, its controls under the thumbnails; settings kept in the browser.
 - Status: a model (analysis / guess), not measured against the camera. The WB preset Kelvin values are from memory of
-  the OM menu: check on the owner's camera. Tests: `webapp/tests/lightbox.test.ts`. Waiting for the owner's approval
+  the OM menu: **confirmed by the owner 2026-11-09** (Sunny 5300, Shadow 7500, Cloudy 6000, Incandescent 3000,
+  Fluorescent 4000, WB Flash 5500). Custom Kelvin: a typed field (2000-14000) next to the slider (owner's ask). Tests: `webapp/tests/lightbox.test.ts`. Waiting for the owner's approval
   of the look before it goes into `looklab/`.

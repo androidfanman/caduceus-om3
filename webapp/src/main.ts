@@ -720,7 +720,17 @@ function chartPanel(): HTMLElement {
     }
     kids.push(range('Brightness', -9, 9, 1, CHART.ev, ev, (v) => { CHART.ev = v; }, 0));
     kids.push(sel<WbMode>('Camera WB', WB_ORDER, (v) => WB_MODES[v].label, CHART.wb, (v) => { CHART.wb = v; }));
-    if (CHART.wb === 'custom') kids.push(range('Kelvin', 2000, 14000, 100, CHART.kelvin, (v) => `${v}K`, (v) => { CHART.kelvin = v; }, CHART_DEFAULT.kelvin));
+    if (CHART.wb === 'custom') {
+      // CWB: type a Kelvin value (2000 to 14000) or drag; the two follow each other
+      const clampK = (v: number) => Math.max(2000, Math.min(14000, Math.round(v)));
+      const num = h('input', { type: 'number', class: 'kelvin', min: 2000, max: 14000, step: 100, value: CHART.kelvin, 'aria-label': 'Kelvin, typed', inputmode: 'numeric' });
+      const sl = h('input', { type: 'range', min: 2000, max: 14000, step: 100, value: CHART.kelvin, 'aria-label': 'Kelvin' });
+      const setK = (v: number, from: 'num' | 'sl') => { CHART.kelvin = clampK(v); if (from === 'num') sl.value = String(CHART.kelvin); else num.value = String(CHART.kelvin); store(); drawChart(); note(); };
+      num.addEventListener('input', () => { const v = Number(num.value); if (Number.isFinite(v) && v >= 2000 && v <= 14000) setK(v, 'num'); });
+      num.addEventListener('change', () => { const v = Number(num.value); CHART.kelvin = clampK(Number.isFinite(v) && num.value !== '' ? v : CHART.kelvin); num.value = String(CHART.kelvin); sl.value = num.value; store(); drawChart(); note(); });
+      sl.addEventListener('input', () => setK(Number(sl.value), 'sl'));
+      kids.push(h('label', { class: 'cf' }, h('span', { class: 'lbl' }, 'Kelvin (2000–14000)'), h('span', { class: 'cf-row' }, num, h('span', { class: 'unit' }, 'K'), sl)));
+    }
     note();
     box.replaceChildren(h('div', { class: 'chart-grid' }, ...kids), noteEl,
       h('p', { class: 'help' }, 'A drawn chart with simulated light: greys, the wheel\'s 12 colours (soft, medium, strong), skin tones and everyday colours. Good for comparing films and lights; lamp light on a real camera can differ. Double-click a slider to reset it.'));
