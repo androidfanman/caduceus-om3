@@ -11,8 +11,8 @@ export type WbMode = 'auto' | 'sunny' | 'shadow' | 'cloudy' | 'incand' | 'fluor'
 
 export interface ChartLight {
   source: Source;
-  /** Sun height above the horizon, degrees 2..90 (source 'sun'). */
-  sun: number;
+  /** Time of day for the sun, minutes after midnight, 360..1080 (6:00 to 18:00; noon = 720) (source 'sun'). */
+  time: number;
   /** Part of the chart in shadow, 0..100 % (source 'sun'). */
   shadow: number;
   /** Brightness in thirds of a stop, -9..9 (-3 to +3 EV). */
@@ -22,7 +22,7 @@ export interface ChartLight {
   kelvin: number;
 }
 
-export const CHART_DEFAULT: ChartLight = { source: 'sun', sun: 60, shadow: 0, ev: 0, wb: 'auto', kelvin: 5300 };
+export const CHART_DEFAULT: ChartLight = { source: 'sun', time: 720, shadow: 0, ev: 0, wb: 'auto', kelvin: 5300 };
 
 interface SourceDef { label: string; k: number; tint: number; cri: number; spot: number }
 /** k = colour temperature, tint = green (+) / magenta (-), cri = how fully colours show (1 = all, 0 = none: everything
@@ -53,9 +53,13 @@ export const WB_ORDER: WbMode[] = ['auto', 'sunny', 'shadow', 'cloudy', 'incand'
 const AUTO_MIN = 2600, AUTO_MAX = 9500;
 
 /** Sunlight's colour temperature by the sun's height: about 2400 K at the horizon, 5500 K high up. */
-export const sunKelvin = (deg: number) => Math.round((2300 + 3250 * (1 - Math.exp(-Math.max(0, deg) / 11))) / 50) * 50;
+export const sunKelvin = (deg: number) => Math.round((2300 + 3250 * (1 - Math.exp(-Math.max(0, deg) / 16))) / 50) * 50;
+/** The sun's height (degrees) at a time of day: an even 12-hour day, rising at 6:00, highest (70 degrees) at noon,
+ *  setting at 18:00; never below 1 degree so there is still light at the ends. */
+export const SUN_RISE = 360, SUN_SET = 1080, SUN_PEAK = 70;
+export const sunHeight = (time: number) => Math.max(1, SUN_PEAK * Math.sin((Math.PI * (Math.max(SUN_RISE, Math.min(SUN_SET, time)) - SUN_RISE)) / (SUN_SET - SUN_RISE)));
 /** The light's colour temperature (K). */
-export const lightKelvin = (p: ChartLight) => (p.source === 'sun' ? sunKelvin(p.sun) : SOURCES[p.source].k);
+export const lightKelvin = (p: ChartLight) => (p.source === 'sun' ? sunKelvin(sunHeight(p.time)) : SOURCES[p.source].k);
 /** The Kelvin the camera's white balance is set for. */
 export function wbKelvin(p: ChartLight): number {
   if (p.wb === 'custom') return Math.max(2000, Math.min(14000, p.kelvin));
@@ -142,7 +146,7 @@ export function renderChart(p: ChartLight, width: number): ChartImage {
   const wbTint = p.wb === 'auto' ? src.tint : WB_MODES[p.wb].tint;
   const wbc = lightColor(wbKelvin(p), wbTint), gain: RGB = [1 / wbc[0], 1 / wbc[1], 1 / wbc[2]];
   const expo = 2 ** (Math.max(-9, Math.min(9, p.ev)) / 3);
-  const shadow = p.source === 'sun' ? Math.max(0, Math.min(100, p.shadow)) / 100 : 0;
+  const shadow = p.source === 'sun' ? Math.max(0, Math.min(100, p.shadow)) / 100 : 0, pm = p.time > 720;
 
   const surf = [shade2(TABLE, src.cri, main, sky, gain), shade2(CARD, src.cri, main, sky, gain), ...PATCHES.map((c) => shade2(c, src.cri, main, sky, gain))];
   // layout (fractions of the width): the card inside the table, the patches inside the card
@@ -161,9 +165,10 @@ export function renderChart(p: ChartLight, width: number): ChartImage {
         const fx = (x - cx0 - pad) / gx, col = Math.floor(fx), rx = fx - col;
         if (row >= 0 && row < CHART_ROWS && col >= 0 && col < CHART_COLS && rx > gap / 2 && rx < 1 - gap / 2 && ry > gap / 2 && ry < 1 - gap / 2) s = 2 + row * CHART_COLS + col;
       }
-      // how much of this pixel is in shadow (0 lit .. 1 shaded): the shadow comes in from the right
+      // how much of this pixel is in shadow (0 lit .. 1 shaded): the shadow comes in from the right in the morning
+      // and at noon, from the left in the afternoon (the sun has moved across)
       let w = 0;
-      if (edge >= 0) { const d = (1 - u) + 0.3 * v; w = d < edge - soft ? 1 : d > edge + soft ? 0 : 0.5 - (d - edge) / (2 * soft); }
+      if (edge >= 0) { const d = (pm ? u : 1 - u) + 0.3 * v; w = d < edge - soft ? 1 : d > edge + soft ? 0 : 0.5 - (d - edge) / (2 * soft); }
       // a lamp close by: brightest a little above the centre, falling off outward
       let f = expo;
       if (src.spot) { const dx = u - 0.5, dy = (v - 0.42) * (H / W); f *= 1 + src.spot * 0.25 - src.spot * 2.6 * (dx * dx + dy * dy); }
@@ -184,7 +189,7 @@ export function chartLight(j: unknown): ChartLight {
   const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d);
   return {
     source: SOURCE_ORDER.includes(o.source as Source) ? (o.source as Source) : CHART_DEFAULT.source,
-    sun: num(o.sun, 2, 90, CHART_DEFAULT.sun), shadow: num(o.shadow, 0, 100, 0), ev: num(o.ev, -9, 9, 0),
+    time: Math.round(num(o.time, SUN_RISE, SUN_SET, CHART_DEFAULT.time) / 15) * 15, shadow: num(o.shadow, 0, 100, 0), ev: num(o.ev, -9, 9, 0),
     wb: WB_ORDER.includes(o.wb as WbMode) ? (o.wb as WbMode) : CHART_DEFAULT.wb,
     kelvin: Math.round(num(o.kelvin, 2000, 14000, CHART_DEFAULT.kelvin) / 100) * 100,
   };

@@ -2262,5 +2262,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   "Colour chart" after the sample photos, its controls under the thumbnails; settings kept in the browser.
 - Status: a model (analysis / guess), not measured against the camera. The WB preset Kelvin values are from memory of
   the OM menu: **confirmed by the owner 2026-11-09** (Sunny 5300, Shadow 7500, Cloudy 6000, Incandescent 3000,
-  Fluorescent 4000, WB Flash 5500). Custom Kelvin: a typed field (2000-14000) next to the slider (owner's ask). Tests: `webapp/tests/lightbox.test.ts`. Waiting for the owner's approval
+  Fluorescent 4000, WB Flash 5500). Custom Kelvin: a typed field (2000-14000) next to the slider (owner's ask).
+- Sun: a time-of-day arc in place of the height slider (owner's ask: "an arc with times on it, noon at the very
+  center"): 6 AM to 6 PM in 15-minute steps, height = 70° x sin, Kelvin from the height (2500 K at the horizon,
+  5500 K at noon); the Shadow comes from the right until noon, from the left after. Tests: `webapp/tests/lightbox.test.ts`. Waiting for the owner's approval
   of the look before it goes into `looklab/`.
