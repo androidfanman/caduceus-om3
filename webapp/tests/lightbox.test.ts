@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHART_DEFAULT, chartLight, lightColor, lightKelvin, patchCentre, renderChart, sunHeight, sunKelvin, wbKelvin, type ChartLight } from '../src/lightbox';
+import { CHART_DEFAULT, chartLight, lightColor, lightKelvin, patchCentre, renderChart, sunHeight, sunKelvin, sunShadow, wbKelvin, type ChartLight } from '../src/lightbox';
 
 const px = (im: { width: number; data: Uint8ClampedArray }, u: number, v: number, h: number) => {
   const o = (Math.round(v * h) * im.width + Math.round(u * im.width)) * 4;
@@ -40,18 +40,21 @@ describe('light box', () => {
   it('brightness and shadow darken, grey ramp rises', () => {
     const a = grey(renderChart(L({}), 600), 3)[1], d = grey(renderChart(L({ ev: -6 }), 600), 3)[1];
     expect(d).toBeLessThan(a - 30);
-    const sh = renderChart(L({ shadow: 50 }), 600), lit = renderChart(L({}), 600);
     const lum = (c: number[]) => c[0] + c[1] + c[2];
-    expect(lum(at(sh, 2, 0))).toBeLessThan(lum(at(lit, 2, 0)) - 60);                       // morning / noon: the right side is in shadow
-    expect(at(sh, 0, 5)).toEqual(at(lit, 0, 5));                                            // the bottom left is still lit
-    expect(grey(renderChart(L({ shadow: 100 }), 600), 5)[2]).toBeGreaterThan(grey(renderChart(L({ shadow: 100 }), 600), 5)[0]);   // shade is bluer
-    const pm = renderChart(L({ shadow: 50, time: 900 }), 600), pmLit = renderChart(L({ time: 900 }), 600);   // afternoon: from the left
-    expect(grey(pm, 5)[1]).toBeLessThan(grey(pmLit, 5)[1] - 40); expect(at(pm, 2, 5)).toEqual(at(pmLit, 2, 5));
+    // the shadow follows the time: none at noon, on the right in the morning, on the left in the afternoon
+    expect(sunShadow(720)).toBe(0); expect(sunShadow(360)).toBeCloseTo(sunShadow(1080), 9); expect(sunShadow(480)).toBeGreaterThan(sunShadow(600));
+    expect(renderChart(L({}), 600).data).toEqual(renderChart(L({ shadow: false }), 600).data);
+    const am = renderChart(L({ time: 420 }), 600), amOff = renderChart(L({ time: 420, shadow: false }), 600);
+    expect(lum(at(am, 2, 0))).toBeLessThan(lum(at(amOff, 2, 0)) - 60); expect(at(am, 0, 5)).toEqual(at(amOff, 0, 5));
+    const pm = renderChart(L({ time: 1020 }), 600), pmOff = renderChart(L({ time: 1020, shadow: false }), 600);
+    expect(lum(at(pm, 0, 0))).toBeLessThan(lum(at(pmOff, 0, 0)) - 60); expect(at(pm, 2, 5)).toEqual(at(pmOff, 2, 5));
+    expect(at(pm, 0, 0)[2]).toBeGreaterThan(at(pm, 0, 0)[0]);   // the shade is bluer (camera WB follows the warm sun)
     const im = renderChart(L({}), 600); let last = -1;
     for (let c = 0; c < 6; c++) { const g = grey(im, c)[1]; expect(g).toBeGreaterThan(last); last = g; }
   });
   it('cleans stored settings', () => {
     expect(chartLight(null)).toEqual(CHART_DEFAULT);
-    expect(chartLight({ source: 'moon', time: 5000, ev: -99, wb: 'x', kelvin: 123456 })).toEqual({ ...CHART_DEFAULT, time: 1080, ev: -9, kelvin: 14000 });
+    expect(chartLight({ source: 'moon', time: 5000, ev: -99, wb: 'x', kelvin: 123456, shadow: 40 })).toEqual({ ...CHART_DEFAULT, time: 1080, ev: -9, kelvin: 14000 });
+    expect(chartLight({ shadow: false }).shadow).toBe(false);
   });
 });

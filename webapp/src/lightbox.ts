@@ -13,8 +13,9 @@ export interface ChartLight {
   source: Source;
   /** Time of day for the sun, minutes after midnight, 360..1080 (6:00 to 18:00; noon = 720) (source 'sun'). */
   time: number;
-  /** Part of the chart in shadow, 0..100 % (source 'sun'). */
-  shadow: number;
+  /** The sun casts a shadow across the chart that follows the time of day: none at noon, longest at sunrise and
+   *  sunset (source 'sun'). False = no shadow at any time. */
+  shadow: boolean;
   /** Brightness in thirds of a stop, -9..9 (-3 to +3 EV). */
   ev: number;
   wb: WbMode;
@@ -22,7 +23,7 @@ export interface ChartLight {
   kelvin: number;
 }
 
-export const CHART_DEFAULT: ChartLight = { source: 'sun', time: 720, shadow: 0, ev: 0, wb: 'auto', kelvin: 5300 };
+export const CHART_DEFAULT: ChartLight = { source: 'sun', time: 720, shadow: true, ev: 0, wb: 'auto', kelvin: 5300 };
 
 interface SourceDef { label: string; k: number; tint: number; cri: number; spot: number }
 /** k = colour temperature, tint = green (+) / magenta (-), cri = how fully colours show (1 = all, 0 = none: everything
@@ -58,6 +59,10 @@ export const sunKelvin = (deg: number) => Math.round((2300 + 3250 * (1 - Math.ex
  *  setting at 18:00; never below 1 degree so there is still light at the ends. */
 export const SUN_RISE = 360, SUN_SET = 1080, SUN_PEAK = 70;
 export const sunHeight = (time: number) => Math.max(1, SUN_PEAK * Math.sin((Math.PI * (Math.max(SUN_RISE, Math.min(SUN_SET, time)) - SUN_RISE)) / (SUN_SET - SUN_RISE)));
+/** How much of the chart the sun's shadow covers at a time of day, 0..SHADOW_MAX: nothing at noon, growing as the
+ *  sun gets lower (owner 2026-11-09: "no shadow at noon ... then shadows vice versa"). */
+export const SHADOW_MAX = 0.6;
+export const sunShadow = (time: number) => SHADOW_MAX * (Math.abs(Math.max(SUN_RISE, Math.min(SUN_SET, time)) - 720) / 360) ** 1.2;
 /** The light's colour temperature (K). */
 export const lightKelvin = (p: ChartLight) => (p.source === 'sun' ? sunKelvin(sunHeight(p.time)) : SOURCES[p.source].k);
 /** The Kelvin the camera's white balance is set for. */
@@ -157,7 +162,7 @@ export function renderChart(p: ChartLight, width: number): ChartImage {
   const wbTint = p.wb === 'auto' ? src.tint : WB_MODES[p.wb].tint;
   const wbc = lightColor(wbKelvin(p), wbTint), gain: RGB = [1 / wbc[0], 1 / wbc[1], 1 / wbc[2]];
   const expo = 2 ** (Math.max(-9, Math.min(9, p.ev)) / 3);
-  const shadow = p.source === 'sun' ? Math.max(0, Math.min(100, p.shadow)) / 100 : 0, pm = p.time > 720;
+  const shadow = p.source === 'sun' && p.shadow ? sunShadow(p.time) : 0, pm = p.time > 720;
 
   const surf = [shade2(TABLE, src.cri, main, sky, gain), shade2(CARD, src.cri, main, sky, gain), ...PATCHES.map((c) => shade2(c, src.cri, main, sky, gain))];
   // layout (fractions of the width): the card inside the table, the patches inside the card
@@ -177,7 +182,7 @@ export function renderChart(p: ChartLight, width: number): ChartImage {
         const dx = col < 0 ? 0 : fx - COL_X[col];   // distance into the patch's column, in row heights (same gap all round)
         if (row >= 0 && row < CHART_ROWS && col >= 0 && dx > gap / 2 && dx < COL_W[col] - gap / 2 && ry > gap / 2 && ry < 1 - gap / 2) s = 2 + row * CHART_COLS + col;
       }
-      // how much of this pixel is in shadow (0 lit .. 1 shaded): the shadow comes in from the right in the morning
+      // how much of this pixel is in shadow (0 lit .. 1 shaded): the sun is on the left in the morning (as on the arc), so the shadow lies on the right
       // and at noon, from the left in the afternoon (the sun has moved across)
       let w = 0;
       if (edge >= 0) { const d = (pm ? u : 1 - u) + 0.3 * v; w = d < edge - soft ? 1 : d > edge + soft ? 0 : 0.5 - (d - edge) / (2 * soft); }
@@ -201,7 +206,7 @@ export function chartLight(j: unknown): ChartLight {
   const num = (v: unknown, lo: number, hi: number, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d);
   return {
     source: SOURCE_ORDER.includes(o.source as Source) ? (o.source as Source) : CHART_DEFAULT.source,
-    time: Math.round(num(o.time, SUN_RISE, SUN_SET, CHART_DEFAULT.time) / 15) * 15, shadow: num(o.shadow, 0, 100, 0), ev: num(o.ev, -9, 9, 0),
+    time: Math.round(num(o.time, SUN_RISE, SUN_SET, CHART_DEFAULT.time) / 15) * 15, shadow: o.shadow !== false, ev: num(o.ev, -9, 9, 0),
     wb: WB_ORDER.includes(o.wb as WbMode) ? (o.wb as WbMode) : CHART_DEFAULT.wb,
     kelvin: Math.round(num(o.kelvin, 2000, 14000, CHART_DEFAULT.kelvin) / 100) * 100,
   };

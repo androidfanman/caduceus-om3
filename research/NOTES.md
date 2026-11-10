@@ -2279,3 +2279,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   colours; nothing taken from that card (no name, artwork or values). Published.
 - Then (owner): the card's border and grid black (the darkest grey lifted to L* 16 so it still shows on it); on the
   chart, the light controls sit right under the chart and the other pictures' thumbnails below them. Published.
+- Then (owner: "no shadow at noon ... then shadows vice versa"): the shadow follows the time of day (none at noon,
+  growing to 60% of the chart at sunrise / sunset; on the right in the morning, the left in the afternoon, the sun
+  being on the arc's side); the slider became an on / off tick. Published.

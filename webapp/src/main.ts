@@ -19,7 +19,7 @@ import { namesBin } from './om3names';
 import { SPLIT_COLOURS, SPLIT_MAX, type Split } from './split';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
-import { CHART_DEFAULT, SOURCES, SOURCE_ORDER, WB_MODES, WB_ORDER, SUN_RISE, SUN_SET, chartLight, lightKelvin, renderChart, sunHeight, wbKelvin, type ChartLight, type Source, type WbMode } from './lightbox';
+import { CHART_DEFAULT, SOURCES, SOURCE_ORDER, WB_MODES, WB_ORDER, SUN_RISE, SUN_SET, chartLight, lightKelvin, renderChart, sunHeight, sunShadow, wbKelvin, type ChartLight, type Source, type WbMode } from './lightbox';
 // ---------------------------------------------------------------- state
 const LIBRARY = parsePack(libraryJson);
 // The colour-frames test photo first, then public-domain (CC0) photos picked for skin, strong colour, greens, blues,
@@ -689,6 +689,7 @@ function drawChart() {
     schedulePreview();
   });
 }
+const shadowText = (pct: number) => (!CHART.shadow ? 'Off' : pct < 1 ? 'Follows the sun: none at noon' : `Follows the sun: ${pct}% of the chart, on the ${CHART.time < 720 ? 'right' : 'left'}`);
 const clock = (m: number) => (m === 720 ? 'Noon' : `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')} ${m < 720 ? 'AM' : 'PM'}`);
 /** The sun's path as an arc: sunrise on the left, noon at the top centre, sunset on the right. Drag the sun (or use
  *  the arrow keys) to set the time of day; its height sets the light's colour. */
@@ -756,9 +757,13 @@ function chartPanel(): HTMLElement {
     const kids: Node[] = [
       sel<Source>('Light', SOURCE_ORDER, (v) => SOURCES[v].label, CHART.source, (v) => { CHART.source = v; }),
     ];
-    const arc = CHART.source === 'sun' ? sunArc(() => { store(); drawChart(); note(); }) : null;
+    const arc = CHART.source === 'sun' ? sunArc(() => { store(); drawChart(); note(); const r = document.getElementById('shadow-read'); if (r) r.textContent = shadowText(Math.round(sunShadow(CHART.time) * 100)); }) : null;
     if (CHART.source === 'sun') {
-      kids.push(range('Shadow', 0, 100, 5, CHART.shadow, (v) => (v ? `${v}%` : 'none'), (v) => { CHART.shadow = v; }, 0));
+      const pct = Math.round(sunShadow(CHART.time) * 100);
+      kids.push(h('label', { class: 'cf' }, h('span', { class: 'lbl' }, 'Shadow'),
+        h('span', { class: 'cf-row check-row' },
+          h('input', { type: 'checkbox', checked: CHART.shadow, 'aria-label': 'Shadow follows the time of day', onchange: (e: Event) => { CHART.shadow = (e.target as HTMLInputElement).checked; upd(); } }),
+          h('span', { id: 'shadow-read', class: 'help' }, shadowText(pct)))));
     }
     kids.push(range('Brightness', -9, 9, 1, CHART.ev, ev, (v) => { CHART.ev = v; }, 0));
     kids.push(sel<WbMode>('Camera WB', WB_ORDER, (v) => WB_MODES[v].label, CHART.wb, (v) => { CHART.wb = v; }));
@@ -775,7 +780,7 @@ function chartPanel(): HTMLElement {
     }
     note();
     box.replaceChildren(h('div', { class: 'chart-cols' }, arc, h('div', { class: 'chart-grid' }, ...kids)), noteEl,
-      h('p', { class: 'help' }, 'A drawn chart with simulated light: six greys, six strong colours, skin tones, sky, leaves and brick. Before is on the left, your film on the right. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top). Double-click a slider or the arc to reset it.'));
+      h('p', { class: 'help' }, 'A drawn chart with simulated light: six greys, six strong colours, skin tones, sky, leaves and brick. Before is on the left, your film on the right. Good for comparing films and lights; lamp light on a real camera can differ. Drag the sun along its arc for the time of day (noon is the top): the light warms and the shadow grows as the sun gets lower. Double-click a slider or the arc to reset it.'));
   }
   build();
   box.toggleAttribute('hidden', S.image !== 'chart');
