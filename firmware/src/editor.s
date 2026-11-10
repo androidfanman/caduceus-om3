@@ -8800,6 +8800,21 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  inc d3
  bra 9b
 10:
+ mov (lg_cur),a0                  /* camera: fopen "w" does not truncate (dl3, 2026-11-10): always the same length, */
+ mov lg_bend,a1                   /* spaces after the text, CR LF last */
+ add -2,a1
+ mov 32,d0
+11:
+ cmp a1,a0                        /* a0 - a1 */
+ bcc 12f
+ movbu d0,(a0)
+ inc a0
+ bra 11b
+12:
+ mov 13,d0
+ movbu d0,(a1)
+ mov 10,d0
+ movbu d0,(1,a1)
  mov lg_plog,a0                   /* CADLOG.TXT */
  mov lg_mw,a1
  call fopen,[],4
@@ -8807,9 +8822,7 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  beq lg_out
  mov a0,(4,sp)
  mov (4,sp),a1
- mov (lg_cur),d1
- mov lg_buf,d0
- sub d0,d1
+ mov lg_bend - lg_buf,d1
  mov 1,d0
  mov lg_buf,a0
  call fwrite,[d2,d3,a2,a3],24
@@ -8905,7 +8918,7 @@ lg_dty:
 lg_ring:                          /* 32 x {u32 number, u32 picture mode, u8 edits waiting, u8 save result (255 = no P)} */
  .space 32 * 16
 lg_buf:
- .space 6144
+ .space 4096
 lg_bend:                          /* lg_s / lg_d stop 64 bytes before the end */
  .space 64
 lg_pon:

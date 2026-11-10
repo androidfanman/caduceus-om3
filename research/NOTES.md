@@ -2458,3 +2458,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Not yet logged: shots (would need a call from xb_cap through the code block), errors inside the loaders, the time.
 - Camera test: flash with its GUIDES.BIN, copy DEBUG.TXT to OM3MOD, half-press a few times, take photos, open an editor
   and change something, half-press again; read CADLOG.TXT. Then delete DEBUG.TXT and check no new log is written.
+- **Camera (dl3, 2026-11-10): works.** 48 events in one power-on (13 RAW+JPEG photos incl. a burst, a film edit),
+  no crash; every card file reported loaded except NAMES.BIN (optional, not on the owner's card); the edit showed as
+  "edits waiting yes -> save result 1 (saved)" at #33. Picture mode read 54 throughout. **Bug: the camera's fopen "w"
+  does not truncate**: a shorter report left the tail of an older, longer one after it. dl4 always writes exactly
+  4096 B (text, spaces, CR LF). dl4: E1479999.BIN 71fc8fcd…, GUIDES.BIN cf6462b5…; emulator: 4096 B file, correct text.
+  Same caution for any future file we rewrite with a variable length.
+
