@@ -2355,3 +2355,26 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   schema / min_fw (pack.ts LOOK_SCHEMA, om3.ts exportLook) is not in theirs: their next sync of om3.ts will need
   LOOK_SCHEMA. Open question there: hue direction may be opposite on the two bodies.
 - Any message to cakelesscoder (issue / PR) is the owner's call; nothing sent.
+
+### Review of PR #26 "Assignable up key (▲)" by ryanbughuang (2026-11-10; not merged)
+- What it is: research only (`research/BUTTONS.md`, `research/upkey/`), a script that lays an up-key patch onto the
+  v0.26.2 release files; nothing in `firmware/` or `releases/`. No firmware, disassembly dumps, camera graphics or
+  personal data in it (the ▼ picture is read from the emulator at build time). Contributor reports it camera-tested
+  on their OM-3 on v0.26.2 (▲ row, picker, ▲ itself with ▶'s functions, films; FILM 17 picture bug found and fixed).
+- Rebuilt here from the PR (branch pr-26 at 314346b) with our toolchain and v0.26.2 from `patch.py --release`:
+  **E1479999.BIN be17717a…, GUIDES.BIN 5c06ddb1… = the contributor's final camera-tested package, byte for byte.**
+  3577 main bytes differ from v0.26.2.
+- Code read: `up_get` (hook 0x610833b3) restores the 5 stock bytes and calls the getter with the stock frame
+  (`call 0x61085dbb,[d2,a2],24`, as at 0x610834b2), returns with the routine's own `ret [d2],8`; `up_ic` (hook
+  0x610f5611, replaces our `jmp ic_get`) uses ic_get's convention (`retf [],0`) and picture id 0x7fe0, clear of ours
+  (0x7f80..0x7fc3). Looks right.
+- Emulator (om-emu, v0.26.2 card files): boots, our code block loads, `get:50` = 3341 (Exp comp), `get:158` = 1.
+  om-emu's `up` key in P mode reads **sid 1280** (and `right` reads 1283), on stock v0.26.2 too: om-emu routes keys
+  through the 128x set, so it cannot show the stills ▲ path (camera result stands). With the PR, 1280 now follows
+  arrow-pad mode 1279 (stock: always Exp comp): in om-emu ▲ opened the AF-area screen instead of Exp comp.
+- Before it could ship (owner's call): (1) the extra 4 KiB of section 6 (0x60f59800..0x60f5a800) is past our
+  probe-proven space (CLAUDE.md rule): the code there ran on their camera, GX1 saw nothing write that RAM, but a
+  longer run (photos, video, Wi-Fi) or a probe is needed; (2) sid 1957's borrowed entries (test only, as the PR
+  says); (3) move it into `firmware/` (editor.s / build.py) and plan the space with our next features; (4) the sid
+  1280 branch changes the up key wherever 1280 is read (the PR calls it movie, "not done yet"): camera-check movie
+  mode's up key in each arrow-pad setting; (5) only one camera so far.
