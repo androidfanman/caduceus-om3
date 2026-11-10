@@ -8692,6 +8692,27 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  mov 111,d0
  call sget,[],4                   /* d0 = the picture mode setting (keeps d2/d3/a2/a3) */
  mov d0,(4,a3)
+ call fl_k,[],0                   /* dl5 (camera dl3: a film reads as its COLOR, 54): COLOR k, and its look n -> */
+ movbu d0,(11,a3)                 /* +11 k (255 = not a COLOR), +10 film 5k + n (1..20, 0 = none), as fl_get */
+ clr d1
+ movbu d1,(10,a3)
+ cmp 0,d0
+ blt 13f
+ PVAL 13f
+ mov a2,a0
+ add d0,a0
+ movbu (LIDX,a0),d1
+ extb d1
+ cmp 1,d1
+ blt 13f
+ cmp 5,d1
+ bgt 13f
+ mov d0,d2
+ asl2 d2
+ add d0,d2
+ add d1,d2
+ movbu d2,(10,a3)
+13:
  movbu (lg_dty),d0
  movbu d0,(8,a3)
  mov 255,d0
@@ -8716,13 +8737,18 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  LGS lg_t4
  mov (4,a3),d0
  LGD
- mov (4,a3),d2
- add -FV0,d2
- cmp NF,d2
+ movbu (11,a3),d2
+ cmp 4,d2
  bcc 4f
  LGS lg_t5
  mov d2,d0
  inc d0
+ LGD
+ movbu (10,a3),d2
+ cmp 0,d2
+ beq 4f
+ LGS lg_t5b
+ mov d2,d0
  LGD
 4:
  LGS lg_t6
@@ -8790,6 +8816,13 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  LGS lg_e2
  mov (4,a3),d0
  LGD
+ movbu (10,a3),d0
+ cmp 0,d0
+ beq 14f
+ LGS lg_t5b
+ movbu (10,a3),d0
+ LGD
+14:
  LGS lg_e3
  movbu (8,a3),d0
  LGY
@@ -8915,7 +8948,8 @@ lg_on:
 lg_dty:
  .byte 0
  .balign 16
-lg_ring:                          /* 32 x {u32 number, u32 picture mode, u8 edits waiting, u8 save result (255 = no P)} */
+lg_ring:                          /* 32 x {u32 number, u32 picture mode, u8 edits waiting, u8 save result (255 = no P),
+                                   * u8 film 1..20 (0 = none), u8 COLOR k (255 = none)} */
  .space 32 * 16
 lg_buf:
  .space 4096
@@ -8939,7 +8973,9 @@ lg_t3:
 lg_t4:
  .asciz "\r\nPicture mode setting: "
 lg_t5:
- .asciz " = FILM "
+ .asciz " = COLOR "
+lg_t5b:
+ .asciz ", FILM "
 lg_t6:
  .asciz "\r\n\r\nSettings block: "
 lg_found:

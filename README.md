@@ -2,7 +2,7 @@
 > **Work-in-progress branch `feature/debug-log`, not a release.** v0.26.2 plus a debug log: section 6 now loads the
 > camera-proven GX3 space (to 0x60f99800) and the log code lives there (ext12). With `OM3MOD/DEBUG.TXT` on the card the
 > camera rewrites `OM3MOD/CADLOG.TXT` at each shutter-button event; without it nothing is written. **Status: dl3 camera-tested
-> (works; leftover text bug), dl4 fix emulator only (2026-11-10)**: E1479999.BIN 71fc8fcd…, GUIDES.BIN cf6462b5… (LABELS / TONES as v0.26.2).
+> (works; leftover text bug), dl5 (fixed length + COLOR / FILM) emulator only (2026-11-10)**: E1479999.BIN b1749259…, GUIDES.BIN a0c0da82… (LABELS / TONES as v0.26.2).
 
 # Caduceus for OM-3
 

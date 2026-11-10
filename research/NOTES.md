@@ -2464,4 +2464,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   does not truncate**: a shorter report left the tail of an older, longer one after it. dl4 always writes exactly
   4096 B (text, spaces, CR LF). dl4: E1479999.BIN 71fc8fcd…, GUIDES.BIN cf6462b5…; emulator: 4096 B file, correct text.
   Same caution for any future file we rewrite with a variable length.
+- Owner (dl3): the camera was on a film the whole time, yet the log said picture mode 54. Setting 111 holds the COLOR
+  (54/55/56/64); the film is that COLOR's look number P+LIDX+k (as fl_get). dl5 logs COLOR k and FILM 5k + n
+  (+10/+11 in each event). Emulator, LOOKS.BIN selection 3,2,0,0: "54 = COLOR 1, FILM 3". dl5: E1479999.BIN b1749259…,
+  GUIDES.BIN a0c0da82…. Emulator only.
 
