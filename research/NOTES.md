@@ -2286,3 +2286,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   own colour cancelled exactly (`renderChart(p, px, true)`), whatever the camera WB is set to; After = the camera's WB
   setting + the film. Before still follows the light source's other effects (shadow, brightness, lamp falloff, the
   street lamp's weak colours). Published.
+- **Scrapped the same evening (owner: "I dont like this colorchart light tool yet. Lets scrap it ... make notes ... so
+  we can recreate it ... return to just the photos with the frames being the default 1st image").** `main`: the
+  Control Panel source and `looklab/` are back to the build before it (same asset files as v0.26.2's site,
+  index-CsE7MpWk.js / index-CtM6tPCp.css; colour frames first). The full version stays on `feature/chart-lightbox`
+  (0588953); the write-up to rebuild it is `docs/CHART_LIGHTBOX.md`; ROADMAP: Parked.

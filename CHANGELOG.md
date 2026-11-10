@@ -22,13 +22,6 @@ sd4).
 - `GUIDES.BIN` is new (always copy it with the firmware); `LABELS.BIN`, `TONES.BIN` and the optional `LOOKS.BIN` are
   as v0.26.1.
 
-**Control Panel**
-- **Colour chart light box** (2026-11-09): a drawn colour chart is now the first preview picture (an upright card of 18 patches: six
-  greys, six strong colours, skin tones, sky, leaves and brick), shown as before and after side by side, with its own light: Sun on a time-of-day arc (6 AM to
-  6 PM, noon at the top), Open shade, Cloudy, Tungsten, Street lamp, Fluorescent, LED; a shadow that follows the time of day
-  (none at noon, longer toward sunrise and sunset); Brightness −3..+3 EV; and the camera's WB: Auto, Sunny 5300K, Shadow 7500K, Cloudy 6000K, Incandescent 3000K,
-  Fluorescent 4000K, WB Flash 5500K, or a typed Custom Kelvin (2000–14000). A simulation for comparing films in
-  different light, not a measurement of the camera.
 
 ## v0.26.1
 WB shift up to ±7 in films, and the 20 film sims tuned from colour-checker photos. Firmware camera-tested (2026-11-09,

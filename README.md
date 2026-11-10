@@ -41,7 +41,7 @@ Panel**; changes you make on the camera are kept per film.
 | **Picture Mode rows** | On COLOR 1–4 and films: **Blk** / **Wht** (Blacks / Whites −5..+5), **WB** (a grid with the film's A-B / G-M shift; OK opens the camera's own WB fine-tune screen; works in every WB mode, Auto WB included), **Sharpness** (−5 Off..+2), **Noise Filter** (Off / Low / Std / High), **Vignette Correction** (Off / On), **Shading**, **Glow** (+ Glow, − Clarity) and **Film Grain**, next to the camera's Contrast and Highlight & Shadow. | Camera-tested (v0.25) |
 | **Film grain on COLOR** | Low / Med / High grain, in colour, made by the camera's image processor as the photo develops (the way its Grainy Film Art Filter adds grain): **as fast as a photo without grain**, with every other setting. | Camera-tested (v0.25) |
 | **Saved on the card** | Your changes save to `OM3MOD` on the SD card at the next half-press, written to a new file and read back before the old one is replaced. | Camera-tested |
-| **Control Panel** | The Caduceus Control Panel for the OM-3 (it began as Caduceus for the E-P7's tool; since 2026-11-09 it is OM-3 only). It makes and previews your FILM 1–20 on test photos (or your own), starting from the 20 film sims (61 to choose from), then saves them for the card. Its **colour chart light box** shows a film on a drawn chart in sun at any time of day, shade, cloud or lamp light, at any camera WB or Kelvin. | Works in any browser |
+| **Control Panel** | The Caduceus Control Panel for the OM-3 (it began as Caduceus for the E-P7's tool; since 2026-11-09 it is OM-3 only). It makes and previews your FILM 1–20 on test photos (or your own), starting from the 20 film sims (61 to choose from), then saves them for the card. | Works in any browser |
 
 ## Install
 
