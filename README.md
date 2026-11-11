@@ -7,7 +7,6 @@
   <a href="https://androidfanman.github.io/caduceus-om3/using/"><b>Using it</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/"><b>Control Panel</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/roadmap/"><b>Roadmap</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/changelog/"><b>Changelog</b></a>
 </p>
 
 <p align="center">
