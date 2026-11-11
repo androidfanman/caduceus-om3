@@ -2850,5 +2850,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   the per-position settings and switch the film). A later try needs a GUI-task moment after the films load.
 - dr7 (VERSION "v0.27-dev (dial modes 5, photo code 2)"): E1479999.BIN 07032d36…, GUIDES.BIN 99473777….
 - **Camera (dr7): works** (owner, 2026-11-11): power-on is normal after moving the dial while off; the owner keeps it this way.
+- **Camera (dr7): om3.1 code camera-tested.** Owner photo on FILM 4 (read for the UserComment only, copy deleted):
+  "Caduceus FILM 4 Portra 800 om3.1.ABEREP7wAAABACIQ8AD-7t3vEg8AAOAgABD3EBAAAAA" = exactly the Control Panel's default
+  Portra 800 code (devkit/photo-code/examples.json); devkit reader and firmware/photocode.py decode it.
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
