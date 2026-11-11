@@ -8271,13 +8271,10 @@ tg_sel:
   .equ SDL_REQ_INIT, 0x2e9             /* the init mask bits the load needs (research/caduceus-sd-native-*) */
   .equ SDL_SEND_PERIOD, 10           /* polls skipped after every send attempt: one wake per SDL_SEND_PERIOD+1 polls */
 
-/* Stock 0x60af0fb9: call 0x60af0fff,[d2,d3,a2,a3],24 (5 bytes). */
-.section .hook_hb,"ax"
-  jmp sdl_boot_stub
-
-/* Stock 0x60af101c: call 0x60af10da,[],0 (5 bytes). */
-.section .hook_hr,"ax"
-  jmp sdl_receive_probe
+/* experiment/no-autoload (owner, 2026-11-11): the two hooks are left out, so 0x60af0fb9 / 0x60af101c stay stock: no
+ * SDLOAD worker, no OK trigger, no sdl_poke. The films load at the first half-press (pr_gate from the shutter hook), as
+ * in v0.26.1. The sdl_* code below stays in the build, unreachable. Stock 0x60af0fb9: call 0x60af0fff,[d2,d3,a2,a3],24;
+ * stock 0x60af101c: call 0x60af10da,[],0. */
 
 .section .ext4,"ax"
 sdl_ready:

@@ -2873,6 +2873,13 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Debug log put on the owner's card (OM3MOD/DEBUG.TXT, 29aa0c06…). Limit: the log writes only at shutter-button
   events, so a hang before the first half-press leaves the previous power-on's log on the card (useful as "what came
   before"). Open: whether the dial was moved while off; a log from a power-on that hangs needs a write at start-up.
+- Suspect (analysis, owner agrees): the v0.26.2 automatic film load (SDLOAD worker + sdl_poke's SetValue from the
+  HLS_EVENT task while the GUI builds the start screen; NOTES "sd1 quirks", "watch for a hang"). Moving the dial while
+  off gives the GUI more start-up work, so a collision is likelier.
+- **Build na1** (branch `experiment/no-autoload`, VERSION "v0.27-na1 (no auto-load)"): v0.27 without `.hook_hb` /
+  `.hook_hr` (0x60af0fb9 / 0x60af101c stay stock: no worker, no OK trigger, no poke). Films load at the first
+  half-press, as v0.26.1. E1479999.BIN 8c4374d7…, GUIDES.BIN 32f490d1…; LABELS / TONES as v0.27. om-emu (no worker
+  entry): LPTR 0 until the half-press, then set; menu opens. Emulator only. Owner to use it for a few days.
 - After the release (owner-approved): `devkit/photo-code/sample-film19-astia-100f.jpg`, the owner's OM-3 photo (CC0),
   resized to 1600 x 1200 with the camera's own APP1 kept (ExifImageWidth / Height patched); Artist, Copyright and the
   body / internal / lens serials blanked with spaces in place. The camera writes UserComment with a blank character

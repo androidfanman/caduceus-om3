@@ -1,7 +1,5 @@
 SECTIONS {
   .hook_color   0x60518615 : { *(.hook_color) }
-  .hook_hb      0x60af0fb9 : { *(.hook_hb) }
-  .hook_hr      0x60af101c : { *(.hook_hr) }
   .hook_shutter 0x60415216 : { *(.hook_shutter) }
   .ext1         0x6031e920 : { *(.ext1) }
   .ext4         0x60a8f100 : { *(.ext4) }
