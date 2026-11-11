@@ -9711,8 +9711,9 @@ ar_pend:
  * The Button Function list shows a 422 x 446 body picture per row with the control highlighted and a line to the
  * row's place on its page. For ▲ ◀ ▶ ▼ L-Fn and the four dial rows the camera has none that fits, so dg_get composes
  * them from the camera's own pictures (ids 0x3f7b..0x3f83, unpacked at start-up) by the programs of
- * firmware/diagrams.py: decode the base and up to two other pictures row by row (type-11 runs), copy rectangles, fill
- * the lines, stamp our corners / the dial highlight, encode the row. Two 64 KB buffers keep the last two pictures.
+ * firmware/diagrams.py, row by row: the base picture's runs pass through as they are outside the span the ops touch;
+ * inside it the base and up to two other pictures are decoded to pixels, rectangles copied, lines filled, our corners /
+ * the dial highlight stamped, and the span encoded again (camera dg1: composing every pixel made the menu hang). Two 64 KB buffers keep the last two pictures.
  * Without a stock picture (or on overflow) the row shows a stock picture instead (dg_fb). */
 dg_get:                           /* from ar_ic (jmp; the picture getter's frame: retf [],0, a0 -> slot), d1 = id */
  movm [d2,d3,a2,a3],(sp)
@@ -9775,6 +9776,9 @@ dg_get:                           /* from ar_ic (jmp; the picture getter's frame
 
 /* dg_build: `call dg_build,[d2,d3,a2,a3],20`, d2 = k, a3 = buffer index -> d0 1 made / 0 not. Uses everything. */
 dg_build:
+ mov (dg_cnt),d0                  /* builds so far (diagnostics) */
+ add 1,d0
+ mov d0,(dg_cnt)
  mov d2,d0
  asl2 d0
  mov dg_pt,a0
@@ -9851,23 +9855,116 @@ dg_build:
  mov d0,(dg_n)
  mov d0,(dg_ovf)
  mov d0,(dg_y)
-4:                                /* each row: decode the sources */
- clr d3
+4:                                /* each row: the span the ops touch, dg_xa .. dg_xb (none: both DGW) */
+ mov DGW,d0
+ mov d0,(dg_xa)
+ clr d0
+ mov d0,(dg_xb)
+ mov (dg_pg),a2
+ movhu (8,a2),d2
+ mov a2,a3
+ add 32,a3
+40:
+ cmp 0,d2
+ beq 45f
+ mov (dg_y),d1
+ movhu (8,a3),d0
+ cmp d0,d1
+ bcs 44f
+ movhu (10,a3),d0
+ cmp d0,d1
+ bcc 44f
+ movhu (4,a3),d0
+ movhu (6,a3),d1
+ movhu (a3),d3
+ cmp 4,d3                         /* a bridge also reads x0 - 1 and x1 */
+ bne 41f
+ add -1,d0
+ add 1,d1
+41:
+ mov (dg_xa),d3
+ cmp d3,d0
+ bcc 42f
+ mov d0,(dg_xa)
+42:
+ mov (dg_xb),d3
+ cmp d3,d1
+ bls 44f
+ mov d1,(dg_xb)
+44:
+ add 16,a3
+ add -1,d2
+ bra 40b
+45:
+ mov (dg_xa),d0
+ mov (dg_xb),d1
+ cmp d0,d1
+ bhi 46f
+ mov DGW,d0
+ mov d0,(dg_xa)
+ mov d0,(dg_xb)
+46:
+ mov (dg_xb),d1
+ cmp DGW,d1
+ bls 47f
+ mov DGW,d1
+ mov d1,(dg_xb)
+47:                               /* the base: its runs as they are up to dg_xa, pixels to dg_xb */
+ clr d0
+ mov d0,(dg_x)
+ mov dg_st,a1
+ mov (dg_xa),d0
+ clr d1
+ call dg_run,[d2,d3,a2,a3],20
+ mov (dg_rp),a0
+ mov a0,(dg_wr)
+ mov dg_st,a1
+ mov (dg_xb),d0
+ mov 1,d1
+ call dg_run,[d2,d3,a2,a3],20
+ mov 1,d3                         /* the other sources: pixels within the span, until their last row */
 5:
+ mov (dg_ns),d0
+ cmp d0,d3
+ bcc 59f
+ mov (dg_pg),a0
+ mov d3,d0
+ add d0,d0
+ add 10,d0                        /* header u16 5 + k: source k's last row */
+ add d0,a0
+ movhu (a0),d0
+ mov (dg_y),d1
+ cmp d0,d1
+ bcc 58f
  mov d3,d1
  asl 4,d1
  mov dg_st,a1
  add d1,a1
+ mov a1,(dg_cs)
  mov d3,d0
  asl2 d0
  mov dg_rp,a0
  add d0,a0
  mov (a0),a0
- call dg_row,[d2,d3,a2,a3],20
+ mov a0,(dg_wr)
+ clr d0
+ mov d0,(dg_x)
+ mov (dg_cs),a1
+ mov (dg_xa),d0
+ mov 2,d1
+ call dg_run,[d2,d3,a2,a3],20
+ mov (dg_cs),a1
+ mov (dg_xb),d0
+ mov 1,d1
+ call dg_run,[d2,d3,a2,a3],20
+ mov (dg_cs),a1
+ mov DGW,d0
+ mov 2,d1
+ call dg_run,[d2,d3,a2,a3],20
+58:
  add 1,d3
- mov (dg_ns),d0
- cmp d0,d3
- bcs 5b
+ bra 5b
+59:
  mov (dg_pg),a2                   /* the ops */
  movhu (8,a2),d2
  mov a2,a3
@@ -9887,10 +9984,13 @@ dg_build:
  add 16,a3
  add -1,d2
  bra 6b
-7:                                /* encode the row */
+7:                                /* encode the span's pixels */
  mov (dg_rp),a2
- clr d3
+ mov (dg_xa),d3
 8:
+ mov (dg_xb),d0
+ cmp d0,d3
+ bcc 89f
  movbu (d3,a2),d2
  mov 1,a3
 81:
@@ -9899,7 +9999,8 @@ dg_build:
  bcc 82f
  mov d3,d1
  add d0,d1
- cmp DGW,d1
+ mov (dg_xb),d0
+ cmp d0,d1
  bcc 82f
  movbu (d1,a2),d0
  cmp d2,d0
@@ -9915,8 +10016,14 @@ dg_build:
  call dg_put,[],0
  mov a3,d0
  add d0,d3
- cmp DGW,d3
- bcs 8b
+ bra 8b
+89:                               /* then the base's runs to the end of the row */
+ mov (dg_xb),d0
+ mov d0,(dg_x)
+ mov dg_st,a1
+ mov DGW,d0
+ clr d1
+ call dg_run,[d2,d3,a2,a3],20
  mov (dg_y),d0
  add 1,d0
  mov d0,(dg_y)
@@ -10003,38 +10110,65 @@ dg_tok:
  mov d1,(4,a1)
  ret [],0
 
-/* dg_row: `call dg_row,[d2,d3,a2,a3],20`, a1 = state, a0 = row: the next 422 pixels */
-dg_row:
- mov a0,a2
- mov a1,a3
- clr d3
+/* dg_run: `call dg_run,[d2,d3,a2,a3],20`, a1 = a source's decoder state, d0 = up to x, d1 = 0 put its runs into the
+ * output as they are / 1 write its pixels into dg_wr's row / 2 skip; from dg_x, which ends at d0 */
+dg_run:
+ mov d0,(dg_lim)
+ mov d1,(dg_md)
+ mov a1,a2
+ mov (dg_x),d3
 1:
- mov (12,a3),d2
+ mov (dg_lim),d0
+ cmp d0,d3
+ bcc 9f
+ mov (12,a2),d2
  cmp 0,d2
  bne 2f
- mov a3,a1
+ mov a2,a1
  call dg_tok,[],0
  mov d0,d1
  lsr 4,d1
- mov d1,(8,a3)
+ mov d1,(8,a2)
  and 15,d0
  add 1,d0
  mov d0,d2
 2:
- mov (8,a3),d1
+ mov (dg_lim),d0                  /* n = min(run left, limit - x) */
+ sub d3,d0
+ cmp d0,d2
+ bcc 3f
+ mov d2,d0
 3:
- movbu d1,(d3,a2)
- add 1,d3
- add -1,d2
- beq 4f
- cmp DGW,d3
- bcs 3b
- mov d2,(12,a3)
- ret [d2,d3,a2,a3],20
+ sub d0,d2
+ mov d2,(12,a2)
+ mov (dg_md),d1
+ cmp 0,d1
+ bne 4f
+ mov d0,a3
+ mov (8,a2),d1
+ asl 4,d1
+ add -1,d0
+ or d1,d0
+ call dg_put,[],0
+ mov a3,d0
+ add d0,d3
+ bra 1b
 4:
- mov d2,(12,a3)
- cmp DGW,d3
- bcs 1b
+ cmp 1,d1
+ bne 5f
+ mov (8,a2),d1
+ mov (dg_wr),a0
+41:
+ movbu d1,(d3,a0)
+ add 1,d3
+ add -1,d0
+ bne 41b
+ bra 1b
+5:
+ add d0,d3
+ bra 1b
+9:
+ mov d3,(dg_x)
  ret [d2,d3,a2,a3],20
 
 /* dg_op: `call dg_op,[d2,d3,a2,a3],20`, a3 = an op {type, a, x0, x1, y0, y1, w, offset} for this row (dg_y) */
@@ -10186,6 +10320,8 @@ dg_have:
  .long 0, 0                       /* k + 1 of the picture in buffer 0 / 1 */
 dg_next:
  .long 0
+dg_cnt:
+ .long 0
 dg_s0:
  .long dg_d0
 dg_s1:
@@ -10223,6 +10359,20 @@ dg_ovf:
  .long 0
 dg_st:
  .space 16 * 3
+dg_xa:
+ .long 0
+dg_xb:
+ .long 0
+dg_x:
+ .long 0
+dg_lim:
+ .long 0
+dg_md:
+ .long 0
+dg_wr:
+ .long 0
+dg_cs:
+ .long 0
 dg_r0:
  .space 424
 dg_r1:

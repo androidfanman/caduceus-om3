@@ -2721,3 +2721,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   byte-identical to diagrams.compose + encode (the Python reference). To confirm with the owner: that the highlighted
   block is the Creative Dial.
 - dg1 (VERSION "v0.27-dev (diagrams 1)"): E1479999.BIN 293ec7c0…, GUIDES.BIN ed6e2d3a… (LABELS / TONES as ak6).
+- **Camera (dg1, 2026-11-10):** lines and highlights line up and look good (owner; the highlighted Creative Dial
+  accepted), but the menu hangs slightly when moving onto those rows, most on a page change. om-emu: one composition
+  per cursor step (counter dg_cnt), so it is the work itself (~4-5 M instructions a picture: every pixel of up to three
+  pictures decoded and encoded).
+- dg2: the base picture's runs pass through as they are outside the span the ops touch in each row (dg_run modes: put
+  runs / write pixels / skip); only the span is decoded, changed and encoded; the other sources are decoded only up to
+  their last row (header u16 5 + k); the cleaning rectangles tightened to the old dot and line. Estimated work per
+  picture 1.2-3.3 M (about 2x less). om-emu: all nine pictures pixel-identical to diagrams.compose (decoded memory).
+  dg2 (VERSION "v0.27-dev (diagrams 2)"): E1479999.BIN 2d4fd57b…, GUIDES.BIN 782c0fae….

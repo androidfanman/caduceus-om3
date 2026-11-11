@@ -84,8 +84,12 @@ def leader(cx, ytop, ybot, pos):
     return None
 
 
-BACK_CLEAN = [('ovl', 5, 258, 422, 140, 229)]             # base 3 (CP): its dot and line -> the pad picture's pixels
-TOP_CLEAN = [('ovl', 2, 342, 422, 27, 150), ('ovl', 1, 342, 370, 150, 167), ('ovl', 2, 342, 422, 167, 330)]   # base 0
+# base 3 (CP): its dot and line -> the pad picture's pixels; tight rectangles (the work is per pixel inside them)
+BACK_CLEAN = [('ovl', 5, 257, 293, 139, 172), ('ovl', 5, 269, 281, 172, 205), ('ovl', 5, 269, 300, 205, 228),
+              ('ovl', 5, 300, 422, 216, 228)]
+# base 0 (Fn): its dot and line -> |o|'s pixels, REC's where |o|'s own line crosses (rows 155..160)
+TOP_CLEAN = [('ovl', 2, 350, 422, 27, 37), ('ovl', 2, 350, 380, 37, 52), ('ovl', 2, 353, 364, 52, 150),
+             ('ovl', 1, 353, 364, 150, 167), ('ovl', 2, 353, 364, 167, 294), ('ovl', 2, 341, 374, 294, 328)]
 PAD = {'up': (5, 310, 341, 238, 265, 325, 238, 265), 'left': (5, 294, 317, 262, 286, 305, 262, 286),
        'right': (6, 330, 356, 258, 288, 343, 258, 288), 'down': (7, 308, 342, 282, 304, 325, 282, 304)}
 #        key: (source, x0, x1, y0, y1 of its highlight, line column, control top, bottom)
@@ -131,7 +135,8 @@ STAMPS = {'cu': corner_up(), 'cd': corner_down(), 'dh': dial_hi()}
 
 
 def pack():
-    """(programs blob, stamps blob): per diagram 16 u16 header {nsrc, base, src1, src2, nops, 0...} then ops of 8 u16
+    """(programs blob, stamps blob): per diagram 16 u16 header {nsrc, base, src1, src2, nops, 0, last row of src1, of
+    src2, 0...} then ops of 8 u16
     {type 1 ovl / 2 fill / 3 stamp / 4 bridge, a, x0, x1, y0, y1, w, offset}. Program k at offset table."""
     sb, soff = b'', {}
     for k, a in STAMPS.items():
@@ -152,7 +157,9 @@ def pack():
                 body += struct.pack('<8H', 3, 0, o[2], o[2] + w, o[3], o[3] + h, w, off)
             elif o[0] == 'bridge':
                 body += struct.pack('<8H', 4, 0, *o[1:5], 0, 0)
-        hdr = struct.pack('<16H', len(srcs), *(STOCK + s for s in srcs), *([0] * (3 - len(srcs))), len(ops), *([0] * 11))
+        last = [max([o[5] for o in ops if o[0] == 'ovl' and o[1] == s] or [0]) for s in srcs[1:]]   # a source's last row
+        last += [0] * (2 - len(last))
+        hdr = struct.pack('<16H', len(srcs), *(STOCK + s for s in srcs), *([0] * (3 - len(srcs))), len(ops), 0, *last, *([0] * 8))
         progs.append(hdr + body)
     return progs, sb
 
