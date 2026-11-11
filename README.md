@@ -9,7 +9,7 @@ Noise Filter, lens vignette correction, Shading, Glow / Clarity and fast colour 
 Panel**; changes you make on the camera are kept per film.
 
 **Latest: v0.26.2** ([changelog](CHANGELOG.md)) · **▶ [Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Install guide](docs/INSTALL.md)** ·
-**[Using it](#using-it)** · **[Roadmap](ROADMAP.md)** · Caduceus for the E-P7: [cakelesscoder/caduceus-ep7](https://github.com/cakelesscoder/caduceus-ep7).
+**[Using it](#using-it)** · **[Roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/)** · Caduceus for the E-P7: [cakelesscoder/caduceus-ep7](https://github.com/cakelesscoder/caduceus-ep7).
 
 > [!WARNING]
 > **Early development, use at your own risk.** This is an unofficial, experimental firmware modification. Bugs will

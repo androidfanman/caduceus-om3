@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caduceus OM-3 Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: summary strip, then roadmap lanes as status tables, then the issue ledger with filters. */
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --ink: #16191f;
+  --muted: #5d6573;
+  --line: #dfe2e8;
+  --accent: #c8611a;
+  --good: #1f7a4d;   --good-bg: #e2f3ea;
+  --warn: #9a6400;   --warn-bg: #fbf0d6;
+  --bad: #b3261e;    --bad-bg: #fbe4e2;
+  --info: #2459b8;   --info-bg: #e3ebfa;
+  --idle: #5d6573;   --idle-bg: #eceef2;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Roboto, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151a; --panel: #1a1e25; --ink: #e8eaee; --muted: #9aa2b0; --line: #2c323c;
+    --accent: #f08a3c;
+    --good: #6fd3a0; --good-bg: #173527; --warn: #f2c25c; --warn-bg: #3a2e12;
+    --bad: #ff8a80; --bad-bg: #3d1a18; --info: #8fb4ff; --info-bg: #1b2a47;
+    --idle: #aab1bd; --idle-bg: #262b33;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151a; --panel: #1a1e25; --ink: #e8eaee; --muted: #9aa2b0; --line: #2c323c;
+  --accent: #f08a3c;
+  --good: #6fd3a0; --good-bg: #173527; --warn: #f2c25c; --warn-bg: #3a2e12;
+  --bad: #ff8a80; --bad-bg: #3d1a18; --info: #8fb4ff; --info-bg: #1b2a47;
+  --idle: #aab1bd; --idle-bg: #262b33;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 60px; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.01em; }
+h2 { font-size: 20px; font-weight: 700; }
+h3 { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+a { color: var(--info); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--mono); font-size: 13px; }
+.muted { color: var(--muted); }
+header { display: grid; gap: 6px; border-left: 4px solid var(--accent); padding-left: 14px; }
+header p { margin: 0; max-width: 70ch; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; }
+.tile .n { font: 800 28px/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.tile .l { color: var(--muted); font-size: 13px; }
+section { display: grid; gap: 12px; }
+.sechead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-top: 1px solid var(--line); }
+thead th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; background: var(--panel); }
+td.name { font-weight: 600; min-width: 170px; }
+td.st { white-space: nowrap; width: 1%; }
+td.num { white-space: nowrap; width: 1%; }
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.s-good { color: var(--good); background: var(--good-bg); }
+.s-warn { color: var(--warn); background: var(--warn-bg); }
+.s-bad { color: var(--bad); background: var(--bad-bg); }
+.s-info { color: var(--info); background: var(--info-bg); }
+.s-idle { color: var(--idle); background: var(--idle-bg); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.lanes { display: grid; gap: 22px; }
+.lane { display: grid; gap: 8px; }
+.lane td.name { width: 24%; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.filters button { font: 500 13px var(--body); border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.attn { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 8px; padding: 14px 18px; }
+.attn ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 6px; }
+.small { font-size: 13px; }
+.err { color: var(--bad); }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+@media (max-width: 520px) { th, td { padding: 9px 10px; } h1 { font-size: 24px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Caduceus for OM-3: roadmap</h1>
+  <p>Where the project stands and what people have asked for. This page reads <a href="https://github.com/androidfanman/caduceus-om3/blob/main/ROADMAP.md">ROADMAP.md</a>, the <a href="https://github.com/androidfanman/caduceus-om3/blob/main/docs/FILM_SIMULATION_ROADMAP.md">film simulation roadmap</a> and the <a href="https://github.com/androidfanman/caduceus-om3/issues">GitHub issues</a> each time it opens, so it is always current.</p>
+  <p class="muted small">Nothing here is promised or dated: features land when they work on a real camera. Ideas and requests are welcome in <a href="https://github.com/androidfanman/caduceus-om3/issues">Issues</a>.</p>
+</header>
+
+<div class="tiles" id="tiles"></div>
+<p id="status" class="muted small">Loading…</p>
+
+<section id="roadmap">
+  <div class="sechead"><h2>Roadmap</h2><span class="muted small" id="order"></span></div>
+  <div id="lanes" class="lanes"></div>
+</section>
+
+<section id="filmsims">
+  <div class="sechead"><h2>Film simulation roadmap</h2><span class="muted small">Film-look features, effort and status.</span></div>
+  <div class="panel"><table id="film-table"><thead><tr><th>Feature</th><th>Effort</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="issues">
+  <div class="sechead"><h2>GitHub issues and requests</h2><span class="muted small" id="issue-count"></span></div>
+  <div class="filters" role="group" aria-label="Filter issues" id="filters"></div>
+  <div class="panel"><table id="issue-table"><thead><tr><th>#</th><th>Request</th><th>State</th><th>On roadmap?</th><th>Where</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="done">
+  <div class="sechead"><h2>Recently released</h2><a class="small" href="https://github.com/androidfanman/caduceus-om3/blob/main/CHANGELOG.md">Full changelog</a></div>
+  <div class="panel"><table id="done-table"><thead><tr><th>Release</th><th>What shipped</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<footer>
+  Caduceus for OM-3 · <a href="https://github.com/androidfanman/caduceus-om3">GitHub</a> · <a href="../looklab/">Control Panel</a>
+</footer>
+</div>
+
+<script>
+const REPO = "https://github.com/androidfanman/caduceus-om3";
+const API = "https://api.github.com/repos/androidfanman/caduceus-om3";
+
+function statusClass(t) {
+  const s = t.toLowerCase();
+  if (/not confirmed/.test(s)) return "s-bad";
+  if (/^(done|fixed|released)/.test(s)) return "s-good";
+  if (/^(next|building|camera testing)/.test(s)) return "s-warn";
+  if (/^(research|investigat|waiting|proven)/.test(s)) return "s-info";
+  return "s-idle";
+}
+function el(tag, attrs = {}, kids = []) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) { if (k === "text") e.textContent = v; else e.setAttribute(k, v); }
+  for (const c of [].concat(kids)) if (c !== null && c !== undefined) e.append(c);
+  return e;
+}
+function pill(text) { return el("span", { class: "pill " + statusClass(text), text }); }
+
+// Small, safe Markdown-inline renderer: **bold**, [text](url), `code`. Text is never parsed as HTML.
+function md(text, base) {
+  const frag = document.createDocumentFragment();
+  const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)|`([^`]+)`/g;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) frag.append(text.slice(last, m.index));
+    if (m[1] !== undefined) frag.append(el("strong", {}, [md(m[1], base)]));
+    else if (m[2] !== undefined) {
+      let href = m[3];
+      if (!/^https?:/.test(href)) href = REPO + "/blob/main/" + (base || "") + href;
+      frag.append(el("a", { href }, [md(m[2], base)]));
+    } else frag.append(el("code", { class: "mono", text: m[4] }));
+    last = re.lastIndex;
+  }
+  if (last < text.length) frag.append(text.slice(last));
+  return frag;
+}
+const plain = t => t.replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/`/g, "").trim();
+const issueNums = t => [...t.matchAll(/\/(?:issues|pull)\/(\d+)/g)].map(m => +m[1]);
+
+// Markdown file -> [{title, intro, rows: [[cells]]}]
+function sections(src) {
+  const out = []; let cur = null;
+  for (const line of src.split("\n")) {
+    const h = line.match(/^## (.+)/);
+    if (h) { cur = { title: h[1].trim(), intro: "", rows: [], head: null }; out.push(cur); continue; }
+    if (!cur) continue;
+    if (line.startsWith("|")) {
+      const cells = line.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+      if (cells.every(c => /^:?-+:?$/.test(c))) continue;
+      if (!cur.head) cur.head = cells; else cur.rows.push(cells);
+    } else if (line.trim() && !cur.rows.length && !cur.head) cur.intro += (cur.intro ? " " : "") + line.trim();
+  }
+  return out;
+}
+
+async function getText(path) {
+  const r = await fetch(path, { cache: "no-cache" });
+  if (!r.ok) throw new Error(path + " " + r.status);
+  return r.text();
+}
+
+async function main() {
+  const status = document.getElementById("status");
+  let roadmap, film;
+  try {
+    [roadmap, film] = await Promise.all([getText("../ROADMAP.md"), getText("../docs/FILM_SIMULATION_ROADMAP.md")]);
+  } catch (e) {
+    status.className = "err small";
+    status.textContent = "Could not load the roadmap files. Open ROADMAP.md on GitHub instead.";
+    return;
+  }
+
+  // --- ROADMAP.md
+  const pre = roadmap.split("\n## ")[0];
+  const orderLine = pre.split("\n").find(l => /^The order/.test(l.trim()));
+  if (orderLine) document.getElementById("order").textContent = plain(pre.slice(pre.indexOf(orderLine)).split("\n\n")[0].replace(/\n/g, " "));
+  const rsec = sections(roadmap);
+  const doneSec = rsec.find(s => /^Done/.test(s.title));
+  const lanes = rsec.filter(s => s !== doneSec && s.rows.length && s.head && s.head.length === 3);
+  const where = {}; // issue -> [{name, lane, status}]
+  const lanesBox = document.getElementById("lanes");
+  let openItems = 0;
+  lanes.forEach((lane, li) => {
+    const tb = el("tbody");
+    lane.rows.forEach(([name, what, st]) => {
+      const nums = issueNums(name + " " + what);
+      nums.forEach(n => (where[n] = where[n] || []).push({ name: plain(name).replace(/\s*\(#[\d, #]+\)$/, ""), lane: lane.title.split(":")[0], status: plain(st) }));
+      if (!/^(done|fixed)/i.test(plain(st))) openItems++;
+      tb.append(el("tr", {}, [
+        el("td", { class: "name" }, [md(name)]),
+        el("td", { class: "small" }, [md(what)]),
+        el("td", { class: "st" }, [pill(plain(st))])
+      ]));
+    });
+    const kids = [el("h3", { text: lane.title })];
+    kids.push(el("div", { class: "panel" }, [el("table", {}, [tb])]));
+    lanesBox.append(el("div", { class: "lane", id: "lane-" + li }, kids));
+  });
+
+  // --- Film simulation roadmap
+  const fsec = sections(film);
+  const ft = document.querySelector("#film-table tbody");
+  fsec.filter(s => s.head && s.head.length === 5).forEach(s => {
+    ft.append(el("tr", {}, [el("td", { colspan: "3", class: "small muted", text: s.title.toUpperCase() })]));
+    s.rows.forEach(([name, , eff, st]) => {
+      issueNums(name).forEach(() => {});
+      ft.append(el("tr", {}, [el("td", { class: "name" }, [md(name, "docs/")]), el("td", { class: "num small", text: plain(eff) }), el("td", { class: "st" }, [pill(plain(st))])]));
+    });
+  });
+  fsec.forEach(s => s.rows.forEach(r => issueNums(r.join(" ")).forEach(n => {
+    if (!where[n]) (where[n] = []).push({ name: plain(r[0]), lane: "Film simulation roadmap", status: plain(r[3] || "") });
+  })));
+
+  // --- Done
+  const dt = document.querySelector("#done-table tbody");
+  let latest = "";
+  if (doneSec) doneSec.rows.forEach(([what, rel]) => {
+    const v = plain(rel).split(" ")[0];
+    if (!latest) latest = plain(rel);
+    dt.append(el("tr", {}, [el("td", { class: "num mono", text: v }), el("td", { class: "small" }, [md(what)])]));
+  });
+
+  // --- Issues
+  let issues = [];
+  try {
+    const r = await fetch(API + "/issues?state=all&per_page=100");
+    if (!r.ok) throw new Error(r.status);
+    issues = (await r.json()).filter(i => !i.pull_request);
+    status.textContent = "Loaded " + new Date().toLocaleString() + ".";
+  } catch (e) {
+    status.className = "err small";
+    status.textContent = "GitHub didn't answer for the issue list (it allows a limited number of visits per hour). The roadmap above is current; try again later for the issues.";
+  }
+  const it = document.querySelector("#issue-table tbody");
+  const rows = [];
+  let onR = 0, notR = 0;
+  issues.forEach(i => {
+    const open = i.state === "open";
+    const w = where[i.number];
+    const key = !open ? "closed" : (w ? "yes" : "no");
+    if (key === "yes") onR++; if (key === "no") notR++;
+    const label = { yes: "On roadmap", no: "Not yet", closed: "Closed" }[key];
+    const cls = { yes: "s-good", no: "s-bad", closed: "s-idle" }[key];
+    const note = w ? w.map(x => `${x.name} (${x.lane}, ${x.status})`).join("; ") : (open ? "" : (i.state_reason === "completed" ? "Completed" : "Closed"));
+    const tr = el("tr", { "data-rm": key }, [
+      el("td", { class: "num" }, [el("a", { class: "mono", href: i.html_url, text: "#" + i.number })]),
+      el("td", { class: "name", text: i.title }),
+      el("td", { class: "st" }, [el("span", { class: "pill " + (open ? "s-info" : "s-idle"), text: open ? "Open" : "Closed" })]),
+      el("td", { class: "st" }, [el("span", { class: "pill " + cls, text: label })]),
+      el("td", { class: "small", text: note })
+    ]);
+    it.append(tr); rows.push(tr);
+  });
+  const openCount = issues.filter(i => i.state === "open").length;
+  document.getElementById("issue-count").textContent = issues.length ? `${issues.length} issues, ${openCount} open.` : "";
+
+  const fbox = document.getElementById("filters");
+  [["all", "All"], ["yes", "On roadmap"], ["no", "Not yet"], ["closed", "Closed"]].forEach(([key, label], i) => {
+    const b = el("button", { type: "button", id: "filter-" + key, "aria-pressed": i === 0 ? "true" : "false", text: label });
+    b.addEventListener("click", () => {
+      fbox.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+      rows.forEach(r => { r.hidden = key !== "all" && r.dataset.rm !== key; });
+    });
+    fbox.append(b);
+  });
+
+  // --- Tiles
+  const tiles = [
+    [latest.split(" ")[0] || "–", "Latest release" + (latest.includes("(") ? " " + latest.slice(latest.indexOf("(")).replace("released ", "") : "")],
+    [openItems, "Open roadmap items"],
+    [issues.length ? openCount : "–", "Open GitHub issues"],
+    [issues.length ? onR : "–", "Open issues on the roadmap"],
+    [issues.length ? notR : "–", "Not on the roadmap yet"]
+  ];
+  const tb = document.getElementById("tiles");
+  tiles.forEach(([n, l]) => tb.append(el("div", { class: "tile" }, [el("span", { class: "n", text: String(n) }), el("span", { class: "l", text: l })])));
+}
+main();
+</script>
+</body>
+</html>
