@@ -8,7 +8,7 @@
   const srcDir = srcPath.replace(/[^/]*$/, ""); // "docs/"
 
   // Pages that have their own site page; anything else opens on GitHub.
-  const PAGES = { "docs/INSTALL.md": "../install/", "docs/USING.md": "../using/", "ROADMAP.md": "../roadmap/" };
+  const PAGES = { "docs/INSTALL.md": "../install/", "docs/USING.md": "../using/", "ROADMAP.md": "../roadmap/", "CHANGELOG.md": "../changelog/" };
 
   function slug(text) {
     return text.trim().toLowerCase().replace(/[^\w\- ]+/g, "").replace(/ /g, "-");
@@ -67,6 +67,7 @@
       bq.replaceWith(box);
     });
     tmp.querySelectorAll("a").forEach(fixLink);
+    tmp.querySelectorAll("td").forEach(td => { if (/^\d{4}-\d{2}-\d{2}$/.test(td.textContent.trim())) td.style.whiteSpace = "nowrap"; });
     tmp.querySelectorAll("table").forEach(t => {
       const w = document.createElement("div");
       w.className = "tablewrap";
@@ -106,7 +107,7 @@
     }
     main.innerHTML = "";
     main.append(lead);
-    if (cards.length > 2) {
+    if (cards.length > 2 && main.dataset.toc !== "off") {
       const toc = document.createElement("nav");
       toc.className = "toc";
       toc.setAttribute("aria-label", "On this page");
