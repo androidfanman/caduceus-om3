@@ -2813,5 +2813,22 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (77 characters), equal to photocode.encode of that record; decodes back to the same 64 bytes.
 - Proposal for cakelesscoder (not sent; the owner's call): see the reply of 2026-11-11 and docs/PHOTO_CODE.md.
 - dr4 (VERSION "v0.27-dev (dial modes 1, photo code 2)"): E1479999.BIN 296fce57…, GUIDES.BIN b829ec4b….
+
+### Camera results dr3 and the fix dr5 (2026-11-11)
+- **Camera (dr3): EXIF works.** Two owner photos (read for the two text fields only, copies deleted): ImageDescription
+  "FILM 9 Velvia 50" / "FILM 18 Fuji Eterna", UserComment "Caduceus FILM 9 Velvia 50 cd1.<39>" etc. (the cd1 form,
+  replaced by om3.1 in dr4 before any release).
+- **Camera (dr3): the dial modes work, but** after moving the dial while the camera was off, power-on lagged badly,
+  and once the camera half froze (live view on, nothing else; it would not switch off; battery pulled).
+- Likely cause (analysis): dr3's power-on path (dm_boot, HLS_EVENT task -> facade SetValue -> sx_set -> dm_turn)
+  wrote settings with the manager (the last position 1285 and the previous position's COLOR choice) from that task;
+  db1, which only set the family and loaded the film there, was fine on the camera.
+- dr5: no setting is written at power-on or on a dial turn. `dm_turn` only reads (position -> mode -> its choice) and
+  keeps the position in RAM (`dm_pos`). Each position's choice is written when the owner changes the COLOR choice:
+  `dm_rec` from sx_set's SetValue(901) (super control panel, Picture Mode menu, film list), for the position the dial
+  is on when that position is on COLOR (and only when the value changed). The last-position setting (1285) is gone.
+- om-emu: same test as dr3 (COLOR -> FILM 19, CRT -> FILM 18, MONO -> FILM 17 on the super control panel; turning back
+  shows each; memory 4029 / 4028 / 4027). Power-on with a moved dial: to test on the camera.
+- dr5 (VERSION "v0.27-dev (dial modes 2, photo code 2)"): E1479999.BIN bfdf1763…, GUIDES.BIN 611ace28….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

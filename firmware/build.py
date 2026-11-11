@@ -522,7 +522,7 @@ def build(defaults, testfile, out):
     m[o(sy['dm_hlp']):o(sy['dm_hlp']) + 12 * NOPT] = hlp
     # the settings that keep each position's COLOR choice and the last position: unused movie buttons' validators
     for sid, lo, hi in ((1958, 'dm_plist', 'dm_pend'), (1277, 'dm_plist', 'dm_pend'), (1275, 'dm_plist', 'dm_pend'),
-                        (1284, 'dm_plist', 'dm_pend'), (1285, 'dm_llist', 'dm_llend')):
+                        (1284, 'dm_plist', 'dm_pend')):
         a = vrec[sid]
         r = struct.unpack_from('<HHIIHH', m, o(a))
         assert r[0] == sid and r[1] == 128 and r[3] == 0 and r[5] == 2, (sid, r)

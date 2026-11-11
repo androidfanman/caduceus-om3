@@ -9341,6 +9341,14 @@ lg_s4:
 sx_set:                           /* from sl_set (entered as the manager: d0 id, d1 value, a0, a1; frame 68) */
  cmp 901,d0
  bne 1f
+ mov a0,(dm_xa0)                  /* dr5: the dial position on COLOR keeps this choice (dm_rec) */
+ mov a1,(dm_xa1)
+ mov d1,(dm_xv)
+ call dm_rec,[d2,d3,a2,a3],20
+ mov (dm_xa0),a0
+ mov (dm_xa1),a1
+ mov 901,d0
+ mov (dm_xv),d1
  jmp fl_set
 1:
  cmp 897,d0
@@ -9411,41 +9419,12 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  add FV0 - 11,d3                  /* FILM n = code - 10 -> FV0 + n - 1 */
  mov d3,d1
  jmp fl_set
-/* dm_turn: `call dm_turn,[d2,d3,a2,a3],20`, d2 = the position the dial is on now (0..3: CRT, ART, COLOR, MONO), the
- * SetValue's a0 / a1 in dm_xa0 / dm_xa1 -> d0 = its mode (0..3), d1 = the COLOR choice it keeps (dm_cur code, 0 none).
- * First the position the dial was on before (dm_lsid): when its mode is COLOR, the COLOR choice now on the camera is
- * its own -> kept in its dm_psid setting. Then this position becomes the last one. Settings written with the manager
- * (the camera keeps them through power-off). */
+/* dm_turn: `call dm_turn,[d2,d3,a2,a3],20`, d2 = the position the dial is on now (0..3: CRT, ART, COLOR, MONO) ->
+ * d0 = its mode (0..3), d1 = the COLOR choice it keeps (dm_cur code, 0 none). Reads only: no setting is written here
+ * (dr4 on the camera: writing settings from the power-on path made the start slow and once froze it). The choices are
+ * written when the owner changes the COLOR choice (dm_rec, from the SetValue(901) in sx_set). */
 dm_turn:
- mov (dm_lsid),d0                 /* the last position */
- call sget,[],4
- add -LV0,d0
- cmp 4,d0
- bcc 3f
- mov d0,d3                        /* q */
- call dm_mode,[d2,d3],12          /* d0 = q's mode (d3 = q) */
- cmp 2,d0
- bne 2f
- call dm_cur,[d2,d3,a2,a3],12     /* its COLOR choice now */
- cmp 0,d0
- beq 2f
- mov d0,d1
- add PV0,d1
- mov dm_psid,a2
- mov d3,d0
- asl2 d0
- add d0,a2
- mov (a2),d0
- call dm_put,[d2,d3,a2,a3],80
-2:
- cmp d2,d3
- beq 4f
-3:
- mov (dm_lsid),d0                 /* this position is the last one now */
- mov d2,d1
- add LV0,d1
- call dm_put,[d2,d3,a2,a3],80
-4:
+ movbu d2,(dm_pos)
  mov d2,d3
  call dm_mode,[d2,d3],12
  mov d0,(dm_xmd)
@@ -9472,6 +9451,46 @@ dm_turn:
  clr d1
 9:
  mov (dm_xmd),d0
+ ret [d2,d3,a2,a3],20
+
+/* dm_rec: `call dm_rec,[d2,d3,a2,a3],20` from sx_set's SetValue(901, d1) before fl_set (a0 / a1 in dm_xa0 / dm_xa1):
+ * when the dial's position (dm_pos, known after the first dial event or the power-on mapping) is on COLOR, its own
+ * choice = this value (COLOR k -> k + 1, film j -> 11 + j), written to its dm_psid setting if it changed. */
+dm_rec:
+ movbu (dm_pos),d3
+ cmp 4,d3
+ bcc 9f
+ mov d1,d2                        /* the value -> a dm_cur code */
+ mov d1,d0
+ call fl_k,[],0
+ cmp 0,d0
+ blt 1f
+ add 1,d0
+ bra 2f
+1:
+ mov d2,d0
+ add -FV0,d0
+ cmp 20,d0
+ bcc 9f
+ add 11,d0
+2:
+ mov d0,d2                        /* code */
+ call dm_mode,[d2,d3],12          /* (d3 = the position) */
+ cmp 2,d0
+ bne 9f
+ mov dm_psid,a2
+ mov d3,d0
+ asl2 d0
+ add d0,a2
+ mov (a2),d0
+ call sget,[],4
+ mov d2,d1
+ add PV0,d1
+ cmp d1,d0
+ beq 9f
+ mov (a2),d0
+ call dm_put,[d2,d3,a2,a3],80
+9:
  ret [d2,d3,a2,a3],20
 
 /* dm_mode: `call dm_mode,[d2,d3],12`, d3 = a position 0..3 -> d0 = its mode 0..3 (its row: Normal = its own). Uses
@@ -9588,6 +9607,11 @@ dm_xa1:
  .long 0
 dm_xmd:
  .long 0
+dm_xv:
+ .long 0
+dm_pos:                           /* the dial's position (0..3) once known this power-on, else 0xff */
+ .byte 0xff
+ .balign 4
 dm_plist:                         /* their values: PV0 (none), PV0 + 1..4 (COLOR k), PV0 + 11..30 (FILM n) */
  .short PV0, PV0 + 1, PV0 + 2, PV0 + 3, PV0 + 4
  .short PV0 + 11, PV0 + 12, PV0 + 13, PV0 + 14, PV0 + 15, PV0 + 16, PV0 + 17, PV0 + 18, PV0 + 19, PV0 + 20
