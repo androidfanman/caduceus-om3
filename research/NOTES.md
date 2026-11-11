@@ -2741,5 +2741,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   ~8x less than dg1. All nine pixel-identical to diagrams.compose (om-emu). ext12 240 KB of 256.
   dg3 (VERSION "v0.27-dev (diagrams 3)"): E1479999.BIN 65141864…, GUIDES.BIN 9c60d9cb….
 - **Camera (dg3, 2026-11-10): "it works wonderfully"** (owner): no hang left; lines and highlights right.
+- Owner (dg3, camera): power-on with the Creative Dial on a mapped position works as intended, and the movie Button
+  Function menu is untouched.
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
