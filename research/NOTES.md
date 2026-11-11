@@ -2756,5 +2756,19 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - db1 (VERSION "v0.27-dev (dial power-on 1)"): E1479999.BIN 5e35a488…, GUIDES.BIN e38aa7cc….
 - **Camera (db1, 2026-11-11): works** (owner: "that worked great"): a mapped position loads its film at power-on
   without a half-press; Normal positions come up as before.
+
+### v0.27 the film's name in the JPEG's EXIF, test ex1 (2026-11-11; emulator only, by a direct call)
+- Owner: add the EXIF work talked about earlier (research: "EXIF research, step 2" above).
+- `.hook_ex` at 0x60457578 (the per-shot fill, after Artist / Copyright; both branches reach it): `jmp ex_hook`
+  (8 bytes replaced: `mov (8,sp),a0; movhu (37666,a0),d0`, redone before `jmp 0x60457580`). `ex_hook` keeps d1 / a1 /
+  d2..a3 / MDR; `ex_fill` (a0 = the block): picture mode the capture way (getter 0x60063380: 38017, 6 -> 40209; 11 =
+  COLOR, number 63153 1..4 -> k; the facade ids such as 111 read 0 there), film j = fl_film, fl_has; then
+  ImageDescription (block + 0x5a8, 32 B) = "FILM n Name" + zeros, UserComment (block + 3972, 117 chars) =
+  "Caduceus OM-3: FILM n Name" + spaces. No film: ImageDescription back to the stock bytes (copied from the first block
+  seen), UserComment 117 spaces (as the set-up writes).
+- om-emu (sess7 `run:ADDR:D2:A3:A0` calls ex_fill on a scratch block; the emulator cannot take a photo): COLOR 1 own
+  -> blank; CRT mapped to FILM 3 -> "FILM 3 Kodachrome 64" / "Caduceus OM-3: FILM 3 Kodachrome 64"; back to COLOR
+  (own) -> blank again. Not tested: the hook during a real shot (camera), what apps show.
+- ex1 (VERSION "v0.27-dev (exif 1)"): E1479999.BIN 1248a059…, GUIDES.BIN 1bf6cb72….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

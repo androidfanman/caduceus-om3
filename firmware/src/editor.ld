@@ -18,6 +18,7 @@ SECTIONS {
   .hook_wt      0x605048c1 : { *(.hook_wt) }
   .hook_ag      0x610833b3 : { *(.hook_ag) }
   .hook_dmg     0x6109355f : { *(.hook_dmg) }
+  .hook_ex      0x60457578 : { *(.hook_ex) }
   .hook_scw     0x61157d30 : { *(.hook_scw) }
   .hook_stw     0x6128b1d3 : { *(.hook_stw) }
   .hook_nr1     0x603c8038 : { *(.hook_nr1) }
@@ -197,3 +198,4 @@ ar_getv       = 0x61085dbb;         /* v0.27: the key dispatcher's plain setting
 ar_setv       = 0x61085d05;         /* v0.27: its setter pair (SetValue through the facade, as the dial handler) */
 ar_vget       = 0x610834b1;         /* v0.27: the dispatcher's value read, assigned value: mov d2,d0; call getter; ret */
 ar_vback      = 0x610833b8;         /* v0.27: the value read after its first 5 bytes (.hook_ag) */
+ex_back       = 0x60457580;         /* v0.27 EXIF: after the hook's 8 bytes */

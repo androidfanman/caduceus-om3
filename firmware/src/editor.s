@@ -8566,6 +8566,9 @@ fl_scr:
 .section .hook_ag,"ax"
  jmp ar_get                       /* v0.27 stock 0x610833b3 (the key dispatcher's value read): mov d0,d2; mov 3413,d1;
                                    * mov d1,d0 (5 bytes) */
+.section .hook_ex,"ax"
+ jmp ex_hook                      /* v0.27: the film's name in the photo's EXIF (ex_hook) */
+ .byte 0xcb, 0xcb, 0xcb
 .section .hook_dmg,"ax"
  cmp d2,d0                        /* v0.27: the dial handler always sets 897 (stock beq +0x16 skipped it when the */
  .byte 0xc8, 0x02                 /* family was unchanged; a mapped position must act even then): beq +2 = next */
@@ -9727,6 +9730,235 @@ ar_blk:                           /* the 7 shooting states' event blocks with �
 ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-row picture streams */
  .space 81920
 ar_pend:
+
+/* ---------------------------------------------------------------- v0.27: the film's name in the JPEG's EXIF
+ * Owner (2026-11-09 / 11): the film in the photo's data, for sharing and sorting; JPEG is enough. The per-shot EXIF fill
+ * (research/NOTES.md "EXIF research, step 2") copies Artist / Copyright into the image's EXIF block ((8,sp)) and then
+ * reaches 0x60457578 (.hook_ex) in both cases. There, when the picture mode is COLOR k and k holds a film:
+ *   ImageDescription (block + 0x5a8, 32 B, ASCII + NUL): "FILM n Name"   (n = the film's slot 1..20)
+ *   UserComment (block + 3972: the 117 characters after its "ASCII" prefix, spaces as stock): "Caduceus OM-3: FILM n Name"
+ * Otherwise both get the stock blank back (ImageDescription as first seen, UserComment spaces). */
+ex_hook:                          /* jmp from 0x60457578 in the EXIF fill's frame: (8,sp) = the block */
+ movm [d2,d3,a2,a3],(sp)
+ add -20,sp                       /* (0) call slot, (4) mdr, (8) d1, (12) a1, (16) the block */
+ mov mdr,d0
+ mov d0,(4,sp)
+ mov d1,(8,sp)
+ mov a1,(12,sp)
+ mov (44,sp),a0                   /* (8,sp) as it was: 20 + 16 + 8 */
+ mov a0,(16,sp)
+ call ex_fill,[d2,d3,a2,a3],20
+ mov (4,sp),d0
+ mov d0,mdr
+ mov (8,sp),d1
+ mov (12,sp),a1
+ add 20,sp
+ movm (sp),[d2,d3,a2,a3]
+ mov (8,sp),a0                    /* the 8 bytes it replaced */
+ movhu (37666,a0),d0
+ jmp ex_back
+
+/* ex_fill: `call ex_fill,[d2,d3,a2,a3],20`, a0 = the EXIF block */
+ex_fill:
+ mov a0,(ex_blk)
+ movbu (ex_sok),d0                /* the stock ImageDescription, once */
+ cmp 0,d0
+ bne 1f
+ mov a0,a1
+ add 0x5a8,a1
+ mov ex_snap,a2
+ mov 32,d1
+2:
+ movbu (a1),d0
+ movbu d0,(a2)
+ add 1,a1
+ add 1,a2
+ add -1,d1
+ bne 2b
+ mov 1,d0
+ movbu d0,(ex_sok)
+1:
+ mov 38017,d0                     /* the picture mode, as the capture side reads it (wb_get): 6 -> 40209; */
+ clr d1                           /* 11 = COLOR, its number 63153 (1..4) */
+ mov 0,a0
+ call getter,[d2,d3],12
+ extbu d0
+ cmp 6,d0
+ bne 12f
+ mov 40209,d0
+ clr d1
+ mov 0,a0
+ call getter,[d2,d3],12
+ extbu d0
+12:
+ cmp 11,d0
+ bne 80f
+ mov 63153,d0
+ clr d1
+ mov 0,a0
+ call getter,[d2,d3],12
+ extbu d0
+ add -1,d0
+ cmp 4,d0
+ bcc 80f
+ mov d0,d2                        /* COLOR k */
+ PVAL 80f                         /* (getter may use d3 / a2: P again) */
+ call fl_film,[],0                /* -> film j */
+ cmp 0,d0
+ blt 80f
+ mov d0,d3
+ mov (LPTR,a2),a0
+ call fl_has,[],0
+ cmp 0,d0
+ beq 80f
+ mov ex_txt,a1                    /* "FILM n Name" */
+ mov ex_film,a0
+3:
+ movbu (a0),d0
+ cmp 0,d0
+ beq 4f
+ movbu d0,(a1)
+ add 1,a0
+ add 1,a1
+ bra 3b
+4:
+ mov d3,d0                        /* n = j + 1 */
+ add 1,d0
+ cmp 10,d0
+ bcs 5f
+ mov 49,d1                        /* "1" */
+ cmp 20,d0
+ bcs 6f
+ mov 50,d1                        /* "2" */
+6:
+ movbu d1,(a1)
+ add 1,a1
+ add -10,d0
+ cmp 10,d0
+ bcs 5f
+ add -10,d0
+5:
+ add 48,d0
+ movbu d0,(a1)
+ add 1,a1
+ mov (LPTR,a2),a0                 /* the name: 16 bytes at 1312 + 16 j, NUL-ended when shorter */
+ mov d3,d0
+ asl 4,d0
+ add d0,a0
+ add 1312,a0
+ movbu (a0),d0
+ cmp 0,d0
+ beq 8f
+ mov 32,d0
+ movbu d0,(a1)
+ add 1,a1
+ mov 16,d1
+7:
+ movbu (a0),d0
+ cmp 0,d0
+ beq 8f
+ cmp 32,d0                        /* printable ASCII only */
+ bcs 71f
+ cmp 127,d0
+ bcc 71f
+ movbu d0,(a1)
+ add 1,a1
+71:
+ add 1,a0
+ add -1,d1
+ bne 7b
+8:
+ clr d0
+ movbu d0,(a1)
+ mov (ex_blk),a2                  /* ImageDescription: the text, zeros after it */
+ add 0x5a8,a2
+ mov ex_txt,a0
+ mov 32,d1
+ clr d2
+9:
+ movbu (a0),d0
+ cmp 0,d2
+ bne 91f
+ cmp 0,d0
+ bne 92f
+ mov 1,d2
+91:
+ clr d0
+92:
+ movbu d0,(a2)
+ add 1,a0
+ add 1,a2
+ add -1,d1
+ bne 9b
+ mov (ex_blk),a2                  /* UserComment: "Caduceus OM-3: " + the text, spaces after it */
+ add 3972,a2
+ mov 117,d3
+ mov ex_uc,a0
+ call ex_put,[],0
+ mov ex_txt,a0
+ call ex_put,[],0
+ mov 32,d0
+10:
+ cmp 0,d3
+ beq 11f
+ movbu d0,(a2)
+ add 1,a2
+ add -1,d3
+ bra 10b
+11:
+ ret [d2,d3,a2,a3],20
+80:                               /* no film: the stock blanks */
+ mov (ex_blk),a2
+ add 0x5a8,a2
+ mov ex_snap,a0
+ mov 32,d1
+81:
+ movbu (a0),d0
+ movbu d0,(a2)
+ add 1,a0
+ add 1,a2
+ add -1,d1
+ bne 81b
+ mov (ex_blk),a2
+ add 3972,a2
+ mov 117,d1
+ mov 32,d0
+82:
+ movbu d0,(a2)
+ add 1,a2
+ add -1,d1
+ bne 82b
+ ret [d2,d3,a2,a3],20
+
+/* ex_put: `call ex_put,[],0`, a0 = an ASCII text (NUL-ended) -> at a2 while d3 > 0 (both moved on). Uses d0. */
+ex_put:
+ movbu (a0),d0
+ cmp 0,d0
+ beq 9f
+ cmp 0,d3
+ beq 9f
+ movbu d0,(a2)
+ add 1,a0
+ add 1,a2
+ add -1,d3
+ bra ex_put
+9:
+ ret [],0
+
+ex_film:
+ .asciz "FILM "
+ex_uc:
+ .asciz "Caduceus OM-3: "
+ .balign 4
+ex_blk:
+ .long 0
+ex_sok:
+ .byte 0
+ex_snap:
+ .space 32
+ex_txt:
+ .space 48
+ .balign 4
 
 /* ---------------------------------------------------------------- v0.27 polish 2: body diagrams (firmware/diagrams.py)
  * The Button Function list shows a 422 x 446 body picture per row with the control highlighted and a line to the

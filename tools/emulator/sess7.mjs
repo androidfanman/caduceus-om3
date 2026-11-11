@@ -73,6 +73,18 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     const out = dd.m.getRegs()[0] | 0; dd.m.setRegs(saved);
     console.log('GET', sid, '->', out, 'steps', k);
   }
+  else if (t.startsWith('run:')) {     // run:ADDR:D2:A3[:A0]  `call ADDR,[d2,d3,a2,a3],20` (hex): steps, d0
+    const { Debugger } = await import(EMU + '/src/debug/debugger.mjs');
+    const [fa, d2s, a3s, a0s] = t.slice(4).split(':'); const FN = parseInt(fa, 16) >>> 0;
+    const dd = Debugger.attach(lab.sim, { lab }); const saved = dd.m.getRegs().slice();
+    const sp = ((saved[8] - 0x800) & ~3) >>> 0, stub = (sp - 0x7000) >>> 0;
+    const le = (v) => [v & 255, v >>> 8 & 255, v >>> 16 & 255, v >>> 24 & 255];
+    dd.write(stub, Uint8Array.from([0xdd, ...le((FN - stub) | 0), 0xf0, 20, 0xcb, 0xcb]));
+    const r = saved.slice(); r[9] = stub; r[8] = sp; r[2] = parseInt(d2s, 16); r[7] = parseInt(a3s, 16); if (a0s) r[4] = parseInt(a0s, 16); dd.m.setRegs(r);
+    let k = 0; while ((dd.m.getRegs()[9] >>> 0) !== ((stub + 7) >>> 0) && k < 50000000) { dd.m.step(); k++; }
+    const out = dd.m.getRegs()[0] | 0; dd.m.setRegs(saved);
+    console.log('RUN', fa, '->', out, 'steps', k);
+  }
   else if (t.startsWith('mem:')) {     // mem:ADDR:LEN:FILE (hex address and length): raw memory to FILE
     const [a_, n_, f_] = t.slice(4).split(':'); fs.writeFileSync(f_, Buffer.from(rd(parseInt(a_, 16), parseInt(n_, 16))));
   }
