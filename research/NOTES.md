@@ -2781,5 +2781,25 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   cd1.encode of that record from the card's LOOKS.BIN, and it decodes back to the same 57 bytes. Bug on the way: ex_cd1
   first called after a2 had become the EXIF block (a fault loop in om-emu); now right after the name, while a2 = P.
   ex2 (VERSION "v0.27-dev (exif 2)"): E1479999.BIN ddf84558…, GUIDES.BIN b6b03efd….
+
+### v0.27 dial rows redone: each position picks a mode and keeps its own COLOR choice, test dr3 (2026-11-11; emulator only)
+- Owner (found while testing): a position set to FILM 20 is stuck on FILM 20. Wanted instead: each position set to
+  CRT / ART / COLOR / MONO, the film picked in the COLOR menus as usual, and each position remembering its own choice
+  ("in theory all 4 positions set to COLOR, each a different film sim").
+- Rows (571 / 54 / 55 / 1966): values DV1 3900 + 0 Normal (its own mode), 1 CRT, 2 ART, 3 COLOR, 4 MONO (dr1 / dr2
+  values read as Normal); value pictures Normal / CRT / ART / COLOR / MONO, titles our strings 0x7f48.. (CRT .. MONO).
+- Memory: unused movie buttons with validator records: 1958 / 1277 / 1275 / 1284 = each position's COLOR choice
+  (PV0 4000 + the dm_cur code: 1..4 COLOR k own, 11..30 FILM n), 1285 = the last position (LV0 4100 + 0..3); written with
+  the manager from sx_set, so the camera keeps them (persistence across power-off: to be confirmed on the camera).
+- `dm_turn` on each dial event (sx_set, family -> position p): the position the dial was on (1285) keeps the COLOR choice
+  now on the camera when its mode is COLOR; p becomes the last one; p's mode: not COLOR -> that family the stock way;
+  COLOR -> 897 = 901 and p's own choice back through fl_set (the old 55 path), or as it is when p has none yet.
+  dm_boot (power-on, after the films) runs the same through the facade.
+- om-emu (sess7 gained `sget:SID` and `setv:SID=VAL`; 901 reads / writes from the debugger hang there, so films were
+  picked on the super control panel: OK closes the dial's screen, OK opens the panel, `sub+N` steps): CRT and MONO rows
+  -> COLOR; COLOR position -> FILM 19, CRT -> FILM 18, MONO -> FILM 17; turning back: COLOR shows Astia 100F (FILM 19),
+  CRT Fuji Eterna (FILM 18), MONO Vision3 250D (FILM 17), ART Pop Art (stock); memory 1275 / 1958 / 1284 = 4029 / 4028 /
+  4027.
+- dr3 also carries the EXIF ex2 code. VERSION "v0.27-dev (dial modes 1)": E1479999.BIN 380771bc…, GUIDES.BIN 77b3fc6b….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

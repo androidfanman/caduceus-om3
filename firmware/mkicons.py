@@ -556,11 +556,11 @@ def value_picture(txt, cap=31, maxw=150):
 
 
 def dial_value_words():
-    return ['Normal'] + ['COLOR %d' % k for k in range(1, 5)] + ['FILM %d' % n for n in range(1, 21)]
+    return ['Normal', 'CRT', 'ART', 'COLOR', 'MONO']           # dr3: the modes a position can take
 
 
 def dial_streams():
-    """[(w, h, stream)]: the icons CRT, ART, COLOR, MONO, then the 25 value pictures (Normal, COLOR 1-4, FILM 1-20)."""
+    """[(w, h, stream)]: the icons CRT, ART, COLOR, MONO, then the value pictures (Normal, CRT, ART, COLOR, MONO)."""
     out = []
     for p in [dial_label(t) for t in DIAL_WORDS] + [value_picture(t) for t in dial_value_words()]:
         out.append((p.shape[1], p.shape[0], encode11(bytes(p.flatten().tolist()), p.shape[1], p.shape[0])))

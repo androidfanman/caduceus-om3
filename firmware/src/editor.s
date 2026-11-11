@@ -9366,49 +9366,28 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  mov 897,d0                       /* stock, with the family back in d1 */
  mov (a3),d1
  jmp sl_set0
-41:
- add -16,sp                       /* (0) call slot, (4) a0, (8) a1, (12) d2 */
- mov a0,(4,sp)
- mov a1,(8,sp)
- mov d2,(12,sp)
- mov dm_sid,a2
- mov d2,d0
+41:                               /* v0.27 dr3 (owner): each position -> a mode (its own / CRT / ART / COLOR / MONO);
+                                   * a position on COLOR keeps its own COLOR choice (dm_turn) */
+ mov a0,(dm_xa0)
+ mov a1,(dm_xa1)
+ call dm_turn,[d2,d3,a2,a3],20    /* -> d0 = the mode 0..3 (CRT, ART, COLOR, MONO), d1 = its COLOR choice or 0 */
+ mov (dm_xa0),a0
+ mov (dm_xa1),a1
+ cmp 2,d0
+ beq 43f
+ mov dm_fam,a3                    /* not COLOR: that mode's family, the stock way */
  asl2 d0
- add d0,a2
- mov (a2),d0                      /* the position's row (sid) */
- call sget,[],4
- mov (4,sp),a0
- mov (8,sp),a1
- mov (12,sp),d2
- add 16,sp
- add -DV0,d0                      /* the target: DV0 + code; anything else = Normal */
- cmp 31,d0
- bcs 42f
- clr d0
-42:
- mov d0,d3
+ add d0,a3
+ mov 897,d0
+ mov (a3),d1
+ jmp sl_set0
+43:
+ mov d1,d3
  cmp 0,d3
- bne 5f
- cmp 2,d2                         /* an unmapped COLOR position: the owner's own choice back, if a mapped */
- bne 40b                          /* position replaced it (dm_own) */
- movbu (dm_own),d3
- cmp 0,d3
- beq 40b
- clr d0
- movbu d0,(dm_own)
- bra 55f
-5:
- movbu (dm_own),d0                /* a mapped position: remember the owner's own choice first (once) */
- cmp 0,d0
  bne 55f
- add -12,sp                       /* (0) call slot, (4) a0, (8) a1: sget keeps d2/d3/a2/a3 only */
- mov a0,(4,sp)
- mov a1,(8,sp)
- call dm_cur,[d2,d3,a2,a3],12
- movbu d0,(dm_own)
- mov (4,sp),a0
- mov (8,sp),a1
- add 12,sp
+ mov 897,d0                       /* COLOR, nothing remembered yet: as it is */
+ mov 901,d1
+ jmp sl_set0
 55:
  add -12,sp                       /* (0) call slot, (4) a0, (8) a1 */
  mov a0,(4,sp)
@@ -9432,6 +9411,97 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  add FV0 - 11,d3                  /* FILM n = code - 10 -> FV0 + n - 1 */
  mov d3,d1
  jmp fl_set
+/* dm_turn: `call dm_turn,[d2,d3,a2,a3],20`, d2 = the position the dial is on now (0..3: CRT, ART, COLOR, MONO), the
+ * SetValue's a0 / a1 in dm_xa0 / dm_xa1 -> d0 = its mode (0..3), d1 = the COLOR choice it keeps (dm_cur code, 0 none).
+ * First the position the dial was on before (dm_lsid): when its mode is COLOR, the COLOR choice now on the camera is
+ * its own -> kept in its dm_psid setting. Then this position becomes the last one. Settings written with the manager
+ * (the camera keeps them through power-off). */
+dm_turn:
+ mov (dm_lsid),d0                 /* the last position */
+ call sget,[],4
+ add -LV0,d0
+ cmp 4,d0
+ bcc 3f
+ mov d0,d3                        /* q */
+ call dm_mode,[d2,d3],12          /* d0 = q's mode (d3 = q) */
+ cmp 2,d0
+ bne 2f
+ call dm_cur,[d2,d3,a2,a3],12     /* its COLOR choice now */
+ cmp 0,d0
+ beq 2f
+ mov d0,d1
+ add PV0,d1
+ mov dm_psid,a2
+ mov d3,d0
+ asl2 d0
+ add d0,a2
+ mov (a2),d0
+ call dm_put,[d2,d3,a2,a3],80
+2:
+ cmp d2,d3
+ beq 4f
+3:
+ mov (dm_lsid),d0                 /* this position is the last one now */
+ mov d2,d1
+ add LV0,d1
+ call dm_put,[d2,d3,a2,a3],80
+4:
+ mov d2,d3
+ call dm_mode,[d2,d3],12
+ mov d0,(dm_xmd)
+ clr d1
+ cmp 2,d0
+ bne 9f
+ mov dm_psid,a2                   /* its own COLOR choice */
+ mov d2,d0
+ asl2 d0
+ add d0,a2
+ mov (a2),d0
+ call sget,[],4
+ add -PV0,d0
+ mov d0,d1
+ cmp 1,d1
+ bcs 8f
+ cmp 5,d1
+ bcs 9f
+ cmp 11,d1
+ bcs 8f
+ cmp 31,d1
+ bcs 9f
+8:
+ clr d1
+9:
+ mov (dm_xmd),d0
+ ret [d2,d3,a2,a3],20
+
+/* dm_mode: `call dm_mode,[d2,d3],12`, d3 = a position 0..3 -> d0 = its mode 0..3 (its row: Normal = its own). Uses
+ * a0, a1, d1. */
+dm_mode:
+ mov dm_sid,a0
+ mov d3,d0
+ asl2 d0
+ add d0,a0
+ mov (a0),d0
+ call sget,[],4
+ add -DV1,d0
+ cmp 5,d0
+ bcc 1f
+ cmp 0,d0
+ beq 1f
+ add -1,d0
+ ret [d2,d3],12
+1:
+ mov d3,d0
+ ret [d2,d3],12
+
+/* dm_put: `call dm_put,[d2,d3,a2,a3],80`, d0 = a setting, d1 = its value: through the manager, with the SetValue's
+ * a0 / a1 (as sx_set's own family write) */
+dm_put:
+ mov (dm_xa0),a0
+ mov (dm_xa1),a1
+ call manager,[d2,d3,a2,a3],68
+ ret [d2,d3,a2,a3],80
+
 dm_cur:                           /* `call dm_cur,[d2,d3,a2,a3],12` -> d0 = the current COLOR choice as a dm_map
                                    * code (1..4 COLOR k, 11..30 FILM n), 0 if unknown. Uses a0, a1, d1. */
  mov 901,d0
@@ -9498,13 +9568,35 @@ dm_own:                           /* the owner's own COLOR choice while a mapped
  * position: CRT -> sid 571, ART -> 54, COLOR -> 55, MONO -> 1966 (buttons of other OM bodies with row, item and picker
  * entries; 571's validator record is 1967's, an unused movie button). Values DV0 + code: 0 Normal (the position's own
  * mode), 1..4 COLOR k, 11..30 FILM 1..20. Pickers: variants of keys 9 / 11 / 12 / 13 with our 25 options (build.py). */
- .set DV0, 3800
- .set ST_DC0, 0x7f48              /* "COLOR 1".."COLOR 4" */
+ .set DV0, 3800                   /* dr1 / dr2 values (read as Normal now) */
+ .set DV1, 3900                   /* dr3: DV1 + 0 Normal, 1 CRT, 2 ART, 3 COLOR, 4 MONO */
+ .set PV0, 4000
+ .set LV0, 4100
+ .set ST_DC0, 0x7f48              /* "CRT", "ART", "COLOR", "MONO" (dr3) */
  .set ST_DH, 0x7f4c               /* the options' help text */
  .set ST_DF0, 0x7f50              /* "FILM 1".."FILM 20" (cells and the row's value; the title has the film's name) */
  .balign 4
 dm_sid:
  .long 571, 54, 55, 1966          /* CRT, ART, COLOR, MONO */
+dm_psid:                          /* dr3: each position's own COLOR choice (PV0 + dm_cur code): unused movie buttons */
+ .long 1958, 1277, 1275, 1284
+dm_lsid:                          /* the position the dial was on last (LV0 + 0..3) */
+ .long 1285
+dm_xa0:
+ .long 0
+dm_xa1:
+ .long 0
+dm_xmd:
+ .long 0
+dm_plist:                         /* their values: PV0 (none), PV0 + 1..4 (COLOR k), PV0 + 11..30 (FILM n) */
+ .short PV0, PV0 + 1, PV0 + 2, PV0 + 3, PV0 + 4
+ .short PV0 + 11, PV0 + 12, PV0 + 13, PV0 + 14, PV0 + 15, PV0 + 16, PV0 + 17, PV0 + 18, PV0 + 19, PV0 + 20
+ .short PV0 + 21, PV0 + 22, PV0 + 23, PV0 + 24, PV0 + 25, PV0 + 26, PV0 + 27, PV0 + 28, PV0 + 29, PV0 + 30
+dm_pend:
+dm_llist:
+ .short LV0, LV0 + 1, LV0 + 2, LV0 + 3
+dm_llend:
+ .balign 4
 dm_boot:                          /* `call dm_boot,[d2,d3,a2,a3],20` from pf_load once the films are there (power-on,
                                    * HLS_EVENT task): the camera set the dial's family before the films loaded, so a
                                    * mapped position stayed stock until a turn (owner, dg3). Set the family again through
@@ -9537,26 +9629,18 @@ dm_get:                           /* from sl_get (d0 one of the four, a1 -> the 
  mov (4,sp),a1
  add 12,sp
  mov d0,d1
- add -DV0,d1
- cmp 31,d1
+ add -DV1,d1
+ cmp 5,d1
  bcs 1f
  clr d1
 1:
- cmp 5,d1                         /* 5..10 are not options */
- bcs 2f
- cmp 11,d1
- bcc 2f
- clr d1
-2:
- add DV0,d1
+ add DV1,d1
  mov d1,(a1)
  clr d0
  rets
  .balign 4
 dm_list:                          /* the options (validator list), in the picker's order */
- .short DV0, DV0 + 1, DV0 + 2, DV0 + 3, DV0 + 4
- .short DV0 + 11, DV0 + 12, DV0 + 13, DV0 + 14, DV0 + 15, DV0 + 16, DV0 + 17, DV0 + 18, DV0 + 19, DV0 + 20
- .short DV0 + 21, DV0 + 22, DV0 + 23, DV0 + 24, DV0 + 25, DV0 + 26, DV0 + 27, DV0 + 28, DV0 + 29, DV0 + 30
+ .short DV1, DV1 + 1, DV1 + 2, DV1 + 3, DV1 + 4
 dm_lend:
  .balign 4
 dm_lab:                           /* {value, string << 16 | 4, 0x61570e04}: Normal (616), COLOR k, film n's name */
@@ -9609,15 +9693,15 @@ dm_f19:
 dm_f20:
  .short 70, 73, 76, 77, 32, 50, 48, 0
 dm_s1:
- .short 67, 79, 76, 79, 82, 32, 49, 0
+ .short 67, 82, 84, 0
 dm_s2:
- .short 67, 79, 76, 79, 82, 32, 50, 0
+ .short 65, 82, 84, 0
 dm_s3:
- .short 67, 79, 76, 79, 82, 32, 51, 0
+ .short 67, 79, 76, 79, 82, 0
 dm_s4:
- .short 67, 79, 76, 79, 82, 32, 52, 0
+ .short 77, 79, 78, 79, 0
 dm_sh:
- .short 84, 117, 114, 110, 105, 110, 103, 32, 116, 104, 101, 32, 67, 114, 101, 97, 116, 105, 118, 101, 32, 68, 105, 97, 108, 13, 10, 116, 111, 32, 116, 104, 105, 115, 32, 112, 111, 115, 105, 116, 105, 111, 110, 32, 115, 101, 108, 101, 99, 116, 115, 13, 10, 116, 104, 105, 115, 32, 112, 105, 99, 116, 117, 114, 101, 32, 109, 111, 100, 101, 46, 0
+ .short 84, 104, 101, 32, 112, 105, 99, 116, 117, 114, 101, 32, 109, 111, 100, 101, 32, 116, 104, 105, 115, 13, 10, 67, 114, 101, 97, 116, 105, 118, 101, 32, 68, 105, 97, 108, 32, 112, 111, 115, 105, 116, 105, 111, 110, 32, 117, 115, 101, 115, 46, 13, 10, 79, 110, 32, 67, 79, 76, 79, 82, 32, 105, 116, 32, 107, 101, 101, 112, 115, 32, 105, 116, 115, 32, 111, 119, 110, 32, 99, 104, 111, 105, 99, 101, 46, 0
 
 /* ---------------------------------------------------------------- v0.27 arrow keys (feature/v0.27-buttons)
  * Owner (ak5): the camera's own Direct Function (▲ Exp comp, ◀ AF area, ▶ ▼ assignable) is replaced by ours: with

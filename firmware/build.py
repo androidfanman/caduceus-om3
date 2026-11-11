@@ -506,23 +506,32 @@ def build(defaults, testfile, out):
         struct.pack_into('<I', r, 20, struct.unpack_from('<I', recs[rs.index(158)], 20)[0])   # ✥'s diagram (the whole pad)
         recs.append(r)
     # v0.27 Creative Dial rows (editor.s "dial rows"): options Normal / COLOR 1-4 / FILM 1-20 (value DV0 + code)
-    DV0, OBJ = 3800, 0x61570e04
-    dcodes = [0, 1, 2, 3, 4] + list(range(11, 31))
+    # dr3 (owner): each position -> Normal (its own mode) / CRT / ART / COLOR / MONO; on COLOR it keeps its own choice
+    DV1, OBJ = 3900, 0x61570e04
+    dcodes = [0, 1, 2, 3, 4]
+    NOPT = len(dcodes)
     dl = sy['dm_list']
-    assert list(struct.unpack_from('<25H', m, o(dl))) == [DV0 + c for c in dcodes] and sy['dm_lend'] - dl == 50
-    def dstr(c, title=False):   # picker titles: "Normal", ST_DC0 + k, film n's name (ST_F0) (cells / rows: pictures 0x7fe7..)
-        return 616 if c == 0 else (0x7f48 + c - 1 if c < 5 else (0x7f10 if title else 0x7f50) + c - 11)
-    lab = b''.join(struct.pack('<3I', DV0 + c, ((0x7fe7 + i) << 16) | 0xc, OBJ) for i, c in enumerate(dcodes))   # our pictures
-    tit = b''.join(struct.pack('<3I', DV0 + c, (dstr(c, True) << 16) | 4, OBJ) for c in dcodes)
-    m[o(sy['dm_tit']):o(sy['dm_tit']) + 300] = tit
-    hlp = b''.join(struct.pack('<3I', DV0 + c, (0x7f4c << 16) | 4, OBJ) for c in dcodes)
-    m[o(sy['dm_lab']):o(sy['dm_lab']) + 300] = lab
-    m[o(sy['dm_hlp']):o(sy['dm_hlp']) + 300] = hlp
+    assert list(struct.unpack_from('<5H', m, o(dl))) == [DV1 + c for c in dcodes] and sy['dm_lend'] - dl == 10
+    def dstr(c):                # picker titles: "Normal", then ST_DC0 + 0..3 ("CRT" ...); cells / rows: pictures 0x7fe7..
+        return 616 if c == 0 else 0x7f48 + c - 1
+    lab = b''.join(struct.pack('<3I', DV1 + c, ((0x7fe7 + i) << 16) | 0xc, OBJ) for i, c in enumerate(dcodes))
+    tit = b''.join(struct.pack('<3I', DV1 + c, (dstr(c) << 16) | 4, OBJ) for c in dcodes)
+    hlp = b''.join(struct.pack('<3I', DV1 + c, (0x7f4c << 16) | 4, OBJ) for c in dcodes)
+    m[o(sy['dm_tit']):o(sy['dm_tit']) + 12 * NOPT] = tit
+    m[o(sy['dm_lab']):o(sy['dm_lab']) + 12 * NOPT] = lab
+    m[o(sy['dm_hlp']):o(sy['dm_hlp']) + 12 * NOPT] = hlp
+    # the settings that keep each position's COLOR choice and the last position: unused movie buttons' validators
+    for sid, lo, hi in ((1958, 'dm_plist', 'dm_pend'), (1277, 'dm_plist', 'dm_pend'), (1275, 'dm_plist', 'dm_pend'),
+                        (1284, 'dm_plist', 'dm_pend'), (1285, 'dm_llist', 'dm_llend')):
+        a = vrec[sid]
+        r = struct.unpack_from('<HHIIHH', m, o(a))
+        assert r[0] == sid and r[1] == 128 and r[3] == 0 and r[5] == 2, (sid, r)
+        struct.pack_into('<HHIIHH', m, o(a), sid, 128, sy[lo], 0, sy[hi] - sy[lo], 2)
     for sid, was in ((571, 1967), (54, 54), (55, 55), (1966, 1966)):   # 571 has none: 1967's (an unused movie button)
         a = vrec[was]
         r = struct.unpack_from('<HHIIHH', m, o(a))
         assert r[0] == was and r[1] == 128 and r[3] == 0 and r[5] == 2, (sid, r)
-        struct.pack_into('<HHIIHH', m, o(a), sid, 128, dl, 0, 50, 2)
+        struct.pack_into('<HHIIHH', m, o(a), sid, 128, dl, 0, 2 * NOPT, 2)
     assert 571 not in vrec and 1967 in vrec
     G8 = {struct.unpack_from('<I', m, o(0x615c540c + 24 * i) + 8)[0]: 0x615c540c + 24 * i for i in range(416)}
     for k, (sid, key) in enumerate(zip(DIAL, (9, 11, 12, 13))):
@@ -530,14 +539,14 @@ def build(defaults, testfile, out):
         V = [0x61571ba0 + 24 * i for i in range(32) if u32(0x61571ba0 + 24 * i)[0] & 0xffff == key]
         assert len(V) == 1; V = V[0]                                # the picker variant of the row's key
         assert u32(V, 6) == (((key + 1) << 16) | key, 55, 0x61570e08, 0x61571288, 0x61571708, 0x61571b88), hex(V)
-        struct.pack_into('<4I', m, o(V) + 4, 25, sy['dm_tit'], sy['dm_lab'], sy['dm_hlp'])
+        struct.pack_into('<4I', m, o(V) + 4, NOPT, sy['dm_tit'], sy['dm_lab'], sy['dm_hlp'])
         a = 0x6139e26c + 16 * key                                   # picker title icon (index = key)
         assert u32(a, 4) == (0xffff, 7, 7, 1), hex(a)
         struct.pack_into('<I', m, o(a) + 12, 0x7fe3 + k)
         r = bytearray(recs[rs.index(47)])                          # a copy of Fn's record (its diagram for now)
         struct.pack_into('<I', r, 0, sid)
         struct.pack_into('<I', r, 4, ((0x7fe3 + k) << 16) | 0xc)
-        struct.pack_into('<2I', r, 12, sy['dm_lab'], 25)
+        struct.pack_into('<2I', r, 12, sy['dm_lab'], NOPT)
         recs.append(r)
     # v0.27 polish 2: body diagrams composed by the camera (editor.s dg_get, firmware/diagrams.py) for the rows whose
     #   control or place on the page differs from the stock pictures': ▲ ◀ ▶ ▼ L-Fn CRT ART COLOR MONO
