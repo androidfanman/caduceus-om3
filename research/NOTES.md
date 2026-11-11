@@ -2601,3 +2601,24 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   3. Owner: keep the camera's own Direct Function (▲ = Exp comp, ◀ = AF area, ▶ ▼ assignable) and add the
      all-four-keys mode as a **fourth ✥ option** (sid 158 value 3) instead of changing Direct Function.
 
+### v0.27 arrow keys, test ak5 (2026-11-10; emulator only)
+- **Fourth ✥ option "Direct Function, All Keys"** (owner): sid 158 keeps its stock values 0 / 1 / 2 (about 40 code sites
+  read it). The option is stored as 158 = 2 plus a flag in sid 1966 (a button of other OM bodies: key-table event 0x54,
+  none on the OM-3; 3341 = on, 3200 = off). Write: the menu's facade SetValue(158, v) reaches `sl_set` -> `sx_set` ->
+  `ar_s158`: flag by the manager (1966), then 158 = v (3 -> 2) as stock (MDR restored from (68,sp) for sl_set0).
+  Read: `sl_get` -> `ar_sget` answers 3 only to the ✥ choice screen and the list's value cells (callers 0x611b24f7,
+  0x611b6c44, 0x611b43ad, 0x611f2707); everything else still reads 2. Validator 158 -> ar_v158 [0, 2, 3, 1]; the item
+  record's labels -> ar_l158 (4); the choice screen's picker variant 0x61571c48 (key 6): count 3 -> 4, its title /
+  picture / help lists -> ar_vt / ar_vp / ar_vh with ours third (title "Direct Function, All Keys", our string ST_AR
+  0x7f08 via `ar_st` on .hook_str; picture 0x7fe2, our ▲◀▶▼ drawing, 104 x 40; Direct Function's help text).
+- `ar_get`: Direct Function without the flag = the camera's own (▲ Exp comp 3341, ◀ AF area 85); with it, the
+  assigned functions. The ▲ / ◀ rules stay without their Direct branch, so an assignment is kept either way.
+- **Diagrams**: the item records' 422 x 446 body pictures are not in the firmware file as stored (not found in any
+  decoded component; the camera unpacks its resources at start-up), so they cannot be redrawn at build time. Rows
+  back in the camera's order with ▲ ◀ last (Fn .. ✥, ▶, ▼, L-Fn, ▲, ◀): ▶ / ▼ / L-Fn keep their own pictures and lines;
+  ▲ / ◀ show ✥'s (whole pad highlighted; its line meets the list a little off). Exact ▲ / ◀ pictures would need
+  run-time drawing.
+- ▲ / ◀ icons now the camera's size and colours. om-emu: choice screen with four boxes, our option chosen and shown
+  again on reopening; ✥ row shows ▲◀▶▼ in All Keys and the stock picture in Direct Function; 158 = 2, 1966 = 3341.
+- ak5 (also the dial test map dm7): E1479999.BIN 24c5b3f3…, GUIDES.BIN a4bd2a91….
+

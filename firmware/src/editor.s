@@ -86,7 +86,7 @@
                                    * clr d0; mov 116,a0; add a3,a0; mov d0,(a0) */
  .byte 0xcb
 .section .hook_str,"ax"
- jmp st_get                       /* v0.23 stock 0x610f56a6 (string getter, d0 id): mov d0,d2; call 0x610f56bd,[],0 */
+ jmp ar_st                        /* v0.27: ar_st (the fourth arrow-pad option's title), then st_get. v0.23 stock 0x610f56a6 (string getter, d0 id): mov d0,d2; call 0x610f56bd,[],0 */
  .byte 0xcb
 .section .hook_lc,"ax"
  jmp gr_lc                        /* v0.23 stock 0x611d1982 (left-column id lookup): cmp 5400,d0; beq 0x611d19ac;
@@ -3691,6 +3691,11 @@ sl_slot:
 
 /* sl_get <- facade +12 word 0x60e57480 (CALLS: d0 id, a0 facade, a1 out -> d0 0, (a1) value); else ed_get. */
 sl_get:
+ cmp 158,d0                       /* v0.27: the arrow-pad mode as the ✥ screens read it (ar_sget) */
+ bne 0f
+ jmp ar_sget
+0:
+sl_g0:
  cmp 0,a1
  beq 9f
  cmp 2148,d0                      /* the Picture Mode column's row memory: the top row (111) every time (owner,
@@ -9316,6 +9321,10 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  bne 1f
  jmp fl_set
 1:
+ cmp 158,d0                       /* v0.27: the arrow-pad mode; 3 = all four keys assignable (ar_s158) */
+ bne 11f
+ jmp ar_s158
+11:
  cmp 897,d0
  beq 2f
  jmp sl_set0
@@ -9476,7 +9485,16 @@ ar_get:                           /* .hook_ag (the dispatcher's value read, fram
  mov 158,d0
  call ar_getv,[d2,a2],24          /* d0 = the arrow-pad mode */
  cmp 2,d0
+ bne 5f
+ mov AR_FLAG,d0                   /* Direct Function: all four keys (our fourth option) or the camera's own */
+ call ar_getv,[d2,a2],24
+ cmp 3341,d0
  beq 8f
+ cmp 52,d2
+ beq 7f
+ mov 3341,d0                      /* ▲: Exposure Comp., as stock */
+ ret [d2],8
+5:
  cmp 52,d2
  beq 7f
  cmp 1,d0
@@ -9489,12 +9507,12 @@ ar_get:                           /* .hook_ag (the dispatcher's value read, fram
  ret [d2],8
 8:
  jmp ar_vget                      /* mov d2,d0; call the getter; ret [d2],8: the assigned value */
-ar_ic:                            /* .hook_ic: our ▲ / ◀ pictures (AR_IC0, AR_IC0 + 1), else ic_get */
+ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pictures (AR_IC0 + 0..2), else ic_get */
  mov d0,d1
  exthu d1
  cmp AR_IC0,d1
  bcs 1f
- cmp AR_IC0 + 2,d1
+ cmp AR_IC0 + 3,d1
  bcc 1f
  add -AR_IC0,d1
  asl2 d1
@@ -9504,15 +9522,108 @@ ar_ic:                            /* .hook_ic: our ▲ / ◀ pictures (AR_IC0, A
 1:
  jmp ic_get
  .set AR_IC0, 0x7fe0              /* clear of Caduceus' 0x7f80..0x7fc3 (PR #26's ▲ id) */
+ .set AR_FLAG, 1966               /* the "all four keys" flag: sid 1966 (a button of other OM bodies, key event 0x54,
+                                   * none on the OM-3) holds 3341 for on, anything else for off */
+ar_sget:                          /* sl_get with d0 = 158 (CALLS: a0 facade, a1 out, MDR return): for the ✥ choice
+                                   * screen and the list's value cell (0x611b24f7 / 0x611b6c44 / 0x611b43ad / 0x611f2707), Direct Function
+                                   * with the flag reads 3 (our option); every other reader: as before (sl_g0) */
+ mov mdr,d1
+ cmp 0x611b24f7,d1
+ beq 1f
+ cmp 0x611b6c44,d1
+ beq 1f
+ cmp 0x611b43ad,d1
+ beq 1f
+ cmp 0x611f2707,d1                /* the Button Function list's value cells */
+ beq 1f
+ jmp sl_g0
+1:
+ cmp 0,a1
+ bne 2f
+ jmp sl_g0
+2:
+ movm [d2,d3,a2,a3],(sp)
+ add -4,sp                        /* (0,sp): our calls' return slot */
+ mov d1,d3                        /* the return address */
+ mov a1,a2
+ mov 158,d0
+ call sget,[],4                   /* keeps d2/d3/a2/a3 */
+ mov d0,d2
+ cmp 2,d2
+ bne 3f
+ mov AR_FLAG,d0
+ call sget,[],4
+ cmp 3341,d0
+ bne 3f
+ mov 3,d2
+3:
+ mov d2,(a2)
+ mov d3,d1
+ mov d1,mdr
+ add 4,sp
+ movm (sp),[d2,d3,a2,a3]
+ clr d0
+ rets
+ar_s158:                          /* sx_set with d0 = 158 (the manager's frame 68: a0 inner, a1 mode, d1 value): the flag
+                                   * first (3 -> on, else off), then 158 itself (3 -> 2, Direct Function) as stock */
+ mov d1,d3
+ add -12,sp
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ mov 3200,d1
+ cmp 3,d3
+ bne 1f
+ mov 3341,d1
+1:
+ mov AR_FLAG,d0
+ call manager,[d2,d3,a2,a3],68
+ mov (4,sp),a0
+ mov (8,sp),a1
+ add 12,sp
+ cmp 3,d3
+ bne 2f
+ mov 2,d3
+2:
+ mov 158,d0
+ mov d3,d1
+ mov (68,sp),d2                   /* MDR = the return address again (as fl_set): sl_set0 reads it */
+ mov d2,mdr
+ jmp sl_set0
+ .set ST_AR, 0x7f08                /* our string: the fourth arrow-pad option's title */
+ar_st:                            /* .hook_str (string getter, d0 id; returns a0 by `ret [d2],8`): ST_AR, else st_get */
+ cmp ST_AR,d0
+ beq 1f
+ jmp st_get
+1:
+ mov ar_title,a0
+ ret [d2],8
+ .balign 2
+ar_title:                         /* "Direct Function, All Keys" (UTF-16) */
+ .short 68, 105, 114, 101, 99, 116, 32, 70, 117, 110, 99, 116, 105, 111, 110, 44, 32, 65, 108, 108, 32, 75, 101, 121, 115, 0
+ .balign 4
+ar_vt:                            /* the ✥ choice screen (picker variant 0x61571c48, key 6): titles, pictures, help */
+ .space 12 * 4
+ar_vp:
+ .space 12 * 4
+ar_vh:
+ .space 12 * 4
  .balign 4
 ar_ent:
- .long ar_d0, ar_d1
+ .long ar_d0, ar_d1, ar_d2
 ar_d0:                            /* <6H3I> descriptors, filled by build.py (firmware/mkicons.py arrow_streams) */
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
 ar_d1:
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
+ar_d2:
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+ar_v158:                          /* the arrow-pad mode's values, in the choice screen's order: Off, Direct, all four, [·:·] */
+ .byte 0, 2, 3, 1
+ .balign 4
+ar_l158:                          /* its option labels (build.py: the stock three + ours after Direct Function) */
+ .space 12 * 4
 ar_list:                          /* the arrows' functions (codes; their names: research/NOTES.md "v0.27 arrow keys") */
  .short 3348, 3349, 3350, 3351, 3456, 44, 22, 9, 84, 6, 3341, 3437, 3428, 157, 3462, 1356, 266, 2136, 682, 1468
  .short 475, 90, 140, 216, 404, 856, 69, 88, 1327, 3450, 1712, 1175, 85, 3297, 567, 1898, 106, 2133, 36, 3408
@@ -9530,6 +9641,6 @@ ar_items:                         /* their item-info records, 28 B each (build.p
 ar_blk:                           /* the 7 shooting states' event blocks with ▲ / ◀ releases (build.py) */
  .space 3200
 ar_pay:                           /* the ▲ / ◀ picture streams */
- .space 768
+ .space 1792
 ar_pend:
 

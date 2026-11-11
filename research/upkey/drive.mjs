@@ -42,7 +42,7 @@ if (WATCH.length) {
   dbg.traceExec((r) => {
     const g = dbg.regs(); if (hits.length >= 50000) return;
     if (process.env.WD0 && (g.d0 | 0) !== Number(process.env.WD0)) return;
-    const h = { step: cur, pc: r.pc.toString(16), d0: g.d0 | 0, d1: g.d1 | 0, d2: g.d2 | 0, d3: g.d3 | 0, a0: (g.a0 >>> 0).toString(16) };
+    const h = { step: cur, pc: r.pc.toString(16), mdr: (g.mdr >>> 0).toString(16), d0: g.d0 | 0, d1: g.d1 | 0, d2: g.d2 | 0, d3: g.d3 | 0, a0: (g.a0 >>> 0).toString(16) };
     if (process.env.WSTACK) { h.stk = []; for (let k = 0; k < 200; k++) { const v = rd32(((g.sp >>> 0) + 4 * k) >>> 0); if (v >= 0x60021020 && v < 0x62020fe0) h.stk.push((k * 4) + ':' + v.toString(16)); } }
     hits.push(h);
   }, { pcs: WATCH });

@@ -461,3 +461,40 @@ def arrow_picture(direction):
 def arrow_streams():
     """[(w, h, stream)] for ▲, ◀."""
     return [(ARROW_W, ARROW_H, encode11(bytes(arrow_picture(d).flatten().tolist()), ARROW_W, ARROW_H)) for d in ('up', 'left')]
+
+
+def arrows4_picture():
+    """The fourth arrow-pad option (all four keys assignable): ▲ ◀ ▶ ▼ in a row, 104 x 40, the camera's option-picture
+    colours (fill 13, outline 7, edge 9). Our own drawing."""
+    import numpy as np
+    n, W, H = 4, 104, 40
+    ys, xs = (np.mgrid[0:H * n, 0:W * n] + 0.5) / n
+    m = np.zeros((H, W), dtype=bool)
+    for k, d in enumerate(('up', 'left', 'right', 'down')):
+        cx, cy, half = 13 + 26 * k, 20.0, 10.0          # each triangle 20 x 20, centred in its 26 px column
+        u, v = xs - cx, ys - cy
+        if d == 'down':
+            v = -v
+        elif d == 'left':
+            u, v = v, u
+        elif d == 'right':
+            u, v = v, -u
+        t = (v + half) / (2 * half)                       # 0 at the tip, 1 at the base
+        inside = (t >= 0) & (t <= 1) & (np.abs(u) <= half * t)
+        m |= inside.reshape(H, n, W, n).mean(axis=(1, 3)) >= 0.5
+
+    def erode(a):
+        b = a.copy()
+        b[1:, :] &= a[:-1, :]; b[:-1, :] &= a[1:, :]; b[:, 1:] &= a[:, :-1]; b[:, :-1] &= a[:, 1:]
+        return b
+    m1 = erode(m); m2 = erode(m1)
+    px = np.zeros((H, W), dtype=np.uint8)
+    px[m] = 9
+    px[m1] = 7
+    px[m2] = 13
+    return px
+
+
+def arrows4_stream():
+    p = arrows4_picture()
+    return (p.shape[1], p.shape[0], encode11(bytes(p.flatten().tolist()), p.shape[1], p.shape[0]))
