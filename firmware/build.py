@@ -466,46 +466,32 @@ def build(defaults, testfile, out):
         a = 0x6139e26c + 16 * key
         assert u32(a, 4) == (0xffff, 7, 7, 1), hex(a)
         struct.pack_into('<I', m, o(a) + 12, pic)
-    # stills Button Function rows (mode 365) and item-info records (tree 2): ▲ ◀ last
+    # stills Button Function rows (mode 365) and item-info records (tree 2): ▲ ◀ before ▶ ▼
     MR, HDR, REC = 0x6152a108, 0x61569064, 0x61568e44
     assert u32(MR, 3) == (365, 0x61529b76, 9) and u32(HDR, 3) == (0, REC, 9)
     rows = list(struct.unpack_from('<9H', m, o(0x61529b76)))
     assert rows == [47, 48, 1292, 49, 1964, 158, 53, 51, 56], rows
-    rows = rows + [50, 52]          # after L-Fn: ▶ / ▼ / L-Fn keep their places, so the camera's diagrams still point
-                                    # at them (owner, ak2); the diagrams are not in the firmware file to redraw
+    rows = rows[:6] + [50, 52] + rows[6:]   # ▲ ◀ ▶ ▼ together (owner, ak5); the diagram lines come later (polish)
     struct.pack_into('<11H', m, o(sy['ar_rows']), *rows)
     struct.pack_into('<II', m, o(MR) + 4, sy['ar_rows'], 11)
     recs = [bytearray(m[o(REC) + 28 * k:o(REC) + 28 * k + 28]) for k in range(9)]
     rs = [struct.unpack_from('<I', r)[0] for r in recs]
     assert rs == [47, 48, 49, 1964, 1292, 158, 53, 51, 56], rs
-    # the arrow-pad mode (158): a fourth value, 3 = all four keys (editor.s ar_s158 / ar_sget; stored as 2 + flag)
-    a = vrec[158]
-    assert struct.unpack_from('<HHIIHHBB', m, o(a)) == (158, 128, 0x60616688, 0, 3, 1, 0, 1)
-    assert bytes(m[o(0x60616688):o(0x60616688) + 3]) == bytes([0, 2, 1])
-    struct.pack_into('<IIH', m, o(a) + 4, sy['ar_v158'], 0, 4)
-    L158 = 0x61568a90
-    ents = [bytes(m[o(L158) + 12 * k:o(L158) + 12 * k + 12]) for k in range(3)]
-    assert [struct.unpack_from('<I', e)[0] for e in ents] == [0, 2, 1]
-    ours = struct.pack('<3I', 3, (0x7fe2 << 16) | 0xc, struct.unpack_from('<I', ents[1], 8)[0])
-    m[o(sy['ar_l158']):o(sy['ar_l158']) + 48] = ents[0] + ents[1] + ours + ents[2]
-    # the ✥ choice screen's picker variant (key 6): 3 -> 4 entries in its title / picture / help lists (ours third:
-    #   our title string ST_AR, our ▲◀▶▼ picture, Direct Function's help)
-    VR = 0x61571c48
-    assert u32(VR, 6) == (0x70006, 3, 0x6157109c, 0x6157151c, 0x61571b40, 0x61571b88)
-    for L, dst, mine in ((0x6157109c, 'ar_vt', None), (0x6157151c, 'ar_vp', (0x7fe2 << 16) | 0xc), (0x61571b40, 'ar_vh', None)):
-        e = [bytes(m[o(L) + 12 * k:o(L) + 12 * k + 12]) for k in range(3)]
+    # the arrow-pad mode (158): Direct Function's picture -> ours (▲◀▶▼), in the item record's labels and on the ✥
+    #   choice screen (picker variant 0x61571c48, key 6); values, titles and help stay the camera's
+    PIC4 = (0x7fe2 << 16) | 0xc
+    for L, dst in ((0x61568a90, 'ar_l158'), (0x6157151c, 'ar_vp')):
+        e = [bytearray(m[o(L) + 12 * k:o(L) + 12 * k + 12]) for k in range(3)]
         assert [struct.unpack_from('<I', x)[0] for x in e] == [0, 2, 1]
-        if mine is None and dst == 'ar_vt':
-            mine = (sy['ST_AR'] << 16) | 4
-        if mine is None:                                 # help: Direct Function's
-            mine = struct.unpack_from('<I', e[1], 4)[0]
-        ours = struct.pack('<3I', 3, mine, struct.unpack_from('<I', e[1], 8)[0])
-        m[o(sy[dst]):o(sy[dst]) + 48] = e[0] + e[1] + ours + e[2]
-    struct.pack_into('<5I', m, o(VR) + 4, 4, sy['ar_vt'], sy['ar_vp'], sy['ar_vh'], 0x61571b88)
+        struct.pack_into('<I', e[1], 4, PIC4)
+        m[o(sy[dst]):o(sy[dst]) + 36] = b''.join(bytes(x) for x in e)
     for r in recs:
         if struct.unpack_from('<I', r)[0] == 158:
-            assert struct.unpack_from('<2I', r, 12) == (L158, 3)
-            struct.pack_into('<2I', r, 12, sy['ar_l158'], 4)
+            assert struct.unpack_from('<2I', r, 12) == (0x61568a90, 3)
+            struct.pack_into('<I', r, 12, sy['ar_l158'])
+    VR = 0x61571c48
+    assert u32(VR, 6) == (0x70006, 3, 0x6157109c, 0x6157151c, 0x61571b40, 0x61571b88)
+    struct.pack_into('<I', m, o(VR) + 12, sy['ar_vp'])
     for r in recs:
         if struct.unpack_from('<I', r)[0] in (53, 51):
             assert struct.unpack_from('<2I', r, 12) == (ARL, 10)

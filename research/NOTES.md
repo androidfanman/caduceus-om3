@@ -2639,3 +2639,18 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   "active" query that differs between [·:·] and Direct (only 0x610c755c.. in Direct). 0x611f26eb is a generic
   "value of sid" cell reader (facade +12), so it is not the greying either. The greying is still to be found.
 
+### v0.27 arrow keys, test ak6 (2026-11-10; emulator only)
+- **Owner (after ak5): drop the camera's own Direct Function arrows and keep only ours.** ✥ back to the camera's three
+  options; Direct Function now means all four keys run their assigned functions and is shown with our ▲◀▶▼ picture
+  (0x7fe2) in the item record's labels (ar_l158) and on the ✥ choice screen (picker variant 0x61571c48 picture list ->
+  ar_vp). Titles, help text and values stay the camera's. This also settles the greying: ▲ / ◀ grey under Off /
+  [·:·] by the stock logic, as ▶ / ▼, and are active under Direct Function.
+- Removed: the fourth option (flag sid 1966, ar_sget / ar_s158, sl_get / sx_set 158 branches, ar_st string hook and
+  ST_AR, validator change, variant count 4). `ar_get`: 158 = 2 -> assigned value; [·:·] -> 85; Off -> 3200 / 85.
+  sid 1966 is no longer read (a camera that ran ak5 may keep 3341 there; harmless).
+- Rows: Fn, REC, ◉, CP, AF-ON, ✥, ▲, ◀, ▶, ▼, L-Fn (owner: arrows together). The body diagram lines for ▲ ◀ ▶ ▼ L-Fn
+  are off by two rows; fixing them needs run-time drawing (polish, later).
+- om-emu: three boxes (Off / ▲◀▶▼ / [·:·]); ✥ row shows ▲◀▶▼; with Direct all four rows active, ▲ under [·:·] grey;
+  ▲ set to Keystone Comp. -> GetValue(50) = 682, 158 = 2.
+- ak6 (also the dial test map dm7; firmware/VERSION "v0.27-dev (arrow keys 4)"): E1479999.BIN 719ab357…,
+  GUIDES.BIN fc5e3faa….
