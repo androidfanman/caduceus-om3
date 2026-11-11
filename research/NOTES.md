@@ -2556,4 +2556,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   GUIDES.BIN dc9c2c9a…. Emulator only.
 - **Camera (dm7, 2026-11-10): works.** 26 events: CRT FILM 3 -> COLOR FILM 18 (the owner's own pick) -> ART FILM 10 ->
   MONO (stock MONO, pm 57) -> COLOR FILM 18 again. Card files all match. Owner: no need to eject the card.
+- Owner (2026-11-10, changes the earlier choice): the dial map should be set **in the camera**, in the Custom Menu
+  (cog wheel) where the other button functions are set, not in the Control Panel. Plan: build it on the same menu
+  work as the arrow keys (PR #26 added the ▲ row to Button Function: row list, item-info record, validator, picker).
+  Until then the test map stays fixed in the firmware.
 
