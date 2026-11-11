@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OM-3 photo code reader</title>
+<style>
+  :root { --bg: #fafaf8; --fg: #1d1d1b; --muted: #6b6b66; --line: #d9d8d2; --accent: #2b5fa8; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #161615; --fg: #ecebe6; --muted: #9a9993; --line: #34342f; --accent: #7aa7ea; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 20px; }
+  label.drop { display: block; border: 1.5px dashed var(--line); border-radius: 10px; padding: 28px 16px; text-align: center; cursor: pointer; }
+  label.drop.over { border-color: var(--accent); }
+  input[type=file] { display: none; }
+  textarea { width: 100%; box-sizing: border-box; margin-top: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: transparent; color: inherit; font: 13px ui-monospace, monospace; }
+  #out { margin-top: 24px; }
+  #out h2 { font-size: 18px; margin: 0 0 8px; }
+  #out ul { padding-left: 18px; margin: 0 0 16px; }
+  details pre { font-size: 12px; overflow-x: auto; }
+  .err { color: #b3261e; }
+</style>
+</head>
+<body>
+<main>
+  <h1>OM-3 photo code reader</h1>
+  <p>Open a JPEG taken with Caduceus for OM-3 (v0.27 or later) on a film, or paste its comment. Nothing is uploaded: the
+    photo is read in this page.</p>
+  <label class="drop" id="drop">Choose or drop a JPEG<input type="file" id="file" accept=".jpg,.jpeg,image/jpeg"></label>
+  <textarea id="text" rows="2" placeholder="…or paste: Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA"></textarea>
+  <div id="out"></div>
+</main>
+<script type="module">
+  import { readPhoto, describe } from './om3code.js';
+  const out = document.getElementById('out'), drop = document.getElementById('drop');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  function show(r) {
+    if (!r) { out.innerHTML = '<p class="err">No om3.1 code found. Only photos taken on a FILM have one.</p>'; return; }
+    const { bytes, ...settings } = r, lines = describe(r);
+    out.innerHTML = `<h2>${r.film ? `FILM ${r.film} ` : ''}${esc(r.name ?? 'Recipe')}</h2>
+      <ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('') || '<li>All settings at 0</li>'}</ul>
+      <details><summary>All fields (JSON)</summary><pre>${esc(JSON.stringify(settings, null, 2))}</pre></details>`;
+  }
+  async function open(f) { if (f) show(readPhoto(await f.arrayBuffer())); }
+  document.getElementById('file').addEventListener('change', (e) => open(e.target.files[0]));
+  document.getElementById('text').addEventListener('input', (e) => { if (e.target.value.trim()) show(readPhoto(e.target.value)); else out.innerHTML = ''; });
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); open(e.dataTransfer.files[0]); });
+</script>
+</body>
+</html>

@@ -23,3 +23,5 @@ Photos without a film (COLOR 1–4 with the user's own settings, CRT, ART, MONO,
   with the same text layout.
 - Reference: `firmware/photocode.py`; firmware `ex_cd1` / `ex_fill` (`firmware/src/editor.s`); Control Panel
   `recordFromPhotoCode` / `lookFromPhotoCode` (paste the comment into the import box, or open the JPEG).
+- Developer kit for other sites and apps (field table, a standalone JavaScript reader, test examples, a demo page):
+  `devkit/photo-code/`.

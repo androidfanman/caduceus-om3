@@ -2849,5 +2849,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Open: why a mapping at power-on hangs only with the dial moved while off (db1, family only, was fine; dr3+ also read
   the per-position settings and switch the film). A later try needs a GUI-task moment after the films load.
 - dr7 (VERSION "v0.27-dev (dial modes 5, photo code 2)"): E1479999.BIN 07032d36…, GUIDES.BIN 99473777….
+- **Camera (dr7): works** (owner, 2026-11-11): power-on is normal after moving the dial while off; the owner keeps it this way.
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

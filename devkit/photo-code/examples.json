@@ -1,0 +1,166 @@
+{
+ "about": "Test examples for om3.1 photo codes (Caduceus for OM-3 v0.27). 'films': the Control Panel's 20 default films as the camera writes them; 'bytes' = the expected 64 values, signed where the field is.",
+ "films": [
+  {
+   "comment": "Caduceus FILM 1 Portra 400 om3.1.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERAAAAA",
+   "film": 1,
+   "name": "Portra 400",
+   "code": "om3.1.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERAAAAA",
+   "bytes": [0, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, -2, -4, -4, -3, -5, 0, -1, 1, 2, 0, 0, 0, -1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -1, 7, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 2 Gold 200 om3.1.APAAEQ_wEQAAEQAAQPEQ270SFAEBAADwABDxEQAAAAA",
+   "film": 2,
+   "name": "Gold 200",
+   "code": "om3.1.APAAEQ_wEQAAEQAAQPEQ270SFAEBAADwABDxEQAAAAA",
+   "bytes": [0, 0, -1, 0, 0, 0, 1, 1, 0, -1, -1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 4, 0, -1, 1, 1, 0, -3, -5, -5, -3, 1, 2, 1, 4, 0, 1, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 1, 0, -1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 3 Kodachrome 64 om3.1.ARAAAADwAA8A_wDwMSQyQu0SAA8CAPAAABAGEBAAAAA",
+   "film": 3,
+   "name": "Kodachrome 64",
+   "code": "om3.1.ARAAAADwAA8A_wDwMSQyQu0SAA8CAPAAABAGEBAAAAA",
+   "bytes": [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, -1, -1, 0, 0, -1, 0, 3, 1, 2, 4, 3, 2, 4, 2, -2, -3, 1, 2, 0, 0, 0, -1, 0, 2, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 6, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 4 Portra 800 om3.1.ABEREP7wAAABACIQ8AD-7t3vEg8AAOAgABD3EBAAAAA",
+   "film": 4,
+   "name": "Portra 800",
+   "code": "om3.1.ABEREP7wAAABACIQ8AD-7t3vEg8AAOAgABD3EBAAAAA",
+   "bytes": [0, 0, 1, 1, 1, 1, 1, 0, -1, -2, -1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 2, 1, 0, -1, 0, 0, 0, -1, -2, -2, -2, -3, -3, -2, -1, 1, 2, 0, -1, 0, 0, 0, 0, -2, 0, 2, 0, 0, 0, 1, 0, -1, 7, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 5 CineStill 800T om3.1.__8AD__wAAAAABEA7u4CIe3dHg8BAODwABD5EQAAAAA",
+   "film": 5,
+   "name": "CineStill 800T",
+   "code": "om3.1.__8AD__wAAAAABEA7u4CIe3dHg8BAODwABD5EQAAAAA",
+   "bytes": [-1, -1, -1, -1, 0, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, -2, -2, -2, -2, 0, 2, 2, 1, -2, -3, -3, -3, 1, -2, 0, -1, 0, 1, 0, 0, -2, 0, -1, 0, 0, 0, 1, 0, -1, 9, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 6 Ektar 100 om3.1.AREAARIhD_8AAP8AFFQhESIPAAEBABAAABAQAAAAAAA",
+   "film": 6,
+   "name": "Ektar 100",
+   "code": "om3.1.AREAARIhD_8AAP8AFFQhESIPAAEBABAAABAQAAAAAAA",
+   "bytes": [0, 1, 1, 1, 0, 0, 0, 1, 1, 2, 2, 1, 0, -1, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0, 1, 4, 5, 4, 2, 1, 1, 1, 2, 2, 0, -1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 7 Ultramax 400 om3.1.AAERAAAAAAAAABEAASNCDt7_EQABAAAAABAAAAAAAAA",
+   "film": 7,
+   "name": "Ultramax 400",
+   "code": "om3.1.AAERAAAAAAAAABEAASNCDt7_EQABAAAAABAAAAAAAAA",
+   "bytes": [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 2, 3, 4, 2, 0, -2, -3, -2, -1, -1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 8 Pro 400H om3.1.ERD_8AEQAAAAAP8A7wABIiH-AAAPAPAgABD4EAAAAAA",
+   "film": 8,
+   "name": "Pro 400H",
+   "code": "om3.1.ERD_8AEQAAAAAP8A7wABIiH-AAAPAPAgABD4EAAAAAA",
+   "bytes": [1, 1, 1, 0, -1, -1, -1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, -2, -1, 0, 0, 0, 1, 2, 2, 2, 1, -1, -2, 0, 0, 0, 0, 0, -1, 0, 0, -1, 0, 2, 0, 0, 0, 1, 0, -1, 8, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA",
+   "film": 9,
+   "name": "Velvia 50",
+   "code": "om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA",
+   "bytes": [1, 1, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, -1, -1, 3, 0, -2, -2, -1, 1, 3, 3, 3, 3, 5, 5, 1, 0, -1, -2, 0, 2, 0, 0, -3, 0, -3, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 10 Superia 400 om3.1.AA8BIQ_wARAAABEADczN7_AiAAEBABDwABAKIAAAAAA",
+   "film": 10,
+   "name": "Superia 400",
+   "code": "om3.1.AA8BIQ_wARAAABEADczN7_AiAAEBABDwABAKIAAAAAA",
+   "bytes": [0, 0, 0, -1, 0, 1, 2, 1, 0, -1, -1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, -3, -4, -4, -4, -3, -2, -1, -1, 0, 2, 2, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, -1, 0, 0, 0, 1, 0, 0, 10, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 11 ColorPlus 200 om3.1.D_8BEQAAABAAABEA_t7_AAAPEwAAAAAgABDwAAAAAAA",
+   "film": 11,
+   "name": "ColorPlus 200",
+   "code": "om3.1.D_8BEQAAABAAABEA_t7_AAAPEwAAAAAgABDwAAAAAAA",
+   "bytes": [0, -1, -1, -1, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, -1, -2, -3, -2, -1, -1, 0, 0, 0, 0, 0, -1, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 12 CineStill 400D om3.1.AAABEP7wAAAAACIA8BEP_8vOAA8AAAAQABD3ERAAAAA",
+   "film": 12,
+   "name": "CineStill 400D",
+   "code": "om3.1.AAABEP7wAAAAACIA8BEP_8vOAA8AAAAQABD3ERAAAAA",
+   "bytes": [0, 0, 0, 0, 0, 1, 1, 0, -1, -2, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, -1, 0, 1, 1, 0, -1, -1, -1, -4, -5, -4, -2, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 7, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 13 Fuji C200 om3.1.EQABERERAAAAAA8AARD-8BIOAAEAABAAABAJEAAAAAA",
+   "film": 13,
+   "name": "Fuji C200",
+   "code": "om3.1.EQABERERAAAAAA8AARD-8BIOAAEAABAAABAJEAAAAAA",
+   "bytes": [1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 1, 1, 0, -1, -2, -1, 0, 1, 2, 0, -2, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 9, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 14 Ektachrome E100 om3.1._u___wAAAAAAAAAA____AAD_HwABAAAQABAQAAAAAAA",
+   "film": 14,
+   "name": "Ektachrome E100",
+   "code": "om3.1._u___wAAAAAAAAAA____AAD_HwABAAAQABAQAAAAAAA",
+   "bytes": [-1, -2, -2, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, -1, -1, 1, -1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 15 Reala 100 om3.1.AAAP8BIRAAAAAP8A_u7__yQfAAAAABAgABAQAAAAAAA",
+   "film": 15,
+   "name": "Reala 100",
+   "code": "om3.1.AAAP8BIRAAAAAP8A_u7__yQfAAAAABAgABAQAAAAAAA",
+   "bytes": [0, 0, 0, 0, 0, -1, -1, 0, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, -1, -2, -2, -2, -1, -1, -1, -1, 2, 4, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 16 Provia 100F om3.1._u8AABEQAREAAA8A7d3v8CMeHwABAAAgABAQAAAAAAA",
+   "film": 16,
+   "name": "Provia 100F",
+   "code": "om3.1._u8AABEQAREAAA8A7d3v8CMeHwABAAAgABAQAAAAAAA",
+   "bytes": [-1, -2, -2, -1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, -1, 0, 0, -2, -3, -3, -3, -2, -1, -1, 0, 2, 3, 1, -2, 1, -1, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 17 Vision3 250D om3.1.AAAP8AERAAAAAP8A7v8AD_7dAAAOABAgABD3ERAAAAA",
+   "film": 17,
+   "name": "Vision3 250D",
+   "code": "om3.1.AAAP8AERAAAAAP8A7v8AD_7dAAAOABAgABD3ERAAAAA",
+   "bytes": [0, 0, 0, 0, 0, -1, -1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, -2, -2, -1, -1, 0, 0, 0, -1, -1, -2, -3, -3, 0, 0, 0, 0, 0, -2, 0, 0, 1, 0, 2, 0, 0, 0, 1, 0, -1, 7, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 18 Fuji Eterna om3.1.AAABEAABARAAACEQu83wAP_bEQAOAAAQABD2EBAAAAA",
+   "film": 18,
+   "name": "Fuji Eterna",
+   "code": "om3.1.AAABEAABARAAACEQu83wAP_bEQAOAAAQABD2EBAAAAA",
+   "bytes": [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 2, 1, 1, 0, -5, -5, -4, -3, -1, 0, 0, 0, -1, -1, -3, -5, 1, 1, 0, 0, 0, -2, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 6, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 19 Astia 100F om3.1.D_8AAAEhAAAP8O8A7d7xI0L-AAAPAPAAABAAAAAAAAA",
+   "film": 19,
+   "name": "Astia 100F",
+   "code": "om3.1.D_8AAAEhAAAP8O8A7d7xI0L-AAAPAPAAABAAAAAAAAA",
+   "bytes": [0, -1, -1, -1, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, -1, -1, 0, -2, -1, 0, 0, -2, -3, -3, -2, -1, 1, 2, 3, 4, 2, -1, -2, 0, 0, 0, 0, 0, -1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  {
+   "comment": "Caduceus FILM 20 Agfa Ultra 100 om3.1.AAAAABERAAAAAAAAEhEO7wIQEPEBABDgABAAAAAAAAA",
+   "film": 20,
+   "name": "Agfa Ultra 100",
+   "code": "om3.1.AAAAABERAAAAAAAAEhEO7wIQEPEBABDgABAAAAAAAAA",
+   "bytes": [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 0, -2, -2, -1, 0, 2, 1, 0, 1, 0, -1, 1, 0, 1, 0, 0, 1, 0, -2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  }
+ ],
+ "fromFirmware": {
+  "comment": "Caduceus FILM 19 Astia 100F om3.1.AAAAAAAAAQAAAAAADwAAEQAAAAAPABDwABAAAAAAAAA",
+  "film": 19,
+  "name": "Astia 100F",
+  "code": "om3.1.AAAAAAAAAQAAAAAADwAAEQAAAAAPABDwABAAAAAAAAA",
+  "bytes": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 1, 0, -1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  "note": "Written by the firmware in the emulator from that card's own (edited) FILM 19, so its settings differ from the default film."
+ },
+ "future": {
+  "comment": "Caduceus FILM 1 Portra 400 om3.1.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERMAAAA",
+  "film": 1,
+  "name": "Portra 400",
+  "code": "om3.1.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERMAAAA",
+  "bytes": [0, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, -2, -4, -4, -3, -5, 0, -1, 1, 2, 0, 0, 0, -1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -1, 7, 1, 1, 1, 3, 0, 0, 0, 0, 0, 0],
+  "note": "A made-up code from a future firmware: spare byte 57 is 3. Today's reader must still read everything else and keep spare[0] = 3."
+ },
+ "invalid": [
+  "om3.1.TOOSHORT",
+  "Caduceus FILM 3 Kodachrome 64",
+  "om3.2.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERAAAAA"
+ ]
+}
