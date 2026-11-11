@@ -2172,7 +2172,6 @@ pf_load:
  mov (8,sp),d0
  mov d0,(LPTR,a2)                 /* published last */
  call fl_mk2,[d2,d3,a2,a3],80     /* v0.24: the film list's cell pictures (v0.26: TONES.BIN first) */
- call dm_boot,[d2,d3,a2,a3],20    /* v0.27: the Creative Dial's mapping for the position it is on now */
  bra 9f
 7:
  mov (8,sp),a0
@@ -8362,6 +8361,7 @@ sdl_worker_send_call:
 sdl_worker_send_result:
   bra sdl_worker_loop
 sdl_worker_done:
+  call dm_boot,[d2,d3,a2,a3],20   /* v0.27 dr6: the Creative Dial's mode for the position it is on, from this task */
   call sdl_ext_tsk,[a2],8
   ret [],24
 
@@ -9341,14 +9341,16 @@ lg_s4:
 sx_set:                           /* from sl_set (entered as the manager: d0 id, d1 value, a0, a1; frame 68) */
  cmp 901,d0
  bne 1f
- mov a0,(dm_xa0)                  /* dr5: the dial position on COLOR keeps this choice (dm_rec) */
- mov a1,(dm_xa1)
- mov d1,(dm_xv)
- call dm_rec,[d2,d3,a2,a3],20
- mov (dm_xa0),a0
- mov (dm_xa1),a1
+ add -16,sp                       /* dr5: the dial position on COLOR keeps this choice (dm_rec); */
+ mov a0,(4,sp)                    /* dr6: all on the stack (the camera's dial handler and the power-on */
+ mov a1,(8,sp)                    /* mapping may run here at the same time) */
+ mov d1,(12,sp)
+ call dm_rec,[d2,d3,a2,a3],28     /* a0 / a1 / d1 as they are */
+ mov (4,sp),a0
+ mov (8,sp),a1
+ mov (12,sp),d1
+ add 16,sp
  mov 901,d0
- mov (dm_xv),d1
  jmp fl_set
 1:
  cmp 897,d0
@@ -9376,11 +9378,13 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  jmp sl_set0
 41:                               /* v0.27 dr3 (owner): each position -> a mode (its own / CRT / ART / COLOR / MONO);
                                    * a position on COLOR keeps its own COLOR choice (dm_turn) */
- mov a0,(dm_xa0)
- mov a1,(dm_xa1)
- call dm_turn,[d2,d3,a2,a3],20    /* -> d0 = the mode 0..3 (CRT, ART, COLOR, MONO), d1 = its COLOR choice or 0 */
- mov (dm_xa0),a0
- mov (dm_xa1),a1
+ add -12,sp                       /* (0) call slot, (4) a0, (8) a1 */
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ call dm_turn,[d2,d3,a2,a3],24    /* -> d0 = the mode 0..3 (CRT, ART, COLOR, MONO), d1 = its COLOR choice or 0 */
+ mov (4,sp),a0
+ mov (8,sp),a1
+ add 12,sp
  cmp 2,d0
  beq 43f
  mov dm_fam,a3                    /* not COLOR: that mode's family, the stock way */
@@ -9419,15 +9423,15 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  add FV0 - 11,d3                  /* FILM n = code - 10 -> FV0 + n - 1 */
  mov d3,d1
  jmp fl_set
-/* dm_turn: `call dm_turn,[d2,d3,a2,a3],20`, d2 = the position the dial is on now (0..3: CRT, ART, COLOR, MONO) ->
+/* dm_turn: `call dm_turn,[d2,d3,a2,a3],24`, d2 = the position the dial is on now (0..3: CRT, ART, COLOR, MONO) ->
  * d0 = its mode (0..3), d1 = the COLOR choice it keeps (dm_cur code, 0 none). Reads only: no setting is written here
  * (dr4 on the camera: writing settings from the power-on path made the start slow and once froze it). The choices are
  * written when the owner changes the COLOR choice (dm_rec, from the SetValue(901) in sx_set). */
-dm_turn:
+dm_turn:                          /* frame 24: (4) the mode */
  movbu d2,(dm_pos)
  mov d2,d3
  call dm_mode,[d2,d3],12
- mov d0,(dm_xmd)
+ mov d0,(4,sp)
  clr d1
  cmp 2,d0
  bne 9f
@@ -9450,13 +9454,15 @@ dm_turn:
 8:
  clr d1
 9:
- mov (dm_xmd),d0
- ret [d2,d3,a2,a3],20
+ mov (4,sp),d0
+ ret [d2,d3,a2,a3],24
 
-/* dm_rec: `call dm_rec,[d2,d3,a2,a3],20` from sx_set's SetValue(901, d1) before fl_set (a0 / a1 in dm_xa0 / dm_xa1):
+/* dm_rec: `call dm_rec,[d2,d3,a2,a3],28` from sx_set's SetValue(901, d1) before fl_set (a0 / a1 its own):
  * when the dial's position (dm_pos, known after the first dial event or the power-on mapping) is on COLOR, its own
  * choice = this value (COLOR k -> k + 1, film j -> 11 + j), written to its dm_psid setting if it changed. */
-dm_rec:
+dm_rec:                           /* frame 28: (4) a0, (8) a1 of the SetValue */
+ mov a0,(4,sp)
+ mov a1,(8,sp)
  movbu (dm_pos),d3
  cmp 4,d3
  bcc 9f
@@ -9489,9 +9495,11 @@ dm_rec:
  cmp d1,d0
  beq 9f
  mov (a2),d0
+ mov (4,sp),a0
+ mov (8,sp),a1
  call dm_put,[d2,d3,a2,a3],80
 9:
- ret [d2,d3,a2,a3],20
+ ret [d2,d3,a2,a3],28
 
 /* dm_mode: `call dm_mode,[d2,d3],12`, d3 = a position 0..3 -> d0 = its mode 0..3 (its row: Normal = its own). Uses
  * a0, a1, d1. */
@@ -9513,11 +9521,9 @@ dm_mode:
  mov d3,d0
  ret [d2,d3],12
 
-/* dm_put: `call dm_put,[d2,d3,a2,a3],80`, d0 = a setting, d1 = its value: through the manager, with the SetValue's
- * a0 / a1 (as sx_set's own family write) */
+/* dm_put: `call dm_put,[d2,d3,a2,a3],80`, d0 = a setting, d1 = its value, a0 / a1 = the SetValue's: through the
+ * manager (as sx_set's own family write) */
 dm_put:
- mov (dm_xa0),a0
- mov (dm_xa1),a1
  call manager,[d2,d3,a2,a3],68
  ret [d2,d3,a2,a3],80
 
@@ -9557,8 +9563,10 @@ dm_a1:
 dm_fam:
  .long 900, 899, 901, 988         /* CRT, ART, COLOR, MONO */
 dm_ok:                            /* `call dm_ok,[],0` -> d1 1 when P is valid and the films are loaded, else 0
-                                   * (PVAL's checks with d1 / a1; d0, a0 and a1 kept: a1 is the SetValue's mode) */
- mov a1,(dm_a1)
+                                   * (PVAL's checks with d1 / a1; d0, a0 and a1 kept: a1 is the SetValue's mode).
+                                   * dr6: a1 on the stack, not in a global (two tasks may be here at once) */
+ add -4,sp
+ mov a1,(0,sp)
  movhu (STATE),d1
  add -1,d1
  cmp HMAX,d1
@@ -9574,11 +9582,13 @@ dm_ok:                            /* `call dm_ok,[],0` -> d1 1 when P is valid a
  cmp 0,d1
  beq 9f
  mov 1,d1
- mov (dm_a1),a1
+ mov (0,sp),a1
+ add 4,sp
  ret [],0
 9:
  clr d1
- mov (dm_a1),a1
+ mov (0,sp),a1
+ add 4,sp
  ret [],0
 dm_own:                           /* the owner's own COLOR choice while a mapped position replaced it (0 = none) */
  .byte 0
@@ -9621,10 +9631,25 @@ dm_llist:
  .short LV0, LV0 + 1, LV0 + 2, LV0 + 3
 dm_llend:
  .balign 4
-dm_boot:                          /* `call dm_boot,[d2,d3,a2,a3],20` from pf_load once the films are there (power-on,
-                                   * HLS_EVENT task): the camera set the dial's family before the films loaded, so a
-                                   * mapped position stayed stock until a turn (owner, dg3). Set the family again through
-                                   * the facade, as the dial handler does (0x61085d05), so sx_set maps it now. */
+dm_boot:                          /* `call dm_boot,[d2,d3,a2,a3],20` from our SDLOAD worker task as it stands down
+                                   * (power-on): the camera set the dial's family before the films loaded, so a mapped
+                                   * position stayed stock until a turn (owner, dg3). Once the films are there, set the
+                                   * family again through the facade, as the dial handler does (0x61085d05), so sx_set
+                                   * maps it. dr6: from the worker, not from pf_load in the HLS_EVENT task (dr3 / dr5 on
+                                   * the camera: with the dial moved while off, power-on hung there, GUI waiting). */
+ mov 60,d3                        /* the films: up to 60 polls */
+2:
+ call dm_ok,[],0
+ cmp 0,d1
+ bne 3f
+ add -1,d3
+ beq 9f
+ mov SDL_POLL_TICKS,d0
+ call sdl_dly_tsk,[d2,a2,a3],16
+ bra 2b
+3:
+ mov SDL_POLL_TICKS,d0            /* one more poll: let the start finish */
+ call sdl_dly_tsk,[d2,a2,a3],16
  mov 897,d0
  call ar_getv,[d2,a2],24
  mov d0,d1

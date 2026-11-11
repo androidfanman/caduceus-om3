@@ -2830,5 +2830,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - om-emu: same test as dr3 (COLOR -> FILM 19, CRT -> FILM 18, MONO -> FILM 17 on the super control panel; turning back
   shows each; memory 4029 / 4028 / 4027). Power-on with a moved dial: to test on the camera.
 - dr5 (VERSION "v0.27-dev (dial modes 2, photo code 2)"): E1479999.BIN bfdf1763…, GUIDES.BIN 611ace28….
+- **Camera (dr5): still hangs** at power-on after the dial was moved while off: live view only, nothing else, would
+  not switch off; battery pulled. So the writes were not (or not the only) cause.
+- dr6, two changes (analysis / guess, the emulator does not show the hang): (1) the power-on mapping (dm_boot) no
+  longer runs in the HLS_EVENT task from pf_load; our SDLOAD worker calls it as it stands down, polling dm_ok (up to 60
+  x SDL_POLL_TICKS) for the films, then one poll more, then GetValue / SetValue(897) through the facade. Reasoning:
+  with the dial moved while off the camera's GUI starts with its own dial work; a facade SetValue from the task the GUI
+  may be waiting on (HLS_EVENT) can deadlock; our worker is waited on by nobody. (2) sx_set / dm_turn / dm_rec / dm_ok
+  keep a0 / a1 / values on the stack instead of globals (the camera's dial handler and the power-on mapping may run them
+  at the same time). om-emu: per-position films as dr3 / dr5; power-on at MONO / CRT starts and the menu opens.
+- If dr6 still hangs: drop the power-on mapping (half-press or a dial turn applies it, as before db1) and look for a
+  GUI-task moment after the films load.
+- dr6 (VERSION "v0.27-dev (dial modes 4, photo code 2)"): E1479999.BIN f31e5420…, GUIDES.BIN 59ce54a5….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
