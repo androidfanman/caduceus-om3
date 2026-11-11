@@ -2512,4 +2512,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   ("Creative Dial family: COLOR / MONO / ART / CRT"). Emulator: power-on position 1 -> COLOR (pm 54, FILM 3), position 3
   -> ART (pm 29). dl8: E1479999.BIN 20ca50c6…, GUIDES.BIN 7e966925…. Camera test: turn the dial to each position with
   the camera on, half-press at each; the log shows whether a run-time turn changes 897 and which position is which.
+- **Camera (dl8, 2026-11-10): the family follows the dial at run time** (one power-on, 16 events, 4 per position):
+  900 (picture mode 21) -> 899 ART (pm 40) -> 898 (pm 1) -> 901 COLOR (pm 55 = COLOR 2, FILM 9). Never 988. Owner asked
+  to turn CRT -> ART -> COLOR -> MONO; which physical position gave which family is being confirmed with the owner
+  (the order seen does not match that request one to one). So the hook can be on the run-time 897 change.
 
