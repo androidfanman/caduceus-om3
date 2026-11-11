@@ -24,7 +24,7 @@ Efforts are estimates from what we know of the firmware today.
   processor, no extra time), the Glow row (+ Glow, − Clarity).
 - **Changes kept per film** (`EDITS.BIN`, `*` = changed, hold OK = back to as built), kept over power off.
 - **Live view** shows the look, split toning and glow included. Photos only: video keeps the camera's normal look.
-- **Not in v0.26.2:** Art Effects (removed in v0.25), mono films, a WB mode / exposure / ISO per film, halation.
+- **Not in v0.26.2:** Art Effects (removed in v0.25), mono films (parked), a WB mode / exposure / ISO per film, halation.
 
 **Firmware space.** The 64 KiB of section 6 proven on 2026-11-07 is now almost used up (ext11: about 144 B left in
 v0.26.2). On 2026-11-10 the GX3 probe proved **256 KiB more** (0x60f59800..0x60f99800, camera-tested, branch
@@ -68,7 +68,7 @@ the first build that does must raise the loader's end word, as that branch does.
 
 | Feature | Why it matters for film | Effort | Status | Research notes |
 |---|---|---|---|---|
-| Black-and-white film looks | Tri-X, HP5, Delta 3200, Acros. Films are COLOR-only today. | Large | Not started | Needs the Monochrome profiles: colour filter, toning, grain, contrast and their own film bank. Their editor is separate from the COLOR wheel. Caduceus for the E-P7 has 10 mono films. |
+| Black-and-white film looks | Tri-X, HP5, Delta 3200, Acros. Films are COLOR-only today. | Large | Parked | Needs the Monochrome profiles: colour filter, toning, grain, contrast and their own film bank. Their editor is separate from the COLOR wheel. Caduceus for the E-P7 has 10 mono films. Parked by the owner 2026-11-10. |
 | Film looks in video | Rare among cameras. | Large | Not started | Main roadmap: Colour profiles in video, Planned ([#3](https://github.com/androidfanman/caduceus-om3/issues/3)). No video work started (owner, 2026-11-10). Sharp is photos only today. |
 | Light leaks and date stamps | Point-and-shoot touches. | Hard | Parked | No camera feature to borrow. Lowest priority. |
 
@@ -77,7 +77,6 @@ the first build that does must raise the loader's end word, as that branch does.
 | Feature | Why it matters for film | Effort | Status | Research notes |
 |---|---|---|---|---|
 | Camera-style editor | Edit a film the way the camera shows it. | Medium | **Done (2026-11-09)** | HSL wheel with the camera's five pages, Highlight & Shadow box, WB grid, all draggable. Look links carry a format version and minimum firmware. |
-| A preview calibrated to the camera | Film sims and photo-matched looks are only as good as the preview's model of the OM-3. | Medium | Not started | Shoot a colour chart and scenes on the OM-3 at each setting step, then fit the preview to them. A chart with changeable light was tried and parked ([docs/CHART_LIGHTBOX.md](CHART_LIGHTBOX.md)). |
 | Photo-to-look instructions | Build a look from any photo, opened by a link. | Low | Done | [`docs/PHOTO_TO_LOOK.md`](PHOTO_TO_LOOK.md), tested end to end 2026-11-07. |
 
 ## Already done
@@ -103,6 +102,7 @@ Newest first. Full details in [`research/NOTES.md`](../research/NOTES.md).
 
 | Date | Topic | Finding |
 |---|---|---|
+| 2026-11-10 | Owner decisions | Mono film looks parked. A preview calibrated to the camera dropped: not needed, the OM-3 already matches the preview well. |
 | 2026-11-10 | Firmware space (camera) | GX3 probe: section 6 loads 256 KiB more (0x60f59800..0x60f99800); 72 passes, 0 bad words, with RAW+JPEG bursts and a video. Room for halation and the next features. |
 | 2026-11-09 | Film name in EXIF | The EXIF writer and a hook point are found (analysis only); Image Description and User Comment are free in JPEGs. |
 | 2026-11-08 | WB grid (camera) | Test 12: a new A-B / G-M row opens the camera's own WB fine-tune grid with the look's values (emulator); on the camera OK went back to live view instead. Owner: the grid should sit on the Picture Mode screen itself. |
