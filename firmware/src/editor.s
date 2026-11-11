@@ -8693,6 +8693,10 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  mov 111,d0
  call sget,[],4                   /* d0 = the picture mode setting (keeps d2/d3/a2/a3) */
  mov d0,(4,a3)
+ mov 897,d0                       /* v0.27 research: the active picture-mode family (the Creative Dial) -> +12 */
+ call sget,[],4
+ mov d0,(12,a3)
+ mov (4,a3),d0
  call fl_k,[],0                   /* dl5 (camera dl3: a film reads as its COLOR, 54): COLOR k, and its look n -> */
  movbu d0,(11,a3)                 /* +11 k (255 = not a COLOR), +10 film 5k + n (1..20, 0 = none), as fl_get */
  clr d1
@@ -8752,6 +8756,9 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  mov d2,d0
  LGD
 4:
+ LGS lg_d0                        /* the Creative Dial's family */
+ mov (12,a3),d0
+ call lg_fm,[d2,d3],12
  LGS lg_t6
  PVAL 5f
  LGS lg_found
@@ -8880,6 +8887,9 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  movbu (10,a3),d0
  LGD
 14:
+ LGS lg_d1
+ mov (12,a3),d0
+ call lg_fm,[d2,d3],12
  LGS lg_e3
  movbu (8,a3),d0
  LGY
@@ -9071,6 +9081,22 @@ lg_st:                            /* `call lg_st,[d2,d3],12`: d0 = a save result
  call lg_s,[],0
 1:
  ret [d2,d3],12
+lg_fm:                            /* `call lg_fm,[d2,d3],12`: d0 = a sid-897 family -> its name (or the number) */
+ mov lg_fmt,a0
+1:
+ mov (a0),d1
+ cmp 0,d1
+ beq 2f
+ cmp d1,d0
+ beq 3f
+ add 8,a0
+ bra 1b
+2:
+ jmp lg_d                         /* unknown: the number (lg_d's frame is the same) */
+3:
+ mov (4,a0),a0
+ call lg_s,[],0
+ ret [d2,d3],12
 lg_d:                             /* `call lg_d,[d2,d3],12`: d0 -> unsigned decimal */
  mov (lg_cur),a1
  mov lg_bend,d1
@@ -9130,6 +9156,8 @@ lg_ft:                            /* {path, kind, this build's header CRC (build
  .long lg_f4, 4, 0, 0, 0
  .long lg_f5, 4, 0, 0, 0
  .set LG_NF, 6
+lg_fmt:                           /* sid 897 family -> name */
+ .long 901, lg_n1, 988, lg_n2, 899, lg_n3, 898, lg_n4, 900, lg_n5, 0
 lg_vt:
  .long lg_v0, lg_v1, lg_v2, lg_v3, lg_v4, lg_v5, lg_v6, lg_v7, lg_v8
 lg_hdr:
@@ -9183,6 +9211,20 @@ lg_f4:
  .asciz "C:\\OM3MOD\\EDITS.BIN"
 lg_f5:
  .asciz "C:\\OM3MOD\\BUNDLES.BIN"
+lg_d0:
+ .asciz "\r\nCreative Dial family: "
+lg_d1:
+ .asciz "  dial "
+lg_n1:
+ .asciz "COLOR"
+lg_n2:
+ .asciz "MONO"
+lg_n3:
+ .asciz "ART"
+lg_n4:
+ .asciz "CRT"
+lg_n5:
+ .asciz "900 (one-value family)"
 lg_c0:
  .asciz "\r\n\r\nCard files: "
 lg_c1:

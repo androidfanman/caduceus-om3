@@ -2507,4 +2507,9 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   firmware hooks where 897 is set from the dial and, for a mapped position, sets family 901 and loads the target the
   way `fl_set` does for a film. Open: the run-time dial handler, what the Picture Mode list shows on a mapped position,
   and where the mapping lives (LOOKS.BIN header bytes 20..31 are zero and preserved, or a new file).
+- Owner: the OM-3's Creative Dial has exactly **4 positions** (so family 900 is not a dial position).
+- Logging build dl8 ("debug log 5, dial"): each event also records GetValue(897) (+12) and the log names it
+  ("Creative Dial family: COLOR / MONO / ART / CRT"). Emulator: power-on position 1 -> COLOR (pm 54, FILM 3), position 3
+  -> ART (pm 29). dl8: E1479999.BIN 20ca50c6…, GUIDES.BIN 7e966925…. Camera test: turn the dial to each position with
+  the camera on, half-press at each; the log shows whether a run-time turn changes 897 and which position is which.
 
