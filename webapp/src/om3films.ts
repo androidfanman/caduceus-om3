@@ -26,8 +26,12 @@ export const CAMERA_FILMS: Film[] = DATA.camera.map((n) => FILMS.find((f) => f.n
  *  that replaced them. */
 export const FILM_ORIGIN = 'film:';
 export const filmByName = (name: string) => FILMS.find((f) => f.name === (DATA.aliases[name] ?? name));
+/** Starter (library) looks that a film sim replaced: a look taken from one keeps working as that film (Reset look). */
+const LIBRARY_TO_FILM: Record<string, string> = { 'Cuban Neg': 'Cuban Negative' };
+
 export function filmOf(l: Look): Film | undefined {
   if (l.origin?.startsWith(FILM_ORIGIN)) return filmByName(l.origin.slice(FILM_ORIGIN.length));
+  if (l.origin !== undefined && LIBRARY_TO_FILM[l.origin]) return filmByName(LIBRARY_TO_FILM[l.origin]);
   return l.origin === undefined ? filmByName(l.name) : undefined;
 }
 

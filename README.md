@@ -71,7 +71,7 @@ until the problem happens, and attach the `OM3MOD/CADLOG.TXT` it writes. [How, s
 ## The Control Panel
 
 The **[Control Panel](https://androidfanman.github.io/caduceus-om3/)** is a web page for making and changing your films, with a preview on sample photos or
-your own. It starts with the 20 film sims and has 61 film looks to choose from. Save your films as `LOOKS.BIN` and copy
+your own. It starts with the 20 film sims and has 62 film looks to choose from. Save your films as `LOOKS.BIN` and copy
 it to the card's `OM3MOD` folder. Nothing is uploaded: your work stays in your browser.
 **[How to use the Control Panel](docs/CONTROL_PANEL.md)**.
 

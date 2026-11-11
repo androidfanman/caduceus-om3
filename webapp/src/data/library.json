@@ -571,40 +571,6 @@
    }
   },
   {
-   "name": "Cuban Neg",
-   "notes": "Inspired by Osan's Classic Cuban Neg: warm Classic Neg, golden cast (WB A+4), deep blues/reds, gritty grain, bloom 3. Sat: +2 warm, -2 greens.",
-   "kind": "colour",
-   "hue": [0,-1,0,0,7,6,-4,-3,6,7,5,0],
-   "light": [-1,-2,-3,-3,-1,0,-1,-2,-2,-3,-5,-4],
-   "sat": [2,2,2,2,0,-2,1,1,1,-2,-1,0],
-   "grain": "fine",
-   "wb": {
-    "a_b": 4,
-    "g_m": 0
-   },
-   "effect": {
-    "type": "bloom",
-    "strength": 3
-   },
-   "vignette": 0,
-   "art_effect": "off",
-   "tone": {
-    "highlights": 1,
-    "shadows": -3,
-    "midtones": 1,
-    "blacks": 0,
-    "whites": -2
-   },
-   "advice": {
-    "tone": {
-     "highlights": 1,
-     "shadows": -3,
-     "midtones": 1
-    },
-    "contrast": 1
-   }
-  },
-  {
    "name": "Cibachrome",
    "notes": "Cibachrome print (Jay, om-recipes): glossy magenta-reds, deep blues, rich darks.",
    "kind": "colour",
@@ -995,8 +961,8 @@
   "COLOR2": 16,
   "COLOR3": 9,
   "COLOR4": 0,
-  "MONO1": 29,
-  "MONO2": 30,
-  "MONO3": 31
+  "MONO1": 28,
+  "MONO2": 29,
+  "MONO3": 30
  }
 }

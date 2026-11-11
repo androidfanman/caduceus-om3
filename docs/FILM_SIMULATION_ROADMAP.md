@@ -16,7 +16,7 @@ Efforts are estimates from what we know of the firmware today.
 
 - **20 film sims on the camera** as FILM 1–20 in the Picture Mode list, after COLOR 1–4, with their names on the
   title, quick menu, shooting screen and viewfinder. They load by themselves at power-on (no half-press), and the
-  super control panel's dials step COLOR 1–4, then FILM 1–20. The Control Panel has 61 films to choose from.
+  super control panel's dials step COLOR 1–4, then FILM 1–20. The Control Panel has 62 films to choose from.
 - **Per film:** colour (hue, saturation, luminance for 12 colours), Highlights / Midtones / Shadows, Blacks / Whites,
   Contrast, Sharp (−5 Off..+2), Noise Filter (Off / Low / Std / High), Vignette Correction on / off, Shading, WB shift
   A-B / G-M −7..+7 (the camera's own WB grid), split toning (Shadows and Highlights wheels, 12 colours, −5..+5).
@@ -92,11 +92,12 @@ its first user, and the rest is free for halation and the next features (`docs/D
 | 2026-11-09 | v0.26.1 released | The 20 film sims tuned from colour-checker photos (draft 1) in the release's `LOOKS.BIN`; WB shift up to ±7 per film. |
 | 2026-11-09 | v0.26 released (split toning) | Shadows and Highlights wheel pages: tint by brightness toward any of the 12 colours, −5..+5, in photos and live view; ten of the 20 films carry a light split tone. Also fixes a restart after changing the drive mode. |
 | 2026-11-09 | The camera's 20 films (in v0.25) | 20 film sims rewritten in the owner's order, FILM 1–20 on the camera and in the Control Panel (one list). |
+| 2026-11-11 | Cuban Negative | Film sim 62, our own design (warm, golden, sun-faded reds, turquoise blues); replaces the E-P7 starter look "Cuban Neg" in the Control Panel. |
 | 2026-11-09 | v0.25 released (fast colour grain) | Film grain from the image processor in colour, as fast as no grain, with Shading and Glow / Clarity; a Glow row (+ Glow, − Clarity), a WB grid row, no Art Effects; film choice and changes now kept over power off. |
 | 2026-11-08 | v0.24.1 films in the list | Films (FILM n) in the Picture Mode list with their names; changes kept per film; the Extras as Picture Mode rows. Glow / Clarity and Art Effects off and the Shading row hidden for now. (v0.24 was withdrawn the same day: Film Grain High rebooted the camera.) |
 | 2026-11-07 | v0.22 Sharp | Sharpening per look, −5 (Off) to +2; film sims set it. |
 | 2026-11-07 | Photo-to-look instructions | A look built from any photo, loaded by a link. |
-| 2026-11-06 | 60 film sims | Our own looks, one per film, in five groups (61 in the Control Panel today). |
+| 2026-11-06 | 60 film sims | Our own looks, one per film, in five groups (62 in the Control Panel today). |
 | 2026-11-06 | v0.21 Grain and VigFix | The camera's own grain on colour photos; lens vignette correction off per look. |
 | 2026-11-05 | v0.20 Extras page | NR per look, Glow / Clarity, WB shift, Art Effects, Blacks / Whites, white Frame. |
 | 2026-11-05 | v0.19 Looks | Five complete looks per COLOR with names, chosen on the Film page. |
