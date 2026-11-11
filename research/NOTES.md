@@ -2693,3 +2693,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   ar_pay). Row values and picker cells use the pictures; picker titles keep strings (film names), as stock titles.
 - om-emu: CRT / ART icons match L-Fn's size and weight; "FILM 3" / "Normal" / "COLOR 1" match "AF Stop".
 - dr2 (VERSION "v0.27-dev (dial rows 2)"): E1479999.BIN 8411b7b8…, GUIDES.BIN fd06a697… (LABELS / TONES / BUNDLES as ak6).
+- Card-copy mistake (2026-11-10): the ak6 copy also wrote the build's neutral BUNDLES.BIN over the owner's card file
+  (the camera's saved Extras-wheel settings). By dr2 the card's BUNDLES.BIN was camera-written again (37 bytes differ
+  from neutral; BUNDLES.NEW / .BAK present). Owner told. Rule added to CLAUDE.md: never copy BUNDLES / LOOKS / EDITS.

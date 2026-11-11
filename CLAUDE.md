@@ -76,6 +76,8 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 - Send files with the file-sending tool, write them to the card through the device bridge when it is connected
   (`/Volumes/OM SYSTEM`), then verify by checksum (sha256) on the card.
 - Always pair a firmware package with the `GUIDES.BIN` built with it.
+- Never copy `BUNDLES.BIN`, `LOOKS.BIN` or `EDITS.BIN` onto the owner's card: the camera and the owner keep their own
+  saved settings there (the build's `BUNDLES.BIN` is a neutral one, for new users only).
 
 ## Releasing
 
