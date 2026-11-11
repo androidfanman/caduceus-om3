@@ -194,43 +194,92 @@ CAMERA = ['Portra 400', 'Gold 200', 'Kodachrome 64', 'Portra 800', 'CineStill 80
           'Velvia 50', 'Superia 400', 'ColorPlus 200', 'CineStill 400D', 'Fuji C200', 'Ektachrome E100', 'Reala 100', 'Provia 100F',
           'Vision3 250D', 'Fuji Eterna', 'Astia 100F', 'Agfa Ultra 100']
 
-# The camera's 20, tuned by the owner (first draft, 2026-11-09, from photos of a colour checker in fixed light with
-# every film): these values replace the recipe's colours, WB and tone. Contrast and Sharp stay the recipe's and SHARP's
-# (Gold 200: Sharp -1, the owner's), and a film without a split here keeps its recipe's split tone.
-TUNED = {
- 'Portra 400': dict(hue=[0, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, 0], light=[1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0], sat=[1, 1, 1, 1, 0, -2, -4, -4, -3, -5, 0, -1], ab=2, mid=1),
- 'Gold 200': dict(hue=[0, 0, -1, 0, 0, 0, 1, 1, 0, -1, -1, 0], light=[1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0], sat=[4, 0, -1, 1, 1, 0, -3, -5, -5, -3, 1, 2], ab=4, hl=-1, blk=1, split=('O', 0, 'O', 1)),
- 'Kodachrome 64': dict(hue=[0, 1, 1, 0, 0, 0, 0, 0, 0, 0, -1, 0], light=[0, 0, 0, -1, 0, 0, -1, -1, 0, 0, -1, 0], sat=[3, 1, 2, 4, 3, 2, 4, 2, -2, -3, 1, 2], sh=-1, blk=-1),
- 'Portra 800': dict(hue=[0, 0, 1, 1, 1, 1, 1, 0, -1, -2, -1, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 2, 2, 1, 0], sat=[-1, 0, 0, 0, -1, -2, -2, -2, -3, -3, -2, -1], ab=2, hl=2, sh=-2, blk=-1, split=('BC', 1, 'Y', 1)),
- 'CineStill 800T': dict(hue=[-1, -1, -1, -1, 0, 0, 0, -1, -1, -1, -1, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[-2, -2, -2, -2, 0, 2, 2, 1, -2, -3, -3, -3], ab=-2, hl=-1, sh=-2, blk=-1, split=('O', 0, 'GC', 1)),
- 'Ektar 100': dict(hue=[0, 1, 1, 1, 0, 0, 0, 1, 1, 2, 2, 1], light=[0, -1, -1, -1, 0, 0, 0, 0, -1, -1, 0, 0], sat=[1, 4, 5, 4, 2, 1, 1, 1, 2, 2, 0, -1], sh=1, blk=1),
- 'Ultramax 400': dict(hue=[0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[0, 1, 2, 3, 4, 2, 0, -2, -3, -2, -1, -1], ab=1),
- 'Pro 400H': dict(hue=[1, 1, 1, 0, -1, -1, -1, 0, 0, 1, 1, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0], sat=[-2, -1, 0, 0, 0, 1, 2, 2, 2, 1, -1, -2], hl=2, sh=-1),
- 'Velvia 50': dict(hue=[1, 1, 1, 0, 0, -1, -1, -1, -1, -1, -1, -1], light=[0, 0, 1, 0, 0, 0, 0, 0, -1, 0, -1, -1], sat=[3, 0, -2, -2, -1, 1, 3, 3, 3, 3, 5, 5], gm=-1, hl=-3, sh=-3, blk=-2),
- 'Superia 400': dict(hue=[0, 0, 0, -1, 0, 1, 2, 1, 0, -1, -1, 0], light=[0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[0, -3, -4, -4, -4, -3, -2, -1, -1, 0, 2, 2], hl=-1, sh=1, blk=1),
- 'ColorPlus 200': dict(hue=[0, -1, -1, -1, 0, 1, 1, 1, 0, 0, 0, 0], light=[0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[-1, -2, -3, -2, -1, -1, 0, 0, 0, 0, 0, -1], ab=3, hl=2),
- 'CineStill 400D': dict(hue=[0, 0, 0, 0, 0, 1, 1, 0, -1, -2, -1, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0], sat=[-1, 0, 1, 1, 0, -1, -1, -1, -4, -5, -4, -2], hl=1, blk=-1),
- 'Fuji C200': dict(hue=[1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0], sat=[0, 1, 1, 0, -1, -2, -1, 0, 1, 2, 0, -2], sh=1, blk=1),
- 'Ektachrome E100': dict(hue=[-1, -2, -2, -1, -1, -1, -1, -1, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[-1, -1, -1, -1, -1, -1, 0, 0, 0, 0, -1, -1], ab=-1, hl=1),
- 'Reala 100': dict(hue=[0, 0, 0, 0, 0, -1, -1, 0, 1, 2, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0], sat=[-1, -2, -2, -2, -1, -1, -1, -1, 2, 4, 1, -1], hl=2, sh=1),
- 'Provia 100F': dict(hue=[-1, -2, -2, -1, 0, 0, 0, 0, 1, 1, 1, 0], light=[0, 1, 1, 1, 0, 0, 0, 0, 0, -1, 0, 0], sat=[-2, -3, -3, -3, -2, -1, -1, 0, 2, 3, 1, -2], ab=-1, hl=2),
- 'Vision3 250D': dict(hue=[0, 0, 0, 0, 0, -1, -1, 0, 0, 1, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0], sat=[-2, -2, -1, -1, 0, 0, 0, -1, -1, -2, -3, -3], hl=2, sh=1),
- 'Fuji Eterna': dict(hue=[0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1], light=[0, 1, 1, 0, 0, 0, 0, 0, 2, 1, 1, 0], sat=[-5, -5, -4, -3, -1, 0, 0, 0, -1, -1, -3, -5], ab=1, hl=1, split=('B', 1, 'Y', 1)),
- 'Astia 100F': dict(hue=[0, -1, -1, -1, 0, 0, 0, 0, 0, 1, 2, 1], light=[0, 0, 0, 0, 0, -1, -1, 0, -2, -1, 0, 0], sat=[-2, -3, -3, -2, -1, 1, 2, 3, 4, 2, -1, -2], sh=-1),
- 'Agfa Ultra 100': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[1, 2, 1, 1, 0, -2, -2, -1, 0, 2, 1, 0], gm=-1, hl=-2, sh=1, blk=1),
+# Camera grading (2026-11-11): every look's colours, WB and split tone are fitted with a model of the OM-3's own
+# response, measured from colour-checker photos taken on the camera with each slider on its own (research/NOTES.md,
+# "Film sims graded on the camera"). The camera's 20 (v6) were graded against reference photos of each film and
+# checked on the camera, and also carry the tone and Contrast tested there. The other looks keep their recipe's tone
+# and Contrast; their colours, WB and split are fitted so the camera matches what the recipe shows in the Control
+# Panel preview (camera model, not yet checked on the camera). Red has no chart patch, so it keeps the recipe's value.
+# These values replace the recipe's hue / light / sat, WB, tone, Contrast and split (split=None: none). Sharp stays
+# SHARP's (Gold 200: Sharp -1, the owner's).
+GRADED = {
+ # --- the camera's 20: v6, graded against reference photos of each film (camera-tested on the chart, 2026-11-11) ---
+ 'Portra 400': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], light=[0, -1, 1, 0, 0, 0, 0, 0, 0, 0, -1, 1], sat=[-1, 1, -2, 0, -3, 0, -3, -1, 0, 1, -3, -2], con=1, hl=2, split=None),
+ 'Gold 200': dict(hue=[0, 0, -1, 0, 1, 1, 1, 0, 0, -1, 0, -1], light=[0, 0, 1, 0, 0, 0, 0, 0, 0, 1, -1, 0], sat=[0, -1, -2, 0, 0, 0, -1, -2, -1, 1, -1, 0], ab=-1, gm=-1, hl=-1, sh=2, blk=1, split=('Y', 0, 'O', 1)),
+ 'Kodachrome 64': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, -1, 0, 0, 0, -1, 0], sat=[-1, 1, 0, 0, 2, 1, 3, 0, 2, 0, 0, -1], con=1, sh=-1, blk=-1, split=None),
+ 'Portra 800': dict(hue=[0, 0, 0, 0, 0, -1, 0, -1, 0, 1, 0, 0], light=[0, -1, -1, 0, 0, -1, 0, 0, 0, 0, -1, -1], sat=[-1, 1, 2, 0, 3, 0, -1, 0, -1, 0, 0, 0], gm=-1, con=1, hl=2, sh=-2, blk=-1, split=('BC', 1, 'Y', 1)),
+ 'CineStill 800T': dict(hue=[0, 0, 0, 0, -1, -2, 0, 0, 0, 1, 1, 1], light=[0, -1, 1, 0, 0, 0, -1, 1, -1, -1, 0, -1], sat=[0, 2, 0, 0, 0, 0, 3, 1, 0, 0, -2, -1], ab=-1, gm=-2, hl=-1, sh=-1, blk=-1, split=('Y', 0, 'GC', 1)),
+ 'Ektar 100': dict(hue=[0, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0], light=[0, 0, -1, 0, -1, 0, 1, 0, 1, 0, 0, 0], sat=[0, 0, 4, 0, 0, 0, 0, -2, 0, 0, 1, -1], hl=-1, sh=2, blk=1, split=None),
+ 'Ultramax 400': dict(hue=[0, 0, 0, 0, 0, 1, 1, -1, 0, 0, 1, 0], light=[0, -1, 0, 0, 0, -1, -1, 1, 1, 0, 0, 0], sat=[-1, 0, 1, 0, 5, 3, 2, -3, -1, 1, -1, 0], ab=-1, blk=1, split=None),
+ 'Pro 400H': dict(hue=[0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 1, 1, -1, 0], sat=[-1, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, -1], con=1, hl=2, sh=-1, split=None),
+ 'Velvia 50': dict(hue=[-1, 1, 0, 0, 1, -2, -1, 2, -1, 1, -4, 1], light=[-4, 0, 0, 0, -1, 1, 0, -2, -2, -1, -3, -1], sat=[5, 2, 0, 0, 1, 1, 3, 3, 4, 0, 5, 5], ab=3, hl=-3, sh=-2, blk=-1, split=('Y', 0, 'B', 1)),
+ 'Superia 400': dict(hue=[0, 0, 0, 0, 0, 0, 0, 1, -1, 1, 1, 0], light=[-1, 0, 1, 0, 0, 0, 1, -1, 1, 0, -1, 0], sat=[3, -1, -1, 0, -3, 0, -3, 0, -1, 1, 0, 1], hl=-1, sh=2, blk=1, split=None),
+ 'ColorPlus 200': dict(hue=[0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0], sat=[0, -1, -1, 0, -2, 1, 0, 0, 0, 0, 0, 0], ab=1, con=1, hl=2, blk=1, split=None),
+ 'CineStill 400D': dict(hue=[0, 0, 0, 0, 0, -1, 0, -1, 0, 0, 0, 1], light=[1, -1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[-1, 0, 1, 0, 1, 0, 0, 0, -1, -1, -3, -1], ab=2, gm=-1, hl=1, blk=-1, split=('Y', 0, 'C', 1)),
+ 'Fuji C200': dict(hue=[0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[0, 0, 0, 0, 1, 0, -1, -1, 0, 0, 0, -2], sh=2, blk=1, split=None),
+ 'Ektachrome E100': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[-1, 1, 0, 0, -2, -1, 1, 1, 0, 0, 0, -2], gm=-1, hl=1, split=None),
+ 'Reala 100': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1], sat=[-1, 0, -1, 0, -1, 1, 0, -1, 0, 2, 3, -1], hl=3, sh=1, split=None),
+ 'Provia 100F': dict(hue=[0, 0, -1, 0, -1, 1, 0, 0, 0, 1, 0, 0], light=[0, -1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0], sat=[-1, 1, -2, 0, 0, -1, 0, 0, 0, 1, 3, -2], gm=-1, hl=3, sh=1, split=None),
+ 'Vision3 250D': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], light=[0, -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[-2, 0, -1, 0, 0, 0, 1, -1, 0, 0, -2, -2], hl=2, sh=1, split=None),
+ 'Fuji Eterna': dict(hue=[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], light=[1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, -1], sat=[-2, -2, -1, 0, 0, 0, 0, 0, 0, 0, 0, -4], con=1, hl=2, blk=-1, split=None),
+ 'Astia 100F': dict(hue=[0, 0, 0, 0, 0, -1, 0, 1, 0, 0, -1, 0], light=[1, 0, 1, 0, -1, 0, 0, -1, -1, 0, 0, -1], sat=[-1, -1, -1, 0, 0, -1, 0, 4, 3, 1, 1, -2], ab=1, gm=-1, sh=-1, blk=-1, split=None),
+ 'Agfa Ultra 100': dict(hue=[0, 0, 0, 0, 0, 1, 1, 0, 0, 0, -1, 0], light=[-1, -1, 0, 0, -1, 1, 0, 0, 0, -1, 0, 0], sat=[5, 1, 0, 0, 3, 0, 0, -1, -1, 1, 2, -1], hl=-2, sh=1, blk=2, split=None),
+ # --- the other looks: fitted so the camera matches each recipe's Control Panel preview (camera model, 2026-11-11) ---
+ 'Fuji Provia': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0], sat=[1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1], split=None),
+ 'Fuji Velvia': dict(hue=[0, 1, 0, 0, -1, 0, 0, -1, -1, 1, 1, 0], light=[0, 0, 0, 0, -1, 0, 0, 1, 1, -1, 0, -1], sat=[4, 0, 2, 2, 3, 2, 4, 2, 1, 2, 4, 4], ab=-1, gm=-1, con=2, sh=-2, split=None),
+ 'Fuji Astia': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], sat=[1, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], con=-1, hl=-1, sh=1, split=None),
+ 'Classic Chrome': dict(hue=[0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1], light=[0, -1, 0, -1, -1, 0, 0, 0, -1, -1, -2, 0], sat=[-1, -3, -2, -3, -3, -1, -3, -1, -1, -3, -3, -3], ab=1, con=1, hl=-1, sh=-2, split=None),
+ 'Classic Neg': dict(hue=[-1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0], light=[0, -1, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0], sat=[-1, -1, -1, -1, -1, -1, -2, -2, -1, -2, -3, -1], ab=-1, con=2, hl=-1, sh=-2, split=None),
+ 'Pro Neg Hi': dict(hue=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], light=[-1, 0, 0, 0, 0, -1, 0, 0, 1, 0, -1, 0], sat=[0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1], con=1, hl=-1, split=None),
+ 'Pro Neg Std': dict(hue=[0, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0], light=[-1, 1, 0, 0, 0, 0, 0, -1, 1, -1, -1, 1], sat=[-1, -1, -1, -2, -2, 0, -2, -1, -2, -2, -2, -2], gm=1, con=-1, hl=-1, sh=1, split=None),
+ 'Eterna': dict(hue=[-1, 1, 0, 0, 0, 1, 1, 1, -1, 0, 0, 0], light=[0, 0, 1, 0, 0, -1, 1, 0, 1, -1, -1, 0], sat=[-2, -2, -2, -3, -3, 0, -3, -2, -2, -4, -4, -2], gm=1, con=-2, hl=-2, sh=2, blk=1, split=None),
+ 'Reala Ace': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[2, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1], con=1, sh=-1, split=None),
+ 'Nostalgic Neg': dict(hue=[0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], sat=[0, 0, 0, 0, 0, 0, -1, -1, 0, -1, 0, 0], ab=1, con=-1, hl=-1, sh=1, blk=1, split=None),
+ 'Velvia 100': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], light=[-1, 0, 0, 0, 0, 0, 0, 1, -1, -1, 0, -1], sat=[4, 0, 2, 3, 2, 3, 3, 3, 2, 3, 3, 3], gm=-1, con=2, sh=-2, split=None),
+ 'Provia 400X': dict(hue=[0, 1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0], light=[0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0], sat=[2, 0, 1, 1, 1, 1, 2, 2, 1, 2, 2, 2], con=1, hl=-1, sh=-2, split=None),
+ 'Sensia 100': dict(hue=[0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0], sat=[2, 0, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2], con=1, sh=-1, split=None),
+ 'Ektachrome VS': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], light=[-1, 0, 0, 0, 0, 0, 1, 0, -1, -1, 0, -1], sat=[4, 1, 3, 4, 2, 2, 3, 3, 3, 3, 4, 3], gm=-1, con=2, sh=-2, split=None),
+ 'EliteChrome 200': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], light=[0, 0, 0, 0, -1, 0, 0, 1, 0, -1, 0, -1], sat=[3, 0, 2, 2, 2, 2, 2, 3, 1, 2, 2, 2], ab=-1, gm=-1, con=1, sh=-1, split=None),
+ 'Kodachrome 25': dict(hue=[1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 1, 1], light=[0, -1, 0, -1, -1, 1, 0, 0, 0, 0, -1, -1], sat=[1, 0, 2, 3, 2, 0, 2, 2, 2, -1, -1, -1], con=1, sh=-2, split=None),
+ 'Kodachrome 200': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[-1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0], sat=[1, 0, 2, 3, 1, 1, 1, 1, 1, -1, 0, 0], ab=1, con=1, sh=-2, split=None),
+ 'Agfa Precisa': dict(hue=[0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], light=[0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0], sat=[2, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2], ab=-1, con=1, sh=-1, split=None),
+ 'Polachrome': dict(hue=[0, 0, 1, 0, 0, 1, 0, 0, -1, -1, 0, 1], light=[-1, -1, 0, 0, -1, 0, 0, -1, 2, -2, -2, 0], sat=[-2, -3, -2, -3, -3, -1, -3, -1, -3, -5, -3, -3], ab=1, gm=1, con=2, sh=-2, wht=-1, split=None),
+ 'Portra 160': dict(hue=[0, 1, 0, 0, 0, 1, 0, -1, 0, 0, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, 1, -1, 0, 0], sat=[-1, -1, -1, -1, -1, -1, -2, -2, -1, -2, -2, -2], con=-1, hl=-1, sh=1, split=None),
+ 'Pro Image 100': dict(hue=[0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[2, 0, 1, 1, 1, 1, 1, 1, 0, 2, 2, 2], con=1, split=None),
+ 'Kodacolor 100': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], light=[0, 0, 0, 0, -1, 0, 0, 1, 0, -1, 0, -1], sat=[2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2], con=1, sh=-1, split=None),
+ 'Superia 200': dict(hue=[0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[2, 0, 1, 1, 1, 2, 0, 1, 1, 1, 2, 2], ab=-1, con=1, sh=-1, split=None),
+ 'Superia 800': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1], ab=-1, con=1, blk=1, split=None),
+ 'Superia 1600': dict(hue=[-1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 0, 1, 1, 1, -1, 0, 0], sat=[0, -1, -1, -1, -1, -1, -1, -2, -1, -2, -1, -1], ab=-1, sh=1, blk=1, split=None),
+ 'Fujifilm 200': dict(hue=[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0], sat=[1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], hl=-1, sh=1, split=None),
+ 'Fuji 160C': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, -1], sat=[3, 0, 1, 1, 1, 1, 1, 2, 1, 1, 3, 2], gm=-1, con=1, sh=-1, split=None),
+ 'Fuji 800Z': dict(hue=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[0, -1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0], sh=1, split=None),
+ 'Agfa Vista 200': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1], light=[-1, 0, -1, 0, 0, 0, 0, 0, 0, 0, -1, 0], sat=[3, 0, 3, 4, 2, 2, 2, 2, 2, 1, 3, 2], ab=-1, gm=-1, con=1, sh=-1, split=None),
+ 'Lomo Color 400': dict(hue=[0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0], light=[-1, 0, 0, 0, -1, 0, 0, 1, -1, -1, 0, -1], sat=[4, 0, 3, 4, 3, 2, 3, 3, 2, 3, 3, 3], con=2, sh=-2, split=None),
+ 'LomoChrome 92': dict(hue=[0, 1, 0, 0, 0, 1, 0, -2, 0, 0, 1, 1], light=[0, 0, -1, 0, 0, -1, 0, 1, 0, -1, -1, 0], sat=[-1, -2, -2, -2, -2, -2, 0, -1, -1, -3, -3, -3], con=-1, sh=1, blk=2, wht=-1, split=None),
+ 'Phoenix 200': dict(hue=[0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0], light=[-1, 0, -1, 0, 0, 0, 0, -1, 0, -1, -1, 1], sat=[1, 0, 3, 4, 2, 1, 0, 1, 0, 1, 0, 0], ab=1, con=2, hl=1, sh=-2, split=None),
+ 'CineStill 50D': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0], sat=[2, 0, 1, 1, 1, 0, 1, 2, 1, 1, 1, 1], ab=-1, gm=-1, con=1, hl=-1, sh=-1, split=None),
+ 'Candido 800': dict(hue=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0], sat=[0, -1, -1, -1, -1, -1, -2, -1, -1, -2, -1, -1], ab=-1, con=-1, sh=1, split=None),
+ 'Cuban Negative': dict(hue=[0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1], light=[0, -1, 0, -1, 0, 0, 0, 0, 0, 0, -1, -1], sat=[0, 0, 2, 2, 1, 0, 1, 1, 1, -1, -2, -2], ab=1, hl=-1, sh=1, blk=1, wht=-1, split=('C', 1, 'Y', 1)),
+ 'FP-100C': dict(hue=[0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, -1], light=[0, 0, 0, 0, -1, 1, 0, 0, -1, 0, 0, 1], sat=[2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 2], ab=-1, hl=-1, blk=1, split=None),
+ 'Polaroid 600': dict(hue=[0, 1, 0, 0, 0, 1, 0, -1, 0, 0, 1, 1], light=[0, 0, 0, 0, 0, 0, 0, 0, 1, -1, 0, 0], sat=[0, -1, -1, -1, -1, -1, -2, -2, -1, -2, -1, -1], con=-1, sh=1, blk=2, wht=-2, split=None),
+ 'Polaroid SX-70': dict(hue=[0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0], light=[0, -1, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0], sat=[-1, -1, -1, -1, -1, -1, -2, -2, -1, -3, -4, -3], ab=1, con=-1, blk=3, wht=-2, split=None),
+ 'Instax Mini': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0], light=[-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1], sat=[2, 0, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1], ab=-1, con=1, mid=1, split=None),
+ 'Kodak 2383': dict(hue=[-1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], light=[0, 0, 0, 0, -1, 1, 0, 0, -1, 0, 0, 0], sat=[0, 0, 1, 1, 1, 1, 1, 1, 1, -1, 0, 0], con=2, sh=-2, blk=-1, split=None),
+ 'Kodak 2393': dict(hue=[0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0], light=[0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[2, 0, 1, 1, 1, 2, 0, 1, 1, 1, 1, 1], con=2, sh=-2, blk=-1, split=None),
+ 'Fuji 3513': dict(hue=[-1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0], ab=-1, con=1, sh=-1, split=None),
 }
 TUNED_SHARP = {'Gold 200': -1}
 
 def tuned(name, s):
-    t = TUNED.get(name)
+    t = GRADED.get(name)
     if not t: return s
     s = dict(s, hue=list(t['hue']), light=list(t['light']), sat=list(t['sat']))
     assert all(len(s[a]) == 12 and all(-LIM[a] <= v <= LIM[a] for v in s[a]) for a in ('hue', 'light', 'sat')), name
     over = settings({k: v for k, v in t.items() if k not in ('hue', 'light', 'sat')})
-    s['tone'] = over['tone']; s['wb'] = over['wb']
+    s['tone'] = over['tone']; s['wb'] = over['wb']; s['contrast'] = over['contrast']
+    s.pop('split', None)
     if 'split' in over: s['split'] = over['split']
     return s
-
 # Sharp per film (anything not listed: 0, the camera's normal). Never Off: that's a choice for the user.
 SHARP = {
  'Fuji Astia': -1, 'Pro Neg Std': -1, 'Eterna': -1, 'Nostalgic Neg': -1,
@@ -243,15 +292,21 @@ SHARP = {
  'Fuji 3513': -1,
 }
 
+# --recipes PATH: write the recipes without GRADED (for research/film-grading) to PATH and stop.
+import sys
+RECIPES = sys.argv[sys.argv.index('--recipes') + 1] if '--recipes' in sys.argv else None
 out = []
 for name, grp, film, desc, recipe in FILMS:
     assert len(name) <= 15 and name.isascii() and name == name.strip(), name
-    out.append({'name': name, 'group': grp, 'film': film, 'desc': desc, **tuned(name, settings(recipe)), 'sharp': TUNED_SHARP.get(name, SHARP.get(name, 0))})
+    s = settings(recipe) if RECIPES else tuned(name, settings(recipe))
+    out.append({'name': name, 'group': grp, 'film': film, 'desc': desc, **s, 'sharp': TUNED_SHARP.get(name, SHARP.get(name, 0))})
+if RECIPES:
+    json.dump({'films': out, 'camera': CAMERA}, open(RECIPES, 'w'), separators=(',', ':')); print(len(out), 'recipes'); sys.exit()
 names = [f['name'] for f in out]
 assert len(set(names)) == len(names), 'duplicate names'
 assert all(k in names and -4 <= v <= 2 for k, v in SHARP.items()), 'SHARP: unknown film or out of range'
 assert all(v in names and k not in names for k, v in ALIASES.items())
-assert set(TUNED) <= set(CAMERA) and set(TUNED_SHARP) <= set(TUNED), 'TUNED: camera films only'
+assert set(GRADED) == set(names) and set(TUNED_SHARP) <= set(GRADED), 'GRADED: every film once'
 assert len(CAMERA) == 20 and len(set(CAMERA)) == 20 and all(n in names for n in CAMERA), 'CAMERA: 20 known films'
 json.dump({'note': 'Our own film looks (webapp/scripts/films.py); edit the recipes there, not this file.', 'films': out, 'aliases': ALIASES, 'camera': CAMERA},
           open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'data', 'om3films.json'), 'w'), separators=(',', ':'))

@@ -82,6 +82,7 @@ its first user, and the rest is free for halation and the next features (`docs/D
 |---|---|---|---|---|
 | Camera-style editor | Edit a film the way the camera shows it. | Medium | **Done (2026-11-09)** | HSL wheel with the camera's five pages, Highlight & Shadow box, WB grid, all draggable. Look links carry a format version and minimum firmware. |
 | Photo-to-look instructions | Build a look from any photo, opened by a link. | Low | Done | [`docs/PHOTO_TO_LOOK.md`](PHOTO_TO_LOOK.md), tested end to end 2026-11-07. |
+| Film looks graded on the camera | Every film look measured and fitted to the OM-3's own response, so the camera gives what was meant (the camera's sliders are stronger than the preview, and uneven). | Medium | **Camera testing (2026-11-11)** | The 20: v6, camera-tested on a colour chart. The other 42: fitted to their preview with the camera model, not yet shot. Branch `feature/camera-graded-films`; [`research/film-grading/`](../research/film-grading/README.md), `research/NOTES.md` "Film sims graded on the camera". |
 
 ## Already done
 

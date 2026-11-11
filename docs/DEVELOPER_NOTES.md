@@ -377,7 +377,11 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
   hand-written recipes (overall and per-family saturation, hue and lightness, WB shift, Contrast and tone). They're
   our own designs, from public descriptions of each film (maker data sheets, reviews, sample photos) and tuned by eye
   on the sample photos in the preview model; no LUTs, presets or other people's looks are used. Edit the recipes,
-  not the JSON.
+  not the JSON. (62 looks since Cuban Negative.)
+- Camera grading (2026-11-11): `GRADED` in films.py replaces each look's colours, WB, split (and, for the camera's
+  20, tone and Contrast) with values fitted to the camera's measured response (`research/film-grading/`): the 20 to
+  film references (camera-tested v6), the rest so the camera matches the recipe's preview. A new recipe: grade it
+  with `research/film-grading/grade.py` and add its line (`films.py --recipes` writes the ungraded looks).
 - Sharp (v0.22): `SHARP` in films.py (name → −4..+2, unlisted 0), written as `sharp` in the JSON and set by `filmLook`.
   main.ts gives film looks already in a list their film's Sharp once (localStorage `caduceus.om3.filmsharp`), only
   where the look's own value is still 0.

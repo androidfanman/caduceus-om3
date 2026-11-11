@@ -2888,3 +2888,33 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   code (8 zero bytes), not "ASCII": docs corrected. The v0.27 zip on the release is unchanged (no sample).
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
+
+## Film sims graded on the camera (2026-11-11; camera-tested on the chart for the 20, camera model for the rest)
+- Method and data: `research/film-grading/` (README, `camera_response.json`, `grade.py`, `preview_chart.ts`). Photos
+  of a Datacolor 24-patch chart on the owner's OM-3 (1/40 s, f/1.8, ISO 1000, fixed WB 3100 K; v6 shoot 3300 K), test
+  builds v0.27-na1 with `LOOKS.BIN` swaps the owner approved in chat (the camera must be off while the card is out,
+  or it saves its looks over the new file; at shut-down it re-saves `LOOKS.BIN` with only the selection bytes changed).
+- The release films on the camera were 2–3x too strong against the film references (17.6% average chroma error).
+  The Control Panel preview, though, is close to the camera: camera change ≈ 1.06 × preview in lightness, 1.23 × in
+  chroma, 0.8 × in hue (corr 0.92 / 0.94 / 0.74); camera vs preview about ΔE 4–6 per patch.
+- Per step (camera-tested): Saturation +1 ≈ +7% chroma, −1 ≈ −12..−18%; Hue −1 turns 3–6° (Cyan ≈ 11°), Hue +1 more
+  (+2: Yellow −15°, Cyan −49° on the cyan patch); Luminance +1 ≈ L +1..2; Red reaches no chart patch; Violet: purple;
+  Green-cyan: aqua and green. Contrast +1: whites +3.9, darks −2.3 L (−1 asymmetric); Midtones ±2.5–3.4 L / step;
+  Shadows / Highlights ±1.3–1.6 L / step. WB A-B +1: b +1.0, a +0.65; G-M +1: a −1.3, b +0.8. Vignette correction
+  off (every look): corners −2..4 L.
+- Split toning (set D): a tint (lightness < 1 L) weighted by brightness: Shadows wheel L26 100%, L51 80%, black 50%,
+  L69 40%; Highlights wheel L69 100%, L51 95%, L81 90%, white 60%, L26 40%. Linear in strength (Orange 1 and 4: same
+  per step); −2 Blue = +2 Yellow. Per step at the peak (Shadows / Highlights): Yellow 5.6 / 4.5, Orange 4.0 / 3.3,
+  Orange-red 3.1 / 2.6, Magenta 5.8 / 4.9, Blue 5.1 / 4.2, Blue-cyan 3.2 / 2.7, Cyan 3.1 / 2.9, Green 6.4 / 5.5
+  (Red, Violet, Green-cyan, Yellow-green not measured).
+- The camera's 20, graded against film reference statistics (kept outside the repo): v3 → v5 → v6 shot on the
+  camera; average chroma error 7.6% → 6.8% → 6.7%, grey tint error 1.4 → 1.1. Films with unchanged settings moved up
+  to 4% between shoots, so that is the noise floor. v6 = `GRADED` in films.py (tone and Contrast included); the
+  Control Panel's `LOOKS.BIN` for the 20 equals the camera-tested LOOKS_V6.BIN (5399d587…) byte for byte. Changes
+  from the 2026-11-09 tuning: Fuji Eterna's split dropped (it went against its reference), new Highlights splits for
+  Velvia 50 (Blue 1) and CineStill 400D (Cyan 1); several films' WB off.
+- The other 42 looks (camera model; not shot): fitted so the camera matches each recipe's own preview (colours, WB,
+  split; Red, tone and Contrast kept). Predicted camera vs preview ΔE 3.5 → 1.9, grey tint 1.2 → 0.7; the looks'
+  preview changes by ΔE 1.5 on average (most: Fuji Velvia 3.1). Phoenix 200 / SX-70 were kept from swapping warm WB
+  for a cool WB plus warm split (WB sign kept).
+- Branch `feature/camera-graded-films`. Next: a camera check of some of the 42; real-scene check of the 20.

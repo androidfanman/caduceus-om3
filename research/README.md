@@ -9,6 +9,7 @@ graphics are stored here: the tools make them from the official firmware file yo
 | [`NOTES.md`](NOTES.md) | **The lab notebook.** Every firmware address, hook, test result and dead end, in order (newest at the end). Read the section for an area before changing it. "camera" = seen on a real OM-3, "emulator" = om-emu only. |
 | [`../docs/DEVELOPER_NOTES.md`](../docs/DEVELOPER_NOTES.md) | The cleaned-up summary per release. |
 | [`../docs/FILM_SIMULATION_ROADMAP.md`](../docs/FILM_SIMULATION_ROADMAP.md) | What we want to add for film looks, with effort and status. |
+| `film-grading/` | Film looks graded on the camera (2026-11-11): measured slider response on a colour chart, the camera model and the solver behind films.py `GRADED`. |
 | `grain/` | The grain model (bit-exact with the camera's Monochrome grain). |
 | `tools/` | Decode the firmware container (`oe_decode.py`), list its sections and free tails (`sections.py`), check anchor addresses (`check_anchors.py`), disassemble a range (`dis.sh`). |
 | `emulator/` | More scripts for [om-emu](https://github.com/flatpanda/om-emu) (OM-3 = model E147); the main test driver `session_ed1.mjs` (keys, dials, screenshots, traces, memory dumps) and `card_add_file.py` / `card_get_file.py` (files on and off an emulator SD card image) are in `../tools/emulator/`. Here: `gapprobe.mjs` checks which RAM the firmware writes; `nav.mjs`, `trace_edit.mjs` walk and trace the UI. |
