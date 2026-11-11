@@ -498,3 +498,42 @@ def arrows4_picture():
 def arrows4_stream():
     p = arrows4_picture()
     return (p.shape[1], p.shape[0], encode11(bytes(p.flatten().tolist()), p.shape[1], p.shape[0]))
+
+
+# v0.27 Creative Dial rows (Button Function): the dial positions' names as row / picker-title icons, in the style of
+# the camera's boxed button names (Fn, CP, AF-ON: 40 px high, a light box with a 2 px light border inside a dark rim,
+# the word in the border colour, cap ~26 px). Our own drawing (DejaVu Sans Condensed).
+DIAL_WORDS = ('CRT', 'ART', 'COLOR', 'MONO')
+
+
+def dial_label(txt, cap=24, sx=0.82):
+    import numpy as np
+    small, b = word(txt, cap, 200, sx)
+    tw = small.shape[1]
+    H, W = 40, tw + 22
+    px = np.zeros((H, W), dtype=np.uint8)
+    yy, xx = np.mgrid[0:H, 0:W]
+    def rrect(x0, y0, x1, y1, r):                    # inclusive box with corner radius r
+        cx = np.clip(xx, x0 + r, x1 - r); cy = np.clip(yy, y0 + r, y1 - r)
+        return ((xx - cx) ** 2 + (yy - cy) ** 2 <= r * r + 0.5) & (xx >= x0) & (xx <= x1) & (yy >= y0) & (yy <= y1)
+    outer = rrect(2, 0, W - 3, H - 1, 5)
+    rim = rrect(3, 1, W - 4, H - 2, 4)
+    inner = rrect(4, 2, W - 5, H - 3, 3)
+    px[outer] = 8
+    px[rim] = 7
+    px[inner] = 13
+    y0, x0 = int(round(32 - b)), (W - tw) // 2
+    cov = np.zeros((H, W)); cov[y0:y0 + small.shape[0], x0:x0 + tw] = small[:H - y0, :]
+    px[(cov >= 0.25) & inner] = 15
+    px[(cov >= 0.40) & inner] = 14
+    px[(cov >= 0.55) & inner] = 7
+    return px
+
+
+def dial_streams():
+    """[(w, h, stream)] for CRT, ART, COLOR, MONO."""
+    out = []
+    for t in DIAL_WORDS:
+        p = dial_label(t)
+        out.append((p.shape[1], p.shape[0], encode11(bytes(p.flatten().tolist()), p.shape[1], p.shape[0])))
+    return out

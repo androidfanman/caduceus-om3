@@ -2656,3 +2656,24 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   GUIDES.BIN fc5e3faa….
 - **Camera (ak6, 2026-11-10): works** (owner: "that works great"). Next (owner): the Creative Dial mapping as rows in
   the same Button Function menu; then polish (diagram lines etc.).
+
+### v0.27 Creative Dial rows in Button Function, test dr1 (2026-11-10; emulator only)
+- Owner: set the dial map in the camera's Button Function menu. Four rows after L-Fn: **CRT, ART, COLOR, MONO**, each
+  a button setting of other OM bodies that has row (0x6150ce18), item descriptor (group 8) and picker entries but no
+  OM-3 key: CRT -> sid 571 (item 735, key 9), ART -> 54 (737, key 11), COLOR -> 55 (738, key 12), MONO -> 1966 (739,
+  key 13). 54 / 55 / 1966 keep their validator records (list -> dm_list); 571 has none and takes 1967's (an unused
+  movie button). No rule found for any of them (the rule run at 0x605d9b58, 25 records).
+- Values DV0 3800 + code (0 Normal = the position's own mode, 1..4 COLOR k, 11..30 FILM 1..20): 25 options. Picker
+  variants of keys 9 / 11 / 12 / 13 -> count 25, titles dm_tit (Normal / COLOR k / the film's name, ST_F0 + n),
+  cells dm_lab (Normal 616 / "COLOR k" / "FILM n", our strings 0x7f48.., 0x7f50..), help dm_hlp (our text). Item
+  records: copies of Fn's (its diagram for now) with our icons and dm_lab. Picker title icons (list 0x6139e26c, index
+  = key; 9 / 11..13 were blank) and row icons: our boxed words CRT / ART / COLOR / MONO (mkicons.dial_label, ids
+  0x7fe3..0x7fe6 through ar_ic), in the style of the camera's L-Fn / AF-ON names.
+- `dm_get` (sl_get, the facade read for the four sids): the stored value via sget, anything not ours (other bodies'
+  defaults, e.g. 1966 = 3341 left by ak5) reads Normal. `sx_set` reads the position's row instead of the fixed dm_map
+  (removed).
+- om-emu (sess7: drive.mjs does not start the worker, so its films never load): rows show "Normal"; CRT -> FILM 3
+  picker title "Kodachrome 64", row "FILM 3"; ART -> FILM 16; dial CRT -> Kodachrome 64 (FILM 3), MONO -> stock
+  MONO 1, COLOR (unmapped) -> back to the user's own COLOR 1, ART -> FILM 16. Not checked: power-off persistence;
+  power-on on a mapped position is still stock until the first turn (known, dm6).
+- dr1 (firmware/VERSION "v0.27-dev (dial rows 1)"): E1479999.BIN d06dce5b…, GUIDES.BIN e7ec47d8… (LABELS / TONES / BUNDLES as ak6).

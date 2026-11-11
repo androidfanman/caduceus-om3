@@ -3361,6 +3361,18 @@ st_get:
  bcc 3f
  jmp fl_str
 3:
+ cmp ST_DC0,d0                    /* v0.27 the Creative Dial rows' strings (dm_strs) */
+ bcs 31f
+ cmp ST_DF0 + 20,d0
+ bcc 31f
+ mov d0,d1
+ add -ST_DC0,d1
+ asl2 d1
+ mov dm_strs,a0
+ add d1,a0
+ mov (a0),a0
+ ret [d2],8
+31:
  cmp 203,d0                       /* v0.24 film test 5: "Picture Mode" (the row's title) on the Picture Mode screen */
  bne 5f
  jmp fl_pm
@@ -3693,6 +3705,17 @@ sl_slot:
 sl_get:
  cmp 0,a1
  beq 9f
+ cmp 571,d0                       /* v0.27 the Creative Dial rows (dm_get) */
+ beq 7f
+ cmp 54,d0
+ beq 7f
+ cmp 55,d0
+ beq 7f
+ cmp 1966,d0
+ bne 0f
+7:
+ jmp dm_get
+0:
  cmp 2148,d0                      /* the Picture Mode column's row memory: the top row (111) every time (owner,
                                    * v0.25), but our row once after MENU from the WB fine-tune screen (gr_bk) */
  bne 1f
@@ -9340,9 +9363,26 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  mov (a3),d1
  jmp sl_set0
 41:
- mov dm_map,a2
- add d2,a2
- movbu (a2),d3                    /* the target */
+ add -16,sp                       /* (0) call slot, (4) a0, (8) a1, (12) d2 */
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ mov d2,(12,sp)
+ mov dm_sid,a2
+ mov d2,d0
+ asl2 d0
+ add d0,a2
+ mov (a2),d0                      /* the position's row (sid) */
+ call sget,[],4
+ mov (4,sp),a0
+ mov (8,sp),a1
+ mov (12,sp),d2
+ add 16,sp
+ add -DV0,d0                      /* the target: DV0 + code; anything else = Normal */
+ cmp 31,d0
+ bcs 42f
+ clr d0
+42:
+ mov d0,d3
  cmp 0,d3
  bne 5f
  cmp 2,d2                         /* an unmapped COLOR position: the owner's own choice back, if a mapped */
@@ -9449,8 +9489,111 @@ dm_ok:                            /* `call dm_ok,[],0` -> d1 1 when P is valid a
  ret [],0
 dm_own:                           /* the owner's own COLOR choice while a mapped position replaced it (0 = none) */
  .byte 0
-dm_map:                           /* test dm1 (dm7: COLOR and MONO unmapped, to test the way back): CRT -> FILM 3, ART -> FILM 10 */
- .byte 13, 20, 0, 0
+
+/* v0.27 dial rows (owner, 2026-11-10: set in the camera's Button Function menu, as the other buttons). One row per
+ * position: CRT -> sid 571, ART -> 54, COLOR -> 55, MONO -> 1966 (buttons of other OM bodies with row, item and picker
+ * entries; 571's validator record is 1967's, an unused movie button). Values DV0 + code: 0 Normal (the position's own
+ * mode), 1..4 COLOR k, 11..30 FILM 1..20. Pickers: variants of keys 9 / 11 / 12 / 13 with our 25 options (build.py). */
+ .set DV0, 3800
+ .set ST_DC0, 0x7f48              /* "COLOR 1".."COLOR 4" */
+ .set ST_DH, 0x7f4c               /* the options' help text */
+ .set ST_DF0, 0x7f50              /* "FILM 1".."FILM 20" (cells and the row's value; the title has the film's name) */
+ .balign 4
+dm_sid:
+ .long 571, 54, 55, 1966          /* CRT, ART, COLOR, MONO */
+dm_get:                           /* from sl_get (d0 one of the four, a1 -> the value; `rets`): the stored value, any
+                                   * value that is not one of ours (the other bodies' defaults) read as Normal */
+ add -12,sp                       /* (0) call slot, (4) a1, (8) mdr */
+ mov a1,(4,sp)
+ mov mdr,d1
+ mov d1,(8,sp)
+ call sget,[],4
+ mov (8,sp),d1
+ mov d1,mdr
+ mov (4,sp),a1
+ add 12,sp
+ mov d0,d1
+ add -DV0,d1
+ cmp 31,d1
+ bcs 1f
+ clr d1
+1:
+ cmp 5,d1                         /* 5..10 are not options */
+ bcs 2f
+ cmp 11,d1
+ bcc 2f
+ clr d1
+2:
+ add DV0,d1
+ mov d1,(a1)
+ clr d0
+ rets
+ .balign 4
+dm_list:                          /* the options (validator list), in the picker's order */
+ .short DV0, DV0 + 1, DV0 + 2, DV0 + 3, DV0 + 4
+ .short DV0 + 11, DV0 + 12, DV0 + 13, DV0 + 14, DV0 + 15, DV0 + 16, DV0 + 17, DV0 + 18, DV0 + 19, DV0 + 20
+ .short DV0 + 21, DV0 + 22, DV0 + 23, DV0 + 24, DV0 + 25, DV0 + 26, DV0 + 27, DV0 + 28, DV0 + 29, DV0 + 30
+dm_lend:
+ .balign 4
+dm_lab:                           /* {value, string << 16 | 4, 0x61570e04}: Normal (616), COLOR k, film n's name */
+ .space 12 * 25
+dm_hlp:                           /* the same with the help text */
+ .space 12 * 25
+dm_tit:                           /* the same with the picker titles: film n's name (ST_F0 + n - 1) */
+ .space 12 * 25
+dm_strs:                          /* ST_DC0 .. ST_DF0 + 19 */
+ .long dm_s1, dm_s2, dm_s3, dm_s4, dm_sh, dm_sh, dm_sh, dm_sh
+ .long dm_f1, dm_f2, dm_f3, dm_f4, dm_f5, dm_f6, dm_f7, dm_f8, dm_f9, dm_f10, dm_f11, dm_f12, dm_f13, dm_f14, dm_f15, dm_f16, dm_f17, dm_f18, dm_f19, dm_f20
+dm_f1:
+ .short 70, 73, 76, 77, 32, 49, 0
+dm_f2:
+ .short 70, 73, 76, 77, 32, 50, 0
+dm_f3:
+ .short 70, 73, 76, 77, 32, 51, 0
+dm_f4:
+ .short 70, 73, 76, 77, 32, 52, 0
+dm_f5:
+ .short 70, 73, 76, 77, 32, 53, 0
+dm_f6:
+ .short 70, 73, 76, 77, 32, 54, 0
+dm_f7:
+ .short 70, 73, 76, 77, 32, 55, 0
+dm_f8:
+ .short 70, 73, 76, 77, 32, 56, 0
+dm_f9:
+ .short 70, 73, 76, 77, 32, 57, 0
+dm_f10:
+ .short 70, 73, 76, 77, 32, 49, 48, 0
+dm_f11:
+ .short 70, 73, 76, 77, 32, 49, 49, 0
+dm_f12:
+ .short 70, 73, 76, 77, 32, 49, 50, 0
+dm_f13:
+ .short 70, 73, 76, 77, 32, 49, 51, 0
+dm_f14:
+ .short 70, 73, 76, 77, 32, 49, 52, 0
+dm_f15:
+ .short 70, 73, 76, 77, 32, 49, 53, 0
+dm_f16:
+ .short 70, 73, 76, 77, 32, 49, 54, 0
+dm_f17:
+ .short 70, 73, 76, 77, 32, 49, 55, 0
+dm_f18:
+ .short 70, 73, 76, 77, 32, 49, 56, 0
+dm_f19:
+ .short 70, 73, 76, 77, 32, 49, 57, 0
+dm_f20:
+ .short 70, 73, 76, 77, 32, 50, 48, 0
+dm_s1:
+ .short 67, 79, 76, 79, 82, 32, 49, 0
+dm_s2:
+ .short 67, 79, 76, 79, 82, 32, 50, 0
+dm_s3:
+ .short 67, 79, 76, 79, 82, 32, 51, 0
+dm_s4:
+ .short 67, 79, 76, 79, 82, 32, 52, 0
+dm_sh:
+ .short 84, 117, 114, 110, 105, 110, 103, 32, 116, 104, 101, 32, 67, 114, 101, 97, 116, 105, 118, 101, 32, 68, 105, 97, 108, 13, 10, 116, 111, 32, 116, 104, 105, 115, 32, 112, 111, 115, 105, 116, 105, 111, 110, 32, 115, 101, 108, 101, 99, 116, 115, 13, 10, 116, 104, 105, 115, 32, 112, 105, 99, 116, 117, 114, 101, 32, 109, 111, 100, 101, 46, 0
 
 /* ---------------------------------------------------------------- v0.27 arrow keys (feature/v0.27-buttons)
  * Owner (ak5): the camera's own Direct Function (▲ Exp comp, ◀ AF area, ▶ ▼ assignable) is replaced by ours: with
@@ -9497,7 +9640,7 @@ ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pict
  exthu d1
  cmp AR_IC0,d1
  bcs 1f
- cmp AR_IC0 + 3,d1
+ cmp AR_IC0 + 7,d1
  bcc 1f
  add -AR_IC0,d1
  asl2 d1
@@ -9509,7 +9652,7 @@ ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pict
  .set AR_IC0, 0x7fe0              /* clear of Caduceus' 0x7f80..0x7fc3 (PR #26's ▲ id) */
  .balign 4
 ar_ent:
- .long ar_d0, ar_d1, ar_d2
+ .long ar_d0, ar_d1, ar_d2, ar_d3, ar_d4, ar_d5, ar_d6
 ar_d0:                            /* <6H3I> descriptors, filled by build.py (firmware/mkicons.py arrow_streams) */
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
@@ -9517,6 +9660,18 @@ ar_d1:
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
 ar_d2:
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+ar_d3:                            /* v0.27 dial rows: CRT, ART, COLOR, MONO (mkicons.dial_streams) */
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+ar_d4:
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+ar_d5:
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+ar_d6:
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
 ar_l158:                          /* the arrow-pad mode's option labels (build.py: Direct Function's picture -> ours) */
@@ -9533,13 +9688,13 @@ ar_lab:                           /* value labels {code, string << 16 | type, pt
                                    * buttons' and the arrows' label lists) */
  .space 12 * 48
 ar_rows:                          /* the stills Button Function rows (build.py) */
- .space 2 * 12
+ .space 2 * 16
  .balign 4
 ar_items:                         /* their item-info records, 28 B each (build.py) */
- .space 28 * 12
+ .space 28 * 16
 ar_blk:                           /* the 7 shooting states' event blocks with ▲ / ◀ releases (build.py) */
  .space 3200
-ar_pay:                           /* the ▲ / ◀ picture streams */
- .space 1792
+ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-position picture streams */
+ .space 8192
 ar_pend:
 

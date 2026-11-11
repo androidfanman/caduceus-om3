@@ -472,8 +472,10 @@ def build(defaults, testfile, out):
     rows = list(struct.unpack_from('<9H', m, o(0x61529b76)))
     assert rows == [47, 48, 1292, 49, 1964, 158, 53, 51, 56], rows
     rows = rows[:6] + [50, 52] + rows[6:]   # ▲ ◀ ▶ ▼ together (owner, ak5); the diagram lines come later (polish)
-    struct.pack_into('<11H', m, o(sy['ar_rows']), *rows)
-    struct.pack_into('<II', m, o(MR) + 4, sy['ar_rows'], 11)
+    DIAL = [571, 54, 55, 1966]              # v0.27 Creative Dial rows: CRT, ART, COLOR, MONO (after L-Fn)
+    rows += DIAL
+    struct.pack_into('<15H', m, o(sy['ar_rows']), *rows)
+    struct.pack_into('<II', m, o(MR) + 4, sy['ar_rows'], 15)
     recs = [bytearray(m[o(REC) + 28 * k:o(REC) + 28 * k + 28]) for k in range(9)]
     rs = [struct.unpack_from('<I', r)[0] for r in recs]
     assert rs == [47, 48, 49, 1964, 1292, 158, 53, 51, 56], rs
@@ -502,10 +504,44 @@ def build(defaults, testfile, out):
         struct.pack_into('<I', r, 4, (pic << 16) | 0xc)
         struct.pack_into('<I', r, 20, struct.unpack_from('<I', recs[rs.index(158)], 20)[0])   # ✥'s diagram (the whole pad)
         recs.append(r)
+    # v0.27 Creative Dial rows (editor.s "dial rows"): options Normal / COLOR 1-4 / FILM 1-20 (value DV0 + code)
+    DV0, OBJ = 3800, 0x61570e04
+    dcodes = [0, 1, 2, 3, 4] + list(range(11, 31))
+    dl = sy['dm_list']
+    assert list(struct.unpack_from('<25H', m, o(dl))) == [DV0 + c for c in dcodes] and sy['dm_lend'] - dl == 50
+    def dstr(c, title=False):   # "Normal", ST_DC0 + k, "FILM n" (ST_DF0) or, in the picker title, the film's name (ST_F0)
+        return 616 if c == 0 else (0x7f48 + c - 1 if c < 5 else (0x7f10 if title else 0x7f50) + c - 11)
+    lab = b''.join(struct.pack('<3I', DV0 + c, (dstr(c) << 16) | 4, OBJ) for c in dcodes)
+    tit = b''.join(struct.pack('<3I', DV0 + c, (dstr(c, True) << 16) | 4, OBJ) for c in dcodes)
+    m[o(sy['dm_tit']):o(sy['dm_tit']) + 300] = tit
+    hlp = b''.join(struct.pack('<3I', DV0 + c, (0x7f4c << 16) | 4, OBJ) for c in dcodes)
+    m[o(sy['dm_lab']):o(sy['dm_lab']) + 300] = lab
+    m[o(sy['dm_hlp']):o(sy['dm_hlp']) + 300] = hlp
+    for sid, was in ((571, 1967), (54, 54), (55, 55), (1966, 1966)):   # 571 has none: 1967's (an unused movie button)
+        a = vrec[was]
+        r = struct.unpack_from('<HHIIHH', m, o(a))
+        assert r[0] == was and r[1] == 128 and r[3] == 0 and r[5] == 2, (sid, r)
+        struct.pack_into('<HHIIHH', m, o(a), sid, 128, dl, 0, 50, 2)
+    assert 571 not in vrec and 1967 in vrec
+    G8 = {struct.unpack_from('<I', m, o(0x615c540c + 24 * i) + 8)[0]: 0x615c540c + 24 * i for i in range(416)}
+    for k, (sid, key) in enumerate(zip(DIAL, (9, 11, 12, 13))):
+        assert u32(G8[sid] + 16)[0] == key
+        V = [0x61571ba0 + 24 * i for i in range(32) if u32(0x61571ba0 + 24 * i)[0] & 0xffff == key]
+        assert len(V) == 1; V = V[0]                                # the picker variant of the row's key
+        assert u32(V, 6) == (((key + 1) << 16) | key, 55, 0x61570e08, 0x61571288, 0x61571708, 0x61571b88), hex(V)
+        struct.pack_into('<4I', m, o(V) + 4, 25, sy['dm_tit'], sy['dm_lab'], sy['dm_hlp'])
+        a = 0x6139e26c + 16 * key                                   # picker title icon (index = key)
+        assert u32(a, 4) == (0xffff, 7, 7, 1), hex(a)
+        struct.pack_into('<I', m, o(a) + 12, 0x7fe3 + k)
+        r = bytearray(recs[rs.index(47)])                          # a copy of Fn's record (its diagram for now)
+        struct.pack_into('<I', r, 0, sid)
+        struct.pack_into('<I', r, 4, ((0x7fe3 + k) << 16) | 0xc)
+        struct.pack_into('<2I', r, 12, sy['dm_lab'], 25)
+        recs.append(r)
     items = b''.join(bytes(r) for r in recs)
-    assert len(items) == 28 * 11 and sy['ar_blk'] - sy['ar_items'] >= len(items)
+    assert len(items) == 28 * 15 and sy['ar_blk'] - sy['ar_items'] >= len(items)
     m[o(sy['ar_items']):o(sy['ar_items']) + len(items)] = items
-    struct.pack_into('<II', m, o(HDR) + 4, sy['ar_items'], 11)
+    struct.pack_into('<II', m, o(HDR) + 4, sy['ar_items'], 15)
     # the ▲ / ◀ rules (target 50 / 52 by the arrow-pad mode 158) lose their Direct Function branch (the third)
     for R, sid in ((0x605d9b80, 50), (0x605d9b94, 52)):
         r = struct.unpack_from('<HHII', m, o(R))
@@ -531,7 +567,7 @@ def build(defaults, testfile, out):
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons
     at = sy['ar_pay']
-    for k, (w, h, st_) in enumerate(mkicons.arrow_streams() + [mkicons.arrows4_stream()]):
+    for k, (w, h, st_) in enumerate(mkicons.arrow_streams() + [mkicons.arrows4_stream()] + mkicons.dial_streams()):
         assert at + len(st_) <= sy['ar_pend']
         m[o(at):o(at) + len(st_)] = st_
         d = sy['ar_d%d' % k]
