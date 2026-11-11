@@ -1,6 +1,6 @@
 # Using Caduceus for OM-3
 
-This page is for **v0.26.2**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
+This page is for **v0.27**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
 
 > [!NOTE]
 > Caduceus works on the **COLOR** profiles (COLOR 1–4) and your **films** (FILM 1–20). The Monochrome profiles keep
@@ -84,6 +84,25 @@ opposite colour; 0 = off). For a classic split tone, use both: for example blue 
 - **Hold OK on a film** in the Picture Mode list: the film goes back to how it was built.
 - **Hold OK on COLOR n:** that COLOR goes back to the camera's factory settings.
 
+## Buttons and the Creative Dial
+
+Both are in the camera's **Button Function** menu, with the other buttons.
+
+- **Arrow keys:** set the arrow pad (✥) to **Direct Function**. Then ▲ ◀ ▶ ▼ each have their own row: pick any function
+  for each.
+- **Creative Dial:** the rows **CRT, ART, COLOR and MONO** are the four positions of the front dial. Set each to
+  **Normal** (its usual mode), **CRT**, **ART**, **COLOR** or **MONO**.
+- **A film per position:** every position set to COLOR remembers the COLOR 1–4 or FILM 1–20 you pick while the dial is
+  on it. Set all four to COLOR and you have four films on the dial.
+- After you switch the camera on, the dial position's setting takes effect at the first half-press or dial turn.
+
+## The film in your photos
+
+Every JPEG taken on a FILM keeps the film in its EXIF: the name (Image Description, for example `FILM 9 Velvia 50`) and
+the whole recipe as a short code in the User Comment. Open the JPEG in the Control Panel (**Open...**), or paste the
+comment with **Paste link**, and the film is added to your films. Photos on COLOR 1–4 with your own settings, CRT, ART
+and MONO don't get one.
+
 ## New films from the Control Panel
 
 The [Control Panel](https://androidfanman.github.io/caduceus-om3/) is a web page for making and changing films on your
@@ -114,4 +133,5 @@ All in the `OM3MOD` folder at the top of the card:
 | `GUIDES.BIN` | Caduceus's code and labels | The release: always with its own firmware |
 | `LABELS.BIN`, `TONES.BIN` | Labels, and the split toning guides | The release |
 
-Older versions also used `NAMES.BIN`; it's harmless. Technical details: [FORMATS.md](FORMATS.md).
+`DEBUG.TXT` (optional, from the release's downloads) turns on a debug log: the camera then writes `CADLOG.TXT`. Only
+add it if you're asked for a log, and delete it afterwards. Older versions also used `NAMES.BIN`; it's harmless. Technical details: [FORMATS.md](FORMATS.md).

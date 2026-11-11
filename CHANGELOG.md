@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.27](#v027) | 2026-11-11 | All four arrow keys in Button Function; Creative Dial modes with a film per position; the film's name and recipe in every JPEG |
 | [v0.26.2](#v0262) | 2026-11-09 | Films load at power-on; the dials step through the films; fix for a freeze with Film Grain and RAW+JPEG |
 | [v0.26.1](#v0261) | 2026-11-09 | WB shift up to ±7 per film; the 20 film sims tuned from colour-checker photos |
 | [v0.26](#v026) | 2026-11-09 | Split toning: Shadows and Highlights pages |
@@ -25,6 +26,67 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.27
+Your buttons, your Creative Dial, and the film saved in every photo. Firmware camera-tested (2026-11-11, build dr7).
+
+**Buttons**
+- **All four arrow keys in Button Function:** with the arrow pad (✥) on Direct Function, ▲ ◀ ▶ ▼ each have their own
+  row with the full list of functions (before, ▲ and ◀ were fixed to exposure compensation and AF area). The rows
+  are in the camera's order, the arrows together; under Off and [·:·] they grey out as the camera's own ▶ / ▼ do.
+  The ✥ choice shows a ▲◀▶▼ picture for Direct Function. Built on the assignable up key research by
+  [ryanbughuang](https://github.com/androidfanman/caduceus-om3/pull/26) ([#9](https://github.com/androidfanman/caduceus-om3/issues/9)).
+- **Creative Dial modes** ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)): four new rows in Button
+  Function, **CRT, ART, COLOR and MONO**, one per position of the front Creative Dial. Each can be Normal (its usual
+  mode), CRT, ART, COLOR or MONO. Every position set to COLOR remembers its own COLOR 1–4 or FILM 1–20: pick a film
+  as usual while the dial is there, and turning back to that position brings it back. So all four positions can be
+  COLOR, each with a different film.
+- **Switching on:** a position's mode and film take effect at the first half-press or dial turn after the camera
+  starts. (Test builds that switched it at start-up froze the camera when the dial had been moved while it was off,
+  so that was left out.)
+- **The new rows look like the camera's own:** the CRT / ART / COLOR / MONO names and the values (Normal, CRT, ART,
+  COLOR, MONO) are drawn in the camera's style and size.
+- **Body pictures that point to the right control:** beside the ▲ ◀ ▶ ▼, L-Fn and Creative Dial rows, the camera's
+  body picture highlights that control and its line goes to the selected row (the dial rows highlight the front dial).
+  The pictures are made on the camera from its own, at no noticeable wait.
+- The movie menu's buttons are unchanged.
+
+**The film in the photo** ([#20](https://github.com/androidfanman/caduceus-om3/issues/20))
+- **Every JPEG taken on a FILM keeps the film:** its name in the EXIF Image Description (`FILM 9 Velvia 50`), and in
+  the User Comment the name and the whole recipe as a short code:
+  `Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA`. Photos on COLOR 1–4 with your own
+  settings, CRT, ART or MONO keep the camera's blank fields.
+- **Codes keep working across versions:** new settings go into spare room in the code (0 = off), so an older Control
+  Panel or site still reads a newer code and a newer one reads an older code. Only a change that can't follow that
+  rule gets a new name (`om3.2.`). Spec: [docs/PHOTO_CODE.md](docs/PHOTO_CODE.md).
+- **Control Panel:** **Open...** takes a JPEG, and **Paste link** takes a photo's comment or code: the film is added
+  to your films with its name.
+- **Developer kit** for sites and apps (for example a recipe site where people upload a photo):
+  [devkit/photo-code](devkit/photo-code/) and `caduceus-om3-photo-code-kit.zip` with the release: a JavaScript
+  reader with no dependencies, the field table, test examples and a demo page. Apache-2.0.
+
+**Debug log (optional)**
+- Copy `DEBUG.TXT` (an optional download with the release) into `OM3MOD` and the camera writes a plain-text
+  `OM3MOD/CADLOG.TXT` at each shutter-button event: the build, which card files loaded and whether each matches the
+  firmware (naming any that doesn't), the picture mode and film, the last save result and the last 32 events. For bug
+  reports when you're asked for one. Delete `DEBUG.TXT` to turn it off (from the next start): without it the camera
+  writes nothing.
+- Uses new code space proven on the camera (256 KiB more of section 6).
+
+**Website**
+- New guide pages: [Install](https://androidfanman.github.io/caduceus-om3/pages/install/),
+  [Using it](https://androidfanman.github.io/caduceus-om3/pages/using/),
+  [FAQ](https://androidfanman.github.io/caduceus-om3/pages/faq/),
+  [Roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/) (with the GitHub issues) and
+  [Changelog](https://androidfanman.github.io/caduceus-om3/pages/changelog/); a shorter README.
+- Feature comparison with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
+
+**Films**
+- Gold 200 and CineStill 800T: their split tone moved to the Highlights wheel, as in the approved designs (Gold 200:
+  Orange +1, CineStill 800T: Green-cyan +1); they had been on the Shadows wheel. In the Control Panel and the optional
+  `LOOKS.BIN`.
+
+**Card files:** `GUIDES.BIN` is new (always copy it with the firmware). `LABELS.BIN` and `TONES.BIN` are as v0.26.2.
 
 ## v0.26.2
 Films load at power-on, the dials step through the films, and three fixes. Firmware camera-tested (2026-11-09, build

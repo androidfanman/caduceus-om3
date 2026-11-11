@@ -390,6 +390,30 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.27 release (branch feature/v0.27-buttons; build dr7, camera-tested 2026-11-11)
+
+Details and every test: `research/NOTES.md`, the "v0.27 ..." and "Debug log" sections.
+- Arrow keys (ak6): ✥ Direct Function = all four keys run their assigned functions (rules 0x605d9b80 / 0x605d9b94: the
+  Direct Function branch dropped); ▲ ◀ rows added to Button Function next to ▶ ▼; ✥ picture 0x7fe2 via `ar_ic`.
+- Creative Dial (dr3 / dr7): rows CRT / ART / COLOR / MONO = sids 571 / 54 / 55 / 1966 (other bodies' buttons; 571 on
+  1967's validator record), values DV1 3900 + {0 Normal, 1 CRT, 2 ART, 3 COLOR, 4 MONO}. Each position's COLOR choice
+  in the unused movie button sids 1958 / 1277 / 1275 / 1284 (PV0 4000 + code: 1..4 COLOR k, 11..30 FILM n), written by
+  `dm_rec` from sx_set's SetValue(901). `sx_set` 897 (dial family) -> `dm_turn` (reads only). No mapping at power-on:
+  dm_boot (dr3..dr6) hung the camera when the dial was moved while off; the first half-press / dial turn applies it.
+- Row pictures (dr2): `mkicons.dial_label` / `value_picture`, ids 0x7fe3..0x7fff via `ar_ic`.
+- Body diagrams (dg3): `dg_get` composes ids 0x7fd0..0x7fd8 from the stock pictures 0x3f7b..0x3f83 at run time
+  (programs in `firmware/diagrams.py`, no camera graphics stored): copies the stock type-11 stream word by word and
+  re-encodes only each row's changed span. 0.6–1.3 M instructions per picture.
+- EXIF (ex1 / dr4): `.hook_ex` 0x60457578 (per-shot fill) -> `ex_hook`: ImageDescription (block +0x5a8, 32 B) =
+  "FILM n Name"; UserComment (+3972) = "Caduceus FILM n Name om3.1.<43>" (`ex_cd1`: the 64-byte LOOKS record, nibbles,
+  base64url). Spec `docs/PHOTO_CODE.md`; readers `firmware/photocode.py`, `webapp/src/om3.ts`, `devkit/photo-code/`.
+- Debug log (dl7): section 6 loaded to 0x60f99800 (loader word 0x60045e9c, GX3 space), `.ext12` at 0x60f59800;
+  `lg_pr` around `ed_trig`; on when `OM3MOD/DEBUG.TXT` exists at the first event of a power-on; `CADLOG.TXT` always
+  4096 B (the camera's fopen "w" does not truncate). Build name from `firmware/VERSION` (this build:
+  "v0.27-dev (dial modes 5, photo code 2)", kept so the release is the camera-tested bytes).
+- Firmware `E1479999.BIN` 07032d36…, `GUIDES.BIN` 99473777… (13248 B); `LABELS.BIN` / `TONES.BIN` as v0.26.2;
+  `LOOKS.BIN` b03b895a… (Gold 200 / CineStill 800T split on Highlights, from the Control Panel's defaults, fw 26). Optional release extras: `DEBUG.TXT`, `caduceus-om3-photo-code-kit.zip` (attached by the releases workflow).
+
 ## v0.26.2 release (branch feature/v0.26.2-sdload-ff; build sd4, camera-tested 2026-11-09)
 
 - SD loader (from fernandezk26's fork, `sdl_*`): task SDLOAD polls and wakes HLS_EVENT, which runs `pr_gate`; hooks

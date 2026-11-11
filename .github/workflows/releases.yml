@@ -1,5 +1,6 @@
 # Publishes every folder in releases/ as a GitHub release (tag + notes + files), once; files added to a folder later
-# are attached to its release.
+# are attached to its release. Optional extras (v0.27 on): DEBUG.TXT (the debug log switch) and *.zip (the photo code
+# kit for developers).
 # A folder may hold COMMIT (a commit SHA) to tag an earlier commit; otherwise the release tags this push.
 name: Releases
 on:
@@ -20,7 +21,7 @@ jobs:
         run: |
           for d in releases/v*/; do
             v=$(basename "$d")
-            files=$(ls "$d"patch.json "$d"GUIDES.BIN "$d"LABELS.BIN "$d"TONES.BIN "$d"LOOKS.BIN "$d"SHA256SUMS 2>/dev/null || true)
+            files=$(ls "$d"patch.json "$d"GUIDES.BIN "$d"LABELS.BIN "$d"TONES.BIN "$d"LOOKS.BIN "$d"DEBUG.TXT "$d"*.zip "$d"SHA256SUMS 2>/dev/null || true)
             if gh release view "$v" >/dev/null 2>&1; then
               # already published: only add files that are missing from it (never replaces one)
               have=$(gh release view "$v" --json assets -q '.assets[].name')

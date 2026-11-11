@@ -61,6 +61,9 @@ with its preview, or have an AI assistant build one from a photo you like with
 Yes. Send a `LOOKS.BIN`, or use **Share** in the Control Panel to send a link. Copying a `LOOKS.BIN` onto a card
 replaces all the films on that camera.
 
+From v0.27 a JPEG taken on a FILM carries the film too: whoever has the photo can open it in the Control Panel
+(**Open...**) and get the film. Sites can read it with the [developer kit](../devkit/photo-code/).
+
 ### Does grain slow the camera down?
 
 No. Film Grain is added by the camera's own image processor while it develops the photo, in colour, with no extra
@@ -105,6 +108,12 @@ looked into are listed under Bugs on the [roadmap](https://androidfanman.github.
 
 They're saved at the next half-press, and only when the card has the `OM3MOD` folder at its top level. A locked or
 full card can't be written.
+
+### Can I send a log with a bug report?
+
+Yes, from v0.27. Download `DEBUG.TXT` from the [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest)
+(under *Assets*), put it in the card's `OM3MOD` folder, switch the camera on and use it until the problem happens. The
+camera writes `OM3MOD/CADLOG.TXT`: attach it to your report. Then delete `DEBUG.TXT` from the card.
 
 ### Something else is wrong.
 

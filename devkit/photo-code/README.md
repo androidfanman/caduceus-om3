@@ -13,8 +13,12 @@ This folder is everything needed to read it:
 | `test.mjs` | `node test.mjs` checks the reader against the examples. |
 | `demo.html` | A one-page reader: open a JPEG or paste a comment. Serve the folder over http (ES modules don't load from `file://`). |
 
-Reference implementations in other places: Python `firmware/photocode.py`; the Control Panel's
-`recordFromPhotoCode` / `lookFromPhotoCode` in `webapp/src/om3.ts` (its import box takes a code or a JPEG).
+Other implementations in the [repository](https://github.com/androidfanman/caduceus-om3): Python `firmware/photocode.py`;
+the Control Panel's `recordFromPhotoCode` / `lookFromPhotoCode` in `webapp/src/om3.ts` (its Open and Paste link take
+a JPEG or a code).
+
+The same files come as a zip with each release (`caduceus-om3-photo-code-kit.zip` on the
+[Releases page](https://github.com/androidfanman/caduceus-om3/releases/latest)).
 
 ## Where it is in the photo
 

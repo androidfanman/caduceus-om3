@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  Latest: <b>v0.26.2</b> (2026-11-09)
+  Latest: <b>v0.27</b> (2026-11-11)
 </p>
 
 ## What it does
@@ -22,6 +22,10 @@
   WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
 - **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/), with a preview, then copy them to the card.
 - **Your changes are kept** for each film, even when the camera is switched off.
+- **Your buttons and Creative Dial:** all four arrow keys in Button Function, and each Creative Dial position set to
+  CRT, ART, COLOR or MONO, with its own film.
+- **The film in every photo:** its name and recipe in the JPEG's EXIF, so the Control Panel (or a recipe site, with the
+  [developer kit](devkit/photo-code/)) can open the film from the photo.
 
 Open-source firmware patches for the OM-3 on firmware 1.1, part of the
 [Caduceus](https://github.com/cakelesscoder/caduceus-ep7) family with cakelesscoder.

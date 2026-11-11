@@ -2853,5 +2853,16 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **Camera (dr7): om3.1 code camera-tested.** Owner photo on FILM 4 (read for the UserComment only, copy deleted):
   "Caduceus FILM 4 Portra 800 om3.1.ABEREP7wAAABACIQ8AD-7t3vEg8AAOAgABD3EBAAAAA" = exactly the Control Panel's default
   Portra 800 code (devkit/photo-code/examples.json); devkit reader and firmware/photocode.py decode it.
+
+### v0.27 release (2026-11-11)
+- Owner: release v0.27; the photo code kit as a developer folder and a release download; `DEBUG.TXT` only as an optional
+  download (never in the default card files: patch.py copies GUIDES / LABELS / TONES only).
+- Firmware = dr7 byte for byte (E1479999.BIN 07032d36…, GUIDES.BIN 99473777…), rebuilt after merging main and by
+  `patch.py --release v0.27`. VERSION string left as built ("v0.27-dev (dial modes 5, photo code 2)", shown only in
+  CADLOG.TXT) so the release is the camera-tested bytes.
+- Optional LOOKS.BIN regenerated from the Control Panel defaults (fw 26): Gold 200 / CineStill 800T split tone on the
+  Highlights wheel (main c7c5f4f); other 18 records equal v0.26.2's. Devkit examples regenerated to match; the
+  firmware example is now the owner's camera photo (FILM 4 Portra 800).
+- Workflow `releases.yml` also attaches `DEBUG.TXT` and `*.zip` from a release folder.
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
