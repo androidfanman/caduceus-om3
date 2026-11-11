@@ -7,11 +7,11 @@ let fails = 0;
 const check = (ok, what) => { if (!ok) { fails++; console.log('FAIL', what); } };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-// A minimal JPEG holding the comment the way the camera stores it (EXIF UserComment = "ASCII\0\0\0" + text),
+// A minimal JPEG holding the comment the way the camera stores it (EXIF UserComment = 8 zero bytes + text),
 // surrounded by other bytes, to check that the byte scan finds it inside a file.
 function fakeJpeg(comment) {
   const head = [0xff, 0xd8, 0xff, 0xe1, 0, 0, ...Buffer.from('Exif\0\0MM\0*'), ...new Array(200).fill(7)];
-  const body = Buffer.concat([Buffer.from(head), Buffer.from('ASCII\0\0\0' + comment + '\0'), Buffer.alloc(5000, 0x55), Buffer.from([0xff, 0xd9])]);
+  const body = Buffer.concat([Buffer.from(head), Buffer.from('\0'.repeat(8) + comment + '\0'), Buffer.alloc(5000, 0x55), Buffer.from([0xff, 0xd9])]);
   return new Uint8Array(body.buffer, body.byteOffset, body.length);
 }
 
@@ -28,6 +28,10 @@ const { spare, ...rest } = decode(ex.future.code), { spare: s0, ...rest0 } = dec
 check(same(rest.hue, rest0.hue) && rest.contrast === rest0.contrast, 'future code reads like the film otherwise');
 for (const bad of ex.invalid) check(findCode(bad) === null, `invalid "${bad}" rejected`);
 check(readPhoto(new Uint8Array(1000)) === null, 'photo without a code -> null');
+// The real camera photo (OM-3, v0.27): FILM 19 Astia 100F, the default recipe.
+const real = readPhoto(readFileSync(new URL('./sample-film19-astia-100f.jpg', import.meta.url)));
+const astia = ex.films.find((f) => f.film === 19);
+check(real && real.film === 19 && real.name === 'Astia 100F' && real.code === astia.code, 'sample photo from the camera');
 
 console.log(fails ? `${fails} failed` : `all passed (${ex.films.length + 2} codes)`);
 console.log('\nExample:', ex.films[8].comment, '\n ' + describe(readPhoto(ex.films[8].comment)).join('\n '));

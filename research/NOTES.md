@@ -2864,5 +2864,9 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Highlights wheel (main c7c5f4f); other 18 records equal v0.26.2's. Devkit examples regenerated to match; the
   firmware example is now the owner's camera photo (FILM 4 Portra 800).
 - Workflow `releases.yml` also attaches `DEBUG.TXT` and `*.zip` from a release folder.
+- After the release (owner-approved): `devkit/photo-code/sample-film19-astia-100f.jpg`, the owner's OM-3 photo (CC0),
+  resized to 1600 x 1200 with the camera's own APP1 kept (ExifImageWidth / Height patched); Artist, Copyright and the
+  body / internal / lens serials blanked with spaces in place. The camera writes UserComment with a blank character
+  code (8 zero bytes), not "ASCII": docs corrected. The v0.27 zip on the release is unchanged (no sample).
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

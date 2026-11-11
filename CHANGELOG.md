@@ -63,7 +63,8 @@ Your buttons, your Creative Dial, and the film saved in every photo. Firmware ca
   to your films with its name.
 - **Developer kit** for sites and apps (for example a recipe site where people upload a photo):
   [devkit/photo-code](devkit/photo-code/) and `caduceus-om3-photo-code-kit.zip` with the release: a JavaScript
-  reader with no dependencies, the field table, test examples and a demo page. Apache-2.0.
+  reader with no dependencies, the field table, test examples and a demo page. Apache-2.0. A real camera photo with its
+  EXIF (FILM 19 Astia 100F) was added to the folder after the release.
 
 **Debug log (optional)**
 - Copy `DEBUG.TXT` (an optional download with the release) into `OM3MOD` and the camera writes a plain-text

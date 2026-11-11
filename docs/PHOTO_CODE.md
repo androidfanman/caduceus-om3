@@ -6,7 +6,7 @@ film and a shared photo can give its film back to the Control Panel.
 | Field | Text |
 |---|---|
 | ImageDescription (0x010e) | `FILM 19 Astia 100F` |
-| UserComment (0x9286, ASCII) | `Caduceus FILM 19 Astia 100F om3.1.AAAAAAAAAQAAAAAADwAAEQAAAAAPABDwABAAAAAAAAA` |
+| UserComment (0x9286; character code blank, then ASCII) | `Caduceus FILM 19 Astia 100F om3.1.AAAAAAAAAQAAAAAADwAAEQAAAAAPABDwABAAAAAAAAA` |
 
 Photos without a film (COLOR 1–4 with the user's own settings, CRT, ART, MONO, …) keep the camera's blank fields.
 

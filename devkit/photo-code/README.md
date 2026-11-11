@@ -11,6 +11,7 @@ This folder is everything needed to read it:
 | `om3code.js` | A reader in plain JavaScript: no dependencies, runs in browsers and Node 18+ (ES module). |
 | `examples.json` | Test codes with the exact values they must decode to: the 20 default films, one written by the firmware, one from a "future" firmware. |
 | `test.mjs` | `node test.mjs` checks the reader against the examples. |
+| `sample-film19-astia-100f.jpg` | A real photo from an OM-3 on v0.27 (FILM 19 Astia 100F), with the camera's own EXIF. Resized to 1600 × 1200; the owner's name, email and the serial numbers blanked. |
 | `demo.html` | A one-page reader: open a JPEG or paste a comment. Serve the folder over http (ES modules don't load from `file://`). |
 
 Other implementations in the [repository](https://github.com/androidfanman/caduceus-om3): Python `firmware/photocode.py`;
@@ -28,7 +29,7 @@ camera's blank fields.
 | EXIF field | Example |
 |---|---|
 | ImageDescription (0x010E) | `FILM 9 Velvia 50` |
-| UserComment (0x9286, `ASCII` character code) | `Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA` |
+| UserComment (0x9286; character code left blank, 8 zero bytes, then plain ASCII text) | `Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA` |
 
 The name is the one the user gave the film on their card, so two people's "FILM 9" can differ; the code is what counts.
 You don't need an EXIF parser: the code is plain ASCII, so searching the first 128 KB of the file for
@@ -105,6 +106,9 @@ Colour wheel (clockwise from 12 o'clock, as on the camera): 0 Yellow, 1 Orange, 
 - The camera is in the prefix, so another body can have its own code with the same layout.
 
 ## License and credit
+
+The sample photo is by androidfanman, released into the public domain (CC0 1.0).
+
 
 Apache License 2.0, like the rest of this repository (`LICENSE`, `NOTICE`). Use it in any site or app, commercial
 or not. A credit line such as "Photo codes from Caduceus for OM-3" with a link to the repository is appreciated.
