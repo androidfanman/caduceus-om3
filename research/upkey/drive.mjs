@@ -78,6 +78,11 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   cur = t + '#' + log.length;
   const dm = /^(main|sub)([+-]\d+)$/.exec(t);
   if (dm) { s.dial_input(dm[1], parseInt(dm[2], 10)); s.camapp.pump(); }
+  else if (t.startsWith('inject:')) {   // inject:CODE=VAL (hex code): UI_IN's code entry (om-emu H-JSINJECT), then post its events
+    const [c, v] = t.slice(7).split('='); const codes = s.inject(parseInt(c, 16), Number(v));
+    for (const c_ of codes) { const [idx] = s.keymap(c_); if (idx !== null) s.event(idx); }
+    s.camapp.pump(); s.idle_slice(lab.lab_time() + 800e6);
+  }
   else if (t.startsWith('cdial:')) {   // cdial:K: the Creative Dial (E147 0x1909) to position K at run time
     const k = Number(t.slice(6)), l = (POSITION_SWITCH_LISTS ?? [])[0];
     if (!l) throw new Error('cdial: needs the om-emu POSITION_SWITCH_LISTS addition');

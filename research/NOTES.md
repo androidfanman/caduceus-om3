@@ -2521,3 +2521,22 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   positions are 900 / 899 / 901 / 988, and each turn changes 897 at run time. The first run's 898 (8 values, pm 1)
   group is unexplained (the owner skipped MONO there); 898 is not one of the dial's positions in this run.
 
+### Creative Dial mapping, test dm6 (2026-11-10; emulator only)
+- Run-time path (om-emu `inject:1906=V`, V 1..5 = CRT 900, ART 899, 898, COLOR 901, MONO 988; trace): the dial handler
+  0x610934f5.. maps the position to a family, reads GetValue(897) (0x61093558) and skips when equal
+  (`cmp d2,d0; beq` at 0x6109355f), else facade SetValue(897, family) (0x6109356f) -> our `sl_set` with d0 897.
+- Build: `sl_set` -> `sx_set` (ext12; 901 -> fl_set as before). 897 with a mapped position (`dm_map`, fixed for the
+  test: CRT -> COLOR 1, ART -> FILM 3, COLOR -> FILM 10, MONO -> FILM 11) and the films loaded (`dm_ok`): the manager
+  sets 897 <- 901, then fl_set loads the target (same SetValue context, as the Picture Mode list). `.hook_dmg`: the
+  handler's beq at 0x61093560 -> displacement 2 (never skip), because after a mapped position 897 is already 901 and
+  turning to the COLOR position would otherwise do nothing. (MN10300 branch displacements count from the branch
+  itself: displacement 0 looped forever in om-emu, fault 7.)
+- Dead end: replacing the handler's GetValue call (0x61093558) with a call to our code made om-emu stop at start-up
+  (SCPU command 0x20041001), even when our code only tail-jumped to the stock getter, from ext12 or ext11. Not
+  understood (likely the emulator, not the firmware); the one-byte branch change avoids that site.
+- om-emu (dm6, debug log): ART -> FILM 3, CRT -> COLOR 1, COLOR -> FILM 10, MONO -> FILM 11, COLOR again -> FILM 10,
+  ART -> FILM 3. Each switch saves the selection (edits waiting -> saved). The first log event after power-on read
+  picture mode 0 / family 0 (once; later events right). dm6: E1479999.BIN 43a39e9e…, GUIDES.BIN 27ba6c70….
+- Not done: power-on on a mapped position (start-up sets 897 before the films load: stock until the first turn),
+  MONO targets, restoring the user's own COLOR choice on an unmapped COLOR position, the Control Panel setting.
+

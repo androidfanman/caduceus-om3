@@ -66,6 +66,10 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   }
   else if (t === 'gc') { const { GUICALLER } = await import(EMU + '/src/lab/menu.mjs'); const gc = u32(GUICALLER); console.log('GC ' + GUICALLER.toString(16) + ' ' + gc.toString(16)); }
   else if (t === 'eng') { const r32 = (a) => u32(a); const tot = r32(0x8E000008); const ring = []; for (let i = 0; i < 16; i++) ring.push([r32(0x8E000100 + 16 * i), r32(0x8E000104 + 16 * i), r32(0x8E000108 + 16 * i), r32(0x8E00010c + 16 * i)].map((x) => x.toString(16))); console.log('ENG ' + tot + ' ' + JSON.stringify(ring)); }
+  else if (t.startsWith('inject:')) {   // inject:CODE=VAL (hex): UI_IN's code entry, e.g. the Creative Dial inject:1906=1..5 (CRT, ART, 898, COLOR, MONO)
+    const [c, v] = t.slice(7).split('='); for (const c_ of s.inject(parseInt(c, 16), Number(v))) { const [idx] = s.keymap(c_); if (idx !== null) s.event(idx); }
+    s.camapp.pump(); s.idle_slice(lab.lab_time() + 800e6); s.camapp.pump();
+  }
   else if (t === 'eye' || t === 'tft') { s.display_input('eye', t === 'eye' ? 1 : 0); s.camapp.pump(); }
   else if (t.startsWith('shot:')) {
     const dv = s.device || 'tft'; s.scene_frame(); s.a15_apply(dv); const comp = lab.compose(dv, true, true); const w = comp.header.width, h = comp.header.height, px = comp.raw; const bpp = px.length / (w * h); console.log('shot', w, h, bpp, comp.status, comp.errors.length);

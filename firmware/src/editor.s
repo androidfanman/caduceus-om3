@@ -3980,9 +3980,7 @@ sl_set:
 3:
  movhu d2,(gr_row)
 1:
- cmp 901,d0                       /* v0.24: the COLOR picture mode (films and COLOR 1-4) */
- bne sl_set0
- jmp fl_set
+ jmp sx_set                       /* v0.24 901 (films, COLOR 1-4) -> fl_set; v0.27 897 (the Creative Dial) -> dm_set */
 sl_set0:
  mov mdr,d2                       /* v0.25 grid: the WB grid's ids -> our A-B / G-M bars (gr_id; MDR kept) */
  mov d2,a3
@@ -8541,6 +8539,9 @@ fl_scr:
  * widget, d0 = its choice: 16..19 for COLOR 1-4), entered by the same call. The widget draws again only when its choice
  * changes, and a step from one film to the next on the same COLOR leaves it (emulator: no picture / title request). After
  * a film change (fl_scf, set by fl_set): the neighbouring choice first, then the stock call with the real one. */
+.section .hook_dmg,"ax"
+ cmp d2,d0                        /* v0.27: the dial handler always sets 897 (stock beq +0x16 skipped it when the */
+ .byte 0xc8, 0x02                 /* family was unchanged; a mapped position must act even then): beq +2 = next */
 .section .hook_scw,"ax"
  call fl_scw,[d2,a2],12
 .section .ext11,"ax"
@@ -9157,7 +9158,7 @@ lg_ft:                            /* {path, kind, this build's header CRC (build
  .long lg_f5, 4, 0, 0, 0
  .set LG_NF, 6
 lg_fmt:                           /* sid 897 family -> name */
- .long 901, lg_n1, 988, lg_n2, 899, lg_n3, 898, lg_n4, 900, lg_n5, 0
+ .long 901, lg_n1, 988, lg_n2, 899, lg_n3, 900, lg_n4, 898, lg_n5, 0
 lg_vt:
  .long lg_v0, lg_v1, lg_v2, lg_v3, lg_v4, lg_v5, lg_v6, lg_v7, lg_v8
 lg_hdr:
@@ -9224,7 +9225,7 @@ lg_n3:
 lg_n4:
  .asciz "CRT"
 lg_n5:
- .asciz "900 (one-value family)"
+ .asciz "898 (8-value family, not a dial position)"
 lg_c0:
  .asciz "\r\n\r\nCard files: "
 lg_c1:
@@ -9299,3 +9300,92 @@ lg_s3:
  .asciz " (BUNDLES.NEW write failed)"
 lg_s4:
  .asciz " (BUNDLES.BIN write failed)"
+
+/* ---------------------------------------------------------------- v0.27 Creative Dial mapping (feature/v0.27-buttons)
+ * The dial sets sid 897 (the picture-mode family) through the facade SetValue (camera dl8 + om-emu trace, 2026-11-10):
+ * CRT 900, ART 899, COLOR 901, MONO 988. For a mapped position: 897 <- 901 (COLOR) through the manager, then 901 <- the
+ * target through fl_set, as the Picture Mode list does (same SetValue: a0 inner, a1 mode; frame 68). Unmapped: stock.
+ * dm_map per position (CRT, ART, COLOR, MONO): 0 stock, 1..4 COLOR k, 11..30 FILM 1..20.
+ * Not yet: power-on (the start-up path sets 897 without the facade), MONO targets, the Control Panel setting. */
+.section .ext12,"ax"
+sx_set:                           /* from sl_set (entered as the manager: d0 id, d1 value, a0, a1; frame 68) */
+ cmp 901,d0
+ bne 1f
+ jmp fl_set
+1:
+ cmp 897,d0
+ beq 2f
+ jmp sl_set0
+2:
+ clr d2
+ mov dm_fam,a3
+3:
+ mov (a3),d3
+ cmp d3,d1
+ beq 4f
+ inc4 a3
+ inc d2
+ cmp 4,d2
+ bcs 3b
+ jmp sl_set0
+4:
+ mov dm_map,a3
+ add d2,a3
+ movbu (a3),d3                    /* the target */
+ cmp 0,d3
+ beq 51f
+ call dm_ok,[],0
+ cmp 0,d1
+ bne 5f
+51:
+ jmp sl_set0
+5:
+ add -12,sp                       /* (0) call slot, (4) a0, (8) a1 */
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ mov 897,d0
+ mov 901,d1
+ call manager,[d2,d3,a2,a3],68    /* the family: COLOR */
+ mov (4,sp),a0
+ mov (8,sp),a1
+ add 12,sp
+ mov 901,d0
+ cmp 11,d3
+ bcc 6f
+ add -1,d3                        /* COLOR k */
+ and 3,d3
+ mov fl_cvt,a3
+ add d3,a3
+ movbu (a3),d1
+ jmp fl_set
+6:
+ add FV0 - 11,d3                  /* FILM n = code - 10 -> FV0 + n - 1 */
+ mov d3,d1
+ jmp fl_set
+ .balign 4
+dm_fam:
+ .long 900, 899, 901, 988         /* CRT, ART, COLOR, MONO */
+dm_ok:                            /* `call dm_ok,[],0` -> d1 1 when P is valid and the films are loaded, else 0
+                                   * (PVAL's checks with d1 / a1 only; d0, a0 kept) */
+ movhu (STATE),d1
+ add -1,d1
+ cmp HMAX,d1
+ bcc 9f
+ btst 3,d1
+ bne 9f
+ mov d1,a1
+ add POOL,a1
+ mov (a1),d1
+ cmp MAGIC,d1
+ bne 9f
+ mov (LPTR,a1),d1
+ cmp 0,d1
+ beq 9f
+ mov 1,d1
+ ret [],0
+9:
+ clr d1
+ ret [],0
+dm_map:                           /* test dm1 (owner's example): CRT -> COLOR 1, ART -> FILM 3, COLOR -> FILM 10, MONO -> FILM 11 */
+ .byte 1, 13, 20, 21
+

@@ -16,6 +16,7 @@ SECTIONS {
   .hook_fx      0x60555e50 : { *(.hook_fx) }
   .hook_lv      0x6046b8bb : { *(.hook_lv) }
   .hook_wt      0x605048c1 : { *(.hook_wt) }
+  .hook_dmg     0x6109355f : { *(.hook_dmg) }
   .hook_scw     0x61157d30 : { *(.hook_scw) }
   .hook_stw     0x6128b1d3 : { *(.hook_stw) }
   .hook_nr1     0x603c8038 : { *(.hook_nr1) }
