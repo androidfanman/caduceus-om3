@@ -2864,6 +2864,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Highlights wheel (main c7c5f4f); other 18 records equal v0.26.2's. Devkit examples regenerated to match; the
   firmware example is now the owner's camera photo (FILM 4 Portra 800).
 - Workflow `releases.yml` also attaches `DEBUG.TXT` and `*.zip` from a release folder.
+
+### Sporadic power-on hang on v0.27 (camera, 2026-11-11)
+- Owner, v0.27 release (= dr7, no power-on mapping): once, at switch-on the live view started but nothing else loaded,
+  and the power switch did not turn the camera off: battery pull. Sporadic, can't be forced. Same symptom as the dr3
+  "half froze" report and the dr5 / dr6 hangs, so dm_boot was not (or not the only) cause (analysis).
+- The card's last camera save before this (BUNDLES.NEW / .BAK, LOOKS.NEW, EDITS.BIN) is from the same session time.
+- Debug log put on the owner's card (OM3MOD/DEBUG.TXT, 29aa0c06…). Limit: the log writes only at shutter-button
+  events, so a hang before the first half-press leaves the previous power-on's log on the card (useful as "what came
+  before"). Open: whether the dial was moved while off; a log from a power-on that hangs needs a write at start-up.
 - After the release (owner-approved): `devkit/photo-code/sample-film19-astia-100f.jpg`, the owner's OM-3 photo (CC0),
   resized to 1600 x 1200 with the camera's own APP1 kept (ExifImageWidth / Height patched); Artist, Copyright and the
   body / internal / lens serials blanked with spaces in place. The camera writes UserComment with a blank character
