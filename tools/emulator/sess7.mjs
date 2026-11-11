@@ -81,9 +81,11 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     const le = (v) => [v & 255, v >>> 8 & 255, v >>> 16 & 255, v >>> 24 & 255];
     dd.write(stub, Uint8Array.from([0xdd, ...le((FN - stub) | 0), 0xf0, 20, 0xcb, 0xcb]));
     const r = saved.slice(); r[9] = stub; r[8] = sp; r[2] = parseInt(d2s, 16); r[7] = parseInt(a3s, 16); if (a0s) r[4] = parseInt(a0s, 16); dd.m.setRegs(r);
-    let k = 0; while ((dd.m.getRegs()[9] >>> 0) !== ((stub + 7) >>> 0) && k < 50000000) { dd.m.step(); k++; }
-    const out = dd.m.getRegs()[0] | 0; dd.m.setRegs(saved);
-    console.log('RUN', fa, '->', out, 'steps', k);
+    const lim = Number(process.env.RUNMAX || 5000000);
+    const tr = []; let k = 0; while ((dd.m.getRegs()[9] >>> 0) !== ((stub + 7) >>> 0) && k < lim) { if (process.env.RUNTRACE) { const g = dd.m.getRegs(); tr.push((g[9] >>> 0).toString(16) + ' d2=' + (g[2] >>> 0).toString(16)); if (tr.length > 80) tr.shift(); } dd.m.step(); k++; }
+    if (process.env.RUNTRACE) console.log(tr.join('\n'));
+    const pc = dd.m.getRegs()[9] >>> 0, out = dd.m.getRegs()[0] | 0; dd.m.setRegs(saved);
+    console.log('RUN', fa, '->', out, 'steps', k, k >= lim ? 'STUCK at ' + pc.toString(16) : '');
   }
   else if (t.startsWith('mem:')) {     // mem:ADDR:LEN:FILE (hex address and length): raw memory to FILE
     const [a_, n_, f_] = t.slice(4).split(':'); fs.writeFileSync(f_, Buffer.from(rd(parseInt(a_, 16), parseInt(n_, 16))));

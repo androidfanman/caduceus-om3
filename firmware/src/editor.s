@@ -9870,6 +9870,7 @@ ex_fill:
 8:
  clr d0
  movbu d0,(a1)
+ call ex_cd1,[d2,d3,a2,a3],20    /* the film's settings as a code (d3 = j, a2 = P still) */
  mov (ex_blk),a2                  /* ImageDescription: the text, zeros after it */
  add 0x5a8,a2
  mov ex_txt,a0
@@ -9890,12 +9891,16 @@ ex_fill:
  add 1,a2
  add -1,d1
  bne 9b
- mov (ex_blk),a2                  /* UserComment: "Caduceus OM-3: " + the text, spaces after it */
+ mov (ex_blk),a2                  /* UserComment: "Caduceus " + the text + " " + the code, spaces after it */
  add 3972,a2
  mov 117,d3
  mov ex_uc,a0
  call ex_put,[],0
  mov ex_txt,a0
+ call ex_put,[],0
+ mov ex_sp,a0
+ call ex_put,[],0
+ mov ex_code,a0
  call ex_put,[],0
  mov 32,d0
 10:
@@ -9930,6 +9935,83 @@ ex_fill:
  bne 82b
  ret [d2,d3,a2,a3],20
 
+/* ex_cd1: `call ex_cd1,[d2,d3,a2,a3],20`, a2 = P, d3 = film j -> ex_code = "cd1." + 39 characters: the film's
+ * 64-byte LOOKS.BIN record, bytes 0..56 (everything a look sets), one nibble each (value & 15: all fit -8..7 or 0..15),
+ * two to a byte (29 bytes), base64url (A-Z a-z 0-9 - _), no padding. The Control Panel turns it back into the film
+ * (firmware/cd1.py is the reference). */
+ex_cd1:
+ mov (LPTR,a2),a0                 /* the record: 32 + 64 j */
+ mov d3,d0
+ asl 6,d0
+ add d0,a0
+ add 32,a0
+ mov ex_nb,a1
+ clr d2
+1:
+ movbu (a0),d0
+ and 15,d0
+ asl 4,d0
+ cmp 28,d2                        /* byte 28: nibble 56 and a zero */
+ beq 2f
+ movbu (1,a0),d1
+ and 15,d1
+ or d1,d0
+2:
+ movbu d0,(a1)
+ add 2,a0
+ add 1,a1
+ add 1,d2
+ cmp 29,d2
+ bcs 1b
+ clr d0
+ movbu d0,(a1)                    /* byte 29 = 0: ten groups of 3, the 40th character dropped */
+ mov ex_code,a1
+ mov ex_cdp,a0
+ mov 4,d3
+3:
+ movbu (a0),d0
+ movbu d0,(a1)
+ add 1,a0
+ add 1,a1
+ add -1,d3
+ bne 3b
+ mov ex_nb,a0
+ mov ex_b64,a3
+ mov 10,d3
+4:
+ movbu (a0),d0
+ lsr 2,d0
+ movbu (d0,a3),d1
+ movbu d1,(a1)
+ movbu (a0),d0
+ and 3,d0
+ asl 4,d0
+ movbu (1,a0),d1
+ lsr 4,d1
+ or d1,d0
+ movbu (d0,a3),d1
+ movbu d1,(1,a1)
+ movbu (1,a0),d0
+ and 15,d0
+ asl 2,d0
+ movbu (2,a0),d1
+ lsr 6,d1
+ or d1,d0
+ movbu (d0,a3),d1
+ movbu d1,(2,a1)
+ movbu (2,a0),d0
+ and 63,d0
+ movbu (d0,a3),d1
+ movbu d1,(3,a1)
+ add 3,a0
+ add 4,a1
+ add -1,d3
+ bne 4b
+ add -1,a1
+ clr d0
+ movbu d0,(a1)
+ ret [d2,d3,a2,a3],20
+
 /* ex_put: `call ex_put,[],0`, a0 = an ASCII text (NUL-ended) -> at a2 while d3 > 0 (both moved on). Uses d0. */
 ex_put:
  movbu (a0),d0
@@ -9948,7 +10030,13 @@ ex_put:
 ex_film:
  .asciz "FILM "
 ex_uc:
- .asciz "Caduceus OM-3: "
+ .asciz "Caduceus "
+ex_sp:
+ .asciz " "
+ex_cdp:
+ .ascii "cd1."
+ex_b64:
+ .ascii "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
  .balign 4
 ex_blk:
  .long 0
@@ -9957,6 +10045,10 @@ ex_sok:
 ex_snap:
  .space 32
 ex_txt:
+ .space 48
+ex_nb:
+ .space 32
+ex_code:
  .space 48
  .balign 4
 

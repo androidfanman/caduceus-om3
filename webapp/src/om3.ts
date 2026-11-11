@@ -182,10 +182,19 @@ export function readProfiles(b: Uint8Array): Bank {
   if (d.getUint16(12, true) !== 1 || d.getUint16(14, true) !== 20) throw new Error('This LOOKS.BIN has an unknown version.');
   const bank = emptyBank();
   for (let r = 0; r < 20; r++) {
-    const o = 32 + 64 * r, s = (i: number) => d.getInt8(o + i), a = (at: number) => Array.from({ length: 12 }, (_, i) => s(at + i));
+    const o = 32 + 64 * r;
     let name = ''; for (let i = 0; i < 15; i++) { const c = b[1312 + 16 * r + i]; if (!c) break; name += String.fromCharCode(c); }
     if (!name && !b.subarray(o, o + 57).some(Boolean)) continue;
-    const l = blankLook('colour', (name || `Look ${(r % 5) + 1}`).slice(0, OM3_NAME_MAX).trim() || 'Look');
+    bank[Math.floor(r / 5)][r % 5] = lookFromRecord(b.subarray(o, o + 64), name || `Look ${(r % 5) + 1}`);
+  }
+  return bank;
+}
+/** One 64-byte LOOKS.BIN record (+ its name) -> a look. */
+export function lookFromRecord(rec: Uint8Array, name: string): Look {
+  const d = new DataView(rec.buffer, rec.byteOffset, rec.byteLength), b = rec, o = 0;
+  {
+    const s = (i: number) => d.getInt8(o + i), a = (at: number) => Array.from({ length: 12 }, (_, i) => s(at + i));
+    const l = blankLook('colour', name.slice(0, OM3_NAME_MAX).trim() || 'Look');
     l.hue = a(0); l.light = a(12); l.sat = a(24);
     l.wb = b[o + 36] & 1 ? { a_b: s(37), g_m: s(38) } : null;
     l.tone = { ...zeroTone(), blacks: s(39), whites: s(40), shadows: s(44), midtones: s(45), highlights: s(46) };
@@ -199,9 +208,35 @@ export function readProfiles(b: Uint8Array): Bank {
     if (b[o + 51] >= 1) l.film_grain = Math.min(OM3.grain, b[o + 51]);
     const sp = parseSplit({ sh_color: b[o + 53], sh: s(54), hl_color: b[o + 55], hl: s(56) });
     if (sp) l.split = sp;
-    bank[Math.floor(r / 5)][r % 5] = l;
+    return l;
   }
-  return bank;
+}
+
+/** v0.27: the code the camera writes into a JPEG's UserComment ("Caduceus FILM n Name cd1.<39>"; firmware ex_cd1,
+ *  reference firmware/cd1.py): record bytes 0..56 one nibble each, two to a byte, base64url. */
+export const CD1_RE = /cd1\.([A-Za-z0-9_-]{39})(?![A-Za-z0-9_-])/;
+const CD1_UNSIGNED = new Set([36, 48, 49, 50, 51, 53, 55]);
+export function recordFromCd1(code: string): Uint8Array {
+  const m = CD1_RE.exec(code);
+  if (!m) throw new Error('No cd1. code found.');
+  const bin = atob(m[1].replace(/-/g, '+').replace(/_/g, '/') + '=');
+  const rec = new Uint8Array(64);
+  for (let i = 0; i < 57; i++) {
+    const byte = bin.charCodeAt(i >> 1), v = i & 1 ? byte & 15 : byte >> 4;
+    rec[i] = CD1_UNSIGNED.has(i) || v < 8 ? v : (v - 16) & 255;
+  }
+  return rec;
+}
+/** A look from a photo's UserComment (or any text holding it): the name after "FILM n", else "From photo". */
+export function lookFromCd1(text: string): Look {
+  const rec = recordFromCd1(text);
+  const nm = /FILM \d+ (.*?) cd1\./.exec(text)?.[1]?.trim();
+  return lookFromRecord(rec, nm || 'From photo');
+}
+export function encodeCd1(rec: Uint8Array): string {
+  const nib = Array.from(rec.subarray(0, 57), (v) => v & 15).concat(0);
+  let bin = ''; for (let k = 0; k < 29; k++) bin += String.fromCharCode((nib[2 * k] << 4) | nib[2 * k + 1]);
+  return 'cd1.' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 // ---- first visit: the 20 films (FILM 1-20). `film:` = a film sim, otherwise a library look (a process rather

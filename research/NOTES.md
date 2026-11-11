@@ -2770,5 +2770,16 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   -> blank; CRT mapped to FILM 3 -> "FILM 3 Kodachrome 64" / "Caduceus OM-3: FILM 3 Kodachrome 64"; back to COLOR
   (own) -> blank again. Not tested: the hook during a real shot (camera), what apps show.
 - ex1 (VERSION "v0.27-dev (exif 1)"): E1479999.BIN 1248a059…, GUIDES.BIN 1bf6cb72….
+- **ex2: the film's settings as a short code** (owner: "the user comment that will show the film settings; short"):
+  UserComment = "Caduceus FILM n Name cd1.<39 characters>" (~73 characters). cd1 = the film's LOOKS.BIN record bytes
+  0..56 (all a look sets: wheels, WB, tone, Contrast / Sharp / Shading, Extras, NR, VigFix, Grain, split toning), one
+  nibble each (value & 15; unsigned: 36, 48..51, 53, 55), two to a byte, base64url, no padding (`ex_cd1`; reference
+  `firmware/cd1.py`). The Control Panel reads it back (`recordFromCd1` / `lookFromCd1` / `encodeCd1` in om3.ts):
+  pasted into the import box, or a camera JPEG opened with the file button (it finds "Caduceus ... cd1." in the
+  file's first 256 KB); the film lands like a shared op1_ look. Tests: webapp/tests/cd1.test.ts.
+- om-emu: CRT -> FILM 3: "Caduceus FILM 3 Kodachrome 64 cd1.EAAA_wERAP8A_w__MUQRMxAAEQ8CAOAAABAGEBA", equal to
+  cd1.encode of that record from the card's LOOKS.BIN, and it decodes back to the same 57 bytes. Bug on the way: ex_cd1
+  first called after a2 had become the EXIF block (a fault loop in om-emu); now right after the name, while a2 = P.
+  ex2 (VERSION "v0.27-dev (exif 2)"): E1479999.BIN ddf84558…, GUIDES.BIN b6b03efd….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
