@@ -2621,4 +2621,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - ▲ / ◀ icons now the camera's size and colours. om-emu: choice screen with four boxes, our option chosen and shown
   again on reopening; ✥ row shows ▲◀▶▼ in All Keys and the stock picture in Direct Function; 158 = 2, 1966 = 3341.
 - ak5 (also the dial test map dm7): E1479999.BIN 24c5b3f3…, GUIDES.BIN a4bd2a91….
+- **Camera (ak5, 2026-11-10)**, owner photos: the fourth option works; to fix: (1) with plain Direct Function the ▲ / ◀
+  rows must be inactive (grey) as ▶ / ▼ are outside Direct Function; (2) the diagram lines for ▲ / ◀ still miss, and
+  the owner does not want ▲ ◀ apart from ▶ ▼ (rows back to Fn .. ✥, ▲, ◀, ▶, ▼, L-Fn wanted, all lines right).
+- Greying, not found yet (om-emu): while the list redraws, no facade method is called with sid 53 except the getter
+  (from 0x611f2707). RANGE traces with value 53: GUI 0x610c34ad.. (a 435-entry search), 0x610c31c8 -> 0x610c71de ->
+  0x610c7791 (d0 3, d1 53), 0x610f49cd loop, 0x611f2527 (row lookup by sid), 0x611af95f / 0x611f6b39 / 0x61203125
+  (53, 10). Next: what makes ▶ grey under [·:·] (compare the two modes' traces), then answer "inactive" for 50 / 52
+  unless 158 = 2 and the 1966 flag.
+- Diagrams: plan to build the ▲ ◀ ▶ ▼ L-Fn pictures in the firmware at start-up (the stock pictures are only in RAM):
+  decode a stock 422 x 446 type-11 stream row by row, move / erase / redraw the highlight and leader line by geometry
+  measured from the stock pictures (numbers only, no graphics in the repo), encode into ext12 buffers, serve by ar_ic.
 
