@@ -89,6 +89,13 @@ Your buttons, your Creative Dial, and the film saved in every photo. Firmware ca
 
 **Card files:** `GUIDES.BIN` is new (always copy it with the firmware). `LABELS.BIN` and `TONES.BIN` are as v0.26.2.
 
+**Control Panel** (same day, after the release)
+- **New film sim: Cuban Negative** (Colour negative, film 62): our own design of the warm, sun-baked look of colour
+  negative travel photos of Havana; golden light, honeyed skin, deep sun-faded reds, turquoise blues, olive greens and
+  soft, lifted shadows. No grain or Glow (add them yourself). It replaces the starter look "Cuban Neg" from Caduceus
+  for the E-P7, which had grain and Glow built in; a film you took from that starter look now resets to Cuban
+  Negative.
+
 ## v0.26.2
 Films load at power-on, the dials step through the films, and three fixes. Firmware camera-tested (2026-11-09, build
 sd4).

@@ -256,3 +256,12 @@ describe('look format version and minimum firmware (2026-11-09)', () => {
     expect(() => parseLook({ ...exportLook(l), schema: 'something-else' })).toThrow(/unknown format/);
   });
 });
+
+describe('Cuban Negative replaces the starter look Cuban Neg (owner, 2026-11-11)', () => {
+  it('a look taken from the old starter look resets to the film', async () => {
+    const { filmOf } = await import('../src/om3films');
+    const { blankLook } = await import('../src/pack');
+    const l = blankLook('colour', 'Cuban Neg'); l.origin = 'Cuban Neg';
+    expect(filmOf(l)?.name).toBe('Cuban Negative');
+  });
+});
