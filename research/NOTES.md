@@ -2754,5 +2754,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   every row = FILM 3: powered on at CRT, ART or COLOR -> 897 = 901 and COLOR 1's look = 3 once the films load. Real
   build (rows Normal): CRT stays 900; after CRT -> FILM 3 in the menu, the dial turns map as before.
 - db1 (VERSION "v0.27-dev (dial power-on 1)"): E1479999.BIN 5e35a488…, GUIDES.BIN e38aa7cc….
+- **Camera (db1, 2026-11-11): works** (owner: "that worked great"): a mapped position loads its film at power-on
+  without a half-press; Normal positions come up as before.
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
