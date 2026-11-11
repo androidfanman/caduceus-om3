@@ -2654,3 +2654,5 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   ▲ set to Keystone Comp. -> GetValue(50) = 682, 158 = 2.
 - ak6 (also the dial test map dm7; firmware/VERSION "v0.27-dev (arrow keys 4)"): E1479999.BIN 719ab357…,
   GUIDES.BIN fc5e3faa….
+- **Camera (ak6, 2026-11-10): works** (owner: "that works great"). Next (owner): the Creative Dial mapping as rows in
+  the same Button Function menu; then polish (diagram lines etc.).
