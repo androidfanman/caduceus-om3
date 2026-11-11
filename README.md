@@ -26,10 +26,12 @@
 Open-source firmware patches for the OM-3 on firmware 1.1, part of the
 [Caduceus](https://github.com/cakelesscoder/caduceus-ep7) family with cakelesscoder.
 
-> [!WARNING]
-> **Experimental: use at your own risk.** This is an unofficial firmware change. It can crash or freeze the camera, and
-> no responsibility is accepted for any damage or data loss ([Safety](#safety), [license](LICENSE)). You can always go
-> back to the camera's own firmware. It may affect your warranty with OM Digital Solutions.
+> [!CAUTION]
+> ### ⚠️ Experimental firmware: use at your own risk
+> This is an **unofficial change to your camera's firmware**. It can **crash or freeze the camera**, and **no
+> responsibility is accepted for any damage or data loss**. It may affect your warranty with OM Digital Solutions.
+>
+> You can always go back to the camera's own firmware. Read [Safety](#safety) before you install.
 
 ## Install
 
