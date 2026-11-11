@@ -4,12 +4,13 @@
 
 <p align="center">
   <a href="https://github.com/androidfanman/caduceus-om3/releases/latest"><b>Download</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/pages/changelog/"><b>Changelog</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/install/"><b>Install</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/using/"><b>Using it</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/"><b>Control Panel</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/faq/"><b>FAQ</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/roadmap/"><b>Roadmap</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/pages/changelog/"><b>Changelog</b></a> &nbsp;&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/tree/main/devkit/photo-code"><b>Developers</b></a>
 </p>
 
 <p align="center">
