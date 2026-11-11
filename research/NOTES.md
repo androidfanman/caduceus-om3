@@ -2632,4 +2632,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Diagrams: plan to build the ▲ ◀ ▶ ▼ L-Fn pictures in the firmware at start-up (the stock pictures are only in RAM):
   decode a stock 422 x 446 type-11 stream row by row, move / erase / redraw the highlight and leader line by geometry
   measured from the stock pictures (numbers only, no graphics in the repo), encode into ext12 buffers, serve by ar_ic.
+- Greying, more (om-emu, 2026-11-10): om-emu greys ▼, ▲ and ◀ under [·:·] (▲ / ◀ follow the same stock logic as
+  ▶ / ▼). ▶ / ▼ have no rules; ▲ / ◀ rules (0x605d9b80 / 0x605d9b94, 20 B {u16 target, u16 3200, branches, 3}) are
+  value maps, not greying: branch = {condition {sid 158, value}, 1, map, word}; map = 3 x {u16 to, u16 from}
+  (e.g. Off: 3341 / 85 / 3200 -> 3200), so other values survive. Traces by sid 53 and by item 733 show no per-row
+  "active" query that differs between [·:·] and Direct (only 0x610c755c.. in Direct). 0x611f26eb is a generic
+  "value of sid" cell reader (facade +12), so it is not the greying either. The greying is still to be found.
 
