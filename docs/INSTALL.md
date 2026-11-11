@@ -148,8 +148,9 @@ your `OM3MOD` files if you can.
 **Holding OK doesn't start the update.** Check that the file is at `DCOLYMP/E1479999.BIN` at the top of the card (not
 inside another folder), that the battery is full, and that you hold OK *before* switching on.
 
-**There are no films in Picture Mode.** Check that `OM3MOD/LOOKS.BIN` is on the card (step 3). If it is, it may be
-damaged: download it again, or save it again from the Control Panel.
+**There are no films in Picture Mode.** Check that `OM3MOD/LOOKS.BIN` is on the card (step 3) and is exactly 1,632
+bytes; if not, download it again, or save it again from the Control Panel. Check the update really went on: v0.27 adds
+rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't there, do step 4 again.
 
 **Settings change on the camera but the photo doesn't.** The card's `GUIDES.BIN` isn't the one made with this
 firmware. Copy it again from `SD card files/OM3MOD`.
@@ -166,6 +167,11 @@ in Downloads or next to the launcher, and run the launcher again.
 
 **On a Mac, nothing happens when I open the launcher.** Open Terminal, type `cd ` (with a space), drag the unzipped
 folder onto the Terminal window, press Return, then type `python3 firmware/patch.py` and press Return.
+
+**Sending us a debug log.** Download [`DEBUG.TXT`](https://github.com/androidfanman/caduceus-om3/releases/latest/download/DEBUG.TXT) and put it in the card's `OM3MOD` folder. Switch on,
+use the camera until the problem happens (half-press a few times), then attach the `OM3MOD/CADLOG.TXT` it writes to
+your report. Delete `DEBUG.TXT` afterwards. No `CADLOG.TXT` at all means the camera isn't running v0.27 or later.
+[More about the log](https://github.com/androidfanman/caduceus-om3/tree/main/debug-log).
 
 **Something else.** Copy the card's `OM3MOD` folder to your computer (your films are in it), delete it from the card
 and switch on again. If that doesn't help, [go back to the camera's own firmware](#going-back-to-the-cameras-own-firmware).

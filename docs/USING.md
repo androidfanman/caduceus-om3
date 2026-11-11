@@ -133,5 +133,5 @@ All in the `OM3MOD` folder at the top of the card:
 | `GUIDES.BIN` | Caduceus's code and labels | The release: always with its own firmware |
 | `LABELS.BIN`, `TONES.BIN` | Labels, and the split toning guides | The release |
 
-`DEBUG.TXT` (optional, from the release's downloads) turns on a debug log: the camera then writes `CADLOG.TXT`. Only
+[`DEBUG.TXT`](https://github.com/androidfanman/caduceus-om3/releases/latest/download/DEBUG.TXT) (optional) turns on a debug log: the camera then writes `CADLOG.TXT`. Only
 add it if you're asked for a log, and delete it afterwards. Older versions also used `NAMES.BIN`; it's harmless. Technical details: [FORMATS.md](FORMATS.md).

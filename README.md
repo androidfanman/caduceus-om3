@@ -55,6 +55,9 @@ About 15 minutes. **[Step-by-step install guide](https://androidfanman.github.io
 To undo: [go back to the camera's own firmware](https://androidfanman.github.io/caduceus-om3/pages/install/#going-back-to-the-cameras-own-firmware). Problems:
 [if something goes wrong](https://androidfanman.github.io/caduceus-om3/pages/install/#if-something-goes-wrong).
 
+**Reporting a problem?** Send a debug log: put [`DEBUG.TXT`](https://github.com/androidfanman/caduceus-om3/releases/latest/download/DEBUG.TXT) in the card's `OM3MOD` folder, use the camera
+until the problem happens, and attach the `OM3MOD/CADLOG.TXT` it writes. [How, step by step](debug-log/).
+
 ## Using it
 
 **[How to use it on the camera](https://androidfanman.github.io/caduceus-om3/pages/using/)**. In short:
@@ -117,7 +120,7 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | Films load at power-on; the super control panel's dials step through the films | v0.26.2 |
 | All four arrow keys in Button Function; Creative Dial positions set to CRT / ART / COLOR / MONO, each COLOR with its own film | v0.27 |
 | The film's name and recipe in each JPEG's EXIF; the Control Panel opens a film from a photo | v0.27 |
-| Optional debug log (`DEBUG.TXT` → `OM3MOD/CADLOG.TXT`) for bug reports | v0.27 |
+| Optional [debug log](debug-log/) (`DEBUG.TXT` → `OM3MOD/CADLOG.TXT`) for bug reports | v0.27 |
 
 Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/).
 

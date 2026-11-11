@@ -89,8 +89,10 @@ once after switching on.
 
 ### There are no films in the Picture Mode list.
 
-Check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card)).
-If it is, it may be damaged: download it again, or save it again from the Control Panel.
+Check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
+and is exactly 1,632 bytes; if not, download it again, or save it again from the Control Panel. Then check the update
+really went on: v0.27 adds rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't
+there, flash again (install step 4). Still no films? Send us a [debug log](https://github.com/androidfanman/caduceus-om3/tree/main/debug-log).
 
 ### A setting changes on the camera but the photo doesn't.
 
@@ -111,8 +113,8 @@ full card can't be written.
 
 ### Can I send a log with a bug report?
 
-Yes, from v0.27. Download `DEBUG.TXT` from the [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest)
-(under *Assets*), put it in the card's `OM3MOD` folder, switch the camera on and use it until the problem happens. The
+Yes, from v0.27. Download [`DEBUG.TXT`](https://github.com/androidfanman/caduceus-om3/releases/latest/download/DEBUG.TXT) (also under *Assets* on the
+[latest release](https://github.com/androidfanman/caduceus-om3/releases/latest)), put it in the card's `OM3MOD` folder, switch the camera on and use it until the problem happens. The
 camera writes `OM3MOD/CADLOG.TXT`: attach it to your report. Then delete `DEBUG.TXT` from the card.
 
 ### Something else is wrong.

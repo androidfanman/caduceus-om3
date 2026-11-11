@@ -14,6 +14,7 @@ commands, and keep replies short.
 | `firmware/` | The patch: `src/editor.s` (flash hooks and code), `src/xblock.s` (the code block loaded from `OM3MOD/GUIDES.BIN`), `src/editor.ld`, `build.py`, `patch.py` (the user-facing patcher). |
 | `card/` | Makers for the card files (`GUIDES.BIN`, `LABELS.BIN`, `LOOKS.BIN`). |
 | `webapp/` | The Control Panel (Vite / TypeScript). The live site is `looklab/` on `main` (GitHub Pages). |
+| `debug-log/` | `DEBUG.TXT` and how to send a debug log (users are linked here and to `releases/latest/download/DEBUG.TXT`, so every release folder carries `DEBUG.TXT`). |
 | `devkit/photo-code/` | The om3.1 photo code kit for other developers (reader, examples, demo). |
 | `releases/vX/` | Each release: `patch.json`, card files, `SHA256SUMS`, `NOTES.md`. Pushing a new folder to `main` publishes a GitHub release. |
 | `docs/` | User docs, `DEVELOPER_NOTES.md` (per-release technical summary), `FILM_SIMULATION_ROADMAP.md`, `PHOTO_TO_LOOK.md`. |
