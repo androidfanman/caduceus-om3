@@ -115,6 +115,9 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | Split toning: Shadows and Highlights pages, 12 colours, −5..+5, also in live view | v0.26 |
 | WB shift up to ±7 per film | v0.26.1 |
 | Films load at power-on; the super control panel's dials step through the films | v0.26.2 |
+| All four arrow keys in Button Function; Creative Dial positions set to CRT / ART / COLOR / MONO, each COLOR with its own film | v0.27 |
+| The film's name and recipe in each JPEG's EXIF; the Control Panel opens a film from a photo | v0.27 |
+| Optional debug log (`DEBUG.TXT` → `OM3MOD/CADLOG.TXT`) for bug reports | v0.27 |
 
 Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/).
 

@@ -30,7 +30,7 @@ Update this page when either project ships a feature, and regenerate the page wi
 | **Saved lists of looks** | Not found | Named lists kept in the browser | OM-3 only |  |
 | **RapidRAW presets** | Yes (.rrpreset per look, zip of all) | Yes (from the shared code) | Same |  |
 | **Install firmware guide in the panel** | Yes | Yes | Same |  |
-| **Film name in the photo's EXIF** | No | v0.27 (in test): Description "FILM n Name", User Comment "Caduceus FILM n Name om3.1.<code>" ([PHOTO_CODE.md](PHOTO_CODE.md)) | OM-3 only | Proposed text layout to share; an E-P7 code would carry its own name (e.g. ep7.1.). Owner decides whether to propose it upstream. |
+| **Film name in the photo's EXIF** | No | v0.27 (released 2026-11-11, camera-tested): Description "FILM n Name", User Comment "Caduceus FILM n Name om3.1.<code>" ([PHOTO_CODE.md](PHOTO_CODE.md)) | OM-3 only | Proposed text layout to share; an E-P7 code would carry its own name (e.g. ep7.1.). Owner decides whether to propose it upstream. |
 
 ## Look settings
 
