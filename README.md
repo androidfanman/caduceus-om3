@@ -7,6 +7,7 @@
   <a href="https://androidfanman.github.io/caduceus-om3/install/"><b>Install</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/using/"><b>Using it</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/"><b>Control Panel</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/faq/"><b>FAQ</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/roadmap/"><b>Roadmap</b></a> &nbsp;&nbsp;
 </p>
 
@@ -139,7 +140,7 @@ Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/road
 - [research/](research/README.md): the full lab notebook (`research/NOTES.md`: every address, test and dead end),
   firmware and emulator tools, and archived experiments.
 - [docs/FILM_SIMULATION_ROADMAP.md](docs/FILM_SIMULATION_ROADMAP.md) and [ROADMAP.md](ROADMAP.md) (shown as the [roadmap page](https://androidfanman.github.io/caduceus-om3/roadmap/)): plans and status.
-- `install/`, `using/`, `roadmap/`, `changelog/`, `site/`: the guide pages on GitHub Pages; they show `docs/INSTALL.md`, `docs/USING.md`, `ROADMAP.md` and `CHANGELOG.md`, so edit those files.
+- `install/`, `using/`, `faq/`, `roadmap/`, `changelog/`, `site/`: the guide pages on GitHub Pages; they show `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md`, so edit those files.
 - [CLAUDE.md](CLAUDE.md): working rules for AI-assisted sessions on this repo (useful for any contributor).
 
 ## Credits

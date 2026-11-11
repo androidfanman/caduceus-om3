@@ -170,18 +170,6 @@ folder onto the Terminal window, press Return, then type `python3 firmware/patch
 **Something else.** Copy the card's `OM3MOD` folder to your computer (your films are in it), delete it from the card
 and switch on again. If that doesn't help, [go back to the camera's own firmware](#going-back-to-the-cameras-own-firmware).
 
-## Questions
+## More questions
 
-**Will a new version lose my films?** No, as long as you keep `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` on the card
-(see [Updating](#updating-from-an-earlier-version)).
-
-**Does it change the Monochrome profiles?** No. Caduceus works on COLOR 1–4 and the films. MONO keeps the camera's own
-settings.
-
-**Can I share films?** Yes. Send a `LOOKS.BIN`, or use **Share** in the Control Panel to send a link. Copying a
-`LOOKS.BIN` onto a card replaces all the films on that camera.
-
-**Why do I have to make the update file myself?** OM's licence doesn't allow sharing their firmware. This project only
-publishes its own changes, and the launcher adds them to your copy of OM's file.
-
-**I'm coming from v0.16–v0.18.** Your films were in `PROFILES.BIN`: rename it to `LOOKS.BIN`.
+See the [questions and answers](FAQ.md).

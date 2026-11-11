@@ -98,20 +98,9 @@ on the camera. Deleting `OM3MOD/EDITS.BIN` puts every film back as built.
 
 More on the Control Panel: [how to use it](CONTROL_PANEL.md).
 
-## Quick answers
+## Questions
 
-**No films in the list?** Check that `OM3MOD/LOOKS.BIN` is on the card.
-
-**A setting changes but the photo doesn't?** The card's `GUIDES.BIN` must come from the same version as the firmware.
-Copy it again.
-
-**The camera froze or switched off after a photo?** Take the battery out for a few seconds. If it happens again, turn
-Film Grain off on that film and [tell us](https://github.com/androidfanman/caduceus-om3/issues).
-
-**My changes were lost?** They save at the next half-press, and only when the card has the `OM3MOD` folder.
-
-**Does it work for video?** Not yet: video keeps the camera's normal look. It's on the
-[roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/).
+See the [questions and answers](FAQ.md): no films in the list, settings that don't show in the photo, freezes, lost changes, video and more.
 
 ## The files on the card
 

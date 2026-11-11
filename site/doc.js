@@ -8,7 +8,7 @@
   const srcDir = srcPath.replace(/[^/]*$/, ""); // "docs/"
 
   // Pages that have their own site page; anything else opens on GitHub.
-  const PAGES = { "docs/INSTALL.md": "../install/", "docs/USING.md": "../using/", "ROADMAP.md": "../roadmap/", "CHANGELOG.md": "../changelog/" };
+  const PAGES = { "docs/INSTALL.md": "../install/", "docs/USING.md": "../using/", "ROADMAP.md": "../roadmap/", "CHANGELOG.md": "../changelog/", "docs/FAQ.md": "../faq/" };
 
   function slug(text) {
     return text.trim().toLowerCase().replace(/[^\w\- ]+/g, "").replace(/ /g, "-");
