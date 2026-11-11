@@ -2172,6 +2172,7 @@ pf_load:
  mov (8,sp),d0
  mov d0,(LPTR,a2)                 /* published last */
  call fl_mk2,[d2,d3,a2,a3],80     /* v0.24: the film list's cell pictures (v0.26: TONES.BIN first) */
+ call dm_boot,[d2,d3,a2,a3],20    /* v0.27: the Creative Dial's mapping for the position it is on now */
  bra 9f
 7:
  mov (8,sp),a0
@@ -9501,6 +9502,26 @@ dm_own:                           /* the owner's own COLOR choice while a mapped
  .balign 4
 dm_sid:
  .long 571, 54, 55, 1966          /* CRT, ART, COLOR, MONO */
+dm_boot:                          /* `call dm_boot,[d2,d3,a2,a3],20` from pf_load once the films are there (power-on,
+                                   * HLS_EVENT task): the camera set the dial's family before the films loaded, so a
+                                   * mapped position stayed stock until a turn (owner, dg3). Set the family again through
+                                   * the facade, as the dial handler does (0x61085d05), so sx_set maps it now. */
+ mov 897,d0
+ call ar_getv,[d2,a2],24
+ mov d0,d1
+ cmp 900,d1
+ beq 1f
+ cmp 899,d1
+ beq 1f
+ cmp 988,d1
+ beq 1f
+ cmp 901,d1
+ bne 9f
+1:
+ mov 897,d0
+ call ar_setv,[d2,a2],20
+9:
+ ret [d2,d3,a2,a3],20
 dm_get:                           /* from sl_get (d0 one of the four, a1 -> the value; `rets`): the stored value, any
                                    * value that is not one of ours (the other bodies' defaults) read as Normal */
  add -12,sp                       /* (0) call slot, (4) a1, (8) mdr */

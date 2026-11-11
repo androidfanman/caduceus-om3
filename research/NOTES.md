@@ -2741,7 +2741,18 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   ~8x less than dg1. All nine pixel-identical to diagrams.compose (om-emu). ext12 240 KB of 256.
   dg3 (VERSION "v0.27-dev (diagrams 3)"): E1479999.BIN 65141864…, GUIDES.BIN 9c60d9cb….
 - **Camera (dg3, 2026-11-10): "it works wonderfully"** (owner): no hang left; lines and highlights right.
-- Owner (dg3, camera): power-on with the Creative Dial on a mapped position works as intended, and the movie Button
-  Function menu is untouched.
+- Owner (dg3, camera): the movie Button Function menu is untouched. Correction after a retest: powered on with the
+  Creative Dial on a mapped position, the film loads only after a half-press; owner wants it seamless (#30 tabled).
+
+### v0.27 dial mapping at power-on, test db1 (2026-11-10; emulator only)
+- Why: the camera sets 897 (the dial's family) at start-up before the films load, so `sx_set`'s `dm_ok` sent it the
+  stock way; nothing set 897 again until a dial turn (on the camera a half-press did; not seen in om-emu).
+- `dm_boot`, called by `pf_load` right after the films are published (LPTR, fl_mk2; HLS_EVENT task, STATE already
+  valid): GetValue(897) (ar_getv) and, for a dial family (900 / 899 / 901 / 988), SetValue(897, that family) through the
+  facade setter 0x61085d05 (`ar_setv`, the call the dial handler makes at 0x6109356f), so `sx_set` maps it now.
+- om-emu (sess7 gained `get:SID`; films load at the first half-press there, at power-on on the camera): test build with
+  every row = FILM 3: powered on at CRT, ART or COLOR -> 897 = 901 and COLOR 1's look = 3 once the films load. Real
+  build (rows Normal): CRT stays 900; after CRT -> FILM 3 in the menu, the dial turns map as before.
+- db1 (VERSION "v0.27-dev (dial power-on 1)"): E1479999.BIN 5e35a488…, GUIDES.BIN e38aa7cc….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

@@ -60,6 +60,19 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   if (process.env.WFROM && t === process.env.WFROM) globalThis.__armed = true;
   const m = /^(main|sub)([+-]\d+)$/.exec(t);
   if (m) { s.dial_input(m[1], parseInt(m[2], 10)); s.camapp.pump(); }
+  else if (t.startsWith('get:')) {     // get:SID -> the stock getter 0x61085dbb (as research/upkey/drive.mjs)
+    const { Debugger } = await import(EMU + '/src/debug/debugger.mjs');
+    const sid = Number(t.slice(4)); const FN = 0x61085dbb;
+    const dd = Debugger.attach(lab.sim, { lab }); const saved = dd.m.getRegs().slice();
+    const sp = ((saved[8] - 0x800) & ~3) >>> 0, stub = (sp - 0x7000) >>> 0;
+    const le = (v) => [v & 255, v >>> 8 & 255, v >>> 16 & 255, v >>> 24 & 255];
+    const callAt = stub + 12, rel = (FN - callAt) | 0;
+    dd.write(stub, Uint8Array.from([0xfc, 0xcc, ...le(sid), 0xfc, 0xcd, ...le(0), 0xdd, ...le(rel), 0xa0, 24, 0xcb, 0xcb]));
+    const r = saved.slice(); r[9] = stub; r[8] = sp; r[14] = 0; dd.m.setRegs(r);
+    let k = 0; while ((dd.m.getRegs()[9] >>> 0) !== ((callAt + 7) >>> 0) && k < 2000000) { dd.m.step(); k++; }
+    const out = dd.m.getRegs()[0] | 0; dd.m.setRegs(saved);
+    console.log('GET', sid, '->', out, 'steps', k);
+  }
   else if (t.startsWith('mem:')) {     // mem:ADDR:LEN:FILE (hex address and length): raw memory to FILE
     const [a_, n_, f_] = t.slice(4).split(':'); fs.writeFileSync(f_, Buffer.from(rd(parseInt(a_, 16), parseInt(n_, 16))));
   }
