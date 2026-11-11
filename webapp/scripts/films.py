@@ -154,6 +154,8 @@ FILMS = [
   dict(sat=1, ab=-1, s_o=-1, s_b=1, con=1, hl=-1, sh=-1)),
  ('Candido 800', 'neg', 'Candido 800', "Candido 800: cinema film re-spooled for stills, cool and soft with muted, slightly teal colour for night and mixed light.",
   dict(sat=-1, ab=-1, h_b=1, h_g=-1, con=-1, sh=1)),
+ ('Cuban Negative', 'neg', 'Cuban negative style', "Cuban negative: a warm, sun-baked colour negative look, in the spirit of travel photos of Havana; golden light, honeyed skin, deep sun-faded reds, turquoise blues, olive greens and soft, lifted shadows.",
+  dict(ab=3, s_r=2, l_r=-1, s_O=1, l_O=1, h_O=-1, s_y=1, h_g=1, s_g=-2, l_g=-1, h_b=1, s_b=1, s_c=1, hl=-1, sh=1, blk=1, wht=-1, split=('C', 1, 'Y', 1))),
  # --- instant ---
  ('FP-100C', 'instant', 'Fujifilm FP-100C', "Fujifilm FP-100C peel-apart instant film: soft contrast, cool blue-greens and creamy, dreamy colour.",
   dict(sat=1, ab=-1, s_g=1, h_g=-1, h_b=1, hl=-1, blk=1)),
