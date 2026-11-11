@@ -12,7 +12,7 @@
 
 <p align="center">
   Latest: <b>v0.26.2</b> (2026-11-09) &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/changelog/#v0262">What's new</a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/changelog/">Changelog</a> &nbsp;·&nbsp;
   <a href="https://github.com/androidfanman/caduceus-om3/releases/latest">Download</a>
 </p>
 
