@@ -96,6 +96,8 @@ computer, with a preview. It starts with the same 20 film sims.
 A film you changed in the Control Panel starts again as you built it there; the other films keep the changes you made
 on the camera. Deleting `OM3MOD/EDITS.BIN` puts every film back as built.
 
+More on the Control Panel: [how to use it](CONTROL_PANEL.md).
+
 ## Quick answers
 
 **No films in the list?** Check that `OM3MOD/LOOKS.BIN` is on the card.
