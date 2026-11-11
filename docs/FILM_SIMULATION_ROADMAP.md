@@ -3,7 +3,7 @@
 **Goal:** make the OM-3 with Caduceus the best film-replicating camera available: looks that render like real film
 stock straight out of the camera, and that load and shoot like a roll of film.
 
-Last updated 2026-11-10 (checked against v0.26.2, the latest release). Update the status column as work moves, and add
+Last updated 2026-11-11 (checked against v0.27, the latest release). Update the status column as work moves, and add
 findings to the research log at the end (details go in [`research/NOTES.md`](../research/NOTES.md)). The general
 roadmap is [`ROADMAP.md`](../ROADMAP.md).
 
@@ -12,7 +12,7 @@ Large = a new area of the firmware · Hard = no camera feature to borrow, everyt
 **Status:** Not started · Researching · Proven possible · Building · Camera testing · Done · Parked.
 Efforts are estimates from what we know of the firmware today.
 
-## What v0.26.2 can do (camera-tested)
+## What v0.27 can do (camera-tested)
 
 - **20 film sims on the camera** as FILM 1–20 in the Picture Mode list, after COLOR 1–4, with their names on the
   title, quick menu, shooting screen and viewfinder. They load by themselves at power-on (no half-press), and the
@@ -24,12 +24,15 @@ Efforts are estimates from what we know of the firmware today.
   processor, no extra time), the Glow row (+ Glow, − Clarity).
 - **Changes kept per film** (`EDITS.BIN`, `*` = changed, hold OK = back to as built), kept over power off.
 - **Live view** shows the look, split toning and glow included. Photos only: video keeps the camera's normal look.
-- **Not in v0.26.2:** Art Effects (removed in v0.25), mono films (parked), a WB mode / exposure / ISO per film, halation.
+- **Film in the photo (v0.27):** each JPEG taken on a FILM has the film's name in its EXIF and the whole recipe as a
+  short code; the Control Panel opens it as a film ([`docs/PHOTO_CODE.md`](PHOTO_CODE.md)).
+- **Creative Dial (v0.27):** each of the four positions can be set to COLOR and keep its own film, so the dial
+  switches between up to four films.
+- **Not in v0.27:** Art Effects (removed in v0.25), mono films (parked), a WB mode / exposure / ISO per film, halation.
 
-**Firmware space.** The 64 KiB of section 6 proven on 2026-11-07 is now almost used up (ext11: about 144 B left in
-v0.26.2). On 2026-11-10 the GX3 probe proved **256 KiB more** (0x60f59800..0x60f99800, camera-tested, branch
-[`experiment/firmware-space-probe-256k`](../../../tree/experiment/firmware-space-probe-256k)). No release uses it yet;
-the first build that does must raise the loader's end word, as that branch does.
+**Firmware space.** The 64 KiB of section 6 proven on 2026-11-07 is almost used up. The 256 KiB proven on 2026-11-10
+(GX3, 0x60f59800..0x60f99800, camera-tested) is in use from v0.27, which raised the loader's end word; the debug log is
+its first user, and the rest is free for halation and the next features (`docs/DEVELOPER_NOTES.md`, v0.27).
 
 ## Next steps
 
@@ -37,9 +40,9 @@ the first build that does must raise the loader's end word, as that branch does.
    method, our own code, onto the Glow row's route; can use the new 256 KiB.
 2. **Our own grain texture:** colour speckle and grain size from the Grain Lab design, through the same fast texture
    route. Plan: project doc `fast-grain-plan`, `research/NOTES.md`.
-3. **Fine-tune the 20 film sims** (draft 1, from the owner's colour checker photos, is in v0.26.1's and v0.26.2's
-   optional `LOOKS.BIN`). Gold 200 and CineStill 800T now carry their split tone on the Highlights wheel, as in the approved
-   drafts (Control Panel, 2026-11-10; the released `LOOKS.BIN` files still have it on Shadows). Seven films keep
+3. **Fine-tune the 20 film sims** (draft 1, from the owner's colour checker photos, is in the optional `LOOKS.BIN` of
+   v0.26.1 to v0.27). Gold 200 and CineStill 800T now carry their split tone on the Highlights wheel, as in the approved
+   drafts (Control Panel 2026-11-10, `LOOKS.BIN` from v0.27). Seven films keep
    split tones from the older recipes.
 4. **White balance mode and exposure compensation per film:** quick wins that make a film behave like a roll.
 
@@ -57,11 +60,11 @@ the first build that does must raise the loader's end word, as that branch does.
 
 | Feature | Why it matters for film | Effort | Status | Research notes |
 |---|---|---|---|---|
-| Films in the Picture Mode list | Pick a film like loading a roll. | Medium | **Done (v0.24.1, v0.26.2)** | FILM 1–20 after COLOR 1–4 with their names; load at power-on and dial stepping in v0.26.2. Asked for: reorder films on the camera ([#32](https://github.com/androidfanman/caduceus-om3/issues/32)), one button / front dial to switch films ([#30](https://github.com/androidfanman/caduceus-om3/issues/30), main roadmap: Researching), creative dial positions that pick a film ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)). |
+| Films in the Picture Mode list | Pick a film like loading a roll. | Medium | **Done (v0.24.1, v0.26.2, v0.27)** | FILM 1–20 after COLOR 1–4 with their names; load at power-on and dial stepping in v0.26.2; in v0.27 each Creative Dial position can be COLOR with its own film ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)). Asked for: reorder films on the camera ([#32](https://github.com/androidfanman/caduceus-om3/issues/32)), one button / front dial to switch films ([#30](https://github.com/androidfanman/caduceus-om3/issues/30), main roadmap: tabled 2026-11-11). |
 | White balance mode per film | Tungsten film (CineStill 800T) shoots at 3200 K, daylight film at 5500 K. Today a film can only shift WB (A-B / G-M −7..+7). | Low | Not started | Films already write their settings when chosen; WB mode and Kelvin are more of the same kind. |
 | Exposure compensation per film | Overexposed Portra, pushed Tri-X. Optional per film. | Low | Not started | Same route. Decide whether it adds to the user's exposure dial or sets it. |
 | ISO per film | "Load" Portra 400 and the camera shoots at ISO 400. Optional. | Low | Not started | Same route. Off by default. |
-| Film name in the photo's EXIF | Photos say which film and settings made them, for sharing and sorting ([#20](https://github.com/androidfanman/caduceus-om3/issues/20)). | Medium | Researching | 2026-11-09, analysis only: the EXIF writer and a hook point are found; free fields: Image Description and User Comment (JPEG). Next: a camera probe that writes a test text. Agree the text with the E-P7 project ([docs/PARITY.md](PARITY.md)). |
+| Film name in the photo's EXIF | Photos say which film and settings made them, for sharing and sorting ([#20](https://github.com/androidfanman/caduceus-om3/issues/20)). | Medium | **Done (v0.27)** | Image Description `FILM n Name`; User Comment with the name and the whole recipe as an `om3.1.` code. The Control Panel opens a film from a JPEG or a pasted code; [devkit/photo-code](../devkit/photo-code/) reads it for other sites. Spec: [PHOTO_CODE.md](PHOTO_CODE.md). Camera-tested 2026-11-11 (dr7). |
 | Frame shape per film | XPan 65:24, square 6×6, 4:5 for 6×7, half-frame. | Medium | Not started | Ties into custom crop modes on the main roadmap (Planned; Caduceus for the E-P7 has XPan and 21:9). |
 | Film borders | A black film edge or an instant-print border. | Medium | Not started | The Frame Art Effect that drew our white border was removed in v0.25, so borders need a new route. Generic shapes, not copies of film-stock markings. |
 
@@ -84,6 +87,7 @@ the first build that does must raise the loader's end word, as that branch does.
 
 | Date | Item | What it gives film looks |
 |---|---|---|
+| 2026-11-11 | v0.27 released | The film's name and recipe in every JPEG (opens in the Control Panel); Creative Dial positions with their own film; Gold 200 and CineStill 800T split tone on the Highlights wheel in `LOOKS.BIN`. |
 | 2026-11-09 | v0.26.2 released | Films load at power-on (no half-press); the super control panel dials step through COLOR 1–4 and FILM 1–20; fixes for Film Grain with RAW+JPEG, the FILM N label and `EDITS.BIN`. |
 | 2026-11-09 | v0.26.1 released | The 20 film sims tuned from colour-checker photos (draft 1) in the release's `LOOKS.BIN`; WB shift up to ±7 per film. |
 | 2026-11-09 | v0.26 released (split toning) | Shadows and Highlights wheel pages: tint by brightness toward any of the 12 colours, −5..+5, in photos and live view; ten of the 20 films carry a light split tone. Also fixes a restart after changing the drive mode. |
@@ -103,6 +107,7 @@ Newest first. Full details in [`research/NOTES.md`](../research/NOTES.md).
 
 | Date | Topic | Finding |
 |---|---|---|
+| 2026-11-11 | Film in the photo (camera) | The `om3.1` code writes the whole 64-byte film record into the JPEG's User Comment, with spare bytes so newer settings stay readable by older readers (dr4 to dr7). |
 | 2026-11-10 | Owner decisions | Mono film looks parked. A preview calibrated to the camera dropped: not needed, the OM-3 already matches the preview well. |
 | 2026-11-10 | Firmware space (camera) | GX3 probe: section 6 loads 256 KiB more (0x60f59800..0x60f99800); 72 passes, 0 bad words, with RAW+JPEG bursts and a video. Room for halation and the next features. |
 | 2026-11-09 | Film name in EXIF | The EXIF writer and a hook point are found (analysis only); Image Description and User Comment are free in JPEGs. |
