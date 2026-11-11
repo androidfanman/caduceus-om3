@@ -9635,9 +9635,21 @@ ar_get:                           /* .hook_ag (the dispatcher's value read, fram
  ret [d2],8
 8:
  jmp ar_vget                      /* mov d2,d0; call the getter; ret [d2],8: the assigned value */
+ .set DG0, 0x7fd0                 /* v0.27 polish 2 body diagrams (dg_get) */
+ .set NDG, 9
+ .set DGW, 422
+ .set DGH, 446
+ .set DGCAP, 65536
+ .set DGBG, 33
 ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pictures (AR_IC0 + 0..2), else ic_get */
  mov d0,d1
  exthu d1
+ cmp DG0,d1                       /* v0.27 polish 2: the body diagrams (dg_get) */
+ bcs 0f
+ cmp DG0 + NDG,d1
+ bcc 0f
+ jmp dg_get
+0:
  cmp AR_IC0,d1
  bcs 1f
  cmp AR_IC0 + 32,d1
@@ -9692,6 +9704,539 @@ ar_items:                         /* their item-info records, 28 B each (build.p
 ar_blk:                           /* the 7 shooting states' event blocks with ▲ / ◀ releases (build.py) */
  .space 3200
 ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-row picture streams */
- .space 90112
+ .space 81920
 ar_pend:
+
+/* ---------------------------------------------------------------- v0.27 polish 2: body diagrams (firmware/diagrams.py)
+ * The Button Function list shows a 422 x 446 body picture per row with the control highlighted and a line to the
+ * row's place on its page. For ▲ ◀ ▶ ▼ L-Fn and the four dial rows the camera has none that fits, so dg_get composes
+ * them from the camera's own pictures (ids 0x3f7b..0x3f83, unpacked at start-up) by the programs of
+ * firmware/diagrams.py: decode the base and up to two other pictures row by row (type-11 runs), copy rectangles, fill
+ * the lines, stamp our corners / the dial highlight, encode the row. Two 64 KB buffers keep the last two pictures.
+ * Without a stock picture (or on overflow) the row shows a stock picture instead (dg_fb). */
+dg_get:                           /* from ar_ic (jmp; the picture getter's frame: retf [],0, a0 -> slot), d1 = id */
+ movm [d2,d3,a2,a3],(sp)
+ add -12,sp                       /* (0) call slot, (4) mdr */
+ mov mdr,d0
+ mov d0,(4,sp)
+ mov d1,d2
+ add -DG0,d2                      /* k */
+ mov d2,d3
+ add 1,d3                         /* k + 1 */
+ mov (dg_have),d0
+ cmp d3,d0
+ bne 1f
+ mov dg_s0,a0
+ bra 8f
+1:
+ mov (dg_have + 4),d0
+ cmp d3,d0
+ bne 2f
+ mov dg_s1,a0
+ bra 8f
+2:
+ mov (dg_next),d0
+ mov d0,a3                        /* i: the buffer to use */
+ xor 1,d0
+ mov d0,(dg_next)
+ mov a3,d1
+ asl2 d1
+ mov dg_have,a0
+ add d1,a0
+ clr d0
+ mov d0,(a0)
+ call dg_build,[d2,d3,a2,a3],20    /* d0 = 1 when made */
+ cmp 0,d0
+ beq 9f
+ mov a3,d1
+ asl2 d1
+ mov dg_have,a0
+ add d1,a0
+ mov d3,(a0)
+ mov dg_s0,a0
+ add d1,a0
+8:
+ mov (4,sp),d0
+ mov d0,mdr
+ add 12,sp
+ movm (sp),[d2,d3,a2,a3]
+ retf [],0
+9:
+ mov d2,d0                        /* a stock picture instead */
+ add d0,d0
+ mov dg_fb,a0
+ add d0,a0
+ movhu (a0),d0
+ mov (4,sp),d1
+ mov d1,mdr
+ add 12,sp
+ movm (sp),[d2,d3,a2,a3]
+ jmp ic_get
+
+/* dg_build: `call dg_build,[d2,d3,a2,a3],20`, d2 = k, a3 = buffer index -> d0 1 made / 0 not. Uses everything. */
+dg_build:
+ mov d2,d0
+ asl2 d0
+ mov dg_pt,a0
+ add d0,a0
+ mov (a0),a2                      /* the program */
+ mov a2,(dg_pg)
+ movhu (a2),d0
+ mov d0,(dg_ns)
+ clr d3
+1:                                /* source d3: its stock picture -> decoder state */
+ mov d3,d0
+ add d0,d0
+ add 2,d0
+ mov a2,a0
+ add d0,a0
+ movhu (a0),d0                    /* stock id */
+ asl2 d0
+ mov (0x60379740),a0              /* the picture table */
+ add d0,a0
+ mov (a0),a0                      /* its descriptor */
+ mov a0,d0
+ cmp 0,d0
+ beq 90f
+ movhu (a0),d0
+ cmp 14,d0
+ bne 90f
+ movhu (2,a0),d0
+ cmp DGW,d0
+ bne 90f
+ movhu (4,a0),d0
+ cmp DGH,d0
+ bne 90f
+ mov (16,a0),d0                   /* payload (uncached) -> cached, past the 4-byte header */
+ mov d0,d1
+ and 0xf0000000,d1
+ cmp 0xa0000000,d1
+ bne 2f
+ add -0x40000000,d0
+2:
+ add 4,d0
+ mov d3,d1
+ asl 4,d1
+ mov dg_st,a1
+ add d1,a1
+ mov d0,(a1)
+ clr d0
+ mov d0,(4,a1)
+ mov d0,(8,a1)
+ mov d0,(12,a1)
+ add 1,d3
+ mov (dg_ns),d0
+ cmp d0,d3
+ bcs 1b
+ mov dg_b0,a0                     /* the output, written through the uncached alias */
+ mov a3,d0
+ cmp 0,d0
+ beq 3f
+ add DGCAP,a0
+3:
+ mov a0,d0
+ add 0x40000000,d0
+ mov d0,(dg_bs)
+ mov d0,a0
+ mov 0x0b1a51bd,d0                /* header: 446 rows, 422 wide, type 11 */
+ mov d0,(a0)
+ mov a0,d0
+ add 4,d0
+ mov d0,(dg_out)
+ add DGCAP - 16,d0
+ mov d0,(dg_end)
+ clr d0
+ mov d0,(dg_lo)
+ mov d0,(dg_hi)
+ mov d0,(dg_n)
+ mov d0,(dg_ovf)
+ mov d0,(dg_y)
+4:                                /* each row: decode the sources */
+ clr d3
+5:
+ mov d3,d1
+ asl 4,d1
+ mov dg_st,a1
+ add d1,a1
+ mov d3,d0
+ asl2 d0
+ mov dg_rp,a0
+ add d0,a0
+ mov (a0),a0
+ call dg_row,[d2,d3,a2,a3],20
+ add 1,d3
+ mov (dg_ns),d0
+ cmp d0,d3
+ bcs 5b
+ mov (dg_pg),a2                   /* the ops */
+ movhu (8,a2),d2
+ mov a2,a3
+ add 32,a3
+6:
+ cmp 0,d2
+ beq 7f
+ mov (dg_y),d1
+ movhu (8,a3),d0
+ cmp d0,d1
+ bcs 69f
+ movhu (10,a3),d0
+ cmp d0,d1
+ bcc 69f
+ call dg_op,[d2,d3,a2,a3],20
+69:
+ add 16,a3
+ add -1,d2
+ bra 6b
+7:                                /* encode the row */
+ mov (dg_rp),a2
+ clr d3
+8:
+ movbu (d3,a2),d2
+ mov 1,a3
+81:
+ mov a3,d0
+ cmp 16,d0
+ bcc 82f
+ mov d3,d1
+ add d0,d1
+ cmp DGW,d1
+ bcc 82f
+ movbu (d1,a2),d0
+ cmp d2,d0
+ bne 82f
+ add 1,a3
+ bra 81b
+82:
+ mov d2,d0
+ asl 4,d0
+ mov a3,d1
+ add -1,d1
+ or d1,d0
+ call dg_put,[],0
+ mov a3,d0
+ add d0,d3
+ cmp DGW,d3
+ bcs 8b
+ mov (dg_y),d0
+ add 1,d0
+ mov d0,(dg_y)
+ cmp DGH,d0
+ bcs 4b
+ mov (dg_n),d0                    /* the last, partial word */
+ cmp 0,d0
+ beq 85f
+ mov (dg_out),a0
+ mov (dg_lo),d0
+ mov d0,(a0)
+ mov (dg_hi),d0
+ mov d0,(4,a0)
+ add 8,a0
+ mov a0,(dg_out)
+85:
+ mov (dg_ovf),d0
+ cmp 0,d0
+ bne 90f
+ mov (dg_pg),a2                   /* the descriptor */
+ mov dg_d0,a0
+ mov (dg_bs),d1
+ mov dg_b0 + 0x40000000,d0
+ cmp d0,d1
+ beq 86f
+ add 24,a0
+86:
+ mov (dg_out),d0
+ sub d1,d0
+ mov d0,(12,a0)
+ mov d1,(16,a0)
+ mov 1,d0
+ ret [d2,d3,a2,a3],20
+90:
+ clr d0
+ ret [d2,d3,a2,a3],20
+
+/* dg_tok: `call dg_tok,[],0`, a1 = a decoder state {word, token 0..4, value, run left} -> d0 the next token (12 bits:
+ * value << 4 | run - 1). Uses d1, a0. */
+dg_tok:
+ mov (a1),a0
+ mov (4,a1),d1
+ cmp 0,d1
+ bne 1f
+ mov (a0),d0
+ and 0xfff,d0
+ bra 8f
+1:
+ cmp 1,d1
+ bne 2f
+ mov (a0),d0
+ lsr 12,d0
+ and 0xfff,d0
+ bra 8f
+2:
+ cmp 2,d1
+ bne 3f
+ mov (a0),d0
+ lsr 24,d0
+ mov (4,a0),d1
+ and 15,d1
+ asl 8,d1
+ or d1,d0
+ mov 2,d1
+ bra 8f
+3:
+ cmp 3,d1
+ bne 4f
+ mov (4,a0),d0
+ lsr 4,d0
+ and 0xfff,d0
+ bra 8f
+4:
+ mov (4,a0),d0
+ lsr 16,d0
+ and 0xfff,d0
+ add 8,a0
+ mov a0,(a1)
+ clr d1
+ mov d1,(4,a1)
+ ret [],0
+8:
+ add 1,d1
+ mov d1,(4,a1)
+ ret [],0
+
+/* dg_row: `call dg_row,[d2,d3,a2,a3],20`, a1 = state, a0 = row: the next 422 pixels */
+dg_row:
+ mov a0,a2
+ mov a1,a3
+ clr d3
+1:
+ mov (12,a3),d2
+ cmp 0,d2
+ bne 2f
+ mov a3,a1
+ call dg_tok,[],0
+ mov d0,d1
+ lsr 4,d1
+ mov d1,(8,a3)
+ and 15,d0
+ add 1,d0
+ mov d0,d2
+2:
+ mov (8,a3),d1
+3:
+ movbu d1,(d3,a2)
+ add 1,d3
+ add -1,d2
+ beq 4f
+ cmp DGW,d3
+ bcs 3b
+ mov d2,(12,a3)
+ ret [d2,d3,a2,a3],20
+4:
+ mov d2,(12,a3)
+ cmp DGW,d3
+ bcs 1b
+ ret [d2,d3,a2,a3],20
+
+/* dg_op: `call dg_op,[d2,d3,a2,a3],20`, a3 = an op {type, a, x0, x1, y0, y1, w, offset} for this row (dg_y) */
+dg_op:
+ movhu (a3),d0
+ movhu (4,a3),d2
+ movhu (6,a3),d3
+ mov (dg_rp),a2
+ cmp 1,d0
+ bne 2f
+ movhu (2,a3),d0                  /* 1: copy from source a */
+ asl2 d0
+ mov dg_rp,a0
+ add d0,a0
+ mov (a0),a1
+1:
+ cmp d3,d2
+ bcc 9f
+ movbu (d2,a1),d0
+ movbu d0,(d2,a2)
+ add 1,d2
+ bra 1b
+2:
+ cmp 2,d0
+ bne 3f
+ movhu (2,a3),d1                  /* 2: fill with a */
+21:
+ cmp d3,d2
+ bcc 9f
+ movbu d1,(d2,a2)
+ add 1,d2
+ bra 21b
+3:
+ cmp 3,d0
+ bne 4f
+ mov (dg_y),d0                    /* 3: stamp: its row y - y0 (w bytes a row, at offset), 0 = clear */
+ movhu (8,a3),d1
+ sub d1,d0
+ movhu (14,a3),d1
+ mov dg_sb,a1
+ add d1,a1
+ movhu (12,a3),d1
+32:
+ cmp 0,d0
+ beq 33f
+ add d1,a1
+ add -1,d0
+ bra 32b
+33:
+ mov a1,d0
+ sub d2,d0
+ mov d0,a1
+34:
+ cmp d3,d2
+ bcc 9f
+ movbu (d2,a1),d0
+ cmp 0,d0
+ beq 35f
+ movbu d0,(d2,a2)
+35:
+ add 1,d2
+ bra 34b
+4:
+ mov d2,d0                        /* 4: bridge [x0, x1) when the pixels left of x0 and at x1 are drawn */
+ add -1,d0
+ movbu (d0,a2),d1
+ cmp DGBG,d1
+ beq 9f
+ movbu (d3,a2),d0
+ cmp DGBG,d0
+ beq 9f
+41:
+ cmp d3,d2
+ bcc 9f
+ movbu d1,(d2,a2)
+ add 1,d2
+ bra 41b
+9:
+ ret [d2,d3,a2,a3],20
+
+/* dg_put: `call dg_put,[],0`, d0 = a token: 5 to a 64-bit word, written at dg_out while below dg_end. Uses d1, a0. */
+dg_put:
+ mov (dg_n),d1
+ cmp 0,d1
+ bne 1f
+ mov d0,(dg_lo)
+ bra 8f
+1:
+ cmp 1,d1
+ bne 2f
+ asl 12,d0
+ mov (dg_lo),d1
+ or d0,d1
+ mov d1,(dg_lo)
+ bra 8f
+2:
+ cmp 2,d1
+ bne 3f
+ mov d0,d1
+ lsr 8,d1
+ mov d1,(dg_hi)
+ asl 24,d0
+ mov (dg_lo),d1
+ or d0,d1
+ mov d1,(dg_lo)
+ bra 8f
+3:
+ cmp 3,d1
+ bne 4f
+ asl 4,d0
+ mov (dg_hi),d1
+ or d0,d1
+ mov d1,(dg_hi)
+ bra 8f
+4:
+ asl 16,d0
+ mov (dg_hi),d1
+ or d0,d1
+ mov d1,(dg_hi)
+ mov (dg_out),a0
+ mov a0,d1
+ mov (dg_end),d0
+ cmp d0,d1
+ bcc 5f
+ mov (dg_lo),d0
+ mov d0,(a0)
+ mov (dg_hi),d0
+ mov d0,(4,a0)
+ add 8,a0
+ mov a0,(dg_out)
+ bra 6f
+5:
+ mov 1,d0
+ mov d0,(dg_ovf)
+6:
+ clr d0
+ mov d0,(dg_lo)
+ mov d0,(dg_hi)
+ mov -1,d1
+ mov d1,(dg_n)
+8:
+ mov (dg_n),d1
+ add 1,d1
+ mov d1,(dg_n)
+ ret [],0
+
+ .balign 4
+dg_have:
+ .long 0, 0                       /* k + 1 of the picture in buffer 0 / 1 */
+dg_next:
+ .long 0
+dg_s0:
+ .long dg_d0
+dg_s1:
+ .long dg_d1
+dg_d0:
+ .short 14, DGW, DGH, 8, 0, 0
+ .long 0, 0, 0
+dg_d1:
+ .short 14, DGW, DGH, 8, 0, 0
+ .long 0, 0, 0
+dg_fb:                            /* a stock picture when ours cannot be made: ▲ ◀ ▶ ▼ -> ✥'s, L-Fn's, dials -> Fn's */
+ .short 0x3f80, 0x3f80, 0x3f80, 0x3f80, 0x3f83, 0x3f7b, 0x3f7b, 0x3f7b, 0x3f7b
+ .balign 4
+dg_rp:
+ .long dg_r0, dg_r1, dg_r2
+dg_pg:
+ .long 0
+dg_ns:
+ .long 0
+dg_y:
+ .long 0
+dg_bs:
+ .long 0
+dg_out:
+ .long 0
+dg_end:
+ .long 0
+dg_lo:
+ .long 0
+dg_hi:
+ .long 0
+dg_n:
+ .long 0
+dg_ovf:
+ .long 0
+dg_st:
+ .space 16 * 3
+dg_r0:
+ .space 424
+dg_r1:
+ .space 424
+dg_r2:
+ .space 424
+dg_pt:                            /* the 9 programs (build.py, firmware/diagrams.py) */
+ .space 4 * NDG
+dg_pgs:
+ .space 2048
+dg_sb:                            /* the stamps */
+ .space 2048
+ .balign 8
+dg_b0:                            /* two output buffers */
+ .space 2 * DGCAP
+dg_bend:
 

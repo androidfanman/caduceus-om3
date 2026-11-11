@@ -60,6 +60,9 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   if (process.env.WFROM && t === process.env.WFROM) globalThis.__armed = true;
   const m = /^(main|sub)([+-]\d+)$/.exec(t);
   if (m) { s.dial_input(m[1], parseInt(m[2], 10)); s.camapp.pump(); }
+  else if (t.startsWith('mem:')) {     // mem:ADDR:LEN:FILE (hex address and length): raw memory to FILE
+    const [a_, n_, f_] = t.slice(4).split(':'); fs.writeFileSync(f_, Buffer.from(rd(parseInt(a_, 16), parseInt(n_, 16))));
+  }
   else if (t.startsWith('dump:')) {
     const parts = []; for (const [lo, hi] of [[0x60000000, 0x63000000], [0xa2000000, 0xa6000000]]) { for (let a = lo; a < hi; a += 0x100000) parts.push(Buffer.from(rd(a, 0x100000))); }
     fs.writeFileSync(t.slice(5), Buffer.concat(parts));

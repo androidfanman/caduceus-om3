@@ -538,6 +538,25 @@ def build(defaults, testfile, out):
         struct.pack_into('<I', r, 4, ((0x7fe3 + k) << 16) | 0xc)
         struct.pack_into('<2I', r, 12, sy['dm_lab'], 25)
         recs.append(r)
+    # v0.27 polish 2: body diagrams composed by the camera (editor.s dg_get, firmware/diagrams.py) for the rows whose
+    #   control or place on the page differs from the stock pictures': ▲ ◀ ▶ ▼ L-Fn CRT ART COLOR MONO
+    sys.path.insert(0, str(ROOT / 'firmware'))
+    import diagrams
+    progs, sb = diagrams.pack()
+    assert len(sb) <= 2048 and sum((len(p_) + 3) & ~3 for p_ in progs) <= 2048 and len(progs) == 9
+    m[o(sy['dg_sb']):o(sy['dg_sb']) + len(sb)] = sb
+    at = sy['dg_pgs']
+    for k, p_ in enumerate(progs):
+        m[o(at):o(at) + len(p_)] = p_
+        struct.pack_into('<I', m, o(sy['dg_pt']) + 4 * k, at)
+        at += (len(p_) + 3) & ~3
+    DGK = {50: 0, 52: 1, 53: 2, 51: 3, 56: 4, 571: 5, 54: 6, 55: 7, 1966: 8}   # diagrams.DIAGRAMS order
+    assert [n for n, _ in diagrams.DIAGRAMS] == ['up', 'left', 'right', 'down', 'lfn', 'crt', 'art', 'color', 'mono']
+    for r in recs:
+        sid = struct.unpack_from('<I', r)[0]
+        if sid in DGK:
+            struct.pack_into('<I', r, 20, ((diagrams.DG0 + DGK[sid]) << 16) | 3)
+    assert sy['dg_bend'] <= EXT12[1], hex(sy['dg_bend'])
     items = b''.join(bytes(r) for r in recs)
     assert len(items) == 28 * 15 and sy['ar_blk'] - sy['ar_items'] >= len(items)
     m[o(sy['ar_items']):o(sy['ar_items']) + len(items)] = items

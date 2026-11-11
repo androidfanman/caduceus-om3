@@ -2696,3 +2696,28 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Card-copy mistake (2026-11-10): the ak6 copy also wrote the build's neutral BUNDLES.BIN over the owner's card file
   (the camera's saved Extras-wheel settings). By dr2 the card's BUNDLES.BIN was camera-written again (37 bytes differ
   from neutral; BUNDLES.NEW / .BAK present). Owner told. Rule added to CLAUDE.md: never copy BUNDLES / LOOKS / EDITS.
+
+### v0.27 polish 2, test dg1: body diagrams with the right highlight and line (2026-11-10; emulator only)
+- Owner: fix the lines and highlights; the CRT / ART / COLOR / MONO rows should point at the Creative Dial on the
+  camera picture and highlight it.
+- The stock diagrams (ids 0x3f7b..0x3f83, 422 x 446, format 14, type-11 runs with 8-bit values; background 33, line
+  63 (4 px, 2 px clear margin where it crosses the drawing, corner radius ~17), highlight 80) exist only in RAM (picture
+  table *(0x60379740) + 4 id). Views: 0..2 top (Fn, REC, |o|), 3..7 back (CP, AF-ON, pad, right, down), 8 side (L-Fn).
+  The line ends at x 420 on rows 29 + 64 pos .. +3 (pos = the row's place on its 7-row page); the menu draws the
+  short link from x 455 to the list at the selected row's height.
+- Rows now: Fn REC |o| CP AF-ON ✥ ▲ | ◀ ▶ ▼ L-Fn CRT ART COLOR | MONO. Stock pictures stay for Fn..✥; ours for ▲ (6),
+  ◀ (0), ▶ (1), ▼ (2), L-Fn (3), CRT (4), ART (5), COLOR (6), MONO (0).
+- `dg_get` (ar_ic, ids 0x7fd0..0x7fd8; item records +20) composes them at run time by firmware/diagrams.py programs:
+  clean back view = CP's picture with its dot / line area (x 258..422, y 140..229) from the pad picture; clean top view
+  = Fn's with x 342..422 from |o|'s (y 27..150, 167..330) and REC's (x 342..370, y 150..167); arrow highlights copied
+  from the pad picture's arms (▲ x 310..341 y 238..265, ◀ x 294..317 y 262..286) and the ▶ / ▼ pictures; the
+  side view's own line cleared (it ran through empty space; the one outline it crossed is joined by a bridge op);
+  new lines = fills + our corner stamps; the Creative Dial = the knurled block at the front of the top view
+  (x 276..315, y 270..284), highlighted with our rounded box (colour 80). Decoding / encoding per row (runs within a
+  row), two 64 KB buffers in ext12 (the last two pictures kept), stock picture as fallback. ext12 now 236 KB of 256.
+- Bug on the way (emulator): frames `call f,[d2,d3,a2,a3],4/8` (N must count the 16 B of saved registers) broke the
+  caller's stack; now 20.
+- om-emu: all nine pictures show with the line meeting the selected row; the composed streams for ▲ and ◀ are
+  byte-identical to diagrams.compose + encode (the Python reference). To confirm with the owner: that the highlighted
+  block is the Creative Dial.
+- dg1 (VERSION "v0.27-dev (diagrams 1)"): E1479999.BIN 293ec7c0…, GUIDES.BIN ed6e2d3a… (LABELS / TONES as ak6).
