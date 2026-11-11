@@ -38,8 +38,9 @@ the first build that does must raise the loader's end word, as that branch does.
 2. **Our own grain texture:** colour speckle and grain size from the Grain Lab design, through the same fast texture
    route. Plan: project doc `fast-grain-plan`, `research/NOTES.md`.
 3. **Fine-tune the 20 film sims** (draft 1, from the owner's colour checker photos, is in v0.26.1's and v0.26.2's
-   optional `LOOKS.BIN`). Open: Gold 200 and CineStill 800T carry their split tone on the Shadows wheel, the approved
-   drafts had it on Highlights (audit 2026-11-09); seven films keep split tones from the older recipes.
+   optional `LOOKS.BIN`). Gold 200 and CineStill 800T now carry their split tone on the Highlights wheel, as in the approved
+   drafts (Control Panel, 2026-11-10; the released `LOOKS.BIN` files still have it on Shadows). Seven films keep
+   split tones from the older recipes.
 4. **White balance mode and exposure compensation per film:** quick wins that make a film behave like a roll.
 
 ## The film look itself
