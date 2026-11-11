@@ -1,27 +1,36 @@
-# Caduceus for OM-3
+<h1 align="center">Caduceus for OM-3</h1>
 
-### **[Install](https://androidfanman.github.io/caduceus-om3/install/)** · **[Using it](https://androidfanman.github.io/caduceus-om3/using/)** · **[Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/)** · **[Changelog](https://androidfanman.github.io/caduceus-om3/changelog/)**
+<p align="center"><strong>Film looks and a colour editor, built into the OM SYSTEM OM-3.</strong></p>
 
-**Latest: v0.26.2** (2026-11-09): films load at power-on, the dials step through the films, and three fixes.
-[What's new](https://androidfanman.github.io/caduceus-om3/changelog/#v0262) · [Download](https://github.com/androidfanman/caduceus-om3/releases/latest)
+<p align="center">
+  <a href="https://androidfanman.github.io/caduceus-om3/install/"><b>Install</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/using/"><b>Using it</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/"><b>Control Panel</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/roadmap/"><b>Roadmap</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/changelog/"><b>Changelog</b></a>
+</p>
 
-Film looks and a colour editor for the **OM SYSTEM OM-3**, built into the camera. Open-source firmware patches for
-firmware 1.1, made together with cakelesscoder as part of the [Caduceus](https://github.com/cakelesscoder/caduceus-ep7)
-family.
+<p align="center">
+  Latest: <b>v0.26.2</b> (2026-11-09) &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/changelog/#v0262">What's new</a> &nbsp;·&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/releases/latest">Download</a>
+</p>
 
-- **Your films in the camera's Picture Mode list:** FILM 1–20 after COLOR 1–4, each with its own name. 20 film sims
-  come with it, from Portra 400 to Velvia 50.
-- **A full colour editor on the camera:** hue, saturation and brightness for 12 colours, split toning, Blacks and
-  Whites, a WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
-- **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/), with a preview, and copy them to the card.
-- **Changes are kept** per film, even over power off.
+## What it does
+
+- **Your films in Picture Mode:** FILM 1–20 appear after COLOR 1–4, each with its own name. 20 film sims come with it.
+- **A colour editor on the camera:** hue, saturation and brightness for 12 colours, split toning, Blacks and Whites,
+  WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
+- **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/), with a preview, then copy them to the card.
+- **Your changes are kept** for each film, even when the camera is switched off.
+
+Open-source firmware patches for the OM-3 on firmware 1.1, part of the
+[Caduceus](https://github.com/cakelesscoder/caduceus-ep7) family with cakelesscoder.
 
 > [!WARNING]
-> **Early development: use at your own risk.** This is an unofficial, experimental firmware modification. Bugs will
-> turn up, and flashing modified firmware can crash or freeze the camera, corrupt photos or leave the camera needing a
-> restore. **No responsibility is accepted for any damage, data loss or other harm** (see the
-> [Apache License 2.0](LICENSE), sections 7–8, and [Safety](#safety)). It may affect your warranty with OM Digital
-> Solutions. You can always go back to the camera's own firmware.
+> **Experimental: use at your own risk.** This is an unofficial firmware change. It can crash or freeze the camera, and
+> no responsibility is accepted for any damage or data loss ([Safety](#safety), [license](LICENSE)). You can always go
+> back to the camera's own firmware. It may affect your warranty with OM Digital Solutions.
 
 ## Install
 
