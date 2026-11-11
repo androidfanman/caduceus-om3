@@ -7,7 +7,7 @@ family.
 - **Your films in the camera's Picture Mode list:** FILM 1–20 after COLOR 1–4, each with its own name. 20 film sims
   come with it, from Portra 400 to Velvia 50.
 - **A full colour editor on the camera:** hue, saturation and brightness for 12 colours, split toning, Blacks and
-  Whites, a WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and fast colour film grain.
+  Whites, a WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
 - **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/), with a preview, and copy them to the card.
 - **Changes are kept** per film, even over power off.
 
