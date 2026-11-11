@@ -2539,4 +2539,11 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   picture mode 0 / family 0 (once; later events right). dm6: E1479999.BIN 43a39e9e…, GUIDES.BIN 27ba6c70….
 - Not done: power-on on a mapped position (start-up sets 897 before the films load: stock until the first turn),
   MONO targets, restoring the user's own COLOR choice on an unmapped COLOR position, the Control Panel setting.
+- **Camera (dm6, 2026-11-10): the Creative Dial mapping works** (owner: "worked like a treat"). Log, 42 events in one
+  power-on: COLOR 1 (pm 54) -> FILM 3 -> FILM 10 (pm 55) -> FILM 11 (pm 56), each switch "edits waiting yes -> saved";
+  family reads COLOR throughout (897 = 901, as designed); card files all match. The first-event glitch seen in om-emu
+  did not show. Eject note: Finder's Eject (button and File menu) did nothing while the card was a connected folder of
+  this session; the owner ejected it himself.
+- Next: the map from the Control Panel (stored with the films), power-on on a mapped position, MONO targets, and
+  whether the COLOR position should go back to the user's own COLOR choice when unmapped.
 
