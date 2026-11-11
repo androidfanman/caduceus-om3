@@ -8361,8 +8361,7 @@ sdl_worker_send_call:
 sdl_worker_send_result:
   bra sdl_worker_loop
 sdl_worker_done:
-  call dm_boot,[d2,d3,a2,a3],20   /* v0.27 dr6: the Creative Dial's mode for the position it is on, from this task */
-  call sdl_ext_tsk,[a2],8
+   call sdl_ext_tsk,[a2],8
   ret [],24
 
 sdl_worker_name:
@@ -9631,41 +9630,8 @@ dm_llist:
  .short LV0, LV0 + 1, LV0 + 2, LV0 + 3
 dm_llend:
  .balign 4
-dm_boot:                          /* `call dm_boot,[d2,d3,a2,a3],20` from our SDLOAD worker task as it stands down
-                                   * (power-on): the camera set the dial's family before the films loaded, so a mapped
-                                   * position stayed stock until a turn (owner, dg3). Once the films are there, set the
-                                   * family again through the facade, as the dial handler does (0x61085d05), so sx_set
-                                   * maps it. dr6: from the worker, not from pf_load in the HLS_EVENT task (dr3 / dr5 on
-                                   * the camera: with the dial moved while off, power-on hung there, GUI waiting). */
- mov 60,d3                        /* the films: up to 60 polls */
-2:
- call dm_ok,[],0
- cmp 0,d1
- bne 3f
- add -1,d3
- beq 9f
- mov SDL_POLL_TICKS,d0
- call sdl_dly_tsk,[d2,a2,a3],16
- bra 2b
-3:
- mov SDL_POLL_TICKS,d0            /* one more poll: let the start finish */
- call sdl_dly_tsk,[d2,a2,a3],16
- mov 897,d0
- call ar_getv,[d2,a2],24
- mov d0,d1
- cmp 900,d1
- beq 1f
- cmp 899,d1
- beq 1f
- cmp 988,d1
- beq 1f
- cmp 901,d1
- bne 9f
-1:
- mov 897,d0
- call ar_setv,[d2,a2],20
-9:
- ret [d2,d3,a2,a3],20
+/* dm_boot (dr3..dr6: the power-on mapping) removed in dr7: with the dial moved while off, every version of it hung
+ * the camera at power-on (dr3 / dr5 / dr6 on the camera). A half-press or a dial turn applies the mapping. */
 dm_get:                           /* from sl_get (d0 one of the four, a1 -> the value; `rets`): the stored value, any
                                    * value that is not one of ours (the other bodies' defaults) read as Normal */
  add -12,sp                       /* (0) call slot, (4) a1, (8) mdr */

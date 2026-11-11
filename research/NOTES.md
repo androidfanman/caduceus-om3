@@ -2842,5 +2842,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - If dr6 still hangs: drop the power-on mapping (half-press or a dial turn applies it, as before db1) and look for a
   GUI-task moment after the films load.
 - dr6 (VERSION "v0.27-dev (dial modes 4, photo code 2)"): E1479999.BIN f31e5420…, GUIDES.BIN 59ce54a5….
+- **Camera (dr6): still lags / hangs** at power-on after the dial was moved while off. Owner: take the fallback.
+- dr7 (fallback): the power-on mapping is gone (dm_boot and its call from the SDLOAD worker removed). At power-on the
+  camera starts in the dial's own mode; a half-press or a dial turn applies the position's mapped mode / film (as
+  before db1). Everything else as dr6. om-emu: power-on at MONO and CRT starts and the menu opens.
+  Open: why a mapping at power-on hangs only with the dial moved while off (db1, family only, was fine; dr3+ also read
+  the per-position settings and switch the film). A later try needs a GUI-task moment after the films load.
+- dr7 (VERSION "v0.27-dev (dial modes 5, photo code 2)"): E1479999.BIN 07032d36…, GUIDES.BIN 99473777….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
