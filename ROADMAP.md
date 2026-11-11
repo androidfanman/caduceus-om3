@@ -29,13 +29,14 @@ last two pieces: with them the colour profiles are complete.
 | **Film Grain with RAW+JPEG** | With image quality set to RAW+JPEG, a photo with Film Grain was saved, then the screen went black and the camera froze (battery out). v0.25 to v0.26.1. A RAW+JPEG photo develops a second, smaller picture for the RAW file, and that upset the grain. Probably the cause of [#12](https://github.com/androidfanman/caduceus-om3/issues/12). | Fixed in v0.26.2 |
 | **Glow with grain** | Reported: the camera shuts down after taking a photo with Glow and grain together ([#12](https://github.com/androidfanman/caduceus-om3/issues/12)), and Med grain is much stronger when Glow is on ([#16](https://github.com/androidfanman/caduceus-om3/issues/16)). | Fixed in v0.26.1 |
 | **Playback while saving** | Pressing playback while the photo is still being written can freeze the camera (dark grey screen; only taking the battery out helps; the photo is fine) ([#15](https://github.com/androidfanman/caduceus-om3/issues/15)). | Fixed in v0.26.1 |
+| **Creative dial freeze** | Turning the creative dial away from COLOR while a film is on can freeze live view (IS and level still update); sometimes only taking the battery out helps. v0.26.2. Reporter: mostly with Glow and / or grain on, most often CineStill 800T with grain, RAW+JPEG. Not reproduced on the owner's camera or by another user so far ([#27](https://github.com/androidfanman/caduceus-om3/issues/27)). | Investigating |
 
 ## Lenses and focus
 
 | Feature | What it means | Status |
 |---|---|---|
 | **Focus stacking with any lens** | The camera's focus stacking (and focus bracketing) with any autofocus lens, not only OM's listed ones. | Planned |
-| **Panasonic lenses work properly** | The aperture ring on Panasonic lenses that have one sets the aperture; and the camera waits for focus before it takes the picture with lenses like the Panasonic 20mm f/1.7, as Panasonic bodies do ([#13](https://github.com/androidfanman/caduceus-om3/issues/13)). | Planned |
+| **Panasonic lenses work properly** | The aperture ring on Panasonic lenses that have one sets the aperture; and the camera waits for focus before it takes the picture with lenses like the Panasonic 20mm f/1.7, as Panasonic bodies do ([#13](https://github.com/androidfanman/caduceus-om3/issues/13), aperture ring: [#29](https://github.com/androidfanman/caduceus-om3/issues/29)). | Planned |
 
 ## Buttons and controls
 
