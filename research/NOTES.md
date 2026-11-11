@@ -2688,7 +2688,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   rim 8 / 9, cap ~31 (camera "Test" 0x31); button names (L-Fn 0xa4d, AF-ON 0x282c) a box 13 with border 7 and rim 8,
   the word in 7, cap 28 (rows 6..33), ~4 px strokes. dr1 used strings (thin menu font) for the values and thin
   smaller words in the icons.
-- mkicons:  (cap 28, DejaVu Sans Condensed, solid strokes) and  (the value style) for
+- mkicons: `dial_label` (cap 28, DejaVu Sans Condensed, solid strokes) and `value_picture` (the value style) for
   Normal / COLOR 1-4 / FILM 1-20: ids 0x7fe7..0x7fff via ar_ic (descriptors ar_d7..ar_d31, ~74 KB of streams in
   ar_pay). Row values and picker cells use the pictures; picker titles keep strings (film names), as stock titles.
 - om-emu: CRT / ART icons match L-Fn's size and weight; "FILM 3" / "Normal" / "COLOR 1" match "AF Stop".
