@@ -2679,3 +2679,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - dr1 (firmware/VERSION "v0.27-dev (dial rows 1)"): E1479999.BIN d06dce5b…, GUIDES.BIN e7ec47d8… (LABELS / TONES / BUNDLES as ak6).
 - **Camera (dr1, 2026-11-10): works** (owner: "its works!!!!!!!"). Next: the polish round (body diagram lines for the
   arrow and dial rows, power-on on a mapped position, icon look), then #30.
+- Owner (dr1): films stay set after power-off and on (camera). The dial rows' values "look slightly off" next to the
+  stock rows; #30 waits until the buttons are polished.
+
+### v0.27 polish 1, test dr2: the dial rows drawn like the camera's own (2026-11-10; emulator only)
+- Stock row values are mostly pictures (type 0xc; strings only for a few, e.g. Off / ISO). Measured from the camera's
+  pictures (viewed in om-emu, not kept): value pictures 40 px high, letters filled 13 with a 1 px outline 7 and a 1 px
+  rim 8 / 9, cap ~31 (camera "Test" 0x31); button names (L-Fn 0xa4d, AF-ON 0x282c) a box 13 with border 7 and rim 8,
+  the word in 7, cap 28 (rows 6..33), ~4 px strokes. dr1 used strings (thin menu font) for the values and thin
+  smaller words in the icons.
+- mkicons:  (cap 28, DejaVu Sans Condensed, solid strokes) and  (the value style) for
+  Normal / COLOR 1-4 / FILM 1-20: ids 0x7fe7..0x7fff via ar_ic (descriptors ar_d7..ar_d31, ~74 KB of streams in
+  ar_pay). Row values and picker cells use the pictures; picker titles keep strings (film names), as stock titles.
+- om-emu: CRT / ART icons match L-Fn's size and weight; "FILM 3" / "Normal" / "COLOR 1" match "AF Stop".
+- dr2 (VERSION "v0.27-dev (dial rows 2)"): E1479999.BIN 8411b7b8…, GUIDES.BIN fd06a697… (LABELS / TONES / BUNDLES as ak6).

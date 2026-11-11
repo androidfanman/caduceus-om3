@@ -509,9 +509,9 @@ def build(defaults, testfile, out):
     dcodes = [0, 1, 2, 3, 4] + list(range(11, 31))
     dl = sy['dm_list']
     assert list(struct.unpack_from('<25H', m, o(dl))) == [DV0 + c for c in dcodes] and sy['dm_lend'] - dl == 50
-    def dstr(c, title=False):   # "Normal", ST_DC0 + k, "FILM n" (ST_DF0) or, in the picker title, the film's name (ST_F0)
+    def dstr(c, title=False):   # picker titles: "Normal", ST_DC0 + k, film n's name (ST_F0) (cells / rows: pictures 0x7fe7..)
         return 616 if c == 0 else (0x7f48 + c - 1 if c < 5 else (0x7f10 if title else 0x7f50) + c - 11)
-    lab = b''.join(struct.pack('<3I', DV0 + c, (dstr(c) << 16) | 4, OBJ) for c in dcodes)
+    lab = b''.join(struct.pack('<3I', DV0 + c, ((0x7fe7 + i) << 16) | 0xc, OBJ) for i, c in enumerate(dcodes))   # our pictures
     tit = b''.join(struct.pack('<3I', DV0 + c, (dstr(c, True) << 16) | 4, OBJ) for c in dcodes)
     m[o(sy['dm_tit']):o(sy['dm_tit']) + 300] = tit
     hlp = b''.join(struct.pack('<3I', DV0 + c, (0x7f4c << 16) | 4, OBJ) for c in dcodes)

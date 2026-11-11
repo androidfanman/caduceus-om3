@@ -9640,7 +9640,7 @@ ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pict
  exthu d1
  cmp AR_IC0,d1
  bcs 1f
- cmp AR_IC0 + 7,d1
+ cmp AR_IC0 + 32,d1
  bcc 1f
  add -AR_IC0,d1
  asl2 d1
@@ -9652,7 +9652,9 @@ ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pict
  .set AR_IC0, 0x7fe0              /* clear of Caduceus' 0x7f80..0x7fc3 (PR #26's ▲ id) */
  .balign 4
 ar_ent:
- .long ar_d0, ar_d1, ar_d2, ar_d3, ar_d4, ar_d5, ar_d6
+ .long ar_d0, ar_d1, ar_d2, ar_d3, ar_d4, ar_d5, ar_d6, ar_d7, ar_d8, ar_d9, ar_d10, ar_d11, ar_d12, ar_d13, ar_d14
+ .long ar_d15, ar_d16, ar_d17, ar_d18, ar_d19, ar_d20, ar_d21, ar_d22, ar_d23, ar_d24, ar_d25, ar_d26, ar_d27, ar_d28
+ .long ar_d29, ar_d30, ar_d31
 ar_d0:                            /* <6H3I> descriptors, filled by build.py (firmware/mkicons.py arrow_streams) */
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
@@ -9662,18 +9664,13 @@ ar_d1:
 ar_d2:
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
-ar_d3:                            /* v0.27 dial rows: CRT, ART, COLOR, MONO (mkicons.dial_streams) */
+/* v0.27 dial rows (mkicons.dial_streams): 3..6 the icons CRT, ART, COLOR, MONO; 7..31 the value pictures Normal,
+ * COLOR 1-4, FILM 1-20 (ids AR_IC0 + n) */
+ .irp n, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+ar_d\n:
  .short 14, 0, 0, 8, 0, 0
  .long 0, 0, 0
-ar_d4:
- .short 14, 0, 0, 8, 0, 0
- .long 0, 0, 0
-ar_d5:
- .short 14, 0, 0, 8, 0, 0
- .long 0, 0, 0
-ar_d6:
- .short 14, 0, 0, 8, 0, 0
- .long 0, 0, 0
+ .endr
 ar_l158:                          /* the arrow-pad mode's option labels (build.py: Direct Function's picture -> ours) */
  .space 12 * 3
 ar_vp:                            /* the same for the ✥ choice screen's picture list (picker variant 0x61571c48) */
@@ -9694,7 +9691,7 @@ ar_items:                         /* their item-info records, 28 B each (build.p
  .space 28 * 16
 ar_blk:                           /* the 7 shooting states' event blocks with ▲ / ◀ releases (build.py) */
  .space 3200
-ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-position picture streams */
- .space 8192
+ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-row picture streams */
+ .space 90112
 ar_pend:
 

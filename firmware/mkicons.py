@@ -29,11 +29,11 @@ PICTURES = [
 STYLE = {10: (0.88, (0.20, 0.40, 0.60))}   # width, coverage thresholds (as the FILM cells, matched to the stock lettering)
 
 
-def word(txt, cap, maxw, sx=1.0):
+def word(txt, cap, maxw, sx=1.0, font=None):
     """The word's ink coverage 0..1, cap height `cap`, `sx` times its width, squeezed to fit maxw; and its baseline row
     in that array."""
     S = 8
-    f = ImageFont.truetype(FONT, 100 * S)
+    f = ImageFont.truetype(font or FONT, 100 * S)
     im = Image.new('L', (100 * S * (len(txt) + 1), 200 * S), 0)
     ImageDraw.Draw(im).text((20 * S, 40 * S), txt, font=f, fill=255)
     a = np.array(im)
@@ -500,40 +500,68 @@ def arrows4_stream():
     return (p.shape[1], p.shape[0], encode11(bytes(p.flatten().tolist()), p.shape[1], p.shape[0]))
 
 
-# v0.27 Creative Dial rows (Button Function): the dial positions' names as row / picker-title icons, in the style of
-# the camera's boxed button names (Fn, CP, AF-ON: 40 px high, a light box with a 2 px light border inside a dark rim,
-# the word in the border colour, cap ~26 px). Our own drawing (DejaVu Sans Condensed).
+# v0.27 Creative Dial rows (Button Function), our own drawing (DejaVu Sans Condensed), matched to the camera's
+# measured style (owner, dr1: "look slightly off" next to the stock rows):
+# - row / picker-title icons as the camera's boxed button names (L-Fn 73 x 40): a light box (13) with a 1 px border (7)
+#   and a 1 px dark rim (8) outside it, small round corners; the word solid in 7, cap 28 px (rows 6..33), 4 px strokes;
+# - value pictures as the camera's "AF Stop" (118 x 40): letters filled 13, a 1 px outline 7, a 1 px rim 8 / 9, cap
+#   ~31 px (rows 3..34 filled).
 DIAL_WORDS = ('CRT', 'ART', 'COLOR', 'MONO')
+BOLD = '/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf'
 
 
-def dial_label(txt, cap=24, sx=0.82):
+def dial_label(txt, cap=28, maxw=74):
     import numpy as np
-    small, b = word(txt, cap, 200, sx)
+    small, b = word(txt, cap, maxw, 0.95)
     tw = small.shape[1]
-    H, W = 40, tw + 22
+    H, W = 40, tw + 14
     px = np.zeros((H, W), dtype=np.uint8)
     yy, xx = np.mgrid[0:H, 0:W]
-    def rrect(x0, y0, x1, y1, r):                    # inclusive box with corner radius r
+    def rrect(x0, y0, x1, y1, r):
         cx = np.clip(xx, x0 + r, x1 - r); cy = np.clip(yy, y0 + r, y1 - r)
         return ((xx - cx) ** 2 + (yy - cy) ** 2 <= r * r + 0.5) & (xx >= x0) & (xx <= x1) & (yy >= y0) & (yy <= y1)
-    outer = rrect(2, 0, W - 3, H - 1, 5)
-    rim = rrect(3, 1, W - 4, H - 2, 4)
-    inner = rrect(4, 2, W - 5, H - 3, 3)
-    px[outer] = 8
-    px[rim] = 7
+    px[rrect(2, 0, W - 3, H - 1, 4)] = 8
+    px[rrect(3, 1, W - 4, H - 2, 3)] = 7
+    inner = rrect(4, 2, W - 5, H - 3, 2)
     px[inner] = 13
-    y0, x0 = int(round(32 - b)), (W - tw) // 2
-    cov = np.zeros((H, W)); cov[y0:y0 + small.shape[0], x0:x0 + tw] = small[:H - y0, :]
-    px[(cov >= 0.25) & inner] = 15
-    px[(cov >= 0.40) & inner] = 14
-    px[(cov >= 0.55) & inner] = 7
+    y0, x0 = int(round(33.5 - b)), (W - tw) // 2
+    cov = np.zeros((H, W)); h = min(small.shape[0], H - y0); cov[y0:y0 + h, x0:x0 + tw] = small[:h, :]
+    px[(cov >= 0.3) & inner] = 14
+    px[(cov >= 0.42) & inner] = 7
     return px
 
 
+def value_picture(txt, cap=31, maxw=150):
+    """The camera's value-picture style ("AF Stop"): letters filled 13 (14 on soft edges), a 1 px outline 7, a 1 px
+    rim 8 (9 where it only touches diagonally); 40 px high, baseline row 34."""
+    import numpy as np
+    small, b = word(txt, cap, maxw, 0.86)
+    tw = small.shape[1]
+    H, W = 40, tw + 6
+    cov = np.zeros((H, W))
+    y0 = int(round(34.5 - b)); h = min(small.shape[0], H - 1 - y0)
+    cov[y0:y0 + h, 3:3 + tw] = small[:h, :]
+    fill = cov >= 0.4
+    cross = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], bool)
+    o1 = ndimage.binary_dilation(fill, structure=cross) & ~fill
+    o2 = ndimage.binary_dilation(fill | o1, structure=cross) & ~(fill | o1)
+    o2d = ndimage.binary_dilation(fill | o1, structure=np.ones((3, 3), bool)) & ~(fill | o1 | o2)
+    px = np.zeros((H, W), dtype=np.uint8)
+    px[o2d] = 9
+    px[o2] = 8
+    px[o1] = 7
+    px[fill] = 13
+    px[fill & (cov < 0.6)] = 14
+    return px
+
+
+def dial_value_words():
+    return ['Normal'] + ['COLOR %d' % k for k in range(1, 5)] + ['FILM %d' % n for n in range(1, 21)]
+
+
 def dial_streams():
-    """[(w, h, stream)] for CRT, ART, COLOR, MONO."""
+    """[(w, h, stream)]: the icons CRT, ART, COLOR, MONO, then the 25 value pictures (Normal, COLOR 1-4, FILM 1-20)."""
     out = []
-    for t in DIAL_WORDS:
-        p = dial_label(t)
+    for p in [dial_label(t) for t in DIAL_WORDS] + [value_picture(t) for t in dial_value_words()]:
         out.append((p.shape[1], p.shape[0], encode11(bytes(p.flatten().tolist()), p.shape[1], p.shape[0])))
     return out
