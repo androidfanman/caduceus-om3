@@ -2677,3 +2677,5 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   MONO 1, COLOR (unmapped) -> back to the user's own COLOR 1, ART -> FILM 16. Not checked: power-off persistence;
   power-on on a mapped position is still stock until the first turn (known, dm6).
 - dr1 (firmware/VERSION "v0.27-dev (dial rows 1)"): E1479999.BIN d06dce5b…, GUIDES.BIN e7ec47d8… (LABELS / TONES / BUNDLES as ak6).
+- **Camera (dr1, 2026-11-10): works** (owner: "its works!!!!!!!"). Next: the polish round (body diagram lines for the
+  arrow and dial rows, power-on on a mapped position, icon look), then #30.
