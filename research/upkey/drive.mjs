@@ -126,6 +126,23 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     console.log(isSet ? 'SET' : 'GET', sid, isSet ? val : '', '->', out, 'steps', k);
     hits.push({ step: cur, pc: isSet ? 'set' : 'get', d0: out, d1: sid, d2: val, d3: 0, a0: '' });
   }
+  else if (t.startsWith('mem:')) {               // mem:ADDR:LEN:FILE (hex): raw memory to FILE
+    const [a_, n_, f_] = t.slice(4).split(':'); fs.writeFileSync(f_, Buffer.from(lab.sim.read(parseInt(a_, 16) >>> 0, parseInt(n_, 16))));
+  }
+  else if (t.startsWith('run:')) {               // run:ADDR:D2:A3  `call ADDR,[d2,d3,a2,a3],20` (hex): steps to return, d0
+    const [fa, d2s, a3s] = t.slice(4).split(':'); const FN = parseInt(fa, 16) >>> 0;
+    const dd = Debugger.attach(lab.sim, { lab }); const saved = dd.m.getRegs().slice();
+    const sp = ((saved[8] - 0x800) & ~3) >>> 0, stub = (sp - 0x7000) >>> 0;
+    const le = (v) => [v & 255, v >>> 8 & 255, v >>> 16 & 255, v >>> 24 & 255];
+    const rel = (FN - stub) | 0;
+    dd.write(stub, Uint8Array.from([0xdd, ...le(rel), 0xf0, 20, 0xcb, 0xcb]));
+    const r = saved.slice(); r[9] = stub; r[8] = sp; r[2] = parseInt(d2s, 16); r[7] = parseInt(a3s, 16); dd.m.setRegs(r);
+    const hist = new Map(); const prof = !!process.env.PROF && t.endsWith(':p');
+    let k = 0; while ((dd.m.getRegs()[9] >>> 0) !== ((stub + 7) >>> 0) && k < 50000000) { if (prof) { const pc = dd.m.getRegs()[9] >>> 0; hist.set(pc, (hist.get(pc) || 0) + 1); } dd.m.step(); k++; }
+    const out = dd.m.getRegs()[0] | 0; dd.m.setRegs(saved);
+    console.log('RUN', fa, d2s, a3s, '->', out, 'steps', k);
+    if (prof) fs.writeFileSync(process.env.PROF, JSON.stringify([...hist.entries()]));
+  }
   else if (t.startsWith('robj:')) {               // robj:SID  the rule-target object (hash 0x62a81654, sid & 63) and its bytes
     const sid = Number(t.slice(5)); const rd32 = (a) => { const b = lab.sim.read(a >>> 0, 4); return (b[0] | b[1] << 8 | b[2] << 16 | b[3] << 24) >>> 0; };
     let n = rd32((0x62a81654 + 4 * (sid & 63)) >>> 0), obj = 0;

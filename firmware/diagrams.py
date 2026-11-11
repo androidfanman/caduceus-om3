@@ -149,7 +149,7 @@ def pack():
         body = b''
         for o in ops:
             if o[0] == 'ovl':
-                body += struct.pack('<8H', 1, srcs.index(o[1]), *o[2:6], 0, 0)
+                body += struct.pack('<8H', 1, o[1], *o[2:6], 0, 0)          # a = the stock picture (0..8)
             elif o[0] == 'fill':
                 body += struct.pack('<8H', 2, o[1], *o[2:6], 0, 0)
             elif o[0] == 'stamp':

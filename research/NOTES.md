@@ -2730,3 +2730,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   their last row (header u16 5 + k); the cleaning rectangles tightened to the old dot and line. Estimated work per
   picture 1.2-3.3 M (about 2x less). om-emu: all nine pictures pixel-identical to diagrams.compose (decoded memory).
   dg2 (VERSION "v0.27-dev (diagrams 2)"): E1479999.BIN 2d4fd57b…, GUIDES.BIN 782c0fae….
+- Instruction counts (om-emu, drive.mjs `run:ADDR:D2:A3`, which calls dg_build directly and counts steps; `PROF=file`
+  with a `:p` suffix writes a per-PC histogram): dg1 6.6-10.0 M a picture, dg2 2.6-5.0 M. dg2 was not sent.
+- dg3: the output is the base picture's stream itself, copied word by word (5 tokens a 64-bit word), with only each
+  row's span re-encoded; the new span gets as many tokens as the old one modulo 5 (`dg_pad` splits runs), so the rest
+  of the stream stays word-aligned and is copied as words again. Row starts: `dg_rix` (447 u16 per stock picture:
+  word offset | slot), made once per power-on by `dg_prep` (stock runs never cross a row's end: checked for all nine).
+  `dg_seek` skips whole words by adding their 5 run nibbles (WSUM); other pictures' pixels are read only for the
+  op's own row segment (no full decode). Counts: 0.6-1.3 M a picture (first visit 0.9-1.7 M with the row index),
+  ~8x less than dg1. All nine pixel-identical to diagrams.compose (om-emu). ext12 240 KB of 256.
+  dg3 (VERSION "v0.27-dev (diagrams 3)"): E1479999.BIN 65141864…, GUIDES.BIN 9c60d9cb….
+- Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
+  line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

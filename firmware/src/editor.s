@@ -9774,7 +9774,11 @@ dg_get:                           /* from ar_ic (jmp; the picture getter's frame
  movm (sp),[d2,d3,a2,a3]
  jmp ic_get
 
-/* dg_build: `call dg_build,[d2,d3,a2,a3],20`, d2 = k, a3 = buffer index -> d0 1 made / 0 not. Uses everything. */
+/* dg_build: `call dg_build,[d2,d3,a2,a3],20`, d2 = k, a3 = buffer index -> d0 1 made / 0 not. Uses everything.
+ * dg3 (camera dg1 / dg2: the menu hung): the output is the base picture's stream itself, copied word by word, with
+ * only the tokens of each row's span (the pixels the ops touch, widened to whole tokens) encoded again; the new span
+ * gets as many tokens as the old one modulo 5 (runs split if needed), so everything after it stays word-aligned and
+ * is copied as words again. Row starts come from dg_rix (made once per stock picture by dg_prep). */
 dg_build:
  mov (dg_cnt),d0                  /* builds so far (diagnostics) */
  add 1,d0
@@ -9785,53 +9789,34 @@ dg_build:
  add d0,a0
  mov (a0),a2                      /* the program */
  mov a2,(dg_pg)
- movhu (a2),d0
- mov d0,(dg_ns)
- clr d3
-1:                                /* source d3: its stock picture -> decoder state */
+ movhu (a2),d3                    /* its sources ready (stock index = id - 0x3f7b) */
+1:
+ cmp 0,d3
+ beq 2f
+ add -1,d3
  mov d3,d0
  add d0,d0
  add 2,d0
  mov a2,a0
  add d0,a0
- movhu (a0),d0                    /* stock id */
- asl2 d0
- mov (0x60379740),a0              /* the picture table */
- add d0,a0
- mov (a0),a0                      /* its descriptor */
- mov a0,d0
+ movhu (a0),d0
+ add -0x3f7b,d0
+ call dg_prep,[d2,d3,a2,a3],20
  cmp 0,d0
  beq 90f
- movhu (a0),d0
- cmp 14,d0
- bne 90f
- movhu (2,a0),d0
- cmp DGW,d0
- bne 90f
- movhu (4,a0),d0
- cmp DGH,d0
- bne 90f
- mov (16,a0),d0                   /* payload (uncached) -> cached, past the 4-byte header */
- mov d0,d1
- and 0xf0000000,d1
- cmp 0xa0000000,d1
- bne 2f
- add -0x40000000,d0
+ bra 1b
 2:
- add 4,d0
- mov d3,d1
- asl 4,d1
- mov dg_st,a1
- add d1,a1
- mov d0,(a1)
+ movhu (2,a2),d0                  /* the base */
+ add -0x3f7b,d0
+ mov d0,(dg_bi)
+ asl2 d0
+ mov dg_pay,a0
+ add d0,a0
+ mov (a0),d0
+ mov d0,(dg_bp)
+ mov d0,(dg_cw)                   /* the copy cursor: its first token */
  clr d0
- mov d0,(4,a1)
- mov d0,(8,a1)
- mov d0,(12,a1)
- add 1,d3
- mov (dg_ns),d0
- cmp d0,d3
- bcs 1b
+ mov d0,(dg_csl)
  mov dg_b0,a0                     /* the output, written through the uncached alias */
  mov a3,d0
  cmp 0,d0
@@ -9855,7 +9840,7 @@ dg_build:
  mov d0,(dg_n)
  mov d0,(dg_ovf)
  mov d0,(dg_y)
-4:                                /* each row: the span the ops touch, dg_xa .. dg_xb (none: both DGW) */
+4:                                /* each row: the span the ops touch, dg_xa .. dg_xb */
  mov DGW,d0
  mov d0,(dg_xa)
  clr d0
@@ -9899,72 +9884,51 @@ dg_build:
  mov (dg_xa),d0
  mov (dg_xb),d1
  cmp d0,d1
- bhi 46f
- mov DGW,d0
- mov d0,(dg_xa)
- mov d0,(dg_xb)
-46:
- mov (dg_xb),d1
+ bls 80f                          /* nothing on this row */
  cmp DGW,d1
- bls 47f
+ bls 46f
  mov DGW,d1
  mov d1,(dg_xb)
-47:                               /* the base: its runs as they are up to dg_xa, pixels to dg_xb */
- clr d0
- mov d0,(dg_x)
- mov dg_st,a1
- mov (dg_xa),d0
- clr d1
- call dg_run,[d2,d3,a2,a3],20
- mov (dg_rp),a0
- mov a0,(dg_wr)
- mov dg_st,a1
- mov (dg_xb),d0
- mov 1,d1
- call dg_run,[d2,d3,a2,a3],20
- mov 1,d3                         /* the other sources: pixels within the span, until their last row */
-5:
- mov (dg_ns),d0
- cmp d0,d3
- bcc 59f
- mov (dg_pg),a0
- mov d3,d0
- add d0,d0
- add 10,d0                        /* header u16 5 + k: source k's last row */
- add d0,a0
- movhu (a0),d0
+46:                               /* the base row's tokens: the first one ending past xa */
+ mov (dg_bi),d0
  mov (dg_y),d1
- cmp d0,d1
- bcc 58f
- mov d3,d1
- asl 4,d1
- mov dg_st,a1
- add d1,a1
- mov a1,(dg_cs)
- mov d3,d0
- asl2 d0
- mov dg_rp,a0
- add d0,a0
- mov (a0),a0
- mov a0,(dg_wr)
- clr d0
- mov d0,(dg_x)
- mov (dg_cs),a1
+ call dg_rowc,[],0                /* a1, d1 = the row's first token */
+ clr d3                           /* x */
  mov (dg_xa),d0
- mov 2,d1
- call dg_run,[d2,d3,a2,a3],20
- mov (dg_cs),a1
+ call dg_seek,[d2,d3,a2,a3],20
+ mov (dg_sx),d3
+ mov d3,(dg_xs)                   /* xa' */
+ mov a1,a0                        /* copy the base up to that token */
+ mov d1,d0
+ call dg_copy,[d2,d3,a2,a3],20
+ mov (dg_cw),a1                   /* decode tokens from there into row 0 until x >= xb: their count */
+ mov (dg_csl),d1
+ mov (dg_xs),d3
+ clr d0
+ mov d0,(dg_tc)
+ mov dg_r0,a3
+49:
  mov (dg_xb),d0
- mov 1,d1
- call dg_run,[d2,d3,a2,a3],20
- mov (dg_cs),a1
- mov DGW,d0
- mov 2,d1
- call dg_run,[d2,d3,a2,a3],20
-58:
+ cmp d0,d3
+ bcc 50f
+ call dg_tk,[d2],8
+ mov (dg_tc),d2
+ add 1,d2
+ mov d2,(dg_tc)
+ mov d0,d2
+ lsr 4,d2
+ and 15,d0
+ add 1,d0
+491:
+ movbu d2,(d3,a3)
  add 1,d3
- bra 5b
-59:
+ add -1,d0
+ bne 491b
+ bra 49b
+50:
+ mov d3,(dg_xe)                   /* xb' */
+ mov a1,(dg_cw)                   /* the base continues after the span */
+ mov d1,(dg_csl)
  mov (dg_pg),a2                   /* the ops */
  movhu (8,a2),d2
  mov a2,a3
@@ -9984,51 +9948,71 @@ dg_build:
  add 16,a3
  add -1,d2
  bra 6b
-7:                                /* encode the span's pixels */
- mov (dg_rp),a2
- mov (dg_xa),d3
+7:                                /* encode xa' .. xb' into dg_tq */
+ mov dg_r0,a2
+ mov dg_tq,a1
+ mov (dg_xs),d3
+ mov (dg_xe),a0
 8:
- mov (dg_xb),d0
+ mov a0,d0
  cmp d0,d3
  bcc 89f
  movbu (d3,a2),d2
- mov 1,a3
-81:
- mov a3,d0
- cmp 16,d0
- bcc 82f
+ mov d3,d1                        /* the run's limit: min(x + 16, xb') */
+ add 16,d1
+ cmp a0,d1
+ bls 83f
+ mov a0,d1
+83:
+ mov d1,a3
  mov d3,d1
- add d0,d1
- mov (dg_xb),d0
- cmp d0,d1
+ add 1,d1
+81:
+ cmp a3,d1
  bcc 82f
  movbu (d1,a2),d0
  cmp d2,d0
  bne 82f
- add 1,a3
+ add 1,d1
  bra 81b
 82:
- mov d2,d0
+ mov d2,d0                        /* value << 4 | run - 1 */
  asl 4,d0
- mov a3,d1
+ sub d3,d1
  add -1,d1
  or d1,d0
- call dg_put,[],0
- mov a3,d0
- add d0,d3
+ movhu d0,(a1)
+ add 2,a1
+ add 1,d1
+ add d1,d3
  bra 8b
-89:                               /* then the base's runs to the end of the row */
- mov (dg_xb),d0
- mov d0,(dg_x)
- mov dg_st,a1
- mov DGW,d0
- clr d1
- call dg_run,[d2,d3,a2,a3],20
+89:
+ mov a1,(dg_tqe)
+ call dg_pad,[d2,d3,a2,a3],20     /* as many tokens as the old span, modulo 5 */
+ cmp 0,d0
+ beq 90f
+ mov dg_tq,a2                     /* out */
+891:
+ mov (dg_tqe),d0
+ mov a2,d1
+ cmp d0,d1
+ bcc 80f
+ movhu (a2),d0
+ add 2,a2
+ call dg_put,[],0
+ bra 891b
+80:
  mov (dg_y),d0
  add 1,d0
  mov d0,(dg_y)
  cmp DGH,d0
  bcs 4b
+ mov (dg_bi),d0                   /* the rest of the base */
+ mov DGH,d1
+ call dg_rowc,[],0
+ mov a1,a0
+ mov d1,d0
+ call dg_copy,[d2,d3,a2,a3],20
  mov (dg_n),d0                    /* the last, partial word */
  cmp 0,d0
  beq 85f
@@ -10043,8 +10027,7 @@ dg_build:
  mov (dg_ovf),d0
  cmp 0,d0
  bne 90f
- mov (dg_pg),a2                   /* the descriptor */
- mov dg_d0,a0
+ mov dg_d0,a0                     /* the descriptor */
  mov (dg_bs),d1
  mov dg_b0 + 0x40000000,d0
  cmp d0,d1
@@ -10061,195 +10044,27 @@ dg_build:
  clr d0
  ret [d2,d3,a2,a3],20
 
-/* dg_tok: `call dg_tok,[],0`, a1 = a decoder state {word, token 0..4, value, run left} -> d0 the next token (12 bits:
- * value << 4 | run - 1). Uses d1, a0. */
-dg_tok:
- mov (a1),a0
- mov (4,a1),d1
- cmp 0,d1
- bne 1f
- mov (a0),d0
- and 0xfff,d0
- bra 8f
-1:
- cmp 1,d1
- bne 2f
- mov (a0),d0
- lsr 12,d0
- and 0xfff,d0
- bra 8f
-2:
- cmp 2,d1
- bne 3f
- mov (a0),d0
- lsr 24,d0
- mov (4,a0),d1
- and 15,d1
- asl 8,d1
- or d1,d0
- mov 2,d1
- bra 8f
-3:
- cmp 3,d1
- bne 4f
- mov (4,a0),d0
- lsr 4,d0
- and 0xfff,d0
- bra 8f
-4:
- mov (4,a0),d0
- lsr 16,d0
- and 0xfff,d0
- add 8,a0
- mov a0,(a1)
- clr d1
- mov d1,(4,a1)
- ret [],0
-8:
- add 1,d1
- mov d1,(4,a1)
- ret [],0
-
-/* dg_run: `call dg_run,[d2,d3,a2,a3],20`, a1 = a source's decoder state, d0 = up to x, d1 = 0 put its runs into the
- * output as they are / 1 write its pixels into dg_wr's row / 2 skip; from dg_x, which ends at d0 */
-dg_run:
- mov d0,(dg_lim)
- mov d1,(dg_md)
- mov a1,a2
- mov (dg_x),d3
-1:
- mov (dg_lim),d0
- cmp d0,d3
- bcc 9f
- mov (12,a2),d2
- cmp 0,d2
- bne 2f
- mov a2,a1
- call dg_tok,[],0
- mov d0,d1
- lsr 4,d1
- mov d1,(8,a2)
- and 15,d0
- add 1,d0
- mov d0,d2
-2:
- mov (dg_lim),d0                  /* n = min(run left, limit - x) */
- sub d3,d0
- cmp d0,d2
- bcc 3f
- mov d2,d0
-3:
- sub d0,d2
- mov d2,(12,a2)
- mov (dg_md),d1
- cmp 0,d1
- bne 4f
- mov d0,a3
- mov (8,a2),d1
- asl 4,d1
- add -1,d0
- or d1,d0
- call dg_put,[],0
- mov a3,d0
- add d0,d3
- bra 1b
-4:
- cmp 1,d1
- bne 5f
- mov (8,a2),d1
- mov (dg_wr),a0
-41:
- movbu d1,(d3,a0)
- add 1,d3
- add -1,d0
- bne 41b
- bra 1b
-5:
- add d0,d3
- bra 1b
-9:
- mov d3,(dg_x)
- ret [d2,d3,a2,a3],20
-
-/* dg_op: `call dg_op,[d2,d3,a2,a3],20`, a3 = an op {type, a, x0, x1, y0, y1, w, offset} for this row (dg_y) */
-dg_op:
- movhu (a3),d0
- movhu (4,a3),d2
- movhu (6,a3),d3
- mov (dg_rp),a2
- cmp 1,d0
- bne 2f
- movhu (2,a3),d0                  /* 1: copy from source a */
+/* dg_rowc: `call dg_rowc,[],0`, d0 = stock index, d1 = row 0..446 -> a1 = the word, d1 = the slot of the row's first
+ * token (dg_rix entries: byte offset of the word | slot). Uses d0. */
+dg_rowc:
  asl2 d0
- mov dg_rp,a0
- add d0,a0
- mov (a0),a1
-1:
- cmp d3,d2
- bcc 9f
- movbu (d2,a1),d0
- movbu d0,(d2,a2)
- add 1,d2
- bra 1b
-2:
- cmp 2,d0
- bne 3f
- movhu (2,a3),d1                  /* 2: fill with a */
-21:
- cmp d3,d2
- bcc 9f
- movbu d1,(d2,a2)
- add 1,d2
- bra 21b
-3:
- cmp 3,d0
- bne 4f
- mov (dg_y),d0                    /* 3: stamp: its row y - y0 (w bytes a row, at offset), 0 = clear */
- movhu (8,a3),d1
- sub d1,d0
- movhu (14,a3),d1
- mov dg_sb,a1
+ mov dg_rxp,a1
+ add d0,a1
+ mov (a1),a1
+ add d1,d1
  add d1,a1
- movhu (12,a3),d1
-32:
- cmp 0,d0
- beq 33f
- add d1,a1
- add -1,d0
- bra 32b
-33:
- mov a1,d0
- sub d2,d0
- mov d0,a1
-34:
- cmp d3,d2
- bcc 9f
- movbu (d2,a1),d0
- cmp 0,d0
- beq 35f
- movbu d0,(d2,a2)
-35:
- add 1,d2
- bra 34b
-4:
- mov d2,d0                        /* 4: bridge [x0, x1) when the pixels left of x0 and at x1 are drawn */
- add -1,d0
- movbu (d0,a2),d1
- cmp DGBG,d1
- beq 9f
- movbu (d3,a2),d0
- cmp DGBG,d0
- beq 9f
-41:
- cmp d3,d2
- bcc 9f
- movbu d1,(d2,a2)
- add 1,d2
- bra 41b
-9:
- ret [d2,d3,a2,a3],20
+ movhu (a1),d1
+ mov dg_pay,a1
+ add d0,a1
+ mov (a1),a1
+ mov d1,d0
+ and 0xfff8,d0
+ add d0,a1
+ and 7,d1
+ ret [],0
 
-/* dg_put: `call dg_put,[],0`, d0 = a token: 5 to a 64-bit word, written at dg_out while below dg_end. Uses d1, a0. */
+/* dg_put: `call dg_put,[],0`, d0 = a token: 5 to a 64-bit word (dg_n tokens so far), written at dg_out while below
+ * dg_end. Uses d1, a0. */
 dg_put:
  mov (dg_n),d1
  cmp 0,d1
@@ -10315,6 +10130,451 @@ dg_put:
  mov d1,(dg_n)
  ret [],0
 
+/* WSUM: d2 = the pixels of the 5 tokens of the word at a1 (their run nibbles: bits 0, 12, 24 of the low word, 4, 16
+ * of the high, each + 1). Uses d0; d1 = 0 after (the word's first slot). */
+ .macro WSUM
+ mov (a1),d2
+ and 0x0f00f00f,d2
+ mov d2,d0
+ lsr 12,d0
+ add d0,d2
+ lsr 12,d0
+ add d0,d2
+ and 0xfff,d2
+ mov (4,a1),d0
+ and 0x000f00f0,d0
+ mov d0,d1
+ lsr 12,d1
+ add d1,d0
+ lsr 4,d0
+ and 0x3f,d0
+ add d0,d2
+ clr d1
+ add 5,d2
+ .endm
+
+/* dg_seek: `call dg_seek,[d2,d3,a2,a3],20`, a1 / d1 = a token at x = d3, d0 = a target x (inside the row) ->
+ * a1 / d1 = the first token from there that ends past the target, dg_sx = its x. Whole words (5 tokens) are skipped by
+ * adding their 5 run lengths. */
+dg_seek:
+ mov d0,(dg_stg)
+1:
+ cmp 0,d1
+ beq 2f
+ mov a1,a2
+ mov d1,a3
+ call dg_tk,[d2],8
+ and 15,d0
+ add 1,d0
+ add d3,d0
+ mov (dg_stg),d2
+ cmp d2,d0
+ bhi 8f
+ mov d0,d3
+ bra 1b
+2:
+ WSUM
+ add d3,d2                        /* x after the word */
+ mov (dg_stg),d0
+ cmp d0,d2
+ bhi 3f
+ mov d2,d3
+ add 8,a1
+ bra 2b
+3:
+ mov a1,a2
+ mov d1,a3
+ call dg_tk,[d2],8
+ and 15,d0
+ add 1,d0
+ add d3,d0
+ mov (dg_stg),d2
+ cmp d2,d0
+ bhi 8f
+ mov d0,d3
+ bra 3b
+8:
+ mov a2,a1
+ mov a3,d1
+ mov d3,(dg_sx)
+ ret [d2,d3,a2,a3],20
+
+/* dg_tk: `call dg_tk,[d2],8`, a1 = a token's word, d1 = its slot 0..4 -> d0 = the token; a1 / d1 moved to the next */
+dg_tk:
+ cmp 0,d1
+ bne 1f
+ mov (a1),d0
+ and 0xfff,d0
+ bra 8f
+1:
+ cmp 1,d1
+ bne 2f
+ mov (a1),d0
+ lsr 12,d0
+ and 0xfff,d0
+ bra 8f
+2:
+ cmp 2,d1
+ bne 3f
+ mov (a1),d0
+ lsr 24,d0
+ mov (4,a1),d2
+ and 15,d2
+ asl 8,d2
+ or d2,d0
+ bra 8f
+3:
+ cmp 3,d1
+ bne 4f
+ mov (4,a1),d0
+ lsr 4,d0
+ and 0xfff,d0
+ bra 8f
+4:
+ mov (4,a1),d0
+ lsr 16,d0
+ and 0xfff,d0
+ add 8,a1
+ clr d1
+ ret [d2],8
+8:
+ add 1,d1
+ ret [d2],8
+
+/* dg_copy: `call dg_copy,[d2,d3,a2,a3],20`: the base's tokens from the copy cursor (dg_cw, dg_csl) up to a0 / d0
+ * (word, slot) into the output: single tokens to a word boundary, then whole words as they are, then single tokens.
+ * The output's slot equals the cursor's (dg_build keeps them in step). */
+dg_copy:
+ mov a0,a2
+ mov d0,d3
+ mov (dg_cw),a1
+ mov (dg_csl),d1
+1:
+ cmp 0,d1
+ beq 2f
+ cmp a2,a1
+ bne 11f
+ cmp d3,d1
+ beq 9f
+11:
+ call dg_tk,[d2],8
+ mov d1,d2
+ call dg_put,[],0
+ mov d2,d1
+ bra 1b
+2:
+ cmp a2,a1
+ bcc 3f
+ mov (dg_out),a0
+ mov a0,d0
+ mov (dg_end),d2
+ cmp d2,d0
+ bcc 21f
+ mov (a1),d0
+ mov d0,(a0)
+ mov (4,a1),d0
+ mov d0,(4,a0)
+ add 8,a0
+ mov a0,(dg_out)
+ add 8,a1
+ bra 2b
+21:
+ mov 1,d0
+ mov d0,(dg_ovf)
+ add 8,a1
+ bra 2b
+3:
+ cmp d3,d1
+ bcc 9f
+ call dg_tk,[d2],8
+ mov d1,d2
+ call dg_put,[],0
+ mov d2,d1
+ bra 3b
+9:
+ mov a1,(dg_cw)
+ mov d1,(dg_csl)
+ ret [d2,d3,a2,a3],20
+
+/* dg_pad: `call dg_pad,[d2,d3,a2,a3],20`: dg_tq .. dg_tqe (the new span's tokens) grown by splitting runs until its
+ * count is the old span's (dg_tc) modulo 5 -> d0 1, or 0 when no run can be split */
+dg_pad:
+1:
+ mov (dg_tqe),d0
+ mov dg_tq,d1
+ sub d1,d0
+ lsr 1,d0                         /* new count */
+ mov (dg_tc),d1
+ sub d0,d1                        /* old - new */
+2:
+ cmp 0,d1
+ bge 3f
+ add 5,d1
+ bra 2b
+3:
+ cmp 5,d1
+ bcs 4f
+ add -5,d1
+ bra 3b
+4:
+ cmp 0,d1
+ beq 8f
+ mov dg_tq,a2                     /* the longest run */
+ clr d3
+ mov 0,a3
+5:
+ mov (dg_tqe),d0
+ mov a2,d1
+ cmp d0,d1
+ bcc 6f
+ movhu (a2),d0
+ and 15,d0
+ cmp d3,d0
+ bls 51f
+ mov d0,d3
+ mov a2,a3
+51:
+ add 2,a2
+ bra 5b
+6:
+ cmp 0,d3                         /* run - 1 = 0: nothing to split */
+ beq 9f
+ mov (dg_tqe),a2                  /* make room after it */
+ mov a3,a1
+ add 2,a1
+7:
+ mov a2,d0
+ mov a1,d1
+ cmp d1,d0
+ bls 71f
+ add -2,a2
+ movhu (a2),d0
+ movhu d0,(2,a2)
+ bra 7b
+71:
+ mov (dg_tqe),a2
+ add 2,a2
+ mov a2,(dg_tqe)
+ movhu (a3),d0                    /* v, r -> v, r / 2 and v, r - r / 2 */
+ mov d0,d2
+ and 0xfff0,d2
+ and 15,d0
+ add 1,d0
+ mov d0,d1
+ lsr 1,d1
+ sub d1,d0
+ add -1,d1
+ or d2,d1
+ movhu d1,(a3)
+ add -1,d0
+ or d2,d0
+ movhu d0,(2,a3)
+ bra 1b
+8:
+ mov 1,d0
+ ret [d2,d3,a2,a3],20
+9:
+ clr d0
+ ret [d2,d3,a2,a3],20
+
+/* dg_prep: `call dg_prep,[d2,d3,a2,a3],20`, d0 = stock index 0..8 -> d0 1 ready / 0 not: its payload (cached, past the
+ * header) in dg_pay and its row starts in dg_rix, once (a full walk of its tokens) */
+dg_prep:
+ mov d0,(dg_pi)
+ mov dg_rok,a0
+ add d0,a0
+ movbu (a0),d1
+ cmp 0,d1
+ bne 80f
+ add 0x3f7b,d0
+ asl2 d0
+ mov (0x60379740),a0              /* the picture table */
+ add d0,a0
+ mov (a0),a0
+ mov a0,d0
+ cmp 0,d0
+ beq 90f
+ movhu (a0),d0
+ cmp 14,d0
+ bne 90f
+ movhu (2,a0),d0
+ cmp DGW,d0
+ bne 90f
+ movhu (4,a0),d0
+ cmp DGH,d0
+ bne 90f
+ mov (16,a0),d0                   /* payload (uncached) -> cached, past the 4-byte header */
+ mov d0,d1
+ and 0xf0000000,d1
+ cmp 0xa0000000,d1
+ bne 1f
+ add -0x40000000,d0
+1:
+ add 4,d0
+ mov (dg_pi),d1
+ asl2 d1
+ mov dg_pay,a0
+ add d1,a0
+ mov d0,(a0)
+ mov d0,a1
+ mov d0,(dg_t1)
+ mov dg_rxp,a0
+ add d1,a0
+ mov (a0),a3                      /* its 447 entries */
+ clr d1
+ clr d0
+ movhu d0,(a3)
+ add 2,a3
+ clr d3                           /* x */
+ mov 0,a2                         /* rows done */
+2:
+ cmp 0,d1                         /* a whole word inside the row: add its 5 runs */
+ bne 21f
+ WSUM
+ add d3,d2
+ cmp DGW,d2
+ bcc 21f
+ mov d2,d3
+ add 8,a1
+ bra 2b
+21:
+ call dg_tk,[d2],8
+ and 15,d0
+ add 1,d0
+ add d0,d3
+ cmp DGW,d3
+ bcs 2b
+ bhi 90f                          /* a run across a row's end: not ours to handle */
+ clr d3
+ mov a1,d0                        /* the next row's first token */
+ mov (dg_t1),d2
+ sub d2,d0
+ cmp 0xfff8,d0
+ bhi 90f
+ or d1,d0
+ movhu d0,(a3)
+ add 2,a3
+ add 1,a2
+ mov a2,d0
+ cmp DGH,d0
+ bcs 2b
+ mov dg_rok,a0
+ mov (dg_pi),d1
+ add d1,a0
+ mov 1,d0
+ movbu d0,(a0)
+80:
+ mov 1,d0
+ ret [d2,d3,a2,a3],20
+90:
+ clr d0
+ ret [d2,d3,a2,a3],20
+
+/* dg_op: `call dg_op,[d2,d3,a2,a3],20`, a3 = an op {type, a, x0, x1, y0, y1, w, offset} for this row (dg_y) */
+dg_op:
+ movhu (a3),d0
+ movhu (4,a3),d2
+ movhu (6,a3),d3
+ mov (dg_rp),a2
+ cmp 1,d0
+ bne 2f
+ mov d2,(dg_ox0)                  /* 1: stock picture a's pixels x0 .. x1 of this row, straight into row 0 */
+ mov d3,(dg_ox1)
+ movhu (2,a3),d0
+ mov (dg_y),d1
+ call dg_rowc,[],0
+ clr d3                           /* x */
+ mov (dg_ox0),d0
+ call dg_seek,[d2,d3,a2,a3],20    /* the token holding x0 */
+ mov (dg_sx),d3
+12:
+ mov (dg_ox1),d0
+ cmp d0,d3
+ bcc 9f
+ call dg_tk,[d2],8
+ mov d0,d2
+ lsr 4,d2                         /* value */
+ and 15,d0
+ add 1,d0
+ add d3,d0                        /* its end */
+ mov d1,(dg_osl)
+ mov (dg_ox1),d1
+ cmp d1,d0
+ bls 13f
+ mov d1,d0                        /* to min(end, x1) */
+13:
+ mov (dg_ox0),d1
+ cmp d1,d3
+ bcc 14f
+ mov d1,d3                        /* from max(x, x0) */
+14:
+ cmp d0,d3
+ bcc 15f
+ movbu d2,(d3,a2)
+ add 1,d3
+ bra 14b
+15:
+ mov d0,d3
+ mov (dg_osl),d1
+ bra 12b
+2:
+ cmp 2,d0
+ bne 3f
+ movhu (2,a3),d1                  /* 2: fill with a */
+21:
+ cmp d3,d2
+ bcc 9f
+ movbu d1,(d2,a2)
+ add 1,d2
+ bra 21b
+3:
+ cmp 3,d0
+ bne 4f
+ mov (dg_y),d0                    /* 3: stamp: its row y - y0 (w bytes a row, at offset), 0 = clear */
+ movhu (8,a3),d1
+ sub d1,d0
+ movhu (14,a3),d1
+ mov dg_sb,a1
+ add d1,a1
+ movhu (12,a3),d1
+32:
+ cmp 0,d0
+ beq 33f
+ add d1,a1
+ add -1,d0
+ bra 32b
+33:
+ mov a1,d0
+ sub d2,d0
+ mov d0,a1
+34:
+ cmp d3,d2
+ bcc 9f
+ movbu (d2,a1),d0
+ cmp 0,d0
+ beq 35f
+ movbu d0,(d2,a2)
+35:
+ add 1,d2
+ bra 34b
+4:
+ mov d2,d0                        /* 4: bridge [x0, x1) when the pixels left of x0 and at x1 are drawn */
+ add -1,d0
+ movbu (d0,a2),d1
+ cmp DGBG,d1
+ beq 9f
+ movbu (d3,a2),d0
+ cmp DGBG,d0
+ beq 9f
+41:
+ cmp d3,d2
+ bcc 9f
+ movbu d1,(d2,a2)
+ add 1,d2
+ bra 41b
+9:
+ ret [d2,d3,a2,a3],20
+
  .balign 4
 dg_have:
  .long 0, 0                       /* k + 1 of the picture in buffer 0 / 1 */
@@ -10336,7 +10596,7 @@ dg_fb:                            /* a stock picture when ours cannot be made: â
  .short 0x3f80, 0x3f80, 0x3f80, 0x3f80, 0x3f83, 0x3f7b, 0x3f7b, 0x3f7b, 0x3f7b
  .balign 4
 dg_rp:
- .long dg_r0, dg_r1, dg_r2
+ .long dg_r0
 dg_pg:
  .long 0
 dg_ns:
@@ -10357,28 +10617,54 @@ dg_n:
  .long 0
 dg_ovf:
  .long 0
-dg_st:
- .space 16 * 3
 dg_xa:
  .long 0
 dg_xb:
  .long 0
-dg_x:
+dg_xs:
  .long 0
-dg_lim:
+dg_xe:
  .long 0
-dg_md:
+dg_bi:
  .long 0
-dg_wr:
+dg_bp:
  .long 0
-dg_cs:
+dg_cw:
  .long 0
+dg_csl:
+ .long 0
+dg_t1:
+ .long 0
+dg_tc:
+ .long 0
+dg_tqe:
+ .long 0
+dg_pi:
+ .long 0
+dg_ox0:
+ .long 0
+dg_ox1:
+ .long 0
+dg_osl:
+ .long 0
+dg_stg:
+ .long 0
+dg_sx:
+ .long 0
+dg_pay:                           /* per stock picture 0..8: its tokens (cached), once dg_prep has seen it */
+ .space 4 * 9
+dg_rxp:
+ .long dg_rix, dg_rix + 894, dg_rix + 2 * 894, dg_rix + 3 * 894, dg_rix + 4 * 894, dg_rix + 5 * 894
+ .long dg_rix + 6 * 894, dg_rix + 7 * 894, dg_rix + 8 * 894
+dg_rok:
+ .space 12
 dg_r0:
  .space 424
-dg_r1:
- .space 424
-dg_r2:
- .space 424
+dg_tq:                            /* a span's new tokens (<= 422 + 4) */
+ .space 1024
+dg_rix:                           /* per stock picture: 447 row starts {word offset | slot} */
+ .space 9 * 894
+ .balign 4
 dg_pt:                            /* the 9 programs (build.py, firmware/diagrams.py) */
  .space 4 * NDG
 dg_pgs:
