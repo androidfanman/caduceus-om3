@@ -30,7 +30,7 @@
   [developer kit](devkit/photo-code/)) can open the film from the photo.
 
 Open-source firmware patches for the OM-3 on firmware 1.1, part of the
-[Caduceus](https://github.com/cakelesscoder/caduceus-ep7) family with cakelesscoder.
+[Caduceus](https://github.com/cakelesscoder/caduceus-ep7) family.
 
 > [!CAUTION]
 > ### ⚠️ Experimental firmware: use at your own risk
