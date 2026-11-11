@@ -67,6 +67,7 @@ last two pieces: with them the colour profiles are complete.
 
 | Feature | Released |
 |---|---|
+| **Start-up freeze fix:** films load at the first half-press again (the automatic load could freeze the camera at switch-on) | v0.27.1 (released 2026-11-11) |
 | **Buttons and the film in the photo:** all four arrow keys in Button Function ([#9](https://github.com/androidfanman/caduceus-om3/issues/9)); the Creative Dial positions each set to CRT / ART / COLOR / MONO, with each COLOR position keeping its own film ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)); the film's name and recipe code in each JPEG's EXIF, read by the Control Panel and a kit for other sites ([#20](https://github.com/androidfanman/caduceus-om3/issues/20)); an optional debug log | v0.27 (released 2026-11-11) |
 | **Films load at power-on** (no half-press; from [fernandezk26](https://github.com/fernandezk26/camera-stuff)'s fork); the super control panel dials step through the films; fixes for Film Grain with RAW+JPEG, the shooting-screen label and `EDITS.BIN` | v0.26.2 (released 2026-11-09) |
 | **WB shift ±7 in films** (`LOOKS.BIN` −7..+7, like the camera's fine-tune); the 20 film sims tuned (draft 1) | v0.26.1 (released 2026-11-09) |

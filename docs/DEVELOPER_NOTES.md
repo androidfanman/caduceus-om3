@@ -390,6 +390,16 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.27.1 release (build na1, camera-tested 2026-11-11)
+
+- v0.27 minus the SD loader's two hooks (`.hook_hb` 0x60af0fb9, `.hook_hr` 0x60af101c stay stock): no SDLOAD worker,
+  no OK-key trigger, no `sdl_poke`. `pr_gate` runs from the half-press hook only, as v0.26.1. The `sdl_*` code stays in
+  the build, unreachable. Reason: a sporadic start-up freeze (live view on, nothing else, power switch dead) on v0.27
+  and the dial test builds; the suspect is the poke's facade SetValue from HLS_EVENT while the GUI builds the start
+  screen (`research/NOTES.md`, "Sporadic power-on hang on v0.27"). Owner: "works much better" after use.
+- `firmware/VERSION` left as built ("v0.27-na1 (no auto-load)", shown in CADLOG.TXT) so the release is the tested bytes.
+- E1479999.BIN 8c4374d7…, GUIDES.BIN 32f490d1…; LABELS / TONES / LOOKS as v0.27.
+
 ## v0.27 release (branch feature/v0.27-buttons; build dr7, camera-tested 2026-11-11)
 
 Details and every test: `research/NOTES.md`, the "v0.27 ..." and "Debug log" sections.

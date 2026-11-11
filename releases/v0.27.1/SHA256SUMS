@@ -1,0 +1,8 @@
+8c133084414533159f587bf46bfb4152714c4074312a47c8d8503e33d605696d  OLY_E_147_1100_0000_0000.BIN (official OM-3 firmware 1.1, the input; also downloaded as OLY_E_147_1100_0000_0000_3.BIN)
+8c4374d72061de0a01f05dae8245d9cf44b79cb2d2c18bd83f828e7bb05e5e3a  DCOLYMP/E1479999.BIN (what patch.py makes)
+32f490d1ff19988c69fd5df73abe9e2739759abbb9841316c181414c52b901e7  OM3MOD/GUIDES.BIN
+d6c1b4aba6f6e731ea92cfccc11792da99131f08a3a11debf68193789668583c  OM3MOD/LABELS.BIN
+a5cd04e91f202688af7a2f195b48f99dff326945390ae7df85db913c307a6655  OM3MOD/TONES.BIN
+b03b895a0ec9635382a99b0f7ed924f0f63e7b73accf0cf9d6c194e05abd03f0  OM3MOD/LOOKS.BIN (optional: the 20 default film sims; replaces your films)
+29aa0c06c2fd15011e190cd08e25bc0738f629d43b759f95b86bead736a91359  OM3MOD/DEBUG.TXT (optional: turns the debug log on; leave it off the card normally)
+a0f7d8a85913a3d4ced6ff7fa4d2efad8eef069881b1c96a81167a9c99b9a866  caduceus-om3-photo-code-kit.zip (for developers: read the film recipe from photos)

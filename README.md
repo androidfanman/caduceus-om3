@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  Latest: <b>v0.27</b> (2026-11-11)
+  Latest: <b>v0.27.1</b> (2026-11-11)
 </p>
 
 ## What it does
@@ -62,7 +62,8 @@ until the problem happens, and attach the `OM3MOD/CADLOG.TXT` it writes. [How, s
 
 **[How to use it on the camera](https://androidfanman.github.io/caduceus-om3/pages/using/)**. In short:
 
-- Turn the creative dial to **COLOR** and open **Picture Mode**: after COLOR 1–4 you'll find your films, **FILM 1–20**.
+- Switch on and half-press once (that loads your films). Turn the creative dial to **COLOR** and open **Picture Mode**:
+  after COLOR 1–4 you'll find your films, **FILM 1–20**.
 - The rows below change the film at once: the colour wheel (HSL, with split toning), Contrast, Highlight & Shadow,
   Blacks / Whites, WB shift, Sharpness, Noise Filter, Vignette Correction, Shading, Glow and Film Grain.
 - Your changes stay with each film, also over power off. **Hold OK** on a film to put it back as built.
@@ -161,7 +162,7 @@ Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/page
 
 Built on **[Caduceus](https://github.com/cakelesscoder/caduceus-ep7)** by cakelesscoder (Apache-2.0), firmware patches
 for the Olympus PEN E-P7: the on-camera editor design, the bundle-table layout, the Caduceus Control Panel this tool started from, its tone
-model and the starter film looks. Loading the films at power-on (no half-press) and the fix for bad bytes in `EDITS.BIN` come from **[fernandezk26](https://github.com/fernandezk26/camera-stuff)**'s fork (v0.26.2). Sample photos are public domain (CC0), except the sunset by Joonas Lyytinen (CC BY 2.0); see [webapp/public/samples/CREDITS.md](webapp/public/samples/CREDITS.md). Camera emulation by
+model and the starter film looks. The fix for bad bytes in `EDITS.BIN` (and, in v0.26.2–v0.27, loading the films at power-on) came from **[fernandezk26](https://github.com/fernandezk26/camera-stuff)**'s fork (v0.26.2). Sample photos are public domain (CC0), except the sunset by Joonas Lyytinen (CC BY 2.0); see [webapp/public/samples/CREDITS.md](webapp/public/samples/CREDITS.md). Camera emulation by
 [om-emu](https://github.com/flatpanda/om-emu).
 
 "OM SYSTEM", "Olympus" and "OM-3" are trademarks of their owners, as are the film names used for the starter looks.

@@ -82,14 +82,14 @@ Your films were in `PROFILES.BIN`: rename it to `LOOKS.BIN`.
 
 ### Do I still need to half-press after switching on?
 
-Not from v0.26.2: your films load by themselves a moment after the camera starts. On v0.26.1 and older, half-press
-once after switching on.
+Yes, once. From v0.27.1 your films load at the first half-press after switching on. v0.26.2 and v0.27 loaded them by
+themselves, but that could rarely freeze the camera at start-up, so v0.27.1 went back to the half-press.
 
 ## Problems
 
 ### There are no films in the Picture Mode list.
 
-Check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
+Half-press the shutter once after switching on: that's when the films load. Check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
 and is exactly 1,632 bytes; if not, download it again, or save it again from the Control Panel. Then check the update
 really went on: v0.27 adds rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't
 there, flash again (install step 4). Still no films? Send us a [debug log](https://github.com/androidfanman/caduceus-om3/tree/main/debug-log).

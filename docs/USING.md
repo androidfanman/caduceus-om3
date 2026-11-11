@@ -1,6 +1,6 @@
 # Using Caduceus for OM-3
 
-This page is for **v0.27**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
+This page is for **v0.27.1**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
 
 > [!NOTE]
 > Caduceus works on the **COLOR** profiles (COLOR 1–4) and your **films** (FILM 1–20). The Monochrome profiles keep
@@ -8,6 +8,7 @@ This page is for **v0.27**, the latest version. Not installed yet? Start with [I
 
 ## In one minute
 
+- After switching on, **half-press the shutter once**: that loads your films.
 - Turn the creative dial to **COLOR** and open **Picture Mode**. After COLOR 1–4 the list shows your films,
   **FILM 1–20**. Pick one: its name becomes the big title, and the shooting screen and viewfinder show it.
 - Change anything on the rows below: the film changes at once, and so does live view.
@@ -94,7 +95,8 @@ Both are in the camera's **Button Function** menu, with the other buttons.
   **Normal** (its usual mode), **CRT**, **ART**, **COLOR** or **MONO**.
 - **A film per position:** every position set to COLOR remembers the COLOR 1–4 or FILM 1–20 you pick while the dial is
   on it. Set all four to COLOR and you have four films on the dial.
-- After you switch the camera on, the dial position's setting takes effect at the first half-press or dial turn.
+- After you switch the camera on, half-press once: that loads your films, and the dial position's setting takes effect
+  (a dial turn does it too).
 
 ## The film in your photos
 

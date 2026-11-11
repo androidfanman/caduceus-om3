@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.27.1](#v0271) | 2026-11-11 | Fixes a rare freeze at switch-on: the films load at the first half-press again |
 | [v0.27](#v027) | 2026-11-11 | All four arrow keys in Button Function; Creative Dial modes with a film per position; the film's name and recipe in every JPEG |
 | [v0.26.2](#v0262) | 2026-11-09 | Films load at power-on; the dials step through the films; fix for a freeze with Film Grain and RAW+JPEG |
 | [v0.26.1](#v0261) | 2026-11-09 | WB shift up to ±7 per film; the 20 film sims tuned from colour-checker photos |
@@ -26,6 +27,20 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.27.1
+A fix for a rare freeze at switch-on. Firmware camera-tested (2026-11-11, build na1).
+
+- **The freeze:** now and then, at switch-on, the live view started but nothing else loaded, and the power switch
+  didn't turn the camera off (a battery pull fixed it). It was sporadic, and likelier after moving the Creative Dial
+  while the camera was off. The cause, as far as we can tell: the automatic film load from v0.26.2, which read the card
+  and refreshed the camera's settings while the camera was still building its start screen.
+- **The fix:** that automatic load is gone. Your films load at your **first half-press** after switching on, as up to
+  v0.26.1. Until then the screen may show the plain COLOR look. The Creative Dial's mode and film also follow at that
+  half-press (or at a dial turn).
+- Everything else is as v0.27. The photo code kit download now includes a real camera sample photo.
+- **Card files:** `GUIDES.BIN` is new (always copy it with the firmware). `LABELS.BIN`, `TONES.BIN` and the optional
+  `LOOKS.BIN` are as v0.27.
 
 ## v0.27
 Your buttons, your Creative Dial, and the film saved in every photo. Firmware camera-tested (2026-11-11, build dr7).

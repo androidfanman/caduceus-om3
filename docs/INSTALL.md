@@ -108,7 +108,7 @@ the files again (step 2), copy them again (step 3) and try once more.
 
 1. Put the card back in your computer and delete **`DCOLYMP/E1479999.BIN`**, so the camera isn't updated again by
    accident. **Keep the `OM3MOD` folder**: your films and changes live there.
-2. Put the card in the camera and switch it on.
+2. Put the card in the camera, switch it on and **half-press the shutter once**: that loads your films.
 3. Turn the mode dial to the COLOR position and open **Picture Mode**. After COLOR 1–4 you'll find **FILM 1–20**.
 
 Next: [how to use it](USING.md).
@@ -128,7 +128,8 @@ Run the launcher again and type the version you want instead of pressing Return 
 [releases](../releases/README.md)). Copy `DCOLYMP` and the version's own `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN`
 to the card, and update the camera as in step 4. Your films keep working.
 
-On v0.26.1 and older, half-press the shutter once after switching on: that's when those versions load your films.
+On v0.26.2 and v0.27 the films load by themselves at switch-on; on every other version, half-press the shutter once
+after switching on: that's when your films load.
 
 ## Going back to the camera's own firmware
 
@@ -148,7 +149,7 @@ your `OM3MOD` files if you can.
 **Holding OK doesn't start the update.** Check that the file is at `DCOLYMP/E1479999.BIN` at the top of the card (not
 inside another folder), that the battery is full, and that you hold OK *before* switching on.
 
-**There are no films in Picture Mode.** Check that `OM3MOD/LOOKS.BIN` is on the card (step 3) and is exactly 1,632
+**There are no films in Picture Mode.** Half-press the shutter once after switching on (that loads them). Check that `OM3MOD/LOOKS.BIN` is on the card (step 3) and is exactly 1,632
 bytes; if not, download it again, or save it again from the Control Panel. Check the update really went on: v0.27 adds
 rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't there, do step 4 again.
 
