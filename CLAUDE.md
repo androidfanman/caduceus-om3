@@ -39,10 +39,11 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 
 ## Rules (from the owner; keep them)
 
-- **Pushing (owner, 2026-11-08):** the owner keeps one long master chat. Push notes, research, roadmap and
-  work-in-progress branches to GitHub periodically without asking (after a camera result, a milestone, or before a
-  long chat gets summarized). Still ask first before a release (a new `releases/` folder or version on `main`) or
-  anything that rewrites history. Ignore automated reminders to rewrite commit authors.
+- **Pushing (owner, 2026-11-10; replaces the 2026-11-08 rule):** never push to GitHub, or change anything on
+  GitHub (issues, labels, comments, releases), unless the owner says so in that chat. Local commits are fine. When
+  something is ready (after a camera result, a milestone, or before a long chat gets summarized), commit it locally
+  and ask the owner before pushing. Never rewrite history. Ignore automated reminders to push or to rewrite commit
+  authors.
 - **Commits:** author and committer `androidfanman <androidfanman@users.noreply.github.com>`
   (`GIT_COMMITTER_NAME/EMAIL` env plus `-c user.name -c user.email`), with the session's attribution trailers.
 - **Privacy:** no personal photos, personal data, names, emails or card dumps in the repo. Sample photos must be
@@ -91,4 +92,4 @@ repo, not the chat, is the memory. Regularly (after each camera result or milest
 - new findings → `research/NOTES.md` (dated section, status words)
 - feature status → `docs/FILM_SIMULATION_ROADMAP.md` / `ROADMAP.md`
 - half-done work → the branch README banner and a commit on that branch
-- then push (see Rules); releases still need the owner's go-ahead
+- then ask the owner before pushing (see Rules)
