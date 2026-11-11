@@ -1,89 +1,84 @@
-# Installing Caduceus for OM-3
+# Install Caduceus for OM-3
 
 > [!WARNING]
-> Unofficial, experimental firmware modification: use at your own risk (see [Safety](../README.md#safety)). Read this
-> page once all the way through before you start.
+> This is an unofficial, experimental change to the camera's firmware. You use it at your own risk (see
+> [Safety](../README.md#safety)). Read this page once all the way through before you start.
 
-## Quick version
+Installing takes about 15 minutes. You make the update file on your computer, copy it to the SD card, and the camera
+installs it from the card. You can go back to the camera's own firmware at any time.
 
-1. **Code › Download ZIP** on the project page, unzip it.
-2. Double-click `Make SD card files (Mac).command` (Mac, first time: right-click › **Open**) or
-   `Make SD card files (Windows).bat`.
-3. Copy `SD card files/DCOLYMP` and `SD card files/OM3MOD` to the top of the SD card.
-4. Camera off, full battery: **hold OK and switch on**. Steady light = writing (about two minutes, don't touch
-   anything); blinking = done. Switch off and on again.
-5. Delete `DCOLYMP/E1479999.BIN` from the card, keep `OM3MOD`.
-6. Switch on (before v0.26.2: half-press once after every power-on), then Picture Mode › COLOR 1–4 › **▼**: the wheel opens on the Looks
-   page, and **INFO** steps through the others.
+## Before you start
 
-To undo: flash `SD card files/restore/E1479999.BIN` the same way.
+You need:
 
-## Requirements
+- **An OM SYSTEM OM-3 on firmware 1.1.** To check, open the camera's menu: *Setup › Firmware*. If it shows another
+  version, update the camera to 1.1 with OM Workspace first. Other cameras don't work.
+- **A fully charged battery.** The camera must not switch off while it installs.
+- **An SD card.** Your photos on it are not touched, but back them up anyway.
+- **A computer** (Mac, Windows or Linux) with an internet connection.
 
-- An **OM SYSTEM OM-3 on firmware 1.1**: *Setup › Firmware* shows the version. If it shows anything else, update to
-  1.1 with OM Workspace first, or wait for a matching release of this project. Other cameras are not supported.
-- A **fully charged** battery.
-- An SD card (any card the camera takes). Your photos on it are not touched, but back them up anyway.
-- A computer with **Python 3.8 or newer**: Windows, macOS or Linux.
-- The official firmware 1.1 file, `OLY_E_147_1100_0000_0000.BIN` (a copy downloaded earlier may be named
-  `OLY_E_147_1100_0000_0000_3.BIN`: the same file, either name works). The patcher fetches it from OM's update server
-  for you; you only need it yourself if that fails (see [Troubleshooting](#troubleshooting)).
+<!-- picture: the camera's Setup › Firmware screen showing 1.1 -->
 
-## Get the files and Python
+## Step 1. Download Caduceus
 
-1. On the project page click **Code › Download ZIP**, then unzip it anywhere (Desktop is fine). Or `git clone` it.
-2. Python:
-   - **Mac:** nothing to do in advance. The first time you double-click the launcher, macOS may offer to install the
-     *Command Line Tools*, which include Python 3: accept, wait for it to finish, then double-click the launcher again.
-   - **Windows:** install Python from [python.org](https://www.python.org/downloads/). In the installer, tick
-     **Add python.exe to PATH**.
-   - **Linux:** Python 3 is almost always installed already.
+1. Open the [project page on GitHub](https://github.com/androidfanman/caduceus-om3).
+2. Click the green **Code** button, then **Download ZIP**.
+3. Unzip the file anywhere, for example on your Desktop. You get a folder called `caduceus-om3-main`.
 
-## Make the update file
+<!-- picture: GitHub's Code button with Download ZIP -->
 
-Double-click the launcher in the unzipped folder:
+## Step 2. Make the update file
 
-- **Mac:** `Make SD card files (Mac).command`. The first time, macOS says it's from an unidentified developer: close
-  that, **right-click › Open**, then **Open** again. A Terminal window shows the progress.
-- **Windows:** `Make SD card files (Windows).bat`. If Windows SmartScreen warns, click **More info › Run anyway**.
-- **Terminal / command prompt** (any system), in the unzipped folder: `python3 firmware/patch.py`
-  (Windows: `py firmware\patch.py`). Options: `--release v0.16` for an earlier version, `--stock FILE` to use a
-  firmware file you have, `--out DIR` for another output folder.
+OM's licence doesn't allow anyone to share their firmware. So the update file is made on your own computer, from OM's
+official OM-3 firmware 1.1. A small program (the "launcher") does this for you: it downloads OM's file from OM's own
+server, checks it, adds the Caduceus changes and checks the result.
 
-The launcher asks which version to make: press Return for the newest, or type an older one (for example `v0.16`).
-All versions are listed in [releases](../releases/README.md); `SD card files/VERSION.txt` says which one you made.
+**On a Mac**
 
-What it does:
+1. In the unzipped folder, right-click **`Make SD card files (Mac).command`** and choose **Open**. (The first time,
+   macOS warns that it's from an unidentified developer. Right-clicking and choosing Open lets it run. If macOS still
+   blocks it, open *System Settings › Privacy & Security*, scroll down and click **Open Anyway**.)
+2. If macOS offers to install the *Command Line Tools*, accept, wait until they're installed, then do step 1 again.
+   They include Python, which the launcher needs.
+3. A Terminal window opens and asks which version to make. Press **Return** for the newest.
+4. Wait until it says **Done**, then press any key to close the window.
 
-1. Finds the official file: next to the launcher, in the project folder or in Downloads. If it isn't there, it asks
-   OM's update server for it, the way OM Workspace does, and keeps a copy in the project folder for next time.
-2. Checks the file's size and SHA-256 against the official OM-3 1.1 firmware. **Any other file is refused.**
-3. Applies the chosen release's patch (`releases/vX/patch.json`: only the bytes this project adds, nothing of OM's;
-   from v0.20 it also draws the white Frame pictures itself), rebuilds the
-   update package and checks the result against its expected SHA-256.
-4. Writes the folder **`SD card files`** next to the launcher:
+**On Windows**
+
+1. Install Python from [python.org](https://www.python.org/downloads/). In the installer, tick **Add python.exe to
+   PATH** before you click Install.
+2. In the unzipped folder, double-click **`Make SD card files (Windows).bat`**. If Windows SmartScreen warns, click
+   **More info**, then **Run anyway**.
+3. It asks which version to make. Press **Enter** for the newest.
+4. Wait until it says **Done**, then close the window.
+
+**On Linux:** in the unzipped folder, run `python3 firmware/patch.py`.
+
+The launcher makes a new folder, **`SD card files`**, next to it:
 
 ```
 SD card files/
-  DCOLYMP/E1479999.BIN   the patched firmware update        → copy to the card
-  OM3MOD/GUIDES.BIN      the page labels + Extras code       → copy to the card
-  OM3MOD/LABELS.BIN      the Extras labels (v0.20)           → copy to the card
-  OM3MOD/TONES.BIN       the split toning guides (v0.26)     → copy to the card
-  restore/E1479999.BIN   the official firmware 1.1           → keep on your computer
+  DCOLYMP/      the update for the camera        → copy to the card
+  OM3MOD/       Caduceus's files                 → copy to the card
+  restore/      the camera's original firmware   → keep (to undo Caduceus)
+  VERSION.txt   which version you made
 ```
 
-"Done" at the end means everything checked out. "Stopped: …" says what was wrong; nothing is written then.
+If it says **Stopped** instead of Done, nothing was written: see [If something goes wrong](#if-something-goes-wrong).
 
-## Copy to the card
+<!-- picture: the launcher window showing Done -->
+
+## Step 3. Copy the files to the SD card
 
 1. Put the camera's SD card in your computer.
-2. Copy the **`DCOLYMP`** and **`OM3MOD`** folders from `SD card files` to the **top level** of the card, next to
-   `DCIM`. If the card already has an `OM3MOD` folder from an earlier version, keep its `LOOKS.BIN`, `NAMES.BIN`
-   and `BUNDLES.BIN` (your looks and edits) and replace `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` with the new ones. From v0.20
-   `GUIDES.BIN` carries code for that exact firmware: always copy it with the firmware.
-3. Eject the card properly before taking it out.
+2. Copy the **`DCOLYMP`** and **`OM3MOD`** folders from `SD card files` to the **top of the card**, next to the
+   `DCIM` folder (not inside it).
+3. **Get the films.** The 20 film sims are a separate file, `LOOKS.BIN`. Download it from the
+   [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest) (under *Assets*), or make your own in
+   the [Control Panel](https://androidfanman.github.io/caduceus-om3/). Put it in the card's **`OM3MOD`** folder.
+4. Eject the card properly before you take it out.
 
-The card should look like this:
+The card should now look like this:
 
 ```
 DCIM/
@@ -91,96 +86,90 @@ DCOLYMP/E1479999.BIN
 OM3MOD/GUIDES.BIN
 OM3MOD/LABELS.BIN
 OM3MOD/TONES.BIN
+OM3MOD/LOOKS.BIN
 ```
 
-## Flash
+<!-- picture: the SD card's folders in Finder / Explorer -->
 
-1. Card in the camera, **battery fully charged**, camera **off**.
-2. **Hold OK** and switch the camera **on**. Keep holding OK until the update starts.
-3. The light stays **steady** while the firmware is written: about **two minutes**. **Don't switch off, open the
-   battery door or remove the card** during this time.
-4. When the light starts **blinking**, it's done. Switch the camera off.
-5. Switch on normally.
-6. On a computer, delete `DCOLYMP/E1479999.BIN` from the card so it isn't flashed again by accident. **Keep
-   `OM3MOD`.**
+## Step 4. Update the camera
 
-If the light blinks straight away with no steady phase, the camera most likely rejected the file without writing
-anything (that is how the same updater behaves on the E-P7): make the files again, copy them again and retry.
+1. Put the card in the camera. Check the battery is **fully charged**. Switch the camera **off**.
+2. **Hold the OK button** and switch the camera **on**. Keep holding OK until the update starts.
+3. The light stays **on (steady)** while the update is written. This takes about **two minutes**.
+   **Don't switch off, open the battery door or take the card out.**
+4. When the light starts **blinking**, it's finished. Switch the camera off.
 
-## First use
+If the light blinks straight away, without a steady phase, the camera didn't accept the file and nothing changed. Make
+the files again (step 2), copy them again (step 3) and try once more.
 
-1. Switch on. Your settings load from the card by themselves a moment after the camera starts (v0.26.2). Before
-   v0.26.2: **half-press the shutter once**; until then the wheel works exactly as stock.
-2. Picture Mode › **COLOR 1** (or 2–4) › press **▼** to open the Color Profile wheel.
-3. It opens on the **Film** page with the selected look's name. Press **INFO** for the others: Saturation →
-   Saturation (All) → **Hue** → **Light** → **Extras** → back to **Film**. The label under the wheel names the page.
-4. Change something, leave the editor and **half-press**: it's saved to `OM3MOD` on the card. To keep changes in the
-   selected look, go back to the Film page and **hold OK** first (turning to another look without that drops them).
+<!-- picture: the camera's light during and after the update -->
 
-To bring in looks from the [Control Panel](https://androidfanman.github.io/caduceus-om3/) (OM SYSTEM OM-3 selected at
-the top): save `LOOKS.BIN` and `NAMES.BIN` there, put them in the card's `OM3MOD` folder, then on the Film page turn the 12 o'clock spot to 1–5. See
-[USING.md](USING.md) for every page.
+## Step 5. Tidy the card and start shooting
 
-## Restore stock firmware
+1. Put the card back in your computer and delete **`DCOLYMP/E1479999.BIN`**, so the camera isn't updated again by
+   accident. **Keep the `OM3MOD` folder**: your films and changes live there.
+2. Put the card in the camera and switch it on.
+3. Turn the mode dial to the COLOR position and open **Picture Mode**. After COLOR 1–4 you'll find **FILM 1–20**.
 
-1. Copy `SD card files/restore/E1479999.BIN` (the official file the patcher saved) into the card's `DCOLYMP` folder,
-   replacing the patched one.
-2. Flash it exactly as in [Flash](#flash).
-3. Optionally remove the `OM3MOD` folder: stock firmware ignores it.
+Next: [how to use it](USING.md).
 
-The camera is then completely stock 1.1. Your COLOR profiles keep the camera's own settings (Saturation, Contrast and
-so on); the Hue, Light and Extras values only exist while Caduceus for OM-3 is installed. The stock Frame Art
-Effect gets its original picture back too.
+## Updating from an earlier version
 
-## Troubleshooting
+Do steps 1–5 again with the new version. On the card:
 
-**"Stopped: this is not the official OLY_E_147_1100_0000_0000_3.BIN"**: the file is damaged, renamed from another
-version, or for another camera. Delete it and run the launcher again so it downloads a fresh copy.
+- **Replace** `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` in `OM3MOD` with the new ones. `GUIDES.BIN` is made for
+  each firmware version: always copy it together with the firmware.
+- **Keep** `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN`: they hold your films and your changes. Only copy a new
+  `LOOKS.BIN` if you want the new film sims: it replaces your films.
 
-**"Stopped: download failed" / "OM server offered …"**: OM's server couldn't be reached, or it now offers a newer
-firmware this patch doesn't support. Get the official OM-3 **1.1** file another way, put it next to the launcher or
-in Downloads under its official name, and run the launcher again.
+## Going back to an older version
 
-**Mac: nothing happens / "permission denied" on the launcher**: open Terminal, type `cd ` (with a space), drag the
-unzipped folder onto the Terminal window, press Return, then run `python3 firmware/patch.py`.
+Run the launcher again and type the version you want instead of pressing Return (all versions are listed in
+[releases](../releases/README.md)). Copy `DCOLYMP` and the version's own `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN`
+to the card, and update the camera as in step 4. Your films keep working.
 
-**The camera doesn't start the update when I hold OK**: check the file is at `DCOLYMP/E1479999.BIN` on the card's
-top level (not inside another folder), the battery is full, and you hold OK *before* switching on.
+On v0.26.1 and older, half-press the shutter once after switching on: that's when those versions load your films.
 
-**The new pages don't appear**: half-press once after switching on (needed before v0.26.2). If they still don't, check *Setup › Firmware*
-says 1.1 and that the flash finished (steady, then blinking).
+## Going back to the camera's own firmware
 
-**My changes don't stay**: they save at the next half-press, and only when the card has an `OM3MOD` folder at its top
-level. A locked or full card can't be written. Changes to a look stay in the look only after **holding OK on the Film
-page**; turning to another look without that puts the look back as it was saved.
+1. Copy `restore/E1479999.BIN` from your computer's `SD card files` folder into the card's `DCOLYMP` folder.
+2. Update the camera exactly as in [step 4](#step-4-update-the-camera).
+3. If you like, delete the `OM3MOD` folder: the camera's own firmware ignores it.
 
-**The Extras values change but the photo doesn't**: the card's `GUIDES.BIN` isn't the one made with this firmware
-(it carries the Extras code). Copy the release's `GUIDES.BIN` again. **The Extras label says "Vivid"**: copy
-`LABELS.BIN` too.
+The camera is then exactly as it came from OM, on firmware 1.1.
 
-**The Film page is missing**: the card's `LOOKS.BIN` failed the camera's check (damaged or edited by hand), so
-the camera ignored it and left it alone. Open it in the Control Panel and save it again, or delete it: with no file, the
-camera starts a fresh, neutral bank. Went back to v0.20 or older? Those can't read a `LOOKS.BIN` with Grain or the
-lens correction set: in the Control Panel's Export, choose **v0.20 or older** and save it again.
+## If something goes wrong
 
-**Something else is wrong**: remove the `OM3MOD` folder (copy it to your computer first: your settings are in it) and
-switch on again. If that doesn't help, [restore stock firmware](#restore-stock-firmware).
+**The camera freezes or switches off.** Take the battery out for a few seconds. Then check that the firmware and
+`OM3MOD/GUIDES.BIN` come from the same version (`VERSION.txt` in `SD card files` says which one you made). If it keeps
+happening, turn Film Grain off on that film and [tell us](https://github.com/androidfanman/caduceus-om3/issues), with
+your `OM3MOD` files if you can.
 
-## FAQ
+**Holding OK doesn't start the update.** Check that the file is at `DCOLYMP/E1479999.BIN` at the top of the card (not
+inside another folder), that the battery is full, and that you hold OK *before* switching on.
 
-**Will updating to a new version lose my looks?** No. Flash the new firmware the same way and keep the card's
-`OM3MOD/LOOKS.BIN` and `BUNDLES.BIN`, and copy the new `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN`. Coming from v0.16–v0.18,
-where the bank was called `PROFILES.BIN`: rename it to `LOOKS.BIN` (same format). (v0.19 read `PROFILES.BIN` by
-itself; v0.20 needed that room for the Extras.) Looks saved by v0.19 or earlier have every Extras value at 0, and
-looks from v0.20 have Grain off and the lens correction as before.
+**There are no films in Picture Mode.** Check that `OM3MOD/LOOKS.BIN` is on the card (step 3). If it is, it may be
+damaged: download it again, or save it again from the Control Panel.
 
-**Does it change the Monochrome profiles?** No. Only COLOR 1–4. The MONO profiles keep the camera's own editor.
+**Settings change on the camera but the photo doesn't.** The card's `GUIDES.BIN` isn't the one made with this
+firmware. Copy it again from `SD card files/OM3MOD`.
 
-**Can I share looks?** Yes: send a `LOOKS.BIN`, or use **Share looks** in the Control Panel to send a link.
-Copying one onto a card replaces that camera's whole bank.
+**My changes don't stay.** They're saved at the next half-press, and only when the card has the `OM3MOD` folder at its
+top level. A locked or full card can't be written.
 
-**Can I use Caduceus looks?** Yes: it's the same Control Panel. In OM-3 mode, **Paste code** takes Caduceus look
-codes and pack links, and **Open…** takes packs and E-P7 `LOOKS.BIN` files; each colour look becomes an OM-3 look.
+**The launcher says "Stopped: this is not the official …".** The firmware file it found is damaged, renamed or for
+another camera. Delete it and run the launcher again, so it downloads a fresh copy.
 
-**Why do I have to make the file myself?** OM's licence doesn't allow sharing their firmware, so this project only
-publishes its own changes and the patcher applies them to your copy of the official file.
+**The launcher says "Stopped: download failed" or "OM server offered …".** OM's server couldn't be reached, or it now
+offers another firmware version. Get the official OM-3 1.1 file (`OLY_E_147_1100_0000_0000.BIN`) another way, put it
+in Downloads or next to the launcher, and run the launcher again.
+
+**On a Mac, nothing happens when I open the launcher.** Open Terminal, type `cd ` (with a space), drag the unzipped
+folder onto the Terminal window, press Return, then type `python3 firmware/patch.py` and press Return.
+
+**Something else.** Copy the card's `OM3MOD` folder to your computer (your films are in it), delete it from the card
+and switch on again. If that doesn't help, [go back to the camera's own firmware](#going-back-to-the-cameras-own-firmware).
+
+## More questions
+
+See the [questions and answers](FAQ.md).

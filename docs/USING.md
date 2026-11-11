@@ -1,75 +1,117 @@
-# Using Caduceus for OM-3 on the camera (v0.26.2)
+# Using Caduceus for OM-3
 
-> **Color profiles only:** this is for Picture Mode COLOR 1–4. The Monochrome profiles keep the camera's own editor.
-> For v0.20–v0.22 (Film page, Extras page on the wheel) see this page as it was at
-> [v0.22](https://github.com/androidfanman/caduceus-om3/blob/v0.22/docs/USING.md).
+This page is for **v0.26.2**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
 
-**Your films and changes load from the card by themselves when the camera starts** (v0.26.2). On v0.26.1 and older,
-half-press the shutter once after switching on.
+> [!NOTE]
+> Caduceus works on the **COLOR** profiles (COLOR 1–4) and your **films** (FILM 1–20). The Monochrome profiles keep
+> the camera's own settings.
 
-## Films
+## In one minute
 
-Films are your creative profiles: up to 20, **FILM 1–20**, after COLOR 1–4. v0.25 comes with 20 film sims (Portra
-400, Gold 200, Kodachrome 64, Portra 800, CineStill 800T, Ektar 100, Ultramax 400, Pro 400H, Velvia 50, Superia 400,
-ColorPlus 200, CineStill 400D, Fuji C200, Ektachrome E100, Reala 100, Provia 100F, Vision3 250D, Fuji Eterna, Astia
-100F, Agfa Ultra 100: what each looks like is in the [README](../README.md#the-20-film-sims)). Copy the release's
-`LOOKS.BIN` to `OM3MOD`, or make and change films in the [Control Panel](https://androidfanman.github.io/caduceus-om3/)
-(it starts with the same 20, in the same order) and export `LOOKS.BIN` with **Firmware on the camera: v0.26.1 or later**.
+- Turn the creative dial to **COLOR** and open **Picture Mode**. After COLOR 1–4 the list shows your films,
+  **FILM 1–20**. Pick one: its name becomes the big title, and the shooting screen and viewfinder show it.
+- Change anything on the rows below: the film changes at once, and so does live view.
+- Your changes stay with that film, even after you switch the camera off.
+- **Hold OK** on a film to put it back the way it was built.
 
-On the camera, Picture Mode › the COLOR position: the top row lists **COLOR 1–4, then FILM 1–20** (empty places
-skipped). Turn to a film: its **name** is the big title; the quick menu, the shooting screen and the viewfinder show it
-from then on. The camera remembers the film you were on over power off.
+<!-- picture: Picture Mode list with FILM 1 (Portra 400) selected -->
+
+## Choosing a film
+
+1. Turn the creative dial to **COLOR**.
+2. Open **Picture Mode** (from the super control panel or the menu).
+3. The top row lists **COLOR 1–4, then FILM 1–20**. Turn to the film you want.
+
+Your films load from the card by themselves a moment after the camera starts. The camera remembers the film you were on
+when you switch it off.
+
+What each of the 20 film sims looks like: [the film sims](../README.md#the-20-film-sims).
+
+**Quicker:** on the super control panel, select the Picture Mode cell and turn a dial. It steps through COLOR 1–4, then
+FILM 1–20.
+
+<!-- picture: super control panel with the Picture Mode cell showing a film name -->
 
 ## Changing a film
 
-Every row under Picture Mode changes the film (or the COLOR) you're on, at once:
+The rows under Picture Mode change the film (or the COLOR) you're on, straight away:
 
 | Row | What it does |
 |---|---|
-| **HSL** | The colour wheel (below) |
-| Contrast, Highlight & Shadow | The camera's own |
-| **Blk** / **Wht** | Blacks / Whites, −5..+5: + lifts / brightens, − crushes / softens |
-| **WB** | The WB shift (A-B amber / blue, G-M green / magenta, −7..+7), in every WB mode (Auto WB included). The row shows a small grid with the dot where the shift is, and the numbers under WB± (like "A2.G1"). **OK**, left / right or a dial opens the camera's own WB fine-tune screen; MENU or OK comes back |
-| Sharpness | Sharp: the camera's sharpening, −5 = Off, −4..−1 softer, 0 its normal, +1 / +2 crisper |
-| **Noise Filter** | Off / Low / Std / High for photos with this film |
-| **Vignette Correction** | Off = the lens's natural corners, On = the camera's correction |
-| Shading | The camera's own (darker or lighter corners) |
-| **Glow** | +1..+5 Glow (a soft glow), −1..−5 Clarity (local contrast), 0 off |
-| **Film Grain** | Off / Low / Med / High: film grain on the colour photo |
+| **HSL** | The colour wheel: change each colour's saturation, hue and brightness, and split toning (see below). |
+| **Contrast** | The camera's own contrast. |
+| **Highlight & Shadow** | The camera's own tone curve: brighter or darker shadows, midtones and highlights. |
+| **Blk** / **Wht** | Blacks and Whites, −5 to +5. Plus lifts the blacks or brightens the whites; minus deepens or softens them. |
+| **WB** | Shifts the colour balance: A–B (amber to blue) and G–M (green to magenta), −7 to +7. Works in every white balance mode, Auto included. Press **OK** to open the camera's own grid; **MENU** or **OK** brings you back. |
+| **Sharpness** | −5 = off, −4 to −1 softer, 0 the camera's normal, +1 and +2 crisper. |
+| **Noise Filter** | Off, Low, Std or High. |
+| **Vignette Correction** | Off = the lens's natural darker corners. On = the camera corrects them. |
+| **Shading** | Darker or lighter corners, as an effect. |
+| **Glow** | +1 to +5 adds a soft glow. −1 to −5 adds Clarity (crisper local contrast). 0 = off. |
+| **Film Grain** | Off, Low, Med or High. Added in colour, with no extra wait after the photo. |
 
-Picture Mode always opens on the top row. There are no Art Effects from v0.25 (Shading does the dark corners).
+<!-- picture: the Picture Mode rows for one film -->
 
-**The HSL wheel:** on the HSL row press **INFO**. INFO goes **Color** (the camera's saturation, one colour at a time)
-→ **Color All** → **Hue** → **Luminance** → **Shadows** → **Highlights** → Color. The front dial picks the colour, the rear dial the value. Colours
-run clockwise from Yellow at 12 o'clock: Yellow, Orange, Orange-red, Red, Magenta, Violet, Blue, Blue-cyan, Cyan,
-Green-cyan, Green, Yellow-green. **Hue** (−5..+5): + turns a colour toward its clockwise neighbour (Yellow → Orange,
-Blue → Blue-cyan). **Luminance** (−5..+5): darker or brighter for that colour.
+## The colour wheel (HSL)
 
-**Split toning (v0.26):** the **Shadows** and **Highlights** pages tint the dark or the bright parts of the photo
-toward one colour. The front dial picks the colour on the wheel, the rear dial the strength (−5..+5; minus tints toward
-the opposite colour, 0 = off). Live view shows it. Each page holds one colour at a time; set both for a classic split
-tone (for example blue-cyan shadows with orange highlights). The guides on these pages come from `OM3MOD/TONES.BIN`.
+1. Go to the **HSL** row and press **INFO**.
+2. Press **INFO** again to move through the pages: **Color** (saturation of one colour) → **Color All** → **Hue** →
+   **Luminance** → **Shadows** → **Highlights** → back to Color.
+3. On each page the **front dial** picks the colour and the **rear dial** sets the value.
 
-Your changes stay with the film: switch to another film and back, or switch the camera off and on, and they're still
-there. COLOR 1–4 keep their own
-changes the same way. The camera keeps them in `OM3MOD/EDITS.BIN` (saved at the next half-press); `LOOKS.BIN` is never
-changed by the camera.
+The 12 colours run clockwise from Yellow at 12 o'clock: Yellow, Orange, Orange-red, Red, Magenta, Violet, Blue,
+Blue-cyan, Cyan, Green-cyan, Green, Yellow-green.
 
-## Resets and the `*`
+- **Hue**, −5 to +5: plus turns a colour toward its clockwise neighbour (Yellow toward Orange).
+- **Luminance**, −5 to +5: makes that colour darker or brighter.
 
-- **Hold OK on a film** in the list (or on its HSL wheel): the film goes back to how it was built.
-- **Hold OK on COLOR n:** the COLOR goes back to the camera's factory settings.
-- A **`*`** after COLOR n: something differs from the factory settings. After FILM n: something differs from how the
-  film was built. A row with its own `*` is one of the changed settings.
+**Split toning** uses the **Shadows** and **Highlights** pages. Each tints the dark or the bright parts of the photo
+toward one colour. The front dial picks the colour, the rear dial the strength (−5 to +5; minus tints toward the
+opposite colour; 0 = off). For a classic split tone, use both: for example blue shadows and orange highlights.
 
-## Grain
+<!-- picture: the HSL wheel on the Hue page; the Shadows page -->
 
-Grain is added by the camera's image processor while it develops the photo (the way its Grainy Film Art Filter adds
-grain), in colour and at no extra time, with every other setting.
+## Your changes are kept
 
-## Card files
+- Change a film and the change stays: switch to another film and back, or switch the camera off and on, and it's
+  still there. COLOR 1–4 keep their own changes the same way.
+- Changes are saved to the card at the next half-press.
+- A **`*`** after a name means it's changed: after FILM n, something differs from how the film was built; after
+  COLOR n, something differs from the camera's factory settings. A row with its own `*` is one of the changes.
 
-`LOOKS.BIN` (your films, from the Control Panel or the release), `EDITS.BIN` (your camera changes, written by the camera),
-`BUNDLES.BIN` (written by the camera), `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` (from the release, always with its
-firmware).
-`NAMES.BIN` is only used by v0.17–v0.22. Formats: [FORMATS.md](FORMATS.md).
+**To start over:**
+
+- **Hold OK on a film** in the Picture Mode list: the film goes back to how it was built.
+- **Hold OK on COLOR n:** that COLOR goes back to the camera's factory settings.
+
+## New films from the Control Panel
+
+The [Control Panel](https://androidfanman.github.io/caduceus-om3/) is a web page for making and changing films on your
+computer, with a preview. It starts with the same 20 film sims.
+
+1. Make or change your films in the Control Panel.
+2. Save them as **`LOOKS.BIN`**, with *Firmware on the camera* set to **v0.26.1 or later**.
+3. Copy `LOOKS.BIN` into the card's `OM3MOD` folder, replacing the old one.
+
+A film you changed in the Control Panel starts again as you built it there; the other films keep the changes you made
+on the camera. Deleting `OM3MOD/EDITS.BIN` puts every film back as built.
+
+More on the Control Panel: [how to use it](CONTROL_PANEL.md).
+
+## Questions
+
+See the [questions and answers](FAQ.md): no films in the list, settings that don't show in the photo, freezes, lost changes, video and more.
+
+## The files on the card
+
+All in the `OM3MOD` folder at the top of the card:
+
+| File | What it is | Where it comes from |
+|---|---|---|
+| `LOOKS.BIN` | Your films FILM 1–20, with their names | The release or the Control Panel |
+| `EDITS.BIN` | The changes you made on the camera | Written by the camera |
+| `BUNDLES.BIN` | The camera's current values (`.NEW` and `.BAK` are its safety copies) | Written by the camera |
+| `GUIDES.BIN` | Caduceus's code and labels | The release: always with its own firmware |
+| `LABELS.BIN`, `TONES.BIN` | Labels, and the split toning guides | The release |
+
+Older versions also used `NAMES.BIN`; it's harmless. Technical details: [FORMATS.md](FORMATS.md).

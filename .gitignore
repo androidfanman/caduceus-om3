@@ -1,8 +1,6 @@
 # never commit firmware: official or modified
 *.BIN
 *.bin
-!card/GUIDES.BIN
-!card/LABELS.BIN
 SD card files/
 out*/
 __pycache__/

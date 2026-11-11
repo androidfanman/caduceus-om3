@@ -1,5 +1,28 @@
 # Changelog
 
+What changed in each version of Caduceus for OM-3, newest first. To install or update, follow the
+[install guide](docs/INSTALL.md). When you update, always copy the new `GUIDES.BIN` with the firmware, and keep your
+`LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN`.
+
+## At a glance
+
+| Version | Released | What's new |
+|---|---|---|
+| [v0.26.2](#v0262) | 2026-11-09 | Films load at power-on; the dials step through the films; fix for a freeze with Film Grain and RAW+JPEG |
+| [v0.26.1](#v0261) | 2026-11-09 | WB shift up to ±7 per film; the 20 film sims tuned from colour-checker photos |
+| [v0.26](#v026) | 2026-11-09 | Split toning: Shadows and Highlights pages |
+| [v0.25](#v025) | 2026-11-09 | Fast colour film grain; WB grid and Glow rows; settings kept over power off; 20 new film sims |
+| [v0.24.1](#v0241) | 2026-11-08 | Films in the Picture Mode list; the look's settings as Picture Mode rows |
+| [v0.24](#v024-withdrawn) | 2026-11-08 | Withdrawn the same day (Film Grain High restarted the camera); use v0.24.1 |
+| [v0.22](#v022) | 2026-11-07 | Sharpness per look |
+| [v0.21](#v021) | 2026-11-06 | Film grain on colour photos; looks saved on purpose; the `*` |
+| [v0.20](#v020) | 2026-11-05 | Film page and Extras page on the colour wheel |
+| [v0.19](#v019) | 2026-11-05 | Profiles become Looks |
+| [v0.18](#v018) | 2026-11-05 | The wheel opens on the Profiles page |
+| [v0.17](#v017) | 2026-11-05 | Profile names under the wheel |
+| [v0.16](#v016-test-16--16b) | 2026-11-05 | Profile bank: 5 profiles for each COLOR |
+| [v0.15](#v015), [v0.11](#v011) | test builds | First on-camera pages: Hue, Light, WB / Blacks / Whites |
+
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
