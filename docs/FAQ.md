@@ -41,7 +41,7 @@ No. Caduceus works on COLOR 1–4 and your films, FILM 1–20. The Monochrome pr
 ### Does it work for video?
 
 Not yet: video keeps the camera's normal look. Films in video are on the
-[roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/), after the photo side is finished.
+[roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/), after the photo side is finished.
 
 ### What does the `*` mean?
 
@@ -99,7 +99,7 @@ folder the launcher made.
 Take the battery out for a few seconds. Check that the firmware and `OM3MOD/GUIDES.BIN` come from the same version
 (`VERSION.txt` in `SD card files` says which one you made). If it happens again, turn Film Grain off on that film and
 [tell us](https://github.com/androidfanman/caduceus-om3/issues), with your `OM3MOD` files if you can. Reports being
-looked into are listed under Bugs on the [roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/).
+looked into are listed under Bugs on the [roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/).
 
 ### My changes were lost.
 

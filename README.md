@@ -4,11 +4,11 @@
 
 <p align="center">
   <a href="https://github.com/androidfanman/caduceus-om3/releases/latest"><b>Download</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/install/"><b>Install</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/using/"><b>Using it</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/pages/install/"><b>Install</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/pages/using/"><b>Using it</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/"><b>Control Panel</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/faq/"><b>FAQ</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/roadmap/"><b>Roadmap</b></a> &nbsp;&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/pages/faq/"><b>FAQ</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/pages/roadmap/"><b>Roadmap</b></a> &nbsp;&nbsp;
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@ Open-source firmware patches for the OM-3 on firmware 1.1, part of the
 
 ## Install
 
-About 15 minutes. **[Step-by-step install guide](https://androidfanman.github.io/caduceus-om3/install/)**. In short:
+About 15 minutes. **[Step-by-step install guide](https://androidfanman.github.io/caduceus-om3/pages/install/)**. In short:
 
 1. **Check** the camera is an OM-3 on firmware **1.1** (*Setup › Firmware*), with a fully charged battery.
 2. **Download** this project (**Code › Download ZIP**) and unzip it.
@@ -44,12 +44,12 @@ About 15 minutes. **[Step-by-step install guide](https://androidfanman.github.io
 5. **Update the camera:** camera off, **hold OK** and switch on. Steady light = writing (about two minutes, don't touch
    anything); blinking = done.
 
-To undo: [go back to the camera's own firmware](https://androidfanman.github.io/caduceus-om3/install/#going-back-to-the-cameras-own-firmware). Problems:
-[if something goes wrong](https://androidfanman.github.io/caduceus-om3/install/#if-something-goes-wrong).
+To undo: [go back to the camera's own firmware](https://androidfanman.github.io/caduceus-om3/pages/install/#going-back-to-the-cameras-own-firmware). Problems:
+[if something goes wrong](https://androidfanman.github.io/caduceus-om3/pages/install/#if-something-goes-wrong).
 
 ## Using it
 
-**[How to use it on the camera](https://androidfanman.github.io/caduceus-om3/using/)**. In short:
+**[How to use it on the camera](https://androidfanman.github.io/caduceus-om3/pages/using/)**. In short:
 
 - Turn the creative dial to **COLOR** and open **Picture Mode**: after COLOR 1–4 you'll find your films, **FILM 1–20**.
 - The rows below change the film at once: the colour wheel (HSL, with split toning), Contrast, Highlight & Shadow,
@@ -108,7 +108,7 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | WB shift up to ±7 per film | v0.26.1 |
 | Films load at power-on; the super control panel's dials step through the films | v0.26.2 |
 
-Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/).
+Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/).
 
 ## Safety
 
@@ -139,8 +139,8 @@ Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/road
 - [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md): addresses, hooks and the test history.
 - [research/](research/README.md): the full lab notebook (`research/NOTES.md`: every address, test and dead end),
   firmware and emulator tools, and archived experiments.
-- [docs/FILM_SIMULATION_ROADMAP.md](docs/FILM_SIMULATION_ROADMAP.md) and [ROADMAP.md](ROADMAP.md) (shown as the [roadmap page](https://androidfanman.github.io/caduceus-om3/roadmap/)): plans and status.
-- `install/`, `using/`, `faq/`, `roadmap/`, `changelog/`, `site/`: the guide pages on GitHub Pages; they show `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md`, so edit those files.
+- [docs/FILM_SIMULATION_ROADMAP.md](docs/FILM_SIMULATION_ROADMAP.md) and [ROADMAP.md](ROADMAP.md) (shown as the [roadmap page](https://androidfanman.github.io/caduceus-om3/pages/roadmap/)): plans and status.
+- `pages/`: the guide pages on GitHub Pages (install, using, faq, roadmap, changelog; shared style in `pages/site/`); they show `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md`, so edit those files.
 - [CLAUDE.md](CLAUDE.md): working rules for AI-assisted sessions on this repo (useful for any contributor).
 
 ## Credits

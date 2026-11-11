@@ -1,6 +1,6 @@
 # Roadmap
 
-**[See this roadmap as a page, with the GitHub issues](https://androidfanman.github.io/caduceus-om3/roadmap/)** (it reads this file).
+**[See this roadmap as a page, with the GitHub issues](https://androidfanman.github.io/caduceus-om3/pages/roadmap/)** (it reads this file).
 
 What's planned for Caduceus for OM-3. Nothing here is promised or dated: features land when they work on a real camera.
 Ideas and requests are welcome in [Issues](https://github.com/androidfanman/caduceus-om3/issues).

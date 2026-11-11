@@ -18,6 +18,7 @@ commands, and keep replies short.
 | `docs/` | User docs, `DEVELOPER_NOTES.md` (per-release technical summary), `FILM_SIMULATION_ROADMAP.md`, `PHOTO_TO_LOOK.md`. |
 | `research/` | `NOTES.md` = the lab notebook (every address, test and dead end), tools, emulator scripts, archived experiments. See `research/README.md`. |
 | `CHANGELOG.md`, `ROADMAP.md` | Released changes; planned features. |
+| `pages/` | The guide pages on GitHub Pages (install, using, faq, roadmap, changelog; style and renderer in `pages/site/`). They read `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md` when opened: edit those files, not the pages. |
 
 Branches: `main` = released and safe. `feature/...` = work meant to ship (README banner says its status).
 `experiment/...` = a test that answers a question, not for use.
@@ -81,8 +82,8 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 ## Releasing
 
 `tools/mkpatch.py` makes `releases/vX/patch.json` from a build; `firmware/patch.py --release vX` must rebuild the
-camera-tested package byte for byte (`SHA256SUMS`). Update `CHANGELOG.md`, `releases/README.md`, `README.md` (latest
-version) and the docs; rebuild the Control Panel into `looklab/` when `webapp/` changes
+camera-tested package byte for byte (`SHA256SUMS`). Update `CHANGELOG.md` (its section and a row in the "At a glance" table), `releases/README.md`, `README.md` (the
+"Latest" line) and the docs; rebuild the Control Panel into `looklab/` when `webapp/` changes
 (`VITE_DEFAULT_CAMERA=om3 npx vite build`, copy `dist/` to `looklab/`, remove the old asset JS).
 
 ## Keeping the record (master chat)
