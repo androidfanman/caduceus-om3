@@ -2740,5 +2740,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   op's own row segment (no full decode). Counts: 0.6-1.3 M a picture (first visit 0.9-1.7 M with the row index),
   ~8x less than dg1. All nine pixel-identical to diagrams.compose (om-emu). ext12 240 KB of 256.
   dg3 (VERSION "v0.27-dev (diagrams 3)"): E1479999.BIN 65141864…, GUIDES.BIN 9c60d9cb….
+- **Camera (dg3, 2026-11-10): "it works wonderfully"** (owner): no hang left; lines and highlights right.
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.
