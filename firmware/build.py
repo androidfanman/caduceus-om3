@@ -41,6 +41,7 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_lv': (0x6046b8bb, bytes.fromhex('f040a064c205cc8e00f8b808a001c905cc84005c04fa408402a001c879')),
          '.hook_wt': (0x605048c1, bytes.fromhex('f824302c5802')),
          '.hook_stw': (0x6128b1d3, bytes.fromhex('cdb3f90004ccee00')),   # sd3: a text widget's string id is set (call 0x6128ab86,[],4; jmp 0x6128b2c6): the panel's title
+         '.hook_ag': (0x610833b3, bytes.fromhex('822d550d84')),   # v0.27 arrow keys: the key dispatcher's value read (PR #26's up_get)
          '.hook_dmg': (0x6109355f, bytes.fromhex('a8c816')),   # v0.27: the Creative Dial handler's "same family -> skip" (cmp d2,d0; beq +0x16) -> never skip
          '.hook_scw': (0x61157d30, bytes.fromhex('ddb02e1300a00c')),   # sd3: the super control panel sets its Picture Mode cell's choice (call 0x6128abe0,[d2,a2],12)
          '.hook_nr1': (0x603c8038, bytes.fromhex('dd48b3c9ffc00c')),
@@ -433,6 +434,93 @@ def build(defaults, testfile, out):
         assert tab == bytes(m[o(stock):o(stock) + 40]) + tab[40:48] + bytes(m[o(stock) + 48:o(stock) + 88]) or True
         struct.pack_into('<I', m, o(a) + 2, sy[name])
         m[o(a) + 7] = 22
+    # v0.27 arrow keys (editor.s "v0.27 arrow keys"; research/NOTES.md): all four in the stills Button Function menu
+    u32 = lambda a, n=1: struct.unpack_from(f'<{n}I', m, o(a))
+    VAL = 0x6061912c
+    vrec = {struct.unpack_from('<H', m, o(VAL) + 20 * i)[0]: VAL + 20 * i for i in range(1712)}
+    alist, alen = sy['ar_list'], (sy['ar_lend'] - sy['ar_list'])
+    codes = list(struct.unpack_from(f'<{alen // 2}H', m, o(alist)))
+    assert len(codes) == 48 and codes[-1] == 3200 and len(set(codes)) == 48
+    FNL, ARL = 0x615685d4, 0x6156855c                       # value labels: the Fn buttons' (50), ▶ / ▼'s (10)
+    labs = {}
+    for L, n in ((FNL, 50), (ARL, 10)):
+        for k in range(n):
+            labs.setdefault(u32(L + 12 * k)[0], bytes(m[o(L) + 12 * k:o(L) + 12 * k + 12]))
+    lab = b''.join(labs[c] for c in codes)
+    assert len(lab) == 12 * 48 and sy['ar_rows'] - sy['ar_lab'] >= len(lab)
+    m[o(sy['ar_lab']):o(sy['ar_lab']) + len(lab)] = lab
+    # validator: ▶ 53 / ▼ 51 in place; ▲ 50 <- 1957's record, ◀ 52 <- 572's (other bodies' buttons)
+    for sid, was in ((53, 53), (51, 51), (50, 1957), (52, 572)):
+        a = vrec[was]
+        r = struct.unpack_from('<HHIIHH', m, o(a))
+        assert r[0] == was and r[1] == 128 and r[3] == 0 and r[5] == 2, (sid, r)
+        struct.pack_into('<HHIIHH', m, o(a), sid, 128, alist, 0, alen, 2)
+    assert 50 not in vrec and 52 not in vrec
+    # rows (row -> item, item -> picker key) of 1957 / 572 -> ▲ / ◀
+    for row, desc, was, sid, key in ((0x6150ce78, 0x615c73ec, 1957, 50, 4), (0x6150cf08, 0x615c747c, 572, 52, 10)):
+        assert u32(row)[0] == was and u32(desc + 8)[0] == was and u32(desc + 16)[0] == key
+        struct.pack_into('<I', m, o(row), sid)
+        struct.pack_into('<I', m, o(desc) + 8, sid)
+    # picker title key icons (list 0x6139e26c, index = picker key: PR #26 found key 4 at 0x6139e2ac): key 4 -> ▲, key 10 -> ◀ (both blank in stock)
+    for key, pic in ((4, 0x7fe0), (10, 0x7fe1)):
+        a = 0x6139e26c + 16 * key
+        assert u32(a, 4) == (0xffff, 7, 7, 1), hex(a)
+        struct.pack_into('<I', m, o(a) + 12, pic)
+    # stills Button Function rows (mode 365) and item-info records (tree 2): ▲ ◀ after the arrow-pad mode (158)
+    MR, HDR, REC = 0x6152a108, 0x61569064, 0x61568e44
+    assert u32(MR, 3) == (365, 0x61529b76, 9) and u32(HDR, 3) == (0, REC, 9)
+    rows = list(struct.unpack_from('<9H', m, o(0x61529b76)))
+    assert rows == [47, 48, 1292, 49, 1964, 158, 53, 51, 56], rows
+    rows = rows[:6] + [50, 52] + rows[6:]
+    struct.pack_into('<11H', m, o(sy['ar_rows']), *rows)
+    struct.pack_into('<II', m, o(MR) + 4, sy['ar_rows'], 11)
+    recs = [bytearray(m[o(REC) + 28 * k:o(REC) + 28 * k + 28]) for k in range(9)]
+    rs = [struct.unpack_from('<I', r)[0] for r in recs]
+    assert rs == [47, 48, 49, 1964, 1292, 158, 53, 51, 56], rs
+    for r in recs:
+        if struct.unpack_from('<I', r)[0] in (53, 51):
+            assert struct.unpack_from('<2I', r, 12) == (ARL, 10)
+            struct.pack_into('<2I', r, 12, sy['ar_lab'], 48)
+    for sid, pic in ((50, 0x7fe0), (52, 0x7fe1)):
+        r = bytearray(recs[rs.index(53)])
+        struct.pack_into('<I', r, 0, sid)
+        struct.pack_into('<I', r, 4, (pic << 16) | 0xc)
+        recs.append(r)
+    items = b''.join(bytes(r) for r in recs)
+    assert len(items) == 28 * 11 and sy['ar_blk'] - sy['ar_items'] >= len(items)
+    m[o(sy['ar_items']):o(sy['ar_items']) + len(items)] = items
+    struct.pack_into('<II', m, o(HDR) + 4, sy['ar_items'], 11)
+    # the ▲ / ◀ rules (target 50 / 52 by the arrow-pad mode 158) lose their Direct Function branch (the third)
+    for R, sid in ((0x605d9b80, 50), (0x605d9b94, 52)):
+        r = struct.unpack_from('<HHII', m, o(R))
+        assert r[0] == sid and r[1] == 3200 and r[3] == 3, r
+        struct.pack_into('<I', m, o(R) + 8, 2)
+    # 7 shooting states that act on the ▼ / ▶ releases but list no ▲ / ◀ release: + {release, 1, 1, the same handler}
+    REFS = [(0x61331650, 0x5900, 0x61329534, 18, 0x610a8fb4), (0x61331704, 0x5911, 0x6132b3f4, 34, 0x610a4209),
+            (0x61331734, 0x5917, 0x6132c3a4, 19, 0x610a63de), (0x61331764, 0x591b, 0x6132ccd4, 18, 0x610a8459),
+            (0x613317b8, 0x5927, 0x6132dde4, 18, 0x610ab42a), (0x6133186c, 0x5936, 0x6132fcb4, 18, 0x610a8d32),
+            (0x6133189c, 0x593a, 0x61330554, 35, 0x610a4209)]
+    dst = sy['ar_blk']
+    for ref, st, ptr, n, h in REFS:
+        assert u32(ref + 4, 3) == (st, ptr, n), hex(ref)
+        blk = bytes(m[o(ptr):o(ptr) + 16 * n]); ents = [struct.unpack_from('<4I', blk, 16 * k) for k in range(n)]
+        assert any(e[0] == 0x1000017 and e[3] == h for e in ents) and any(e[0] == 0x100000f and e[3] == h for e in ents)
+        assert not any(e[0] in (0x100000b, 0x1000013) for e in ents)
+        new = blk + struct.pack('<4I', 0x100000b, 1, 1, h) + struct.pack('<4I', 0x1000013, 1, 1, h)
+        assert dst + len(new) <= sy['ar_pay']
+        m[o(dst):o(dst) + len(new)] = new
+        struct.pack_into('<II', m, o(ref) + 8, dst, n + 2)
+        dst += len(new)
+    # the ▲ / ◀ pictures (our drawing, firmware/mkicons.py)
+    sys.path.insert(0, str(ROOT / 'firmware'))
+    import mkicons
+    at = sy['ar_pay']
+    for k, (w, h, st_) in enumerate(mkicons.arrow_streams()):
+        assert at + len(st_) <= sy['ar_pend']
+        m[o(at):o(at) + len(st_)] = st_
+        d = sy['ar_d%d' % k]
+        struct.pack_into('<6H3I', m, o(d), 14, w, h, 8, 0, 0, len(st_), at + 0x40000000, 0)
+        at = (at + len(st_) + 7) & ~7
     # v0.27 debug log: this build's LABELS.BIN / TONES.BIN header checksums, for the "card files match" check (lg_ft)
     subprocess.run([sys.executable, ROOT / 'card' / 'mkguides.py', out / 'pictures.bin', '--tones', out / 'TONES.BIN'], check=True)   # v0.26: TONES.BIN
     subprocess.run([sys.executable, ROOT / 'card' / 'mklabels.py', out / 'LABELS.BIN'], check=True)

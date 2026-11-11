@@ -78,7 +78,7 @@
  jmp pu_hook                      /* stock 0x611d04ec (Picture Mode update): mov (0x6037a360),d0 */
  .byte 0xcb
 .section .hook_ic,"ax"
- jmp ic_get                       /* v0.23 stock 0x610f5611 (picture id -> its slot in the picture table): mov d0,d1;
+ jmp ar_ic                        /* v0.27: ar_ic (▲ / ◀ pictures), then ic_get. v0.23 stock 0x610f5611 (picture id -> its slot in the picture table): mov d0,d1;
                                    * exthu d1; cmp 0,d1; bne 0x610f561b */
  .byte 0xcb
 .section .hook_stp,"ax"
@@ -8539,6 +8539,9 @@ fl_scr:
  * widget, d0 = its choice: 16..19 for COLOR 1-4), entered by the same call. The widget draws again only when its choice
  * changes, and a step from one film to the next on the same COLOR leaves it (emulator: no picture / title request). After
  * a film change (fl_scf, set by fl_set): the neighbouring choice first, then the stock call with the real one. */
+.section .hook_ag,"ax"
+ jmp ar_get                       /* v0.27 stock 0x610833b3 (the key dispatcher's value read): mov d0,d2; mov 3413,d1;
+                                   * mov d1,d0 (5 bytes) */
 .section .hook_dmg,"ax"
  cmp d2,d0                        /* v0.27: the dial handler always sets 897 (stock beq +0x16 skipped it when the */
  .byte 0xc8, 0x02                 /* family was unchanged; a mapped position must act even then): beq +2 = next */
@@ -9448,4 +9451,85 @@ dm_own:                           /* the owner's own COLOR choice while a mapped
  .byte 0
 dm_map:                           /* test dm1 (dm7: COLOR and MONO unmapped, to test the way back): CRT -> FILM 3, ART -> FILM 10 */
  .byte 13, 20, 0, 0
+
+/* ---------------------------------------------------------------- v0.27 arrow keys (feature/v0.27-buttons)
+ * All four arrow keys in the stills Button Function menu with one list (ar_list): the Fn buttons' functions without
+ * the six that cannot work from an arrow (Magnify, Multi Function, HDR, High Res, Live ND, Live GND: PR #26 camera test
+ * 2; they use the arrows themselves), plus the arrows' own Flash, Drive, Power Zoom and Touch Lock. build.py: the
+ * validator records of ▶ (53) and ▼ (51) point at ar_list; ▲ (50) and ◀ (52) take the validator / row / picker entries
+ * of sids 1957 and 572 (buttons of other OM bodies, not on the OM-3; ▲ as PR #26, camera-tested); the stills row list
+ * and item-info records gain ▲ ◀; the ▲ / ◀ rules lose their Direct Function branch; 7 shooting states get the ▲ / ◀
+ * release events (as PR #26 for ▲). Based on PR #26 by ryanbughuang (research/upkey, research/BUTTONS.md). */
+.section .ext12,"ax"
+ar_get:                           /* .hook_ag (the dispatcher's value read, frame `call ..,[d2],8`, d0 = the key's sid):
+                                   * ▲ (50) / ◀ (52) by the arrow-pad mode (sid 158): Direct Function -> the assigned
+                                   * function; [·:·] -> AF area (85); Off -> nothing (▲) / AF area (◀, as stock) */
+ mov d0,d2
+ cmp 50,d2
+ beq 1f
+ cmp 52,d2
+ beq 1f
+ mov 3413,d1                      /* the stock bytes */
+ mov d1,d0
+ jmp ar_vback
+1:
+ mov 158,d0
+ call ar_getv,[d2,a2],24          /* d0 = the arrow-pad mode */
+ cmp 2,d0
+ beq 8f
+ cmp 52,d2
+ beq 7f
+ cmp 1,d0
+ bne 6f
+7:
+ mov 85,d0
+ ret [d2],8
+6:
+ mov 3200,d0
+ ret [d2],8
+8:
+ jmp ar_vget                      /* mov d2,d0; call the getter; ret [d2],8: the assigned value */
+ar_ic:                            /* .hook_ic: our ▲ / ◀ pictures (AR_IC0, AR_IC0 + 1), else ic_get */
+ mov d0,d1
+ exthu d1
+ cmp AR_IC0,d1
+ bcs 1f
+ cmp AR_IC0 + 2,d1
+ bcc 1f
+ add -AR_IC0,d1
+ asl2 d1
+ mov ar_ent,a0
+ add d1,a0
+ retf [],0
+1:
+ jmp ic_get
+ .set AR_IC0, 0x7fe0              /* clear of Caduceus' 0x7f80..0x7fc3 (PR #26's ▲ id) */
+ .balign 4
+ar_ent:
+ .long ar_d0, ar_d1
+ar_d0:                            /* <6H3I> descriptors, filled by build.py (firmware/mkicons.py arrow_streams) */
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+ar_d1:
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+ar_list:                          /* the arrows' functions (codes; their names: research/NOTES.md "v0.27 arrow keys") */
+ .short 3348, 3349, 3350, 3351, 3456, 44, 22, 9, 84, 6, 3341, 3437, 3428, 157, 3462, 1356, 266, 2136, 682, 1468
+ .short 475, 90, 140, 216, 404, 856, 69, 88, 1327, 3450, 1712, 1175, 85, 3297, 567, 1898, 106, 2133, 36, 3408
+ .short 452, 1108, 3279, 16, 3265, 3409, 425, 3200
+ar_lend:
+ .balign 4
+ar_lab:                           /* value labels {code, string << 16 | type, ptr} for ar_list (build.py, from the Fn
+                                   * buttons' and the arrows' label lists) */
+ .space 12 * 48
+ar_rows:                          /* the stills Button Function rows (build.py) */
+ .space 2 * 12
+ .balign 4
+ar_items:                         /* their item-info records, 28 B each (build.py) */
+ .space 28 * 12
+ar_blk:                           /* the 7 shooting states' event blocks with ▲ / ◀ releases (build.py) */
+ .space 3200
+ar_pay:                           /* the ▲ / ◀ picture streams */
+ .space 768
+ar_pend:
 

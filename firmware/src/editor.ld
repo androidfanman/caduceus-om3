@@ -16,6 +16,7 @@ SECTIONS {
   .hook_fx      0x60555e50 : { *(.hook_fx) }
   .hook_lv      0x6046b8bb : { *(.hook_lv) }
   .hook_wt      0x605048c1 : { *(.hook_wt) }
+  .hook_ag      0x610833b3 : { *(.hook_ag) }
   .hook_dmg     0x6109355f : { *(.hook_dmg) }
   .hook_scw     0x61157d30 : { *(.hook_scw) }
   .hook_stw     0x6128b1d3 : { *(.hook_stw) }
@@ -192,3 +193,6 @@ sdl_ext_tsk      = 0x60031808;
 scw_set       = 0x6128abe0;
 stw_set       = 0x6128ab86;
 stw_back      = 0x6128b2c6;
+ar_getv       = 0x61085dbb;         /* v0.27: the key dispatcher's plain setting getter (GetValue) */
+ar_vget       = 0x610834b1;         /* v0.27: the dispatcher's value read, assigned value: mov d2,d0; call getter; ret */
+ar_vback      = 0x610833b8;         /* v0.27: the value read after its first 5 bytes (.hook_ag) */

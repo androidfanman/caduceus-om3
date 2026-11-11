@@ -2561,3 +2561,32 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   work as the arrow keys (PR #26 added the ▲ row to Button Function: row list, item-info record, validator, picker).
   Until then the test map stays fixed in the firmware.
 
+### v0.27 arrow keys, test ak2 (2026-11-10; emulator only)
+- Owner chose: ▲ ◀ ▼ ▶ in the stills Button Function menu, each with the full list. Built into firmware/ (editor.s "v0.27
+  arrow keys", build.py), from PR #26 (ryanbughuang, camera-tested ▲) and research/BUTTONS.md.
+- **List (ar_list, 48 codes)**: the Fn buttons' 50 without the six that cannot work from an arrow (PR #26 camera test 2:
+  Magnify 3352, Multi Function 436, HDR 471, High Res 755, Live ND 1709; plus Live GND 2166, same mechanism as ND),
+  plus the arrows' own Flash 16, Drive 3265, Power Zoom 3409, Touch Lock 425. Names: action table 0x612f17e0 (name id =
+  action + 1) and the label pictures (viewed in om-emu, not kept). Value labels: ar_lab, from 0x615685d4 (Fn) and
+  0x6156855c (arrows). The picker grid (55 codes, shared by every stills key) already holds all 48.
+- **Records**: validator of 53 / 51 -> ar_list (96 B); ▲ 50 takes sid 1957's validator record, row 0x6150ce78 and picker
+  descriptor 0x615c73ec (key 4), as PR #26; ◀ 52 takes sid 572's (validator 0x6061a338, row 0x6150cf08, descriptor
+  0x615c747c, key 10): buttons of other OM bodies, not on the OM-3. Real table slots, so nothing indexes past the
+  1712-record table. Picker title icons 0x6139e26c index = key (4 -> ▲ 0x7fe0, 10 -> ◀ 0x7fe1; both blank in stock).
+  Rows (mode 365) -> ar_rows [47, 48, 1292, 49, 1964, 158, 50, 52, 53, 51, 56]; item-info tree 2 -> ar_items (11; ▲ / ◀
+  copies of ▶'s with our pictures; ▲ ◀ ▶ ▼ label list ar_lab, 48).
+- **Rules** 0x605d9b80 (50) and 0x605d9b94 (52): third branch (Direct Function) dropped, so the assigned value stays.
+  **ar_get** (.hook_ag at 0x610833b3, the dispatcher's value read): 50 / 52 by sid 158: Direct -> assigned; [·:·] -> 85;
+  Off -> 3200 (▲) / 85 (◀, stock). **Release events**: the 7 states 0x5900, 0x5911, 0x5917, 0x591b, 0x5927, 0x5936,
+  0x593a (the only ones with ▼ / ▶ release handlers but no ▲ / ◀) get {0x100000b / 0x1000013, 1, 1, handler} (ar_blk);
+  the other 23 such states already handle all four releases alike.
+- **Pictures**: ▲ / ◀ are our own drawing (firmware/mkicons.py arrow_picture: a white triangle with a grey edge, 40 x 40),
+  served by ar_ic (.hook_ic -> ar_ic -> ic_get).
+- **Bug found: `call 0x6...` / `jmp 0x6...` with a raw address assemble to a wrong target** (displacement from the
+  section start: 0x61085dbb became 0xc1fe1c00). Camera functions must be named in editor.ld (ar_getv, ar_vget,
+  ar_vback). This was also why the dial hook at 0x61093558 stopped om-emu at start-up (SCPU command 0x20041001).
+- om-emu: Button Function shows ▲ and ◀ rows; with ✥ = Direct Function the ▲ picker opens the full grid ("▲ : Exposure
+  Comp."), ◀ picker likewise; ◀ = Preview is stored (GetValue(52) = 106) and kept after leaving the menu. Cosmetic:
+  the body diagram's pointer for ▲ / ◀ points at the ▶ key; the ✥ choice still reads "±/[·:·]/▶/▼".
+- ak2 (also has the dial test map dm7): E1479999.BIN 347a1d1f…, GUIDES.BIN 6f81fdef….
+

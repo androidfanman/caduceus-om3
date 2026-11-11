@@ -425,3 +425,32 @@ def wbc_cell(ab, gm, wbpm=None):
                     cell[WBC_TY + yy, x + xx] = v
         x += g.shape[1] - 2
     return cell
+
+
+# v0.27 arrow keys: the ▲ and ◀ pictures of the Button Function rows and the picker title (40 x 40, as the camera's
+# ▼ / ▶ cells), our own drawing: a filled white triangle with a grey edge on a clear background.
+ARROW_W = ARROW_H = 40
+
+
+def arrow_picture(direction):
+    """4-bit picture (numpy, ARROW_H x ARROW_W): 0 clear, 10 white, 12 grey edge; direction 'up' or 'left'."""
+    import numpy as np
+    n = 4                                            # supersampling for a clean edge
+    W, H = ARROW_W * n, ARROW_H * n
+    ys, xs = np.mgrid[0:H, 0:W] + 0.5
+    cx, cy, half, depth = W / 2, H / 2, 11 * n, 11 * n   # triangle: base 22 px, height 22 px, centred
+    if direction == 'left':
+        xs, ys = ys, xs                              # the up triangle turned on its side
+    top = cy - depth / 2
+    t = (ys - top) / depth                           # 0 at the tip, 1 at the base
+    inside = (t >= 0) & (t <= 1) & (np.abs(xs - cx) <= half * t)
+    cov = inside.reshape(ARROW_H, n, ARROW_W, n).mean(axis=(1, 3))
+    px = np.zeros((ARROW_H, ARROW_W), dtype=np.uint8)
+    px[cov > 0.15] = 12
+    px[cov > 0.6] = 10
+    return px
+
+
+def arrow_streams():
+    """[(w, h, stream)] for ▲, ◀."""
+    return [(ARROW_W, ARROW_H, encode11(bytes(arrow_picture(d).flatten().tolist()), ARROW_W, ARROW_H)) for d in ('up', 'left')]
