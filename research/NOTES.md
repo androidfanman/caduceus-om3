@@ -2516,4 +2516,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   900 (picture mode 21) -> 899 ART (pm 40) -> 898 (pm 1) -> 901 COLOR (pm 55 = COLOR 2, FILM 9). Never 988. Owner asked
   to turn CRT -> ART -> COLOR -> MONO; which physical position gave which family is being confirmed with the owner
   (the order seen does not match that request one to one). So the hook can be on the run-time 897 change.
+- **Camera (dl8, second run, owner turned CRT -> ART -> COLOR -> MONO, 4 events each): CRT = 900 (picture mode 21,
+  Color Creator), ART = 899 (pm 40), COLOR = 901 (pm 55 = COLOR 2, FILM 9), MONO = 988 (pm 57).** So the four physical
+  positions are 900 / 899 / 901 / 988, and each turn changes 897 at run time. The first run's 898 (8 values, pm 1)
+  group is unexplained (the owner skipped MONO there); 898 is not one of the dial's positions in this run.
 
