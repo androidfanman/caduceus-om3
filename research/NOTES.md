@@ -2554,4 +2554,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - om-emu (dm7, test map CRT -> FILM 3, ART -> FILM 10, COLOR / MONO unmapped; start FILM 1): FILM 1 -> CRT FILM 3 ->
   COLOR FILM 1 -> ART FILM 10 -> CRT FILM 3 -> MONO (stock MONO, pm 57) -> COLOR FILM 1. dm7: E1479999.BIN 9dc1ae2a…,
   GUIDES.BIN dc9c2c9a…. Emulator only.
+- **Camera (dm7, 2026-11-10): works.** 26 events: CRT FILM 3 -> COLOR FILM 18 (the owner's own pick) -> ART FILM 10 ->
+  MONO (stock MONO, pm 57) -> COLOR FILM 18 again. Card files all match. Owner: no need to eject the card.
 
