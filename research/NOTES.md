@@ -2589,4 +2589,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Comp."), ◀ picker likewise; ◀ = Preview is stored (GetValue(52) = 106) and kept after leaving the menu. Cosmetic:
   the body diagram's pointer for ▲ / ◀ points at the ▶ key; the ✥ choice still reads "±/[·:·]/▶/▼".
 - ak2 (also has the dial test map dm7): E1479999.BIN 347a1d1f…, GUIDES.BIN 6f81fdef….
+- **Camera (ak2, 2026-11-10): works** (owner, photos): ▲ ◀ ▶ ▼ rows, pickers and assignments. To fix (owner):
+  1. ▲ / ◀ icons too small. The camera's ▼ (0x776) spans x 2..37, y 9..32, ▶ (0x777) x 10..33, y 2..37 (40 x 40, fill
+     13, outline 7, edge 9); ours were 22 px. mkicons.arrow_picture redrawn at that size and in those colours (our own
+     drawing).
+  2. The body diagram beside the list does not line up: each item-info record names a whole diagram picture (+20:
+     0x3f7b..0x3f83 << 16 | 3, 422 x 446, highlight and leader line drawn in), ▲ / ◀ copied ▶'s (0x3f81). The leader
+     line ends at the row's place on its page (7 rows a page), so inserting ▲ ◀ before ▶ also moved ▶, ▼ and L-Fn off
+     their lines. Plan: diagrams for ▲ ◀ (and redrawn ▶ ▼ L-Fn lines) made at build time from the user's own stock
+     pictures (never stored in the repo), as frames.py does for component 2.
+  3. Owner: keep the camera's own Direct Function (▲ = Exp comp, ◀ = AF area, ▶ ▼ assignable) and add the
+     all-four-keys mode as a **fourth ✥ option** (sid 158 value 3) instead of changing Direct Function.
 

@@ -427,27 +427,34 @@ def wbc_cell(ab, gm, wbpm=None):
     return cell
 
 
-# v0.27 arrow keys: the ▲ and ◀ pictures of the Button Function rows and the picker title (40 x 40, as the camera's
-# ▼ / ▶ cells), our own drawing: a filled white triangle with a grey edge on a clear background.
+# v0.27 arrow keys: the ▲ and ◀ pictures of the Button Function rows and the picker title (40 x 40). Our own drawing,
+# sized and coloured to sit with the camera's ▼ / ▶ cells (owner, camera test ak2: the first ones were too small):
+# ▲ spans x 2..37, y 7..30; ◀ x 6..29, y 2..37; fill 13, a dark outline 7 and an outer edge 9, clear (0) outside.
 ARROW_W = ARROW_H = 40
 
 
 def arrow_picture(direction):
-    """4-bit picture (numpy, ARROW_H x ARROW_W): 0 clear, 10 white, 12 grey edge; direction 'up' or 'left'."""
+    """4-bit picture (numpy, ARROW_H x ARROW_W); direction 'up' or 'left'."""
     import numpy as np
-    n = 4                                            # supersampling for a clean edge
-    W, H = ARROW_W * n, ARROW_H * n
-    ys, xs = np.mgrid[0:H, 0:W] + 0.5
-    cx, cy, half, depth = W / 2, H / 2, 11 * n, 11 * n   # triangle: base 22 px, height 22 px, centred
+    n = 4                                            # supersampling
+    ys, xs = (np.mgrid[0:ARROW_H * n, 0:ARROW_W * n] + 0.5) / n
     if direction == 'left':
-        xs, ys = ys, xs                              # the up triangle turned on its side
-    top = cy - depth / 2
-    t = (ys - top) / depth                           # 0 at the tip, 1 at the base
-    inside = (t >= 0) & (t <= 1) & (np.abs(xs - cx) <= half * t)
+        xs, ys = ys, xs                              # the up triangle turned on its side (tip at the left)
+    x0, x1, top, base = 2.0, 38.0, 7.0, 31.0         # base 36 px at y 31, tip at the middle of y 7
+    t = (ys - top) / (base - top)                    # 0 at the tip, 1 at the base
+    inside = (t >= 0) & (t <= 1) & (np.abs(xs - (x0 + x1) / 2) <= (x1 - x0) / 2 * t)
     cov = inside.reshape(ARROW_H, n, ARROW_W, n).mean(axis=(1, 3))
+    m = cov >= 0.5
+
+    def erode(a):
+        b = a.copy()
+        b[1:, :] &= a[:-1, :]; b[:-1, :] &= a[1:, :]; b[:, 1:] &= a[:, :-1]; b[:, :-1] &= a[:, 1:]
+        return b
+    m1 = erode(m); m2 = erode(m1)
     px = np.zeros((ARROW_H, ARROW_W), dtype=np.uint8)
-    px[cov > 0.15] = 12
-    px[cov > 0.6] = 10
+    px[m] = 9
+    px[m1] = 7
+    px[m2] = 13
     return px
 
 
