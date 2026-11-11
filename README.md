@@ -3,6 +3,7 @@
 <p align="center"><strong>Film looks and a colour editor, built into the OM SYSTEM OM-3.</strong></p>
 
 <p align="center">
+  <a href="https://github.com/androidfanman/caduceus-om3/releases/latest"><b>Download</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/install/"><b>Install</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/using/"><b>Using it</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/"><b>Control Panel</b></a> &nbsp;·&nbsp;
@@ -10,9 +11,7 @@
 </p>
 
 <p align="center">
-  Latest: <b>v0.26.2</b> (2026-11-09) &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/changelog/">Changelog</a> &nbsp;·&nbsp;
-  <a href="https://github.com/androidfanman/caduceus-om3/releases/latest">Download</a>
+  Latest: <b>v0.26.2</b> (2026-11-09)
 </p>
 
 ## What it does
