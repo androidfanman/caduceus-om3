@@ -12,7 +12,7 @@ import { makeZip } from './zip';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
 import {
-  BANK_SCHEMA, CD1_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromCd1, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
+  BANK_SCHEMA, PHOTO_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromPhotoCode, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
   SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw,
 } from './om3';
 import { namesBin } from './om3names';
@@ -721,7 +721,7 @@ function schedulePreview() {
 // ---------------------------------------------------------------- import / export / share
 function openFile() { $<HTMLInputElement>('#file').click(); }
 function pasteDialog() {
-  const ta = h('textarea', { rows: 3, placeholder: 'Paste a shared look or looks link (…#op1_… or …#ob1_…), or a photo\'s cd1. code', spellcheck: 'false' });
+  const ta = h('textarea', { rows: 3, placeholder: 'Paste a shared look or looks link (…#op1_… or …#ob1_…), or a photo\'s om3.1. code', spellcheck: 'false' });
   const msg = h('p', { class: 'help' });
   const go = h('button', { class: 'primary' }, 'Open');
   const dlg = modal('Paste a link', h('div', {}, ta, msg), [go]);
@@ -1106,9 +1106,9 @@ async function om3OnFile(e: Event) {
   try {
     if (magic === 'OM3P') { replaceBank(readProfiles(bytes), `Opened ${f.name} (${readProfiles(bytes).flat().filter(Boolean).length} looks)`); return; }
     if (magic === 'OM3N') { toast('That is NAMES.BIN (the name pictures). Open LOOKS.BIN instead: it holds the names too.', 'err'); return; }
-    if (bytes[0] === 0xff && bytes[1] === 0xd8) {                                  // v0.27: a JPEG from the camera: its cd1. code
+    if (bytes[0] === 0xff && bytes[1] === 0xd8) {                                  // v0.27: a JPEG from the camera: its om3.1. code
       const txt = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 262144)));
-      const m = /Caduceus [^\0]*?cd1\.[A-Za-z0-9_-]{39}/.exec(txt) ?? CD1_RE.exec(txt);
+      const m = /Caduceus [^\0]*?om3\.1\.[A-Za-z0-9_-]{43}/.exec(txt) ?? PHOTO_RE.exec(txt);
       if (!m) { toast('This photo has no Caduceus film code (taken without a film, or before v0.27).', 'err'); return; }
       await om3ImportCode(m[0], false); return;
     }
@@ -1127,9 +1127,9 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
       replaceBank(b.bank, `Opened "${b.name}"${bankMinFw(b.bank) > 20 ? ` · needs Caduceus v${FW_NAME[bankMinFw(b.bank)]} or later` : ''}`, b.name);
       return true;
     }
-    const fromPhoto = CD1_RE.test(t) && !isOm3Code(t, OP_PREFIX);
-    if (!fromPhoto && !isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_) or a photo\'s cd1. code.');
-    const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: fromPhoto ? lookFromCd1(t) : parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
+    const fromPhoto = PHOTO_RE.test(t) && !isOm3Code(t, OP_PREFIX);
+    if (!fromPhoto && !isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_) or a photo\'s om3.1. code.');
+    const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: fromPhoto ? lookFromPhotoCode(t) : parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
     if (!c.look) throw new Error('That link holds no look.');
     let k = O.k, v = O.v;
     if (O.bank[k][v]) {

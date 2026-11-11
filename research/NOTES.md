@@ -2801,5 +2801,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   CRT Fuji Eterna (FILM 18), MONO Vision3 250D (FILM 17), ART Pop Art (stock); memory 1275 / 1958 / 1284 = 4029 / 4028 /
   4027.
 - dr3 also carries the EXIF ex2 code. VERSION "v0.27-dev (dial modes 1)": E1479999.BIN 380771bc…, GUIDES.BIN 77b3fc6b….
+
+### v0.27 photo code renamed om3.1 and widened to the whole record, test dr4 (2026-11-11; emulator only)
+- Owner: codes must keep working across updates, both ways. cd1 carried bytes 0..56 only, so a future setting had no
+  room. Now `om3.1.` + 43 characters = all 64 bytes; rule: new settings go into the spare bytes 57..63 with 0 = off (an
+  older reader skips them, a newer one reads an old code as off); only a change that cannot follow that is om3.2.
+  The camera is in the name (owner asked about the E-P7): an E-P7 code would be its own (e.g. ep7.1.) with the same
+  text layout. Spec: docs/PHOTO_CODE.md; reference firmware/photocode.py (cd1.py removed); Control Panel
+  recordFromPhotoCode / lookFromPhotoCode / encodePhotoCode, tests webapp/tests/photocode.test.ts.
+- om-emu: FILM 19 picked on the super control panel -> "Caduceus FILM 19 Astia 100F om3.1.AAAAAAAAAQAAAAAADwAAEQAAAAAPABDwABAAAAAAAAA"
+  (77 characters), equal to photocode.encode of that record; decodes back to the same 64 bytes.
+- Proposal for cakelesscoder (not sent; the owner's call): see the reply of 2026-11-11 and docs/PHOTO_CODE.md.
+- dr4 (VERSION "v0.27-dev (dial modes 1, photo code 2)"): E1479999.BIN 296fce57…, GUIDES.BIN b829ec4b….
 - Further speed, if needed: several spans per row (the span is one range from the leftmost to the rightmost op, so a
   line and a cleaning rectangle on the same row make one wide span), `dg_pad` from the end, fewer per-row op scans.

@@ -212,31 +212,32 @@ export function lookFromRecord(rec: Uint8Array, name: string): Look {
   }
 }
 
-/** v0.27: the code the camera writes into a JPEG's UserComment ("Caduceus FILM n Name cd1.<39>"; firmware ex_cd1,
- *  reference firmware/cd1.py): record bytes 0..56 one nibble each, two to a byte, base64url. */
-export const CD1_RE = /cd1\.([A-Za-z0-9_-]{39})(?![A-Za-z0-9_-])/;
-const CD1_UNSIGNED = new Set([36, 48, 49, 50, 51, 53, 55]);
-export function recordFromCd1(code: string): Uint8Array {
-  const m = CD1_RE.exec(code);
-  if (!m) throw new Error('No cd1. code found.');
+/** v0.27: the code the camera writes into a JPEG's UserComment ("Caduceus FILM n Name om3.1.<43>"; firmware ex_cd1,
+ *  reference firmware/photocode.py): the whole 64-byte record, one nibble each, two to a byte, base64url. Bytes 57..63
+ *  are spare (future settings, 0 = off): read as unsigned and ignored until the look knows them. */
+export const PHOTO_RE = /om3\.1\.([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
+const PHOTO_UNSIGNED = new Set([36, 48, 49, 50, 51, 53, 55, 57, 58, 59, 60, 61, 62, 63]);
+export function recordFromPhotoCode(code: string): Uint8Array {
+  const m = PHOTO_RE.exec(code);
+  if (!m) throw new Error('No om3.1. code found.');
   const bin = atob(m[1].replace(/-/g, '+').replace(/_/g, '/') + '=');
   const rec = new Uint8Array(64);
-  for (let i = 0; i < 57; i++) {
+  for (let i = 0; i < 64; i++) {
     const byte = bin.charCodeAt(i >> 1), v = i & 1 ? byte & 15 : byte >> 4;
-    rec[i] = CD1_UNSIGNED.has(i) || v < 8 ? v : (v - 16) & 255;
+    rec[i] = PHOTO_UNSIGNED.has(i) || v < 8 ? v : (v - 16) & 255;
   }
   return rec;
 }
 /** A look from a photo's UserComment (or any text holding it): the name after "FILM n", else "From photo". */
-export function lookFromCd1(text: string): Look {
-  const rec = recordFromCd1(text);
-  const nm = /FILM \d+ (.*?) cd1\./.exec(text)?.[1]?.trim();
+export function lookFromPhotoCode(text: string): Look {
+  const rec = recordFromPhotoCode(text);
+  const nm = /FILM \d+ (.*?) om3\.1\./.exec(text)?.[1]?.trim();
   return lookFromRecord(rec, nm || 'From photo');
 }
-export function encodeCd1(rec: Uint8Array): string {
-  const nib = Array.from(rec.subarray(0, 57), (v) => v & 15).concat(0);
-  let bin = ''; for (let k = 0; k < 29; k++) bin += String.fromCharCode((nib[2 * k] << 4) | nib[2 * k + 1]);
-  return 'cd1.' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+export function encodePhotoCode(rec: Uint8Array): string {
+  const nib = Array.from(rec.subarray(0, 64), (v) => v & 15);
+  let bin = ''; for (let k = 0; k < 32; k++) bin += String.fromCharCode((nib[2 * k] << 4) | nib[2 * k + 1]);
+  return 'om3.1.' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 // ---- first visit: the 20 films (FILM 1-20). `film:` = a film sim, otherwise a library look (a process rather

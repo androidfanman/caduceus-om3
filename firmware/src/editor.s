@@ -9954,7 +9954,7 @@ ex_fill:
 8:
  clr d0
  movbu d0,(a1)
- call ex_cd1,[d2,d3,a2,a3],20    /* the film's settings as a code (d3 = j, a2 = P still) */
+ call ex_cd1,[d2,d3,a2,a3],20    /* the film's settings as a code, om3.1. (d3 = j, a2 = P still) */
  mov (ex_blk),a2                  /* ImageDescription: the text, zeros after it */
  add 0x5a8,a2
  mov ex_txt,a0
@@ -10019,10 +10019,11 @@ ex_fill:
  bne 82b
  ret [d2,d3,a2,a3],20
 
-/* ex_cd1: `call ex_cd1,[d2,d3,a2,a3],20`, a2 = P, d3 = film j -> ex_code = "cd1." + 39 characters: the film's
- * 64-byte LOOKS.BIN record, bytes 0..56 (everything a look sets), one nibble each (value & 15: all fit -8..7 or 0..15),
- * two to a byte (29 bytes), base64url (A-Z a-z 0-9 - _), no padding. The Control Panel turns it back into the film
- * (firmware/cd1.py is the reference). */
+/* ex_cd1: `call ex_cd1,[d2,d3,a2,a3],20`, a2 = P, d3 = film j -> ex_code = "om3.1." + 43 characters: the film's
+ * whole 64-byte LOOKS.BIN record (bytes 57..63 are spare: future settings go there, 0 = off, so older readers skip
+ * them), one nibble each (value & 15), two to a byte (32 bytes), base64url (A-Z a-z 0-9 - _), no padding. The camera
+ * is in the name so another body (E-P7) can have its own. The Control Panel turns it back into the film
+ * (firmware/photocode.py is the reference). */
 ex_cd1:
  mov (LPTR,a2),a0                 /* the record: 32 + 64 j */
  mov d3,d0
@@ -10035,23 +10036,20 @@ ex_cd1:
  movbu (a0),d0
  and 15,d0
  asl 4,d0
- cmp 28,d2                        /* byte 28: nibble 56 and a zero */
- beq 2f
  movbu (1,a0),d1
  and 15,d1
  or d1,d0
-2:
  movbu d0,(a1)
  add 2,a0
  add 1,a1
  add 1,d2
- cmp 29,d2
+ cmp 32,d2
  bcs 1b
  clr d0
- movbu d0,(a1)                    /* byte 29 = 0: ten groups of 3, the 40th character dropped */
+ movbu d0,(a1)                    /* byte 32 = 0: eleven groups of 3, the 44th character dropped */
  mov ex_code,a1
  mov ex_cdp,a0
- mov 4,d3
+ mov 6,d3
 3:
  movbu (a0),d0
  movbu d0,(a1)
@@ -10061,7 +10059,7 @@ ex_cd1:
  bne 3b
  mov ex_nb,a0
  mov ex_b64,a3
- mov 10,d3
+ mov 11,d3
 4:
  movbu (a0),d0
  lsr 2,d0
@@ -10118,7 +10116,7 @@ ex_uc:
 ex_sp:
  .asciz " "
 ex_cdp:
- .ascii "cd1."
+ .ascii "om3.1."
 ex_b64:
  .ascii "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
  .balign 4
@@ -10131,7 +10129,7 @@ ex_snap:
 ex_txt:
  .space 48
 ex_nb:
- .space 32
+ .space 36
 ex_code:
  .space 48
  .balign 4
