@@ -16,6 +16,20 @@ const WIDTH = [3823, 5461, 3959, 2685, 5006, 9057, 6872, 2867, 4642, 6690, 8055,
 const GAIN_POS = [240, 240, 240, 256, 369, 328, 382, 382, 300, 615, 400, 656];
 const GAIN_NEG = [385, 385, 395, 493, 513, 395, 385, 385, 395, 395, 395, 395];
 const ANGLE_OFFSET = 15, SAT_SCALE = 1.5, HUE_DEG_PER_STEP = 5.5;
+/** OM-3 (camera 'om3'): the same engine with numbers fitted to the camera (2026-11-11, research/film-grading/: colour-
+ *  checker photos with each slider on its own, plus 80 film shots; preview vs camera on the changed patches, ΔE:
+ *  saturation 6.6 -> 4.5, hue 5.1 -> 3.6, luminance 3.4 -> 2.5, WB 3.0 -> 2.2; on film shots left out of the fit
+ *  4.4 -> 3.8, where two shoots of the same film differ by 2.3). Per colour: saturation gain up / down,
+ *  hue degrees per step for each direction (camera Hue - / +), a luminance scale, the WB shift's linear-light gain per
+ *  channel (R, G, B per A-B and per G-M step) and the split bend's scale. Red has no chart patch: it keeps the old numbers. */
+export const OM3_CAL = {
+  gainPos: [306, 171, 618, 256, 517, 32, 622, 428, 724, 254, 250, 812],
+  gainNeg: [988, 327, 1032, 493, 560, 186, 568, 474, 980, 389, 233, 498],
+  hueDown: [19.3, 6.5, 10.1, 5.5, 7.4, 0.0, 7.5, 6.4, 19.0, 12.6, 0.0, 3.6],   // degrees per step, camera Hue -
+  hueUp: [17.2, 6.7, 13.7, 5.5, 11.9, 0.1, 7.1, 7.7, 21.2, 6.4, 2.9, 5.5],    // degrees per step, camera Hue +
+  light: 2.44, wbAB: [0.0379, 0.0118, -0.0129], wbGM: [-0.0097, 0.0181, -0.0131], split: 1.05,
+};
+export type SectorCal = Pick<typeof OM3_CAL, 'gainPos' | 'gainNeg' | 'hueDown' | 'hueUp' | 'light'>;
 const L_LUT = [-300, -250, -200, -150, -100, -50, -25, 0, 25, 50, 100, 150, 200, 250, 300];
 const WB_STEP = 0.015, CONTRAST_STEP = 0.035;
 const BLOOM_SHARE = [0.08, 0.14, 0.2, 0.27, 0.35];
@@ -43,10 +57,14 @@ const ENC = new Float32Array(ENC_N + 1).map((_, i) => {
 const enc = (x: number) => ENC[Math.max(0, Math.min(ENC_N, (x * ENC_N + 0.5) | 0))];
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 
-/** Per-hue-bin colour-engine response for a look: saturation multiplier, hue shift (deg), lightness (native sum). */
-export function sectorLut(hue: number[], light: number[], sat: number[]) {
+/** Per-hue-bin colour-engine response for a look: saturation multiplier, hue shift (deg), lightness (native sum).
+ *  `cal` (OM-3): the camera-fitted numbers; `hue` is then the engine's sign (the camera's negated), so + = camera Hue -. */
+export function sectorLut(hue: number[], light: number[], sat: number[], cal?: SectorCal) {
   const satMul = new Float32Array(BINS), shift = new Float32Array(BINS), lsum = new Float32Array(BINS);
-  const sc = sat.map((s, k) => (s * (s >= 0 ? GAIN_POS[k] : GAIN_NEG[k])) / 5 * SAT_SCALE);
+  const gp = cal ? cal.gainPos : GAIN_POS, gn = cal ? cal.gainNeg : GAIN_NEG;
+  const sc = sat.map((s, k) => (s * (s >= 0 ? gp[k] : gn[k])) / 5 * SAT_SCALE);
+  const deg = hue.map((v, k) => (cal ? (v >= 0 ? cal.hueDown[k] : cal.hueUp[k]) : HUE_DEG_PER_STEP));
+  const lk = cal ? cal.light : 1;
   const centre = CENTRE.map((c) => (c + ANGLE_OFFSET) % 360);
   const w = new Float64Array(12);
   for (let b = 0; b < BINS; b++) {
@@ -62,8 +80,8 @@ export function sectorLut(hue: number[], light: number[], sat: number[]) {
     for (let k = 0; k < 12; k++) {
       const wk = sum > 1e-6 ? w[k] / sum : 1 / 12;
       s += wk * sc[k];
-      hs += wk * hue[k] * HUE_DEG_PER_STEP;          // native -1000*u; shift = -native/1000 * deg/step
-      l += wk * L_LUT[Math.max(-7, Math.min(7, light[k])) + 7];
+      hs += wk * hue[k] * deg[k];          // native -1000*u; shift = -native/1000 * deg/step
+      l += wk * L_LUT[Math.max(-7, Math.min(7, light[k])) + 7] * lk;
     }
     satMul[b] = Math.max(0, Math.min(3, 1 + s / 1000));
     shift[b] = (hs * Math.PI) / 180;
@@ -135,7 +153,9 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
   const mono = look.kind === 'mono';
   // 1. WB fine-tune (linear light)
   const ab = look.wb?.a_b ?? 0, gm = look.wb?.g_m ?? 0;
-  const gr = 1 + WB_STEP * ab, gg = 1 + WB_STEP * gm, gb = 1 - WB_STEP * ab;
+  const om3 = opt.camera === 'om3';
+  const [gr, gg, gb] = om3 ? [0, 1, 2].map((c) => 1 + OM3_CAL.wbAB[c] * ab + OM3_CAL.wbGM[c] * gm)
+    : [1 + WB_STEP * ab, 1 + WB_STEP * gm, 1 - WB_STEP * ab];
   for (let i = 0; i < n; i++) {
     const p = i * 4, q = i * 3;
     if (ab || gm) {
@@ -147,8 +167,7 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
   // 2. contrast advice + the look's tone (luminance), 3. 12-sector colour engine, 4. mono
   const con = opt.advice ? look.advice.contrast ?? 0 : 0;
   const tl = !toneIsZero(look.tone) || con ? previewToneLut(look.tone, 1024, con ? contrastCurve(con) : undefined) : null;
-  const om3 = opt.camera === 'om3';
-  const lut = sectorLut(om3 ? look.hue.map((v) => -v) : look.hue, look.light, !mono ? look.sat : new Array(12).fill(0));
+  const lut = sectorLut(om3 ? look.hue.map((v) => -v) : look.hue, look.light, !mono ? look.sat : new Array(12).fill(0), om3 ? OM3_CAL : undefined);
   const mf = look.advice.mono_filter;
   let mw: [number, number, number] = MONO_W.none;
   if (mono && mf) {
@@ -179,7 +198,7 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
     if (mono) R = G = B = mw[0] * R + mw[1] * G + mw[2] * B;
     img[q] = R; img[q + 1] = G; img[q + 2] = B;
   }
-  if (om3 && look.split) bendSplit(img, n, look.split);   // OM-3 v0.26 split toning (the camera bends its gamma curves)
+  if (om3 && look.split) bendSplit(img, n, look.split, OM3_CAL.split);   // OM-3 v0.26 split toning (the camera bends its gamma curves)
   // 5. bloom / halation (Soft Focus blend of a 160-px-wide blurred copy) or clarity (large-radius local contrast)
   const e = look.effect;                     // OM-3 v0.20: glow (no colour) and clarity too
   if (e && e.strength >= 1) {

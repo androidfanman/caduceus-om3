@@ -2918,3 +2918,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   preview changes by ΔE 1.5 on average (most: Fuji Velvia 3.1). Phoenix 200 / SX-70 were kept from swapping warm WB
   for a cool WB plus warm split (WB sign kept).
 - Branch `feature/camera-graded-films`. Next: a camera check of some of the 42; real-scene check of the 20.
+
+## Control Panel preview fitted to the camera (2026-11-11; analysis on camera-tested shots; branch feature/preview-camera-match)
+- Each single-slider chart test run through the preview vs the camera: the camera's WB shift is 2–2.7x the preview's;
+  saturation is 2–5x on Yellow, Orange-red, Cyan and 1.5–2x on Magenta, Blue, about equal on Orange, Blue-cyan, Green,
+  weaker on Red / Violet / Green-cyan; hue turns 1.5–3x further on Yellow, Orange-red, Magenta, Blue-cyan, Cyan and less
+  on Blue, Green, Yellow-green; per-colour luminance is stronger; split toning, Contrast and tone are close.
+- `preview.ts` `OM3_CAL` (OM-3 only; the E-P7 and RapidRAW paths keep the old numbers): per-colour saturation gains
+  up / down, hue degrees per step per direction, luminance scale, WB gain per channel, split scale 1.05. Fitted on the
+  tests plus the 80 film shots (`research/film-grading/preview-fit/`). Preview vs camera ΔE: saturation 6.6 -> 4.5,
+  hue 5.1 -> 3.6, luminance 3.4 -> 2.5, WB 3.0 -> 2.2; film shoots left out one at a time 4.4 -> 3.8 (shoot-to-shoot
+  floor 2.3). The 62 looks' previews move by ΔE 1.7 on average (max 3.7); the 42 graded looks now preview within
+  ΔE 1.8 of how their recipes previewed before grading.

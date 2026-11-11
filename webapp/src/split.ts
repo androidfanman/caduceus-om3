@@ -26,8 +26,8 @@ export function parseSplit(v: unknown): Split | undefined {
   return splitOk(s) && (s.sh || s.hl) ? s : undefined;
 }
 /** The curve bend on [0,1] RGB in place (img: n x 3 floats), as the camera does it on its 12-bit gamma output. */
-export function bendSplit(img: Float32Array, n: number, s: Split) {
-  const ks = SPLIT_K[s.sh_color].map((k) => k * s.sh), kh = SPLIT_K[s.hl_color].map((k) => k * s.hl);
+export function bendSplit(img: Float32Array, n: number, s: Split, scale = 1) {
+  const ks = SPLIT_K[s.sh_color].map((k) => k * s.sh * scale), kh = SPLIT_K[s.hl_color].map((k) => k * s.hl * scale);
   const lut = [0, 1, 2].map((c) => {
     const out = new Float32Array(256); let max = 0;
     for (let i = 0; i < 256; i++) {
