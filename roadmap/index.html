@@ -86,12 +86,26 @@ td.num { white-space: nowrap; width: 1%; }
 .attn ul { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 6px; }
 .small { font-size: 13px; }
 .err { color: var(--bad); }
+.topnav { background: var(--panel); border-bottom: 1px solid var(--line); }
+.topnav .in { max-width: 1120px; margin: 0 auto; padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; }
+.topnav .brand { font: 800 16px var(--display); color: var(--ink); text-decoration: none; margin-right: auto; }
+.topnav a.tab { color: var(--muted); text-decoration: none; font-weight: 500; font-size: 14px; padding: 4px 0; border-bottom: 2px solid transparent; }
+.topnav a.tab:hover { color: var(--ink); }
+.topnav a.tab[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+
 footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
 @media (max-width: 520px) { th, td { padding: 9px 10px; } h1 { font-size: 24px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
+<nav class="topnav" aria-label="Caduceus for OM-3"><div class="in">
+  <a class="brand" href="https://github.com/androidfanman/caduceus-om3">Caduceus for OM-3</a>
+  <a class="tab" href="../install/">Install</a>
+  <a class="tab" href="../using/">Using it</a>
+  <a class="tab" href="../roadmap/" aria-current="page">Roadmap</a>
+  <a class="tab" href="../looklab/">Control Panel</a>
+</div></nav>
 <div class="wrap">
 
 <header>

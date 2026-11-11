@@ -8,8 +8,8 @@ Saturation), and adds the look's settings to the camera's own Picture Mode scree
 Noise Filter, lens vignette correction, Shading, Glow / Clarity and fast colour film grain. Films are made in the browser with the **Caduceus Control
 Panel**; changes you make on the camera are kept per film.
 
-**Latest: v0.26.2** ([changelog](CHANGELOG.md)) · **▶ [Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Install guide](docs/INSTALL.md)** ·
-**[Using it](#using-it)** · **[Roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/)** · Caduceus for the E-P7: [cakelesscoder/caduceus-ep7](https://github.com/cakelesscoder/caduceus-ep7).
+**Latest: v0.26.2** ([changelog](CHANGELOG.md)) · **▶ [Control Panel](https://androidfanman.github.io/caduceus-om3/)** · **[Install guide](https://androidfanman.github.io/caduceus-om3/install/)** ·
+**[Using it](https://androidfanman.github.io/caduceus-om3/using/)** · **[Roadmap](https://androidfanman.github.io/caduceus-om3/roadmap/)** · Caduceus for the E-P7: [cakelesscoder/caduceus-ep7](https://github.com/cakelesscoder/caduceus-ep7).
 
 > [!WARNING]
 > **Early development, use at your own risk.** This is an unofficial, experimental firmware modification. Bugs will
@@ -45,70 +45,19 @@ Panel**; changes you make on the camera are kept per film.
 
 ## Install
 
-You need: an OM-3 on firmware **1.1** (check *Setup › Firmware*), a **fully charged battery**, an SD card, and a
-computer with [Python 3.8+](https://www.python.org/downloads/) (Windows, macOS or Linux; a Mac offers to install it).
+**[Step-by-step install guide](https://androidfanman.github.io/caduceus-om3/install/)** (about 15 minutes). In short:
 
-### 1. Get Caduceus for OM-3
+1. **Check** the camera is an OM-3 on firmware **1.1** (*Setup › Firmware*), with a fully charged battery.
+2. **Download** this project (**Code › Download ZIP**) and unzip it.
+3. **Make the update file:** double-click `Make SD card files (Mac).command` or `Make SD card files (Windows).bat`.
+   It gets OM's official firmware from OM's server and adds Caduceus to it.
+4. **Copy** the `DCOLYMP` and `OM3MOD` folders to the top of the SD card, and the film sims (`LOOKS.BIN`, from the
+   [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest)) into `OM3MOD`.
+5. **Update the camera:** camera off, **hold OK** and switch on. Steady light = writing (about two minutes, don't touch
+   anything); blinking = done.
 
-On this page click **Code › Download ZIP** and unzip it (or `git clone` the repo).
-
-### 2. Make the update file on your computer
-
-OM's licence doesn't allow anyone to share their firmware, so the update file is made on your own computer from OM's
-official OM-3 1.1 firmware (`OLY_E_147_1100_0000_0000.BIN`, or `…_3.BIN` from an earlier download). The patcher checks it byte for byte, applies the
-Caduceus for OM-3 changes and checks the result.
-
-- **Easiest:** in the unzipped folder, double-click the launcher for your system:
-  - macOS: `Make SD card files (Mac).command` (the first time: right-click › **Open**)
-  - Windows: `Make SD card files (Windows).bat`
-- **Or from a terminal** in that folder: `python3 firmware/patch.py` (Windows: `py firmware\patch.py`).
-
-If the official file is in the folder or in Downloads, the patcher uses it; otherwise it asks OM's update server for
-it. It refuses any other file or firmware version. It makes the newest version; press Return, or type an older
-version (for example `v0.16`) to go back to it. Every version is in [releases](releases/README.md). It creates a folder **`SD card files`** with:
-
-```
-DCOLYMP/E1479999.BIN   the patched firmware update      → goes on the SD card
-OM3MOD/                GUIDES.BIN (page labels + Extras code), LABELS.BIN and TONES.BIN; your edits and looks are saved here → goes on the SD card
-restore/E1479999.BIN   the original OM firmware 1.1     → keep on your computer (to undo Caduceus for OM-3)
-```
-
-### 3. Copy to the SD card
-
-Put the camera's SD card in your computer and copy the **`DCOLYMP`** and **`OM3MOD`** folders to the top level of
-the card (next to the `DCIM` folder). Eject the card properly.
-
-### 4. Flash the camera
-
-1. Put the card in the camera. **Battery fully charged**, camera **off**.
-2. **Hold the OK button** and switch the camera **on**. Keep holding OK until the update starts.
-3. The light stays **steady** while the update is written (about two minutes). **Do not switch off, open the battery
-   door or remove the card.**
-4. When the light starts **blinking**, it's finished. Switch the camera off.
-5. Switch it on normally.
-6. On a computer, delete `DCOLYMP/E1479999.BIN` from the card. Keep `OM3MOD`: that's where your edits and looks
-   live.
-
-### 5. Shoot
-
-Switch on (your films and settings load from the card by themselves; before v0.26.2: half-press the shutter once
-first), then open Picture
-Mode: your films follow COLOR 1–4 in the list. See [Using it](#using-it).
-
-### Go back to an earlier version
-
-Run the launcher again and type the version you want (see [releases](releases/README.md)), then copy `DCOLYMP` to
-the card and flash as in step 4. Keep `OM3MOD`: every version reads your `LOOKS.BIN` and `BUNDLES.BIN`. Always copy
-the release's own `GUIDES.BIN` (and from v0.20 `LABELS.BIN`) with its firmware: from v0.20 `GUIDES.BIN` carries code
-built for that exact firmware. Coming from v0.16–v0.18, rename your `PROFILES.BIN` to `LOOKS.BIN` (same format; v0.19
-did this by itself, v0.20 no longer does).
-
-### Undo / go back to stock
-
-Copy `restore/E1479999.BIN` from your computer to the card's `DCOLYMP` folder (replacing the patched one) and flash
-it exactly as in step 4. The camera is then completely stock 1.1 again.
-
-More detail, troubleshooting and FAQ: **[docs/INSTALL.md](docs/INSTALL.md)**.
+To undo, flash the original firmware the same way: see [going back](https://androidfanman.github.io/caduceus-om3/install/#going-back-to-the-cameras-own-firmware).
+Problems: [if something goes wrong](https://androidfanman.github.io/caduceus-om3/install/#if-something-goes-wrong).
 
 ## Make your own looks: the Control Panel
 
@@ -183,70 +132,13 @@ colour-checker photos):
 
 ## Using it
 
-**On the card** (`OM3MOD` at the card's top level):
+**[How to use it on the camera](https://androidfanman.github.io/caduceus-om3/using/)**. In short:
 
-```
-OM3MOD/LOOKS.BIN      your films FILM 1–20, with their names (from the Control Panel or the release)
-OM3MOD/EDITS.BIN      the changes you made on the camera, per film and per COLOR (the camera writes it)
-OM3MOD/BUNDLES.BIN    the wheels' current values (the camera writes it; .NEW and .BAK are its safety copies)
-OM3MOD/GUIDES.BIN     the labels under the wheel + Caduceus code (from the release, with its firmware)
-OM3MOD/LABELS.BIN     labels (from the release)
-OM3MOD/TONES.BIN      the split toning pages' guides (from the release, v0.26)
-OM3MOD/NAMES.BIN      name pictures for v0.17–v0.22 (not needed from v0.24; harmless)
-```
-
-**Every time you switch on:** your films and changes load from the card by themselves a moment after the camera
-starts (v0.26.2; a half-press or OK loads them too). Before v0.26.2: half-press the shutter once first.
-
-**Choosing a film:** Picture Mode › the COLOR position. The top row lists **COLOR 1–4, then FILM 1–20**: turn to a
-film and its name shows as the big title; the quick menu, the shooting screen and the viewfinder show it from then on.
-The camera remembers the film you were on over power off. (Behind the scenes FILM 1–5 use COLOR 1, FILM 6–10 COLOR 2,
-and so on.)
-
-**The rows** under Picture Mode: **HSL** (the colour wheel), Contrast, Highlight & Shadow, **Blk** (Blacks), **Wht**
-(Whites), **WB** (the WB shift: the small grid shows where it is and the numbers sit under WB±, like "A2.G1"; press
-**OK**, left / right or turn a dial to open the camera's own WB fine-tune screen, then MENU or OK to come back),
-Sharpness (Sharp, −5 = Off .. +2), **Noise Filter** (Off / Low / Std / High), **Vignette Correction** (Off = natural
-corners, On = the camera's correction), **Shading**, **Glow** (+1..+5 Glow, a soft glow; −1..−5 Clarity, local
-contrast) and **Film Grain** (Off / Low / Med / High). They change the film or COLOR you're on, and the photo straight
-away. Picture Mode always opens on the top row.
-
-**The HSL wheel:** on the HSL row press **INFO**. INFO goes **Color** (the camera's saturation, one colour) → **Color
-All** → **Hue** → **Luminance** → Color. The front dial picks the colour, the rear dial the value. Colours run
-clockwise from Yellow at 12 o'clock: Yellow, Orange, Orange-red, Red, Magenta, Violet, Blue, Blue-cyan, Cyan,
-Green-cyan, Green, Yellow-green. Hue + turns a colour toward its clockwise neighbour (Yellow → Orange); Luminance
-makes it brighter or darker (−5..+5).
-
-**Your changes are kept:** change anything on a film (or on COLOR 1–4) and it stays when you switch to another film
-and back, and over power off. The camera keeps the changes in `EDITS.BIN` (saved at the next half-press); the film as built stays as it is
-in `LOOKS.BIN`.
-
-**Hold OK:**
-- **On a film in the list** (or on the HSL wheel of a film): the film goes back to how it was built.
-- **On COLOR n:** the whole COLOR goes back to the camera's factory settings.
-
-A **`*`** means changed: after COLOR n, something differs from the factory settings; after FILM n, something differs
-from how the film was built. Rows show their own `*` too.
-
-**Grain:** grain is added by the camera's image processor while it develops the photo, in colour, at no extra time,
-with every other setting.
-
-**Quick answers**
-- *No films in the list?* Check `OM3MOD/LOOKS.BIN` is on the card.
-- *Settings change but nothing happens in the photo?* The card's `GUIDES.BIN` must come from the same release as the
-  firmware. Copy the release's `GUIDES.BIN` again.
-- *The camera freezes or switches off after a photo?* Take the battery out for a few seconds. Check that the firmware
-  and `OM3MOD/GUIDES.BIN` come from the same release (the launcher's `SD card files` folder has both; `VERSION.txt` in
-  it says which). If it keeps happening, turn Film Grain off on that film and
-  [report it](https://github.com/androidfanman/caduceus-om3/issues) with your `OM3MOD` files.
-- *My changes were lost?* They save at the next half-press, and only when the card has an `OM3MOD` folder.
-- *New films from the Control Panel?* Export `LOOKS.BIN` (choose "v0.26.1 or later") and copy it to `OM3MOD`. A film
-  you changed in the Control Panel starts again as built; the others keep your camera changes. Deleting `EDITS.BIN`
-  puts every film back as built.
-- *Monochrome?* Not supported: the MONO profiles keep the camera's own editor.
-- *Want stock back for good?* Flash the restore file (see [Undo](#undo--go-back-to-stock)).
-
-More: [docs/USING.md](docs/USING.md). Card file formats: [docs/FORMATS.md](docs/FORMATS.md).
+- Turn the creative dial to **COLOR** and open **Picture Mode**: after COLOR 1–4 you'll find your films, **FILM 1–20**.
+- The rows below change the film at once: the colour wheel (HSL, with split toning), Contrast, Highlight & Shadow,
+  Blacks / Whites, WB shift, Sharpness, Noise Filter, Vignette Correction, Shading, Glow and Film Grain.
+- Your changes stay with each film, also over power off. **Hold OK** on a film to put it back as built.
+- Make new films in the [Control Panel](https://androidfanman.github.io/caduceus-om3/) and copy its `LOOKS.BIN` to the card's `OM3MOD` folder.
 
 ## Safety
 
