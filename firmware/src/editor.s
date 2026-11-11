@@ -9327,19 +9327,42 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  inc d2
  cmp 4,d2
  bcs 3b
- jmp sl_set0
-4:
- mov dm_map,a3
- add d2,a3
- movbu (a3),d3                    /* the target */
- cmp 0,d3
- beq 51f
- call dm_ok,[],0
+ jmp sl_set0                      /* not a dial family: stock (d0, d1 untouched) */
+4:                                /* d2 = position 0..3 (CRT, ART, COLOR, MONO), a3 -> its family */
+ call dm_ok,[],0                  /* films loaded? (uses d1) */
  cmp 0,d1
- bne 5f
-51:
+ bne 41f
+40:
+ mov 897,d0                       /* stock, with the family back in d1 */
+ mov (a3),d1
  jmp sl_set0
+41:
+ mov dm_map,a2
+ add d2,a2
+ movbu (a2),d3                    /* the target */
+ cmp 0,d3
+ bne 5f
+ cmp 2,d2                         /* an unmapped COLOR position: the owner's own choice back, if a mapped */
+ bne 40b                          /* position replaced it (dm_own) */
+ movbu (dm_own),d3
+ cmp 0,d3
+ beq 40b
+ clr d0
+ movbu d0,(dm_own)
+ bra 55f
 5:
+ movbu (dm_own),d0                /* a mapped position: remember the owner's own choice first (once) */
+ cmp 0,d0
+ bne 55f
+ add -12,sp                       /* (0) call slot, (4) a0, (8) a1: sget keeps d2/d3/a2/a3 only */
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ call dm_cur,[d2,d3,a2,a3],12
+ movbu d0,(dm_own)
+ mov (4,sp),a0
+ mov (8,sp),a1
+ add 12,sp
+55:
  add -12,sp                       /* (0) call slot, (4) a0, (8) a1 */
  mov a0,(4,sp)
  mov a1,(8,sp)
@@ -9362,11 +9385,44 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  add FV0 - 11,d3                  /* FILM n = code - 10 -> FV0 + n - 1 */
  mov d3,d1
  jmp fl_set
+dm_cur:                           /* `call dm_cur,[d2,d3,a2,a3],12` -> d0 = the current COLOR choice as a dm_map
+                                   * code (1..4 COLOR k, 11..30 FILM n), 0 if unknown. Uses a0, a1, d1. */
+ mov 901,d0
+ call sget,[],4                   /* COLOR k's picture mode value (kept while another family is on) */
+ call fl_k,[],0
+ cmp 0,d0
+ blt 9f
+ mov d0,d2
+ PVAL 9f
+ mov a2,a0
+ add d2,a0
+ movbu (LIDX,a0),d1
+ extb d1
+ cmp 1,d1
+ blt 8f
+ cmp 5,d1
+ bgt 8f
+ mov d2,d0                        /* FILM 5k + n = code 10 + 5k + n */
+ asl2 d0
+ add d2,d0
+ add d1,d0
+ add 10,d0
+ ret [d2,d3,a2,a3],12
+8:
+ mov d2,d0                        /* COLOR k itself */
+ inc d0
+ ret [d2,d3,a2,a3],12
+9:
+ clr d0
+ ret [d2,d3,a2,a3],12
  .balign 4
+dm_a1:
+ .long 0
 dm_fam:
  .long 900, 899, 901, 988         /* CRT, ART, COLOR, MONO */
 dm_ok:                            /* `call dm_ok,[],0` -> d1 1 when P is valid and the films are loaded, else 0
-                                   * (PVAL's checks with d1 / a1 only; d0, a0 kept) */
+                                   * (PVAL's checks with d1 / a1; d0, a0 and a1 kept: a1 is the SetValue's mode) */
+ mov a1,(dm_a1)
  movhu (STATE),d1
  add -1,d1
  cmp HMAX,d1
@@ -9382,10 +9438,14 @@ dm_ok:                            /* `call dm_ok,[],0` -> d1 1 when P is valid a
  cmp 0,d1
  beq 9f
  mov 1,d1
+ mov (dm_a1),a1
  ret [],0
 9:
  clr d1
+ mov (dm_a1),a1
  ret [],0
-dm_map:                           /* test dm1 (owner's example): CRT -> COLOR 1, ART -> FILM 3, COLOR -> FILM 10, MONO -> FILM 11 */
- .byte 1, 13, 20, 21
+dm_own:                           /* the owner's own COLOR choice while a mapped position replaced it (0 = none) */
+ .byte 0
+dm_map:                           /* test dm1 (dm7: COLOR and MONO unmapped, to test the way back): CRT -> FILM 3, ART -> FILM 10 */
+ .byte 13, 20, 0, 0
 

@@ -2546,4 +2546,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   this session; the owner ejected it himself.
 - Next: the map from the Control Panel (stored with the films), power-on on a mapped position, MONO targets, and
   whether the COLOR position should go back to the user's own COLOR choice when unmapped.
+- Owner: an unmapped position goes back to what it was before. dm7: `dm_own` keeps the owner's own COLOR choice
+  (`dm_cur`: GetValue(901) -> COLOR k, P+LIDX+k -> FILM 5k + n) the first time a mapped position replaces it; an unmapped
+  COLOR position loads it back (same manager + fl_set path) and clears it. Kept in RAM only (lost at power-off).
+  Fixes: `dm_ok` no longer clobbers a1 (the SetValue's mode; dm6 did, without a visible effect); the stock path after
+  `dm_ok` puts the family back in d1 (dm6 passed d1 = 0/1 to the manager when the films were not loaded).
+- om-emu (dm7, test map CRT -> FILM 3, ART -> FILM 10, COLOR / MONO unmapped; start FILM 1): FILM 1 -> CRT FILM 3 ->
+  COLOR FILM 1 -> ART FILM 10 -> CRT FILM 3 -> MONO (stock MONO, pm 57) -> COLOR FILM 1. dm7: E1479999.BIN 9dc1ae2a…,
+  GUIDES.BIN dc9c2c9a…. Emulator only.
 
