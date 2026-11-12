@@ -1,9 +1,9 @@
 > [!WARNING]
-> **Experiment branch `experiment/halation-h0`, not a release.** On v0.28 space 1: probe h0 for halation. On a film with
-> Glow or Clarity (the Soft Focus route), every still gets two coloured bands in its top 256 rows: the left half's chroma
-> byte 1 and the right half's byte 3 set to 168. The colours tell which byte is Cb / Cr on the OM-3 and the sign
-> convention. Emulator: exactly the expected 8128 bytes changed on a test buffer. **Camera (2026-11-12): byte 1 = Cb,
-> byte 3 = Cr, offset-binary (left band Cb +40, right band Cr +40), also with Grain High.** Done.
+> **Experiment branch `experiment/halation-h1`, not a release.** On v0.28 space 1: halation h1. On a film with **Glow**
+> (-1..-5), every still also gets a red-orange halo around bright lights, strength = the Glow level (Clarity and 0: none).
+> A CPU pass after the Soft Focus blend (editor.s `hl_run`, numbers in firmware/halation.py, exact model
+> research/halation/model.py); method after Caduceus for the E-P7 (cakelesscoder). Emulator: 7 test frames bit-exact with
+> the model (night, padding, strengths 1-5, daylight cap, dark, 128 px). **Camera test pending.**
 
 <h1 align="center">Caduceus for OM-3</h1>
 
