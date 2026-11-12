@@ -2930,3 +2930,25 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   hue 5.1 -> 3.6, luminance 3.4 -> 2.5, WB 3.0 -> 2.2; film shoots left out one at a time 4.4 -> 3.8 (shoot-to-shoot
   floor 2.3). The 62 looks' previews move by ΔE 1.7 on average (max 3.7); the 42 graded looks now preview within
   ΔE 1.8 of how their recipes previewed before grading.
+
+## v0.28 code space: the button-picture buffers, space 1 and the GX4 probe (2026-11-11; emulator only)
+- Space left in v0.27.1 (measured from the build): ext11 96 B of 64 KiB; ext12 14896 B of 256 KiB; the `GUIDES.BIN`
+  block ~3.2 KB under the 16448 B malloc cap; ext1..ext10 a few hundred B. `.ext12` held two big reservations:
+  `dg_b0` (2 x 64 KiB body-diagram output buffers) and `ar_pay` (80 KiB for the button pictures).
+- The diagram buffers can't move to the heap: the composed pictures are 38556..59892 B (om-emu, `dg_build` k = 0..8:
+  39468, 39340, 38876, 38556, 51172, 59292, 59236, 59892, 59540), and the firmware malloc (0x60024068) hands out at
+  most 16448 B per block from a small pool (NOTES "gl1b"). They stay as they are; one buffer instead of two would save
+  64 KiB but risks the menu redrawing a picture that was overwritten (not tried).
+- **space 1** (`feature/v0.28-space`): `ar_pay` held 19061 B in 81920 B; now `.space 20480` (build.py's assert
+  `at + len <= ar_pend` keeps it safe). ext12 free 14896 -> 76336 B. The 12 button pictures are byte-identical to
+  v0.27.1 (descriptors and streams); om-emu composes all nine body diagrams byte-identical; Picture Mode screenshot
+  identical. VERSION "v0.28-dev (space 1)".
+- Section map (research/tools/sections.py): section 6's FF gap runs from its data end to section 7's start at
+  0x6103f000 (1006208 B); GX2 + GX3 proved 0x60f49800..0x60f99800. The rest, 0x60f99800..0x6103f000 (677888 B), was
+  never written during the GX3 camera test (gap sums unchanged), so it is the next candidate.
+- **GX4 probe** (`experiment/firmware-space-probe-gx4`, on space 1): section 6's loaded end -> 0x6103f000; `.gx` at
+  0x60f99800 ('GXT4', the GX3 probe, 169336 pattern words); `gx_go` (ext12) called from `lg_pr` at every half-press;
+  gap list: section 1's tail replaces section 6's (now loaded); `GAPTEST.BIN` 'GXR4'. om-emu: 10 half-presses -> 19
+  passes, 0 bad, no gap changed; the nine diagrams byte-identical to v0.27.1. Package (VERSION "v0.28-dev (space 1 +
+  GX4 probe)"): E1479999.BIN 6b7ac10f…, GUIDES.BIN 85bb63d0…; LABELS / TONES = v0.27.1. Camera test next: normal use
+  incl. bursts, RAW+JPEG, video, Button Function rows, and special modes (Live ND, High Res, ProCapture, bracketing).

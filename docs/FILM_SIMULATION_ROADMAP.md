@@ -31,9 +31,10 @@ Efforts are estimates from what we know of the firmware today.
   switches between up to four films.
 - **Not in v0.27:** Art Effects (removed in v0.25), mono films (parked), a WB mode / exposure / ISO per film, halation.
 
-**Firmware space.** The 64 KiB of section 6 proven on 2026-11-07 is almost used up. The 256 KiB proven on 2026-11-10
-(GX3, 0x60f59800..0x60f99800, camera-tested) is in use from v0.27, which raised the loader's end word; the debug log is
-its first user, and the rest is free for halation and the next features (`docs/DEVELOPER_NOTES.md`, v0.27).
+**Firmware space.** The 64 KiB of section 6 proven on 2026-11-07 is used up. The 256 KiB proven on 2026-11-10
+(GX3, 0x60f59800..0x60f99800, camera-tested) is in use from v0.27: v0.27.1 leaves about 15 KB of it free (the button
+pictures and body diagrams take most of it). v0.28 work sizes the button pictures' area to fit (about 76 KB free) and
+probes the rest of section 6 (about 660 KB more, GX4); see `research/NOTES.md`, "v0.28 code space".
 
 ## Next steps
 
