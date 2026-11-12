@@ -3229,3 +3229,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   writes "10" itself. om-emu: "+9", "10", "+-0" on Highlights; the Saturation page still -5..+5 ("-2").
 - Engine (out-t2b, the probe stage): codes 5 / 5, -3 / -1, 5 / 5 with balance +3, -5 / 1 with -2: bit-exact.
 - Package t2: E1479999.BIN 8547ddaa…, GUIDES.BIN 40c1ffeb… (LABELS / TONES as h6). VERSION "v0.28-dev (split tone t2)".
+- **t2 camera (owner, 2026-11-12): "It works!!"** Wheels 0..10 with no hidden count, the tone strength back, Tone
+  Balance as in t1. The owner has used the "Bal" row picture without objection. Split toning is done on the camera
+  side; the Control Panel part remains (half-step preview with model.py bend28 / strength(), 0..10 wheels, the
+  balance slider, +58 export gated to v0.28).
