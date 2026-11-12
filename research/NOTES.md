@@ -3129,3 +3129,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   centring and drawn after the last digit; fl_LS1 = fl_LS's "FILM" + digits + the quick menu's '*' (mkicons.sp_star,
   gap SP_DGAP). Direct calls of fl_sp (om-emu, decoded): "FILM 1*", "FILM 12*" (centred), "FILM 7" (plain layout);
   the super control panel shows "FILM1*" / "FILM1" for a changed / unchanged film.
+
+## Owner decisions on the next look features (2026-11-12)
+- Gentler Shading (#22): yes. Per-film WB mode / exposure / ISO: yes. Split toning: finer steps and a balance
+  slider; no midtones wheel (#23). Our own grain: on hold until the owner compares today's grain with Lightroom /
+  DxO. Highlight roll-off and toe: not planned (Blacks / Whites + the Highlight & Shadow curve cover it). Cleaner
+  JPEGs (#17): out of scope (the camera's JPEG compression stays). Film borders: not planned (added in editing).
+- v0.28 scope: halation (row, Control Panel), our version in the camera's firmware menu, custom crop modes.
