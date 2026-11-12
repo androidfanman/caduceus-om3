@@ -3393,3 +3393,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   WB± picture, which the cell keeps over its values). build.py: zc_tab / zc_p0..1 in bwg.inc (ext12); wb_draw points
   the descriptor there when both values are 0 (no xb_wbc call). om-emu: both rows big at 0 / 0, "B/W" small over
   "+2/+3" when set, big again back at 0 / 0. LABELS.BIN unchanged from g3 (eac8eb47…).
+- **g4 camera (owner, 2026-11-12): the big icons' left and right edges are clipped.** The Picture Mode list shows only
+  an 82 px strip of the 100 x 76 cell, cell x 9..90 (WBC_IX, the WB± picture's slot): om-emu shows it too (the
+  92 px plate's dark edges missing; I missed it in the g4 shots). Lesson: measure the drawn edges in the emulator
+  shot, not only look at it.
+- **g5 (2026-11-12, emulator only):** ZC_K 1.2 (plate 79 x 36), centred in the shown strip (`mkicons.ZC_WIN`, an
+  assert keeps it inside). om-emu: both plates' dark edges visible on both sides (screen x 15..93 in the strip
+  14..95). E1479999.BIN 93f434d3…, GUIDES.BIN efd62b87…, LABELS.BIN unchanged (eac8eb47…).

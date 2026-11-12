@@ -509,15 +509,19 @@ def bw_top():
     return px
 
 
-ZC_K = 1.4                                       # owner, g4: at 0 / 0 the icon bigger and centred
+ZC_K = 1.2                                       # owner, g4: at 0 / 0 the icon bigger and centred (g5: 1.4 was clipped)
+ZC_WIN = 82                                      # the list shows only this strip of the cell, from WBC_IX (the WB±
+                                                 # picture's place): g4's 92 px plate lost its edges (camera; om-emu too)
 
 
 def zero_cell(text):
     """the WB ('WB') and Blacks / Whites ('B/W') rows' left cell at 0 / 0 (owner, g4: no values -> the icon alone,
-    bigger, centred in the cell): 100 x 76, our plate at ZC_K (92 x 42). editor.s wb_draw points the cell there."""
+    bigger, centred in the cell): 100 x 76, our plate at ZC_K (79 x 36) in the middle of the shown strip. editor.s
+    wb_draw points the cell there."""
     cell = np.zeros((CH, CW), dtype=np.uint8)
     p = plate_icon(text, ZC_K)
-    y, x = (CH - p.shape[0]) // 2, (CW - p.shape[1]) // 2
+    assert p.shape[1] <= ZC_WIN - 2
+    y, x = (CH - p.shape[0]) // 2, WBC_IX + (ZC_WIN - p.shape[1]) // 2
     cell[y:y + p.shape[0], x:x + p.shape[1]] = p
     return cell
 
