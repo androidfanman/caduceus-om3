@@ -3263,3 +3263,19 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (tells a linear blend toward grey from a multiplicative one), + the GLOG.BIN logger (xblock XB_LOG 1; copy A = the
   first kind-0 request's first 1856 B) for COLOR 1 at -5 / -3 / -1. Package E1479999.BIN d87eaf60…, GUIDES.BIN
   06ba2216…; om-emu: boots, saves (no capture there, so no log).
+- **s2 camera (owner, 2026-11-12; PB122292-297, room with a window, 17 mm f1.8 1/100 ISO 200; COLOR 1 at -5 / -3 /
+  -1, COLOR 2-4 at -5) + GLOG.BIN ('GLG3', 10 marks: two per photo, the first two photos overwritten):**
+  - Each photo has two kind-0 developments: key 0xb0000 (context key 11, effect 0x0c00, combiner 33) and key 0x20000
+    (context key 2, effect 0, combiner 0), then kind-3 finals. The request differs between -1 and -5 (both
+    developments) only at **+1752** (0xff / 0xfb), +1655 / +1663 (1 / 0), +1590 (105 / 0, first development only)
+    and +1556..+1559 (0 / 48, 95, 98; +1557 differs between the -5 shots too): **no strength table in the request**;
+    the level reaches the mask some other way (not traced).
+  - Y by radius (centre .. corner): -5 105 / 74 (r .45-.6) / 22 (.7-.8) / 3.5 (corner); -3 114 / 78 / 25 / 5.1;
+    -1 107 / 80 / 30 / 8.8: the camera's levels mostly move the ring inwards; even -1 leaves the corner at ~8 %.
+  - COLOR 2 (+192 1024 -> 410): the **whole picture** at ~0.40 (an overall gain, set to 1024 by the dispatcher for
+    every combiner). COLOR 3 (+148 -> 0x019a019a): about stock. COLOR 4 (Y target 409): the corners go **grey and
+    foggy** (dark areas lifted): the blend is linear toward the target colour, Y' = Y + m (Yt - Y). So a softer
+    target is no way to a gentler vignette, and the mask amount is still unfound.
+  - Options (owner to choose): (1) our own CPU vignette on stills (the Control Panel's f = 1 + 0.07 s r^1.5, any step
+    size; camera Shading 0; route as halation: Soft Focus passes at weight 1024 + a CPU pass; not in live view; a
+    little slower saves); (2) more probes for the mask amount (keeps live view, no time cost, uncertain).
