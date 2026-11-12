@@ -3,7 +3,8 @@
 > (-1..-5) a red-orange halo around bright lights, strength = the Glow level. h2 after the h1 camera test: the tint's
 > colour weight comes from each 64 px cell's mean brightness (no speckle from the fast grain), mid-bright surroundings
 > take it too, and bright frames fade it out smoothly (full up to 8 % bright cells, none from 24 %). Emulator: 8 test
-> frames bit-exact with research/halation/model.py. **Camera test pending.**
+> frames bit-exact with research/halation/model.py. **Camera (2026-11-12): a smooth red-orange halo, white cores,
+> less speckle with grain, none in daylight; no freeze.**
 
 <h1 align="center">Caduceus for OM-3</h1>
 
