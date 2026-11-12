@@ -473,9 +473,33 @@ def wbc_text(ab, gm, bw=False):
 
 
 def bw_top():
-    """the Blacks / Whites row's cell top (as the WB± picture over the WB cell): "Blk/Wht", 82 x 30"""
-    return picture([('Blk/Wht', 18, 24)], 82, 30, 0.92, (0.20, 0.40, 0.60))
-
+    """the Blacks / Whites row's cell top (owner, g3: an icon like the WB row's WB± picture, which is the camera's; this
+    one is drawn here from scratch in its style): 82 x 30, a white plate (66 px, 2 px dark edge, rounded corners) with
+    "B/W" in dark letters and a square split on its diagonal, dark with a white '+' and white with a dark '-'."""
+    w, h = 82, 30
+    px = np.zeros((h, w), dtype=np.uint8)
+    x0, x1 = 8, 74
+    px[0:h, x0:x1] = 7
+    px[2:h - 2, x0 + 2:x1 - 2] = 10
+    for y, x in ((0, x0), (0, x1 - 1), (h - 1, x0), (h - 1, x1 - 1), (0, x0 + 1), (0, x1 - 2), (h - 1, x0 + 1),
+                 (h - 1, x1 - 2), (1, x0), (1, x1 - 1), (h - 2, x0), (h - 2, x1 - 1)):
+        px[y, x] = 0
+    cov, b = word('B/W', 17, 34, 1.0)
+    y0, xs = int(round(23 - b)), 12 + (34 - cov.shape[1]) // 2
+    for y in range(cov.shape[0]):
+        for x in range(cov.shape[1]):
+            c, yy, xx = cov[y, x], y0 + y, xs + x
+            if 0 <= yy < h and 0 <= xx < w and px[yy, xx] == 10:
+                px[yy, xx] = 7 if c >= 0.6 else 12 if c >= 0.35 else 11 if c >= 0.15 else 10
+    sx, sy, n = 48, 4, 22
+    for y in range(n):
+        for x in range(n - 1 - y):
+            px[sy + y, sx + x] = 7
+    cx, cy = sx + 7, sy + 7
+    px[cy - 1:cy + 1, cx - 4:cx + 5] = 10
+    px[cy - 4:cy + 5, cx - 1:cx + 1] = 10
+    px[sy + 15:sy + 17, sx + 11:sx + 19] = 7
+    return px
 
 def bw_syms():
     """the Blacks / Whites grid's own symbols in place of the camera's letters: the boxes' '+' / '\u2212' (32 x 32, as

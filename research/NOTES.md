@@ -3378,3 +3378,11 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   "Blk / Wht" until drawn), SL_VAL class 14 -> wb_draw mode 1. om-emu: cell "Blk/Wht +3/+7"; fine-tune header
   "+3 . +7", the dot at the grid's top edge at +7 (the screen stops at the facade's 15); the WB row unchanged.
   LABELS.BIN 88f4c049… (= bw1's), GUIDES.BIN c3449baf…, E1479999.BIN d4941147….
+- **g2 camera (owner, 2026-11-12): "that works and looks good"** (camera-tested: -7..+7, the values in the left cell).
+  Owner: an icon for the cell like the WB row's WB± icon (instead of the word "Blk/Wht").
+- **g3 (2026-11-12, emulator only): the cell's icon.** The owner chose icon A from two drawn previews: a plate like
+  the WB row's WB± icon reading "B/W" with a ± square (82×30, drawn from scratch in `mkicons.bw_top()`; dark text on
+  a white plate, the square's upper-left half dark with a white '+', a dark '−' lower right). It replaces the word
+  picture "Blk/Wht" in WBG1 (LABELS.BIN); firmware and GUIDES differ from g2 in 12 / 17 bytes (the version string). om-emu: the cell
+  shows the icon alone at 0 / 0 and the icon over "+2/+3" when set, the WB row unchanged. LABELS.BIN eac8eb47…,
+  GUIDES.BIN 98640306…, E1479999.BIN d931c334….
