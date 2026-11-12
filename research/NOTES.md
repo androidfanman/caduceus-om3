@@ -3035,3 +3035,18 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (~3-5 s), under the 10 s watchdog with fast grain (no CPU grain). Analysis; the camera will tell.
 - The test harness (scratch, not in the repo) adds `poke:` and `runa:ADDR:A0:D0:N` to sess7; note for zsh: write
   `${VAR}:a5...` (a bare `$VAR:a` is zsh's absolute-path modifier and jumped the emulator to address 0).
+- **h1 camera, first run (owner's OM-3, 2026-11-12; camera-tested):** CADLOG "v0.28-dev (halation h1)", 97 shutter
+  events, card files OK; 23 RAW+JPEG stills PB122229..251 at ISO 200-1250, FILM 1 Portra 400 on COLOR 1 (BUNDLES at
+  the end: Glow 5, Grain High), incl. bursts of 5 (anti-shock) and 11: **all saved, no freeze or restart.** Scenes: a
+  dim room with a warm table lamp (most frames), a floor lamp on a bright wall, two daylight frames. File times are
+  the capture times (no save-time measurement from the card).
+  - Ring 500..900 px around the lamp (Y 90..235): Cr +7.7 (229) -> 8.5 -> 11.7 -> 12.4 -> 13.3 (236), Cb -17.6 ->
+    -21.7: the tint direction of hl_run and growing over the series (settings per frame not known yet). Modest, and the
+    lamp is tungsten-warm itself, so halo vs lamp light can't be separated without a reference.
+  - With Grain High (236): Cr high-pass noise in the ring 1.78 vs 0.92 far from the lamp; orange / white speckle in
+    the glow and the lampshade's thin dark rim turned orange (visible at 100 %). Cause (analysis): the fast grain's
+    texture is in the development, before xb_gs, so the per-pixel weight 255 - Y0 modulates the chroma add with the
+    grain. Fix for h2: take the chroma weight from a smoothed brightness (e.g. a running mean of Y over ~8 pairs) so
+    grain and thin lines don't modulate the tint; keep the per-pixel weight for Y (cores stay white).
+  - Next test needs a reference: the same scene with white / LED light, Glow 5 vs Clarity 1 (Soft Focus route without
+    halation), with and without grain.
