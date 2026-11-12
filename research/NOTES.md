@@ -3136,3 +3136,5 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   DxO. Highlight roll-off and toe: not planned (Blacks / Whites + the Highlight & Shadow curve cover it). Cleaner
   JPEGs (#17): out of scope (the camera's JPEG compression stays). Film borders: not planned (added in editing).
 - v0.28 scope: halation (row, Control Panel), our version in the camera's firmware menu, custom crop modes.
+- **h5 camera (owner, 2026-11-12):** "it looks good": FILM 1* on the super control panel, the halo and saves as h4.
+  The owner has used the "Halo" row icon and the "FILM 1*" lettering from h3 / h5 without objection.

@@ -1,8 +1,9 @@
 > [!WARNING]
-> **Feature branch `feature/v0.28-halation`, work in progress (not released).** v0.28 space 1 + halation h2 + its own
-> **Halation** Picture Mode row (0..5, with or without Glow; slot +30, LOOKS.BIN +57). Emulator: the row shows, steps
-> 0..5 and saves; the halation pass is bit-exact with research/halation/model.py. **Camera test pending.** The
-> Control Panel part (slider, preview, export) is still to do.
+> **Feature branch `feature/v0.28-halation`, work in progress (not released).** v0.28 so far: the button-picture space
+> sized to fit, and **Halation** as its own Picture Mode row (0..5, with or without Glow; a soft two-layer fade; slot +30,
+> LOOKS.BIN +57), FILM n* in the list and FILM N* on the super control panel. **Camera-tested in test builds h3..h5
+> (2026-11-12).** Still to do for v0.28: the Control Panel's Halation slider / preview / export, our version in the
+> camera's firmware menu, custom crop modes.
 
 <h1 align="center">Caduceus for OM-3</h1>
 
