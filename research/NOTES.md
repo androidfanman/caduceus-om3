@@ -3300,3 +3300,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **w1 camera (owner, 2026-11-12):** picking FILM 1 sets **CWB 3000K** on the camera (camera-tested), but changing the
   WB afterwards **snaps back to 3000K**: fw_probe ran on every setting-901 write, not only when the selection changed.
   Owner: the list is COLOR 1-4 then FILM 1-20 (describe tests by FILM number; FILM 1-5 = COLOR 1's looks internally).
+- **Probe w2** (experiment/film-wb-w1): fl_set keeps the look before in its (24,sp) (unused on the COLOR path) and
+  passes it to fw_probe, which returns when the look is the same and sget(111) is already COLOR k's picture mode (the
+  camera writes 901 again at each half-press: caller 0x60ae741e). om-emu: FILM 3 -> CWB 3000K; WB changed by hand
+  stays after two half-presses; FILM 20 -> 6000K; COLOR 4 -> Auto. Package E1479999.BIN b7923634…, GUIDES.BIN a3412046….
