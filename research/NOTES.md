@@ -3340,3 +3340,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   grid is black on the Blacks axis and white on the Whites axis. Mock-ups (private project folder, mockups/): plain
   black edges vanish on the dark screen; owner chose **D**: black -/+ boxes left / right (Blacks), white -/+ boxes
   top / bottom (Whites), and the grid's edges black (outlined) and white to match.
+- Port plan (bw1 = commit 2fa6a5c, on v0.25 code; branch `feature/v0.28-bw-grid` from feature/v0.28-halation):
+  - Row: BK_IT becomes the one-option grid row (it_tab {BK_IT, bk_title, bw_l0 "Blacks / Whites", bw_l1 / bw_l2
+    IC_BW}); WH_IT leaves pm_list. Bars **BWB = 0x7ef0 + k (row 15; 0x7ed0 is now HLB)**, **class 14** (bw1 used 12,
+    now Halation; 13 is Tone Balance), so every bw1 "class >= 11 = grid" test becomes "class 11 or 14": SL_VAL
+    (wb_draw mode), sl_cnt (1), LOWCNT (0, 1), sl_set0 (nothing stored). sl_slot / sl_gb: BWB and BK_IT -> 14.
+    CHC bw_a..bw_f, lc_bw; build.py: BK_IT 'bw' in the OWN switch loop (as AB_IT 'wg'), BK / WH out of the slider
+    loop. gr_lc BK_IT -> bw_tab. The BKB / WHB bar ids and classes 5 / 6 stay (gr_id maps the grid's ids to them).
+  - Grid screen (gr_mode 1, gr_lmode; gr_upd by row; gr_id + BKB - ABB; gr_pub's dot from +47 / +48): ic_get swaps
+    while gr_flag and gr_mode = 1: box letters G 10324 / A 10327 / B 10325 / M 10328 -> look D boxes (A '+' and B
+    '-' black, G '+' and M '-' white, 32 x 32), header letters -> '+' / '-', "WBAuto" 11240 -> "Blk/Wht", and the
+    grid's coloured edges -> black (left / right) and white (top / bottom): find which of 10904..10907 carries them.
+  - Pictures (ours, LABELS.BIN 'WBG1' section, mkicons): bw_top "Blk/Wht" 82 x 30, the four boxes, the header '+',
+    the edge picture; glyphs '+', '-', '/' for the left cell "Blk/Wht" over "+2/-1" (xb_wbc mode 1, two stream
+    buffers). Sizes then: GUIDES.BIN block, LABELS.BIN, ext11 / ext12.
