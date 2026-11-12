@@ -9823,8 +9823,9 @@ ar_items:                         /* their item-info records, 28 B each (build.p
  .space 28 * 16
 ar_blk:                           /* the 7 shooting states' event blocks with ▲ / ◀ releases (build.py) */
  .space 3200
-ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-row picture streams */
- .space 81920
+ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-row picture streams (build.py fills them: 19061 B in v0.27.1;
+                                   * v0.28 space: was 81920, sized to fit, build.py asserts they still fit) */
+ .space 20480
 ar_pend:
 
 /* ---------------------------------------------------------------- v0.27: the film's name in the JPEG's EXIF
