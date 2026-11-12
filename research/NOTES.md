@@ -3329,3 +3329,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   BUNDLES slot, which sd_san checks by range instead). **w4:** tw_san clears each of +57..+62 only when outside -5..5
   (+63 as before). om-emu (two sessions, the card saved between them: FILM 1 Sunny -> FILM 2 -> save -> restart ->
   FILM 1): w3 Auto, **w4 Sunny 5300K**. Package E1479999.BIN e9820df4…, GUIDES.BIN f76e06be….
+- **w4 camera (owner, 2026-11-12): "that worked perfectly!"** Each film keeps its WB (Custom WB Kelvin and presets)
+  over film switches and power cycles, and a film without one gets Auto (camera-tested). Film WB is done on the camera
+  side; the Control Panel part (WB per film in the editor, export of +59..+62 for v0.28) remains, and per-film exposure
+  compensation / ISO are not started.

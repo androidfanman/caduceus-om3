@@ -3,8 +3,9 @@
 > sized to fit, and **Halation** as its own Picture Mode row (0..5, with or without Glow; a soft two-layer fade; slot +30,
 > LOOKS.BIN +57) with a 0..+5 bar, FILM n* in the list and FILM N* on the super control panel; **split toning** wheels
 > 0..10 in half steps (positive only) and a **Tone Balance** row (slot +33, LOOKS.BIN +58). **Camera-tested in test
-> builds h3..h6 and t1..t2 (2026-11-12).** Still to do for v0.28: the Control Panel (Halation, split toning 0..10 and
-> Tone Balance: preview and export), custom crop modes (last). (Our version in the camera's firmware menu moved to a
+> builds h3..h6 and t1..t2 (2026-11-12).** **Film WB**: each film and COLOR remembers its WB (camera-tested, w4). Still to
+> do for v0.28: custom crop modes, then the Control Panel (Halation, split toning 0..10, Tone Balance, film WB:
+> preview and export) last. (Our version in the camera's firmware menu moved to a
 > later update.)
 
 <h1 align="center">Caduceus for OM-3</h1>
