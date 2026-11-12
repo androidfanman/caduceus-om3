@@ -3304,3 +3304,11 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   passes it to fw_probe, which returns when the look is the same and sget(111) is already COLOR k's picture mode (the
   camera writes 901 again at each half-press: caller 0x60ae741e). om-emu: FILM 3 -> CWB 3000K; WB changed by hand
   stays after two half-presses; FILM 20 -> 6000K; COLOR 4 -> Auto. Package E1479999.BIN b7923634…, GUIDES.BIN a3412046….
+- **w2 camera (owner, 2026-11-12):** a WB set by hand now stays (camera-tested), until another film is picked.
+  Owner: "Ideally it will keep its balance when changed so you can go back to it. like it does for hsl": **each film
+  (and COLOR) remembers the WB last used on it**. New design (w3): no WB row; the camera's own WB controls are the UI.
+  When the look or picture mode changes (fl_set), the camera's WB (1578 mode, 107 Kelvin for CWB) is first kept in the
+  slot of the COLOR being left, then the new look's stored WB is set (none / Auto -> Auto). Stored as balanced base-11
+  digits (v = lo + 11 hi, lo / hi -5..5, so zero bytes = none and every firmware's range check passes): slot
+  +34 / +35 Kelvin v = (K - 2000) / 100 - 60 (CWB only, else 0), +36 / +37 mode code = index in the 13-mode table
+  (0 = Auto / none); LOOKS / EDITS record +59..+62 (pf_bt pairs, so EDITS, the film's '*' and the hold-OK reset follow).
