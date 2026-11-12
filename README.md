@@ -1,3 +1,9 @@
+> [!WARNING]
+> **Experiment branch `experiment/halation-h0`, not a release.** On v0.28 space 1: probe h0 for halation. On a film with
+> Glow or Clarity (the Soft Focus route), every still gets two coloured bands in its top 256 rows: the left half's chroma
+> byte 1 and the right half's byte 3 set to 168. The colours tell which byte is Cb / Cr on the OM-3 and the sign
+> convention. Emulator: exactly the expected 8128 bytes changed on a test buffer. **Camera test pending.**
+
 <h1 align="center">Caduceus for OM-3</h1>
 
 <p align="center"><strong>Film looks and a colour editor, built into the OM SYSTEM OM-3.</strong></p>

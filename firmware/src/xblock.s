@@ -5,6 +5,7 @@
  .set XB_OWNOFF, 0                /* rc1: 1 = COLOR k's own Glow / Art Effect ignored (no rows then) */
  .set XB_LOG, 0                   /* v0.25: the fast-grain logger (GLOG.BIN) off */
  .set XB_SHG, 0                   /* film test 11's Shading check before the camera grain (1: on; rebooted on the camera) */
+ .set XB_H0, 1                    /* v0.28 halation probe h0 (experiment): colour bands on Soft Focus stills (xb_h0) */
 /* Caduceus for OM-3 v0.20 test 5: the Extras code block (appended to GUIDES.BIN, our own code).
  *
  * Runs from its heap buffer (uncached pool, as the camera's malloc returns), relocated in place by entry 0. Linked at
@@ -493,14 +494,19 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  beq 90f
  movbu (53,a1),d0                 /* Grain 1..3 (older 4, 5 -> 3) */
  cmp 0,d0
- beq 90f
+ beq 91f
  movbu (xb_tx),d1                 /* ft7: this still has a texture (development or conversion pass): no CPU grain */
  cmp 0,d1
- bne 90f
+ bne 91f
  cmp 3,d0
  bls 10f
  mov 3,d0
  bra 10f
+91:                               /* no CPU grain on one of our looks */
+ .if XB_H0
+ clr d0                           /* h0: still the setup, then the probe (level 0 = no grain) */
+ bra 10f
+ .endif
 90:                               /* no grain: the stock setup, as if called directly */
  mov (4,sp),a0
  add 16,sp
@@ -518,12 +524,113 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  call xb_rec,[d2,d3],12
  cmp 0,a1
  beq 20f
- mov a1,a0
  mov (8,sp),d0
+ cmp 0,d0
+ beq 15f
+ mov a1,a0
  call xb_grain,[d2,d3,a2,a3],128
+15:
+ .if XB_H0
+ mov (4,sp),a0
+ call xb_rec,[d2,d3],12
+ cmp 0,a1
+ beq 20f
+ mov a1,a0
+ call xb_h0,[d2,d3,a2,a3],48
+ .endif
 20:
  mov (12,sp),d0
  ret [d2,d3,a2,a3],32
+
+ .if XB_H0
+/* xb_h0 (v0.28 halation probe h0, experiment): which odd byte of buffer 0x1000 is Cb and which Cr, and whether chroma
+ * is offset-binary. Rows 0..H0_ROWS-1: in the left half every pixel pair's byte 1 = H0_VAL, in the right half every
+ * pair's byte 3 = H0_VAL (pair = Y0 C0 Y1 C1; 128 = neutral if offset-binary). Expected if C0 = Cb, C1 = Cr (the E-P7's
+ * camera result): left band blue, right band red / magenta. Swapped: left red, right blue. Two's complement: strong
+ * opposite colours (yellow / green). Rows are written through the uncached view xb_open returns (no cache lines to
+ * write back); a row across the window's edge is left as it is.
+ * `call xb_h0,[d2,d3,a2,a3],48` (32 B of locals), a0 = record. Locals (0) call slot, (4) rec, (8) row, (12) pitch, (16) bus,
+ * (20) pairs, (24) rows, (28) token. */
+ .set H0_ROWS, 256
+ .set H0_VAL, 168
+xb_h0:
+ mov a0,(4,sp)
+ movhu (16,a0),d0                 /* format 0x0c02 only (as xb_grain) */
+ cmp 0x0c02,d0
+ bne 99f
+ mov (4,a0),d0
+ cmp 0,d0
+ bne 99f
+ movhu (20,a0),d0                 /* Hw: 8 .. 8192, a multiple of 4 */
+ cmp 8,d0
+ bcs 99f
+ cmp 8193,d0
+ bcc 99f
+ btst 3,d0
+ bne 99f
+ movhu (18,a0),d1                 /* memHw >= Hw */
+ cmp d0,d1
+ bcs 99f
+ add d1,d1
+ mov d1,(12,sp)                   /* pitch in bytes */
+ lsr 1,d0
+ mov d0,(20,sp)                   /* pairs per row */
+ movhu (22,a0),d1                 /* rows: min(Vw, H0_ROWS) */
+ cmp 0,d1
+ beq 99f
+ cmp H0_ROWS,d1
+ bls 1f
+ mov H0_ROWS,d1
+1:
+ mov d1,(24,sp)
+ mov (a0),d0
+ mov d0,(16,sp)
+ clr d0
+ mov d0,(8,sp)
+2:                                /* each row */
+ mov (8,sp),d0
+ mov (12,sp),d1
+ mul d1,d0
+ mov (16,sp),d1
+ add d1,d0                        /* its bus address */
+ mov (20,sp),d1
+ asl2 d1                          /* its length: 4 B a pair */
+ call xb_open,[d2,d3,a2,a3],28
+ mov d0,(28,sp)
+ cmp 0,a0
+ beq 5f
+ mov (20,sp),d2                   /* pairs */
+ mov d2,d3
+ lsr 1,d3                         /* left half: byte 1 */
+ sub d3,d2                        /* right half: byte 3 */
+ mov H0_VAL,d1
+ cmp 0,d3
+ beq 4f
+3:
+ movbu d1,(1,a0)
+ add 4,a0
+ add -1,d3
+ bne 3b
+4:
+ cmp 0,d2
+ beq 5f
+6:
+ movbu d1,(3,a0)
+ add 4,a0
+ add -1,d2
+ bne 6b
+5:
+ mov (28,sp),d0
+ call xb_close,[d2],8
+ mov (8,sp),d0
+ inc d0
+ mov d0,(8,sp)
+ mov (24,sp),d1
+ cmp d1,d0
+ bcs 2b
+99:
+ ret [d2,d3,a2,a3],48
+ .endif
 
 /* xb_dev (grain, camera route): s_cl jumps here in the frame of `call s_cl,[d2,a2],12` at 0x604955f1, a0 = context.
  * The development request of a plain COLOR still (kind 0, output 0x1000, key 11) with xb_gt = Grain 1..3 gets the
