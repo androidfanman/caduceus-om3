@@ -3014,3 +3014,24 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Grain High vs 0.57 / 0.54 without), so the chroma noise can't tell whether the texture comes before or after xb_gs;
   the higher Cb noise inside the left band is RGB clipping of bright, blue-shifted grain in the decode, not grain
   order. Halation adds to Y and C (not a replacement), so grain shows under the halo either way.
+
+### Halation h1 (2026-11-12; emulator only; branch experiment/halation-h1)
+- Look tuned on a synthetic night scene with the exact model (research/halation/model.py): the first tuning gave no
+  halo on small lights (bulbs, a 4 px LED strip) and a flat band with a hard edge around a big window (u = min(255,
+  v >> S) saturated and a 2-pass blur reached only 2 cells). Fix: u = 255 v / (v + K) by two 256-byte tables (no
+  division on the camera), K 600, 3 [1 2 1] passes each way; tint red-orange KY 44 / KCb -40 / KCr 60; gmax 40, 72,
+  104, 144, 192 for strength 1..5; T 200; cap: g >= 16 on more than a third of the cells. All in firmware/halation.py
+  (build.py writes hl_tab.inc; the model imports the same file).
+- Firmware: `hl_run` (+ `hl_b1`, `hl_open` = xb_open's code) in ext12 (1.3 KB code + 532 B tables; ext12 74368 B
+  free); one malloc (grid + blur temp + line, <= 16 KB) per call. The block's xb_gs: on our looks with Glow -1..-5, the
+  Soft Focus setup, then `call HL_RUN` (defsym from build.py), then CPU grain if any (none with the texture). XB_H0 off.
+  editor.ld gains LOCK / UNLOCK / WINMAP / FLUSH. GUIDES.BIN 13320 B.
+- om-emu, direct call on DRAM test frames (FLUSH 0x60070e69 stubbed with `ret [d2,d3],16`: in om-emu it polls a cache
+  register forever; camera-proven through xb_grain): **7/7 bit-exact with the model** - night 1024 x 768 with 16 px
+  padding (strength 3), strength 1, strength 5, daylight (capped: untouched), dark (no glow: untouched), 128 x 128,
+  1000 x 700 with 24 px padding; every call returned with the stack restored. Steps: 1.3-1.5 M for a 0.79 MP frame
+  without glow (pass A + blur + map), 10.7-13.5 M for the night frames (about half the rows glow). Scaled to 20 MP
+  (x 25.6): about 35 M without lights (~0.3-0.6 s at the E-P7's measured rate) and up to ~350 M for dense night scenes
+  (~3-5 s), under the 10 s watchdog with fast grain (no CPU grain). Analysis; the camera will tell.
+- The test harness (scratch, not in the repo) adds `poke:` and `runa:ADDR:A0:D0:N` to sess7; note for zsh: write
+  `${VAR}:a5...` (a bare `$VAR:a` is zsh's absolute-path modifier and jumped the emulator to address 0).

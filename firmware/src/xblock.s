@@ -5,7 +5,8 @@
  .set XB_OWNOFF, 0                /* rc1: 1 = COLOR k's own Glow / Art Effect ignored (no rows then) */
  .set XB_LOG, 0                   /* v0.25: the fast-grain logger (GLOG.BIN) off */
  .set XB_SHG, 0                   /* film test 11's Shading check before the camera grain (1: on; rebooted on the camera) */
- .set XB_H0, 1                    /* v0.28 halation probe h0 (experiment): colour bands on Soft Focus stills (xb_h0) */
+ .set XB_H0, 0                    /* v0.28 halation probe h0 (camera-tested 2026-11-12): off */
+ .set XB_HL, 1                    /* v0.28 h1: halation on Glow stills, strength = Glow 1..5 (editor.s hl_run) */
 /* Caduceus for OM-3 v0.20 test 5: the Extras code block (appended to GUIDES.BIN, our own code).
  *
  * Runs from its heap buffer (uncached pool, as the camera's malloc returns), relocated in place by entry 0. Linked at
@@ -487,11 +488,28 @@ xb_rec:                           /* `call xb_rec,[d2,d3],12`, a0 = job -> a1 = 
  .set P_LPTR, 708
 xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  movm [d2,d3,a2,a3],(sp)
- add -16,sp                       /* (0) call slot, (4) job, (8) level, (12) result */
+ add -20,sp                       /* (0) call slot, (4) job, (8) level, (12) result, (16) halation 0..5 */
  mov a0,(4,sp)
+ clr d0
+ mov d0,(16,sp)
  call xb_slot,[d2,d3],12
  cmp 0,a1
  beq 90f
+ .if XB_HL
+ movbu (49,a1),d0                 /* h1: Glow -1..-5 -> halation 1..5 (Clarity and 0: none) */
+ extb d0
+ cmp 0,d0
+ bge 6f
+ mov d0,d1
+ clr d0
+ sub d1,d0
+ cmp 5,d0
+ bls 7f
+ mov 5,d0
+7:
+ mov d0,(16,sp)
+6:
+ .endif
  movbu (53,a1),d0                 /* Grain 1..3 (older 4, 5 -> 3) */
  cmp 0,d0
  beq 91f
@@ -507,9 +525,16 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  clr d0                           /* h0: still the setup, then the probe (level 0 = no grain) */
  bra 10f
  .endif
+ .if XB_HL
+ mov (16,sp),d1                   /* h1: halation -> the setup, then the pass (level 0 = no CPU grain) */
+ cmp 0,d1
+ beq 90f
+ clr d0
+ bra 10f
+ .endif
 90:                               /* no grain: the stock setup, as if called directly */
  mov (4,sp),a0
- add 16,sp
+ add 20,sp
  movm (sp),[d2,d3,a2,a3]
  jmp SF_ENT
 10:
@@ -524,6 +549,21 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  call xb_rec,[d2,d3],12
  cmp 0,a1
  beq 20f
+ .if XB_HL
+ mov (16,sp),d0                   /* h1: halation first, so grain sits over the glow */
+ cmp 0,d0
+ beq 14f
+ mov a1,(12,sp)
+ mov a1,a0
+ call HL_RUN,[d2,d3,a2,a3],100
+ mov (4,sp),a0
+ call xb_rec,[d2,d3],12
+ clr d0
+ mov d0,(12,sp)                   /* the setup's result was 0 to get here */
+ cmp 0,a1
+ beq 20f
+14:
+ .endif
  mov (8,sp),d0
  cmp 0,d0
  beq 15f
@@ -540,7 +580,7 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  .endif
 20:
  mov (12,sp),d0
- ret [d2,d3,a2,a3],32
+ ret [d2,d3,a2,a3],36
 
  .if XB_H0
 /* xb_h0 (v0.28 halation probe h0, experiment): which odd byte of buffer 0x1000 is Cb and which Cr, and whether chroma

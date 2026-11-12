@@ -203,6 +203,8 @@ def build(defaults, testfile, out):
     ver = (HERE / 'VERSION').read_text().strip().replace('"', "'")
     assert ver.isprintable() and len(ver) < 60
     (out / 'lgver.inc').write_text(f'lg_ver:\n .asciz "{ver}"\n')
+    import halation                               # v0.28: the halation numbers and tables (firmware/halation.py)
+    (out / 'hl_tab.inc').write_text(halation.inc())
     (out / 'films.inc').write_text('.balign 4\nfl_top:\n' + db(mkicons.pack4(mkicons.film_top())) + 'fl_tops:\n' +
                                    db(mkicons.pack4(mkicons.film_top(True))) + 'fl_dig:\n' +
                                    ''.join(db(mkicons.pack4(d)) for d in digs) +
@@ -653,7 +655,7 @@ def make_xblock(out, sy, xtag):
                STATE=sy['STATE'], HMAX=sy['HMAX'], POOL=sy['POOL'], MAGIC=sy['MAGIC'], BUFIDX=0x604afdf9, SF_ENT=0x604be2aa, LOCK=0x60075f73, UNLOCK=0x60075fbc, WINMAP=0x60071018, FLUSH=0x60070e69, free=0x6002409a,
                SEL=0x6052cf39, fwrite=0x608d4da9, PF_CAPTO=sy['pf_capto'], PF_CAP=sy['pf_cap'], E_LK=sy['e_lk'], E_RET=sy['e_ret'], E_RST=sy['e_rst'], REFRESH=0x611b20ea, XT_TAB=sy['xt_tab'], EMARK=680, EMAGIC=0x45334d4f,
                FL_HAS=sy['fl_has'], FACADE=0x60b8696a, AGET=0x603f039d, TXGET=0x604cd921, TXATT=0x604bc0cf, TXPF=0x604b77fb, TWO=sy['TWO'], TW_LEN=sy['TW_LEN'], FV0=sy['FV0'],
-               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'])
+               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'], HL_RUN=sy['hl_run'])
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons                                # v0.25 WB grid row: the left cell's glyphs (xblock xb_wbc)
     inc = ''.join(f'.set {k}, {getattr(mkicons, k)}\n' for k in ('WBC_IX', 'WBC_IY', 'WBC_TY', 'WBC_GH'))
