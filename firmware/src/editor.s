@@ -5235,6 +5235,56 @@ ic_d\n:
  ICD 12
  ICD 13
 .balign 8
+/* ------------------------------------------------------------------ v0.28 Shading probe s1 (TEST, not for release)
+ * Owner: make Shading gentler (#22). The camera's Shading is the image processor's combiner 33 with a "shading block" in
+ * its config (O+7988 +128..+152: +128 {512, target 0 darker / 1023 lighter by the sign of request +1752}, +132 512,
+ * +144 0x151500, +148 0x04000400, +152 1024); the strength itself is not among them. This probe scales one candidate
+ * gain to 40 % per COLOR so one camera photo each shows which one softens the effect: COLOR 1 stock, COLOR 2 +128's
+ * 512 -> 205, COLOR 3 +132 512 -> 205, COLOR 4 +152 1024 -> 410. Only kind-0 requests (development, stills and live
+ * view) with request +1752 != 0 (Shading on) and the COLOR context (key != 12).
+ * sh_h33 <- combiner 33's handler word (build.py), entered by `jmp (a0)` in the dispatcher 0x60504b2b's frame
+ * (`ret [d2,d3,a2,a3],28`), a2 = context. */
+.section .ext12,"ax"
+ .balign 2
+sh_h33:
+ call h33_stock,[d2,d3,a2,a3],28  /* the stock handler in a frame like the dispatcher's */
+ mov (48,a2),d0                   /* context key: 12 = the MONO set-up (leave it) */
+ cmp 12,d0
+ beq 9f
+ mov (4,a2),a1                    /* request */
+ movbu (16,a1),d0                 /* kind 0 (development) */
+ cmp 0,d0
+ bne 9f
+ movbu (1752,a1),d0               /* Shading on? */
+ cmp 0,d0
+ beq 9f
+ mov 63153,d0                     /* effective COLOR profile 1..4 (as st_run) */
+ clr d1
+ mov 0,a0
+ call getter,[d2,d3],12
+ mov (8,a2),a0
+ add 7988,a0                      /* the combiner's config */
+ cmp 2,d0
+ bne 1f
+ mov (128,a0),d1                  /* COLOR 2: +128's upper half 512 -> 205 */
+ and 0xffff,d1
+ or 0x00cd0000,d1
+ mov d1,(128,a0)
+ bra 9f
+1:
+ cmp 3,d0
+ bne 2f
+ mov 205,d1                       /* COLOR 3: +132 512 -> 205 */
+ mov d1,(132,a0)
+ bra 9f
+2:
+ cmp 4,d0
+ bne 9f
+ mov 410,d1                       /* COLOR 4: +152 1024 -> 410 */
+ mov d1,(152,a0)
+9:
+ ret [d2,d3,a2,a3],28
+
 .section .ext12,"ax"               /* v0.28: moved out of the full ext11 */
  .balign 8
 ic_pay:

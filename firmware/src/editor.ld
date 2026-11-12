@@ -156,6 +156,7 @@ GSTOCK_P      = 0xa49ebe40;
 GSTOCK_S      = 4022;
 stock_isdef   = 0x6129bad6;
 tone_next     = 0x60518fa4;
+h33_stock     = 0x60505142;   /* v0.28 Shading probe s1: combiner 33's handler (table 0x606cc794) */
 LPTR          = 708;
 LIDX          = 712;
 BKUP          = 720;

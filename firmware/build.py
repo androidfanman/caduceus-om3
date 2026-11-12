@@ -297,6 +297,11 @@ def build(defaults, testfile, out):
     hits = [i for i in range(len(m) - 6) if m[i:i + 6] == b'\xfc\xcc\x21\x8c\x00\x00']
     assert len(hits) == 7, [hex(P.BASE + i) for i in hits]
     # v0.21 grain (CPU route, Glow / Art Effect shots): the classes 0-3 Soft Focus blend setup word -> g_sf
+    # v0.28 Shading probe s1 (TEST): combiner 33's handler word (handler table 0x606cc794: {33, 0x60505142}) -> sh_h33
+    if 'sh_h33' in sy:
+        i33 = next(i for i in range(64) if struct.unpack_from('<I', m, o(0x606cc794) + 8 * i)[0] == 33)
+        assert struct.unpack_from('<I', m, o(0x606cc798) + 8 * i33)[0] == 0x60505142
+        struct.pack_into('<I', m, o(0x606cc798) + 8 * i33, sy['sh_h33'])
     assert bytes(m[o(0x604b9286):o(0x604b928c)]) == b'\xfc\xdd' + struct.pack('<I', 0x604be2aa)
     struct.pack_into('<I', m, o(0x604b9288), sy['g_sf'])
     ISDEF_SITES = [0x611d18a7, 0x611d18e8, 0x611d18f6, 0x611d1939, 0x611d1946, 0x611d1953, 0x611d1ac3]   # 0x6129ba33 (near call) via .hook_pmod
