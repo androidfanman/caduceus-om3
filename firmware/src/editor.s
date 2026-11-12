@@ -5286,9 +5286,33 @@ st_chk:
  mov d0,(a0)
  jmp stp_end
 
+/* TONEPG miss: the open editor is on a Shadows / Highlights page (P valid, marker, axis 5 or 6). Uses d3, a2. */
+ .macro TONEPG miss
+ PVAL \miss
+ mov (EMARK,a2),d3
+ cmp EMAGIC,d3
+ bne \miss
+ movbu (AXIS,a2),d3
+ cmp 5,d3
+ bcs \miss
+ cmp 7,d3
+ bcc \miss
+ .endm
 /* rd_a / rd_b <- jmp from 0x611d16b4 / 0x611d1725 (the readout glyph lookups, d0 = item): 1011, 5397 (stock) and
  * Blacks / Whites take the 11-entry -5..+5 tables (0x611d16e6 / 0x611d1757), else none (0x611d16ee / 0x611d175f). */
 rd_a:
+ cmp 5397,d0                      /* v0.28 t2: the wheel's readout on a Shadows / Highlights page: 0..10 */
+ bne 5f
+ movm [a2],(sp)
+ TONEPG 4f                        /* uses d3, a2 (d3: the stock path sets it again) */
+ movm (sp),[a2]
+ mov rd10_a,a0
+ mov 11,d3
+ jmp rda_none
+4:
+ movm (sp),[a2]
+ clr d3
+5:
  cmp HL_IT,d0                     /* v0.28 h6 Halation 0..5: +-0, then +1..+5 (no -1..-5 entries) */
  bne 6f
  mov rd6_a,a0
@@ -5322,6 +5346,30 @@ rd_a:
 1:
  jmp rda_11
 rd_b:
+ cmp 5397,d0                      /* v0.28 t2: the tone pages (as rd_a) */
+ bne 5f
+ movm [a2],(sp)
+ TONEPG 4f
+ movm (sp),[a2]
+ mov rd10_b,a0
+ mov 11,d3
+ cmp 5,a1                         /* strength 10 (dial +5): "+10" does not fit the readout's 3 characters (the */
+ bne 7f                           /* text at record +2..+7, then its flags): rd10_a gives sign 0 (the caller writes */
+ mov mdr,d2                       /* nothing) and we write "10" there, for the wheel readout's caller only */
+ cmp 0x611d1433,d2                /* (MDR = its return address; a3 = its record) */
+ bne 7f
+ mov 49,d2
+ movhu d2,(2,a3)
+ mov 48,d2
+ movhu d2,(4,a3)
+ clr d2
+ movhu d2,(6,a3)
+7:
+ jmp rdb_none
+4:
+ movm (sp),[a2]
+ clr d3
+5:
  cmp HL_IT,d0                     /* v0.28 h6 Halation (as rd_a) */
  bne 6f
  mov rd6_b,a0
@@ -5360,6 +5408,10 @@ rd15_a:                           /* the readout's sign glyph for -7..+7 (as 0x6
  .long -7, 3, -6, 3, -5, 3, -4, 3, -3, 3, -2, 3, -1, 3, 0, 1, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2
 rd15_b:                           /* ... and its digit (as 0x6154caf8) */
  .long -7, 7, -6, 6, -5, 5, -4, 4, -3, 3, -2, 2, -1, 1, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7
+rd10_a:                           /* v0.28 t2 the tone pages: dial -5..+5 -> strength "+-0", "+1" .. "+9", "10" */
+ .long -5, 1, -4, 2, -3, 2, -2, 2, -1, 2, 0, 2, 1, 2, 2, 2, 3, 2, 4, 2, 5, 0   /* 10: sign 0, rd_b writes "10" */
+rd10_b:
+ .long -5, 0, -4, 1, -3, 2, -2, 3, -1, 4, 0, 5, 1, 6, 2, 7, 3, 8, 4, 9, 5, 10
 rd6_a:                            /* v0.28 h6 Halation 0..5: "+-0" (sign 1; sign 0 would hide the number: the callers */
  .long 0, 1, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2   /* draw 1 "+-%d", 2 "+%d", 3 "-%d", else nothing), then +1..+5 */
 rd6_b:
@@ -7969,8 +8021,10 @@ s_wl:
  * (research/splittone/model.py), clamped 0..4095 and kept rising (running max, the 256 and the 64 entries apart).
  * v0.28: u = t moved by the Tone Balance b (slot +33, -5..+5): the hand-over point c = 2048 - 256 b, u = t 2048 / c
  * below c, 2048 + (t - c) 2047 / (4095 - c) above (b = 0: u = t); + = the highlight colour covers more.
- * K = st_k[colour] x strength: the effective COLOR's slot +55 / +56 (Shadows colour 0..11, strength 0..5; v0.28:
- * half the step of v0.26 (>> 9), negative = off) and +57 / +58 (Highlights). Camera-proven with fixed values (probe st1). Gates: COLOR still
+ * K = st_k[colour] x strength: the effective COLOR's slot +55 / +56 (Shadows colour 0..11, strength) and +57 / +58
+ * (Highlights). v0.28 t2: strength s 0..10 in half the v0.26 step (>> 9; 10 = v0.26's 5), stored as a code -5..5
+ * (v >= 0: s = 2v, so v0.26 values keep their strength; v < 0: s = -2v - 1), inside every firmware's range checks.
+ * Camera-proven with fixed values (probe st1). Gates: COLOR still
  * (key 11, or 12 with +1731 0, as tone); P valid; a strength set; R, G and B tables identical before (stock COLOR
  * copies one curve three times: a repeated pass never bends twice and art curves are left alone).
  * Frame: (0) getter return, (4..28) registers, (32..52) Ks R G B, Kh R G B, (56) segment, (60) running max, (64) d0,
@@ -8058,13 +8112,18 @@ st_run:
  bcs 3f
  clr d1                           /* no colour: off */
 3:
- cmp 0,d1                         /* v0.28: 0..5 (negative: off; the wheels only add a colour) */
- bge 31f
- clr d1
+ cmp 0,d1                         /* v0.28 t2: the stored code -5..5 -> strength s 0..10 (v >= 0: 2v, so a v0.26 */
+ bge 31f                          /* value keeps its strength; v < 0: -2v - 1, the odd steps) */
+ not d1
+ add d1,d1
+ inc d1
+ bra 35f
 31:
- cmp 5,d1
+ add d1,d1
+35:
+ cmp 10,d1
  ble 32f
- mov 5,d1
+ mov 10,d1
 32:
  or d1,d2
  mov d0,a0                        /* st_k + 3 colour */
@@ -8233,7 +8292,7 @@ s9:
  mov d3,a0                        /* displaced 0x605197d7 */
  jmp tone_next                    /* 0x60518fa4; returns to 0x605197de */
 st_k:                             /* K per strength step, R G B, for the wheel's 12 colours (v0.26: 4.8 Cb/Cr units at
-                                   * the weight peak per step; v0.28 >> 9: 2.4 a step, up to 12 at 5) */
+                                   * the weight peak per step; v0.28 >> 9: 2.4 a step, up to 24 at 10) */
  .byte 7,7,-57          /* Yellow */
  .byte 26,-4,-47          /* Orange */
  .byte 37,-12,-33          /* Orange-red */
@@ -8251,7 +8310,8 @@ st_k:                             /* K per strength step, R G B, for the wheel's
 /* ------------------------------------------------------------------ split toning wheels (v0.26)
  * The HSL wheel gets two more pages after Luminance: axis 5 Shadows and axis 6 Highlights (INFO: Color -> Color All ->
  * Hue -> Luminance -> Shadows -> Highlights -> Color). On them the 12 colours are the tint's colour: the rear dial on
- * a colour sets its strength 0..5 (v0.28; was -5..5, minus = the opposite colour) and makes it the page's colour; the other colours
+ * a colour sets its strength (v0.28 t2: 0..10 on the dial's -5..+5, stored as a code -5..5, see st_run; v0.26 had
+ * -5..5, minus = the opposite colour) and makes it the page's colour; the other colours
  * read 0. Slot +55 / +56 (Shadows colour 0..11, strength), +57 / +58 (Highlights); LOOKS.BIN record +53..+56.
  * TONEP miss: P valid, the editor's marker, axis 5 or 6 -> a2 = P, d3 = axis. Uses d3, a2. */
  .macro TONEP miss
@@ -8265,7 +8325,8 @@ st_k:                             /* K per strength step, R G B, for the wheel's
  cmp 7,d3
  bcc \miss
  .endm
-/* TONEV: d2 = sector id - 928 (12k + colour), a2 = P, d3 = axis -> d0 = the value shown (0..5). Uses d2, d3, a2. */
+/* TONEV: d2 = sector id - 928 (12k + colour), a2 = P, d3 = axis -> d0 = the value shown, s - 5 (-5..5 on the camera's
+ * dial = strength 0..10; another colour: -5, its 0). Uses d2, d3, a2. */
  .macro TONEV
  clr d0
 71:
@@ -8282,18 +8343,25 @@ st_k:                             /* K per strength step, R G B, for the wheel's
  movbu (87,a2),d0                 /* the page's colour */
  cmp d2,d0
  bne 73f
- movbu (88,a2),d0                 /* its strength */
+ movbu (88,a2),d0                 /* its strength code (st_run: v >= 0 -> 2v, v < 0 -> -2v - 1) */
  extb d0
- cmp 0,d0                         /* v0.28: 0..5 (an old negative reads 0: off) */
+ cmp 0,d0
  bge 74f
- clr d0
+ not d0
+ add d0,d0
+ inc d0
+ bra 76f
 74:
- cmp 5,d0
- ble 75f
- mov 5,d0
+ add d0,d0
+76:
+ cmp 10,d0
+ ble 77f
+ mov 10,d0
+77:
+ add -5,d0                        /* v0.28 t2: strength 0..10 on the dial's -5..+5 (no hidden count below 0) */
  bra 75f
 73:
- clr d0
+ mov -5,d0                        /* another colour: strength 0 */
 75:
  .endm
 .section .ext11,"ax"
@@ -8346,10 +8414,21 @@ tn_set:
  add -928,d2
  cmp 48,d2
  bcc 9f
- cmp 0,d1                         /* v0.28: 0..5 only (the wheels add a colour, never take one away) */
+ cmp -5,d1                        /* v0.28 t2: the dial's -5..+5 = strength 0..10 (the wheels only add a colour) */
  blt 8f
  cmp 5,d1
  bgt 8f
+ add 5,d1                         /* s 0..10 -> the stored code: even s -> s / 2, odd s -> -(s + 1) / 2 */
+ btst 1,d1
+ beq 5f
+ inc d1
+ asr 1,d1
+ not d1
+ inc d1
+ bra 6f
+5:
+ asr 1,d1
+6:
  mov d0,a3                        /* keep the id */
  clr d0
 1:

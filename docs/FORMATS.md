@@ -28,7 +28,8 @@ v0.20: `+47` Glow (−5..−1) / Clarity (1..5), `+48` Art Effect (0 Off, 1 Star
 shading correction as set, 1 Off), `+51` Grain (0 Off, 1 Low, 2 Med, 3 High), v0.22: `+52` Sharp (−5..+2, the
 camera's own sharpness numbers, 0 its normal, −5 Off; the Control Panel's v0.22 export leaves `+42` at 0), v0.26: `+53` Shadows
 colour (0..11, the wheel's colours clockwise from Yellow), `+54` its strength, `+55` Highlights colour, `+56` its
-strength (checked as −5..5; from v0.28 0..5, half the v0.26 step, and below 0 = off), `+59..63` zero.
+strength (−5..5; v0.26: minus = the opposite colour. From v0.28 a code for 0..10 in half the v0.26 step: v ≥ 0 means
+2v, so v0.26 values keep their strength, v < 0 means −2v − 1), `+59..63` zero.
 v0.28: `+57` Halation (0 Off, 1..5; checked as −5..5, 0 and below = Off), `+58` Tone Balance (−5..5: − the shadow
 colour reaches further, + the highlight colour). Firmware before v0.28 needs `+57` and `+58` to be 0 and ignores the
 whole file otherwise, so the Control Panel's older exports leave them out. Bytes `+47..+49` and `+51` are checked as −5..5 by the camera, `+50` as −1..1, `+52` as −5..2; the editor keeps

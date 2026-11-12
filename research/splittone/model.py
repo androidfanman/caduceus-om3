@@ -41,11 +41,16 @@ def bend(curve, ks, kh):
         out.append(np.clip(t + ((ks[c] * ws + kh[c] * wh) >> 8), 0, 4095))
     return out
 
+def strength(code):
+    """v0.28 t2: the stored strength code (slot +56 / +58, record +54 / +56; -5..5, inside every firmware's range
+    checks) -> strength 0..10: v >= 0 -> 2v (a v0.26 value keeps its strength), v < 0 -> -2v - 1 (the odd steps)."""
+    return 2 * code if code >= 0 else -2 * code - 1
+
 def bend28(curve, ks, kh, balance=0):
     """v0.28 (firmware st_run, bit-exact in om-emu): half the v0.26 step (>> 9), and the Tone Balance b (-5..+5) moves
     the hand-over point c = 2048 - 256 b: the weights are taken at u (= t when b = 0), u = t * 2048 / c below c and
     2048 + (t - c) * 2047 / (4095 - c) above (16.16 factors, as the camera). + = the highlight colour covers more.
-    ks, kh: st_k[colour] x strength (0..5) per channel. Each of the camera's two table parts (256 + 64 entries) is
+    ks, kh: st_k[colour] x strength (t2: 0..10, see strength()) per channel; 10 at >> 9 = v0.26's 5 at >> 8. Each of the camera's two table parts (256 + 64 entries) is
     kept rising on its own (running max); here one 256-entry curve."""
     c = 2048 - 256 * max(-5, min(5, balance)); f1 = 134217728 // c; f2 = 134152192 // (4095 - c)
     out = []

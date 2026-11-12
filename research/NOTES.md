@@ -3208,3 +3208,24 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   photo code (EXIF, om3.1) still carries record bytes 0..56 only (no halation, no balance).
 - Package t1: E1479999.BIN 2040a94e…, GUIDES.BIN bfe23233… (LABELS / TONES as h6). VERSION "v0.28-dev (split tone t1)".
   New picture "Bal" (left column) sent to the owner for approval.
+- **t1 camera (owner, 2026-11-12):** (1) "I struggle to see the tone at all now": back to the first proposal, the top
+  as strong as v0.26's +5 with twice the steps (0..10). (2) Bug: on a wheel colour the dial still counts below zero
+  without showing it (the camera's wheel keeps its own value; tn_set refused it), so after scrolling down you need
+  extra clicks up. (3) "the balance slider looks great!"
+
+### Split toning t2: 0..10 on the dial, no hidden count (2026-11-12; emulator only)
+- Strength s 0..10 in half the v0.26 step (st_run >> 9 as t1): **10 = v0.26's +5 exactly** (om-emu: the tables equal
+  v0.26's formula at Cyan 5 / Orange 5). Stored as a code -5..5 so every firmware's range checks still pass (BUNDLES
+  valid on v0.27.1, LOOKS +54 / +56 within pf_lo -5): v >= 0 -> s = 2v (v0.26 / film values keep their strength:
+  a film's 2 is now 4 of 10, the same look), v < 0 -> s = -2v - 1 (1, 3, 5, 7, 9). Older firmware would read the odd
+  steps as the opposite colour (going back only). research/splittone/model.py `strength()`.
+- The bug of t1 (owner: the dial counts below zero unseen): the wheel keeps its own value per colour and t1's tn_set
+  refused negatives. Now the wheel's own -5..+5 is the strength: TONEV shows s - 5 for the page's colour and -5 for
+  the others; tn_set stores w + 5 (the wheel stops at both ends itself). om-emu: down at 0 x3 -> nothing; up 1..10
+  (codes -1, 1, -2, 2 .. 5), stops at 10; 12 down -> 0 (off); one up -> 1 at once.
+- Readout (wheel caller 0x611d1427, item 5397, on axis 5 / 6 only: TONEPG in rd_a / rd_b, a2 saved by movm):
+  rd10_a / rd10_b give "+-0", "+1".."+9". The record's text has 3 characters (+2..+7, then its flags), so "+10"
+  would overrun: for 10 rd_a gives sign 0 (the caller writes nothing) and rd_b, when MDR = 0x611d1433 (that caller),
+  writes "10" itself. om-emu: "+9", "10", "+-0" on Highlights; the Saturation page still -5..+5 ("-2").
+- Engine (out-t2b, the probe stage): codes 5 / 5, -3 / -1, 5 / 5 with balance +3, -5 / 1 with -2: bit-exact.
+- Package t2: E1479999.BIN 8547ddaa…, GUIDES.BIN 40c1ffeb… (LABELS / TONES as h6). VERSION "v0.28-dev (split tone t2)".
