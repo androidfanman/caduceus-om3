@@ -5240,13 +5240,29 @@ ic_d\n:
  * w1 proves the mechanism with fixed values: a film on COLOR k (n >= 1) -> setting 107 (Custom WB Kelvin, 2000..14000,
  * default 5400; sget) = 3000 + 1000 k, then setting 1578 (stills WB mode; table 0x615d1944: 9 = CWB, last of 13) = 9;
  * COLOR k itself (n = 0) -> 1578 = 0 (Auto). Through the settings manager as pf_put writes the camera's own settings.
- * fw_probe: `call fw_probe,[d2,d3,a2,a3],24` from fl_set (inside the manager's 901 call), d0 = k, d1 = n, a0 inner,
- * a1 mode. Locals (4) a0, (8) a1. */
+ * fw_probe: `call fw_probe,[d2,d3,a2,a3],24` from fl_set (inside the manager's 901 call), d0 = k, d1 = n, d2 = the
+ * look before, a0 inner, a1 mode. Locals (4) a0, (8) a1, (12) k, (16) n. w2: nothing when neither the look nor the
+ * picture mode changes (the camera writes 901 again at a half-press). */
 .section .ext12,"ax"
  .balign 2
 fw_probe:
  mov a0,(4,sp)
  mov a1,(8,sp)
+ mov d0,(12,sp)
+ mov d1,(16,sp)
+ cmp d1,d2                        /* w2 (owner, w1: a manual WB snapped back at the next half-press, which writes */
+ bne 1f                           /* 901 again): only a new look, or a new picture mode, sets the WB */
+ mov 111,d0
+ call sget,[],4                   /* the picture mode now (before the manager sets COLOR k's) */
+ mov (12,sp),d1
+ mov fl_cvt,a0
+ add d1,a0
+ movbu (a0),d1
+ cmp d1,d0
+ beq 9f
+1:
+ mov (12,sp),d0
+ mov (16,sp),d1
  cmp 0,d1
  beq 5f
  mov 1000,d2
@@ -5267,6 +5283,7 @@ fw_probe:
  mov (4,sp),a0
  mov (8,sp),a1
  call manager,[d2,d3,a2,a3],68
+9:
  ret [d2,d3,a2,a3],24
 
 .section .ext12,"ax"               /* v0.28: moved out of the full ext11 */
@@ -5765,6 +5782,7 @@ fl_set:
 31:
  clr d0
 32:
+ mov d0,(24,sp)                   /* v0.28 film WB w2: the look before (the COLOR path no longer needs the value) */
  mov (20,sp),d3
  movbu d3,(LIDX,a0)
  cmp d0,d3
@@ -5777,8 +5795,9 @@ fl_set:
  movbu d1,(fl_scf)                /* sd3: the super control panel draws its cell again (fl_scw) */
  movbu d1,(fl_scf + 1)            /* ... and its title (fl_stw) */
 4:
- mov (16,sp),d0                   /* v0.28 film WB probe w1: k, n -> the camera's WB (fw_probe) */
+ mov (16,sp),d0                   /* v0.28 film WB probe: k, n, the look before -> the camera's WB (fw_probe) */
  mov (20,sp),d1
+ mov (24,sp),d2
  mov (8,sp),a0
  mov (12,sp),a1
  call fw_probe,[d2,d3,a2,a3],24
