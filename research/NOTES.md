@@ -3233,3 +3233,22 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Balance as in t1. The owner has used the "Bal" row picture without objection. Split toning is done on the camera
   side; the Control Panel part remains (half-step preview with model.py bend28 / strength(), 0..10 wheels, the
   balance slider, +58 export gated to v0.28).
+
+## Gentler Shading (#22): first look and probe s1 (2026-11-12; analysis + emulator only)
+- Owner: make Shading less powerful (roadmap: -5 / +5 like today's -2 / +2, finer steps between; #22: "make the
+  camera match your looklab", whose preview is f = 1 + 0.07 s r^1.5 on RGB, r = (distance / half-diagonal)^2).
+- Static (analysis): request **+1752** (s8) is the Shading level; in code it is read (as a byte) only by combiner 33's
+  handler 0x60505142 (also +1089 in kind-3 records), and only for its **sign**. With Shading on the handler sets a
+  "shading block" in the combiner config (O+7988): +128 = {512 << 16 | 0 (darker) or 1023 (lighter)}, +132 512,
+  +136 / +140 0, +144 0x151500, +148 0x04000400, +152 1024 (the MONO branch zeroes 128..148 and sets +144 0x2a1500
+  when Shading is 0). None of them carries the level's size, so the amount is set elsewhere (candidates: the
+  development's radial shading table, `ausEffectiveShadingCoefficient[64]` at +124 of the struct the RAW-parameter
+  dump 0x61a3171b prints, with `ucShadingCancel` at +252; not traced). Readers of +1753 (0x60501066) index 18-entry
+  hue tables (toning / colour filter), not Shading.
+- Probe s1 (branch `experiment/shading-probe-s1`, VERSION "v0.28-dev (shading probe s1)"): combiner 33's handler word
+  (table 0x606cc794, entry 33) -> sh_h33 (ext12): the stock handler in a dispatcher-like frame (`call
+  h33_stock,[d2,d3,a2,a3],28`, as the archived gl4 s_h / xb_h33), then for kind-0 requests with +1752 != 0 and the
+  COLOR context: COLOR 2 +128's 512 -> 205, COLOR 3 +132 512 -> 205, COLOR 4 +152 1024 -> 410 (40 %); COLOR 1 stock.
+  om-emu: boots, menus and half-press as t2 (the emulator runs no development, so the hook itself is camera-only).
+  Package: E1479999.BIN 44816a42…, GUIDES.BIN 237ef8ee…. Camera: Shading -5 (and +5) on COLOR 1-4, one even-lit
+  photo each.
