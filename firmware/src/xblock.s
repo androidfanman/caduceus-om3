@@ -6,7 +6,7 @@
  .set XB_LOG, 0                   /* v0.25: the fast-grain logger (GLOG.BIN) off */
  .set XB_SHG, 0                   /* film test 11's Shading check before the camera grain (1: on; rebooted on the camera) */
  .set XB_H0, 0                    /* v0.28 halation probe h0 (camera-tested 2026-11-12): off */
- .set XB_HL, 1                    /* v0.28 h2: halation on Glow stills, strength = Glow 1..5 (editor.s hl_run) */
+ .set XB_HL, 1                    /* v0.28: the Halation row (slot +30, 1..5) on our looks' stills (editor.s hl_run) */
 /* Caduceus for OM-3 v0.20 test 5: the Extras code block (appended to GUIDES.BIN, our own code).
  *
  * Runs from its heap buffer (uncached pool, as the camera's malloc returns), relocated in place by entry 0. Linked at
@@ -149,6 +149,12 @@ xb_cap:
  .endif
  cmp 0,d0
  bne 2f                           /* Glow / Clarity: the Soft Focus passes (+ CPU grain if Grain) */
+ .if XB_HL
+ movbu (30,a1),d0                 /* v0.28: the Halation row alone -> the Soft Focus passes too (xb_wt: w 1024, no glow) */
+ extb d0
+ cmp 0,d0
+ bgt 2f
+ .endif
  .if XB_FX
  ARTB d0
  .else
@@ -248,10 +254,7 @@ xb_wt:
  extb d1
  cmp 0,d1
  bne 1f
- movbu (53,a1),d1                 /* no Glow / Clarity: Grain alone -> w 1024, the sharp image unchanged */
- cmp 0,d1
- beq 8f
- mov 1024,d0
+ mov 1024,d0                      /* no Glow / Clarity (Grain or v0.28 Halation alone): w 1024, the sharp image unchanged */
  bra 8f
 1:
  blt 5f
@@ -496,13 +499,10 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  cmp 0,a1
  beq 90f
  .if XB_HL
- movbu (49,a1),d0                 /* h1: Glow -1..-5 -> halation 1..5 (Clarity and 0: none) */
+ movbu (30,a1),d0                 /* v0.28: the Halation row 1..5 (slot +30; 0 and below: none) */
  extb d0
  cmp 0,d0
- bge 6f
- mov d0,d1
- clr d0
- sub d1,d0
+ ble 6f
  cmp 5,d0
  bls 7f
  mov 5,d0

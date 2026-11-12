@@ -3083,3 +3083,24 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   be used with or without Glow. The faint pink on a bright, not clipped surface next to the light (the shade in
   PB122266) stays: it is what real halation does (the bounced light exposes mostly the red layer; clipped cores stay
   white, bright unclipped surfaces warm up a little).
+
+## v0.28 Halation row h3 (2026-11-12; emulator only; branch feature/v0.28-halation)
+- Owner: halation gets its own Picture Mode row, 0..5, with or without Glow.
+- Storage: BUNDLES slot **+30** (the shared layout's `vignette`, range -5..5 in every OM-3 firmware, unused on the OM-3:
+  going back to v0.27.1 keeps BUNDLES valid); LOOKS / EDITS record **+57** (pf_lo -5: accepted -5..5 with no code
+  change; firmware before v0.28 rejects a LOOKS.BIN with +57 != 0, so the Control Panel gates it by firmware).
+  pf_bt + (57 -> slot 30), both loops to pf_bt+32 (film -> slot, slot -> EDITS record); fl_xr row 13 (HLB) = (57, 30),
+  rows up to 13 with 12 (WGB) skipped. fl_live / fl_fch (the film list's FILM*) still compare only up to Sharp, as for
+  split toning (not changed: old EDITS records could mark films changed).
+- Row: HL_IT 5380 (key 5374), bars HLB 0x7ed0 + k, class 12 (value slot +30, count 6, lowest 0: 0..5), title
+  ST_HAL "Halation", left icon IC_HL = IC_F0 ("Halo", mkicons PICTURES[12], Frame Off's old place; ic_list 10
+  entries, the layout records' choice count 9 -> 10), it_tab 26 entries, the slider cases as Glow's (bar as
+  Blacks / Whites, readout glyphs, rv_chk, stp). pm_list: ... Glow / Clarity, Halation, Film Grain.
+- ext11 was full (96 B): ic_pay (the row pictures, now 16384 B) moved to ext12 -> ext11 51088 of 65536 B.
+- Photo path (block): xb_cap: Halation > 0 with Glow 0 -> the Soft Focus passes (flag 0x80); xb_wt: our looks with
+  Glow 0 -> w 1024 (the sharp image unchanged; was: only with Grain); xb_gs: the level from slot +30 (1..5).
+- om-emu: the row shows ("Halo ±0" in the column; "Halation" title, slider, readout); dial steps 0..5 (below 0
+  refused), "+1" shown and BUNDLES slot +30 = 1 saved at the half-press; a LOOKS.BIN with record 0 +57 = 3 is
+  accepted (LPTR set, COLOR 1 = look 1) and the row shows '*' (slot 0 vs film 3). Not reachable in om-emu: the film
+  -> slot copy through fl_set (setv 901 runs om-emu out of memory), the capture path (camera test). Static: pf_bt,
+  pf_lo, fl_xr and the loop ends checked in the image. Cosmetic: the bar is the -5..+5 one (0 in the middle).

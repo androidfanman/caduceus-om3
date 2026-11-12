@@ -2075,7 +2075,7 @@ pf_capto:                         /* v0.21: the same into a3 (code block xb_lkd:
  movbu (d0,a0),d0
  movbu d0,(d1,a3)
  add 2,a1
- cmp pf_bt+30,a1
+ cmp pf_bt+32,a1
  bne 5b
  movbu (36,a3),d0
  and 1,d0                         /* WB on: bit 0 of the slot's WB flags */
@@ -2315,7 +2315,7 @@ pf_put1:                          /* v0.24 (fl_sw): (4) a0, (8) a1, (12) k set, 
 7:
  movbu d0,(d3,a0)
  add 2,a1
- cmp pf_bt+30,a1
+ cmp pf_bt+32,a1
  bne 8b
  movbu (7,a0),d0
  or 2,d0
@@ -2518,10 +2518,11 @@ pf_ids:                           /* u16 id for COLOR1, u8 step per COLOR, u8 re
 pf_bt:                            /* record offset, slot offset - 24 (v0.26: moved here from the sec-9 tail) */
  .byte 36,1, 37,2, 38,3, 39,23, 40,24, 47,25, 48,26, 49,27, 50,28, 51,29, 52,30
  .byte 53,31, 54,32, 55,33, 56,34  /* v0.26: split toning, record +53..+56 <-> slot +55..+58 */
+ .byte 57,6                        /* v0.28: halation, record +57 <-> slot +30 */
 pf_lo:                            /* record byte i: lo; span = -2 lo for lo < 0, 1 for byte 36 (WB on 0/1), else 0
                                      (test 18: the span half of this table is computed, to make room) */
  .byte -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5
- .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, 0,0,0,0,0,0,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7 */
+ .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,0,0,0,0,0,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation */
 pf_pnew:
  .asciz "C:\\OM3MOD\\LOOKS.NEW"
 pf_pbin:
@@ -3042,7 +3043,7 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * the colour wheel), tone (Contrast, Highlight & Shadow, Blacks, Whites), white balance
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
- .long 111, 5397, 8, 5398, BK_IT, WH_IT, AB_IT, 7, NR_IT, VF_IT, 5399, GL_IT, 5400   /* v0.25: Shading back,
+ .long 111, 5397, 8, 5398, BK_IT, WH_IT, AB_IT, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, 5400   /* v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 
@@ -3078,6 +3079,8 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set GM_IT, 5383
 .set GL_IT, 5382
 .set FR_IT, 5381
+.set HL_IT, 5380                  /* v0.28 Halation slider row (class 12, slot +30, 0..5) */
+.set HLB, 0x7ed0                  /* its bar ids + k (row 13; row 12 is WGB) */
 .set ST_VIG, 0x7f00               /* our string ids (st_get answers them; the camera's table has ~6000) */
 .set ST_STD, 0x7f01
 .set ST_BKS, 0x7f02                 /* "Blacks" */
@@ -3086,6 +3089,7 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set ST_GM, 0x7f05                  /* "G-M" */
 .set ST_GLC, 0x7f06                 /* "Glow / Clarity" */
 .set ST_FRM, 0x7f07                 /* "Frame" */
+.set ST_HAL, 0x7f08                 /* v0.28 "Halation" */
 .set IC_BK, 0x7f80                /* our picture ids (ic_get answers them; the camera's table has ~20000 slots) */
 .set IC_WH, 0x7f81
 .set IC_AB, 0x7f82
@@ -3100,6 +3104,7 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set IC_GL, 0x7f8b                /* v0.25 "Glow" slider icon, "Frame / Off", "Frame / On" (left column) */
 .set IC_F0, 0x7f8c
 .set IC_F1, 0x7f8d
+.set IC_HL, IC_F0                 /* v0.28 "Halo" slider icon (mkicons PICTURES[12], Frame's old place) */
 .set IC_END, 0x7f8e
 .set IC_WB, 0x7f8f                 /* v0.25 the WB grid row's left cell (wb_desc, drawn at run time) */
 .set FV0, 100                     /* v0.24 film list: picture-mode values FV0 + j for film j (COLOR k = j / 5, look j % 5 + 1) */
@@ -3162,6 +3167,8 @@ gl_tab:
  .long 54, GLB, 55, GLB + 1, 56, GLB + 2, 64, GLB + 3
 fr_tab:
  .long 54, FRB, 55, FRB + 1, 56, FRB + 2, 64, FRB + 3
+hl_tab:
+ .long 54, HLB, 55, HLB + 1, 56, HLB + 2, 64, HLB + 3
 .balign 8
 sw11_tab:                         /* the row switches 0x615511cc and 0x6155134c (16 entries, full with our rows) */
  .space 32 * 8                    /* re-hashed by build.py into 32 entries */
@@ -3177,6 +3184,7 @@ it_tab:                           /* the stock 17 item entries (filled by build.
  .long GM_IT, 0, 0, 0, gm_title, 0, 8 << 16, 0, 0, 0
  .long GL_IT, 0, 0, 0, gl_title, 0, 9 << 16, 0, 0, 0           /* v0.25: icon 9 = IC_GL */
  .long FR_IT, fr_title, fr_l0, 2, 0, fr_l1, 2, 0, fr_l2, 2      /* v0.25: as Vignette Correction */
+ .long HL_IT, 0, 0, 0, hl_title, 0, 10 << 16, 0, 0, 0          /* v0.28: icon 10 = IC_HL */
 bk_title:
  .short 4, ST_BKS
  .long 0x6154b480
@@ -3194,6 +3202,9 @@ gl_title:
  .long 0x6154b480
 fr_title:
  .short 4, ST_FRM
+ .long 0x6154b480
+hl_title:
+ .short 4, ST_HAL
  .long 0x6154b480
 nr_title:
  .short 4, 188                    /* string 188 "Noise Filter" */
@@ -3306,8 +3317,14 @@ gr_lc:
  bra 9f
 8:
  cmp FR_IT,d0
- bne 9f
+ bne 10f
  mov fr_tab,a3
+ mov 4,d2
+ bra 9f
+10:
+ cmp HL_IT,d0                     /* v0.28 Halation */
+ bne 9f
+ mov hl_tab,a3
  mov 4,d2
 9:
  jmp lc_back                      /* 0x611d19b4: cmp 0,a3 */
@@ -3351,8 +3368,13 @@ st_get:
  ret [d2],8
 7:
  cmp ST_FRM,d0
- bne 2f
+ bne 8f
  mov frm_str,a0
+ ret [d2],8
+8:
+ cmp ST_HAL,d0                    /* v0.28 */
+ bne 2f
+ mov hal_str,a0
  ret [d2],8
 2:
  cmp ST_F0,d0                     /* v0.24: film names */
@@ -3404,6 +3426,8 @@ glc_str:                          /* "Glow" (v0.25 owner: + Glow, - Clarity; the
  .short 71, 108, 111, 119, 0
 frm_str:                          /* "Frame" */
  .short 70, 114, 97, 109, 101, 0
+hal_str:                          /* v0.28 "Halation" */
+ .short 72, 97, 108, 97, 116, 105, 111, 110, 0
  .balign 16
 std_str:                          /* "Std" */
  .short 83, 116, 100, 0
@@ -3455,6 +3479,7 @@ ch_id:
  CHC bk_f, BKB, f2c_obj           /* slider rows: as item 7's case (0x611c2ce8: the bar object with this id) */
  CHC wh_f, WHB, f2c_obj
  CHC gl_f, GLB, f2c_obj           /* v0.25 Glow / Clarity slider */
+ CHC hl_f, HLB, f2c_obj           /* v0.28 Halation slider */
  CHC wg_a, WGB, cha_back          /* v0.25 WB grid row: as the Frame row, one option */
  CHC wg_b, WGB, chb_back
  CHC wg_c, WGB, chc_back
@@ -3552,6 +3577,11 @@ sl_slot:
  add -WGB,d2
  cmp 4,d2
  bcs 2f
+ mov 12,d1                        /* v0.28 Halation */
+ mov d3,d2
+ add -HLB,d2
+ cmp 4,d2
+ bcs 2f
  mov 1,d1
  cmp 7,d3
  beq 1f
@@ -3581,6 +3611,9 @@ sl_slot:
  beq 1f
  mov 10,d1
  cmp FR_IT,d3
+ beq 1f
+ mov 12,d1                        /* v0.28 Halation */
+ cmp HL_IT,d3
  bne 8f
 1:
  mov d1,d3                        /* the class, over the getter */
@@ -3620,6 +3653,12 @@ sl_slot:
  clr d0
  bra 99f
 86:
+ cmp 12,d1
+ bne 87f
+ movbu (30,a0),d0                 /* v0.28 Halation 0..5 (slot +30) */
+ extb d0
+ bra 99f
+87:
  cmp 9,d1
  bne 83f
  movbu (49,a0),d0                 /* v0.25 Glow -5..-1 / Clarity +1..+5 (the slot) */
@@ -3829,6 +3868,12 @@ sl_gb:
  exthu d2
  add -WGB,d2
  cmp 4,d2
+ bcs 90f
+ mov 12,a3                        /* v0.28 Halation */
+ mov d0,d2
+ exthu d2
+ add -HLB,d2
+ cmp 4,d2
  bcc \miss
 90:
  PVAL \miss
@@ -3847,6 +3892,9 @@ sl_cnt:
  REAL 8f
  mov 1,d0                         /* v0.25: 11 the WB grid row's one option */
  cmp 11,a3
+ beq 6f
+ mov 6,d0                         /* v0.28: 12 Halation 0..5 */
+ cmp 12,a3
  beq 6f
  mov 11,d0                        /* v0.25: 9 Glow / Clarity -5..+5 */
  cmp 9,a3
@@ -3880,6 +3928,10 @@ sl_cnt:
  clr d0                           /* v0.25: 11 the WB grid row 0, 1 */
  mov 1,d1
  cmp 11,a3
+ beq 99f
+ clr d0                           /* v0.28: 12 Halation 0, 6 */
+ mov 6,d1
+ cmp 12,a3
  beq 99f
  mov -5,d0                        /* v0.25: 9 Glow / Clarity -5, 11; 10 Frame 0, 2 */
  mov 11,d1
@@ -4018,6 +4070,16 @@ sl_set0:
  add a2,d2                        /* d2 = P + 64k */
  cmp 11,a3                        /* v0.25 WB grid row: nothing to store */
  beq 7f
+ cmp 12,a3
+ bne 14f
+ cmp 0,d1                         /* v0.28 Halation 0..5 -> +30 */
+ blt 7f
+ cmp 5,d1
+ bgt 7f
+ mov d2,a3
+ movbu d1,(62,a3)
+ jmp s_dirty
+14:
  cmp 9,a3
  bne 12f
  cmp -5,d1                        /* v0.25 Glow / Clarity -5..+5 -> +49 */
@@ -4173,6 +4235,8 @@ rw_bar:
  beq 3f
  cmp GL_IT,d0                     /* v0.25 Glow / Clarity: -5..+5 as Blacks / Whites */
  beq 3f
+ cmp HL_IT,d0                     /* v0.28 Halation: 0..5 on the same bar */
+ beq 3f
  cmp AB_IT,d0
  beq 4f
  cmp GM_IT,d0
@@ -4275,6 +4339,10 @@ rv_chk:
  bcs 1f
  movhu (a0),d0
  add -GLB,d0
+ cmp 4,d0
+ bcs 1f
+ movhu (a0),d0
+ add -HLB,d0
  cmp 4,d0
  bcc 2f
 1:
@@ -5059,6 +5127,7 @@ ic_list:
  .long 0xffff, 7, 7, 12545         /* v0.25: 7 = the camera's WB± picture (the WB grid row) */
  .long 0xffff, 7, 7, IC_GM
  .long 0xffff, 7, 7, IC_GL         /* v0.25: 9 = Glow / Clarity */
+ .long 0xffff, 7, 7, IC_HL         /* v0.28: 10 = Halation */
 ic_lend:
 ic_ent:                           /* the slot word of each of our pictures, in firmware/mkicons.py PICTURES order */
  .long ic_d0, ic_d1, ic_d2, ic_d3, ic_d4, ic_d5, ic_d6, ic_d7, ic_d8, ic_d9, ic_d10, ic_d11, ic_d12, ic_d13
@@ -5084,9 +5153,12 @@ ic_d\n:
  ICD 12
  ICD 13
 .balign 8
+.section .ext12,"ax"               /* v0.28: moved out of the full ext11 */
+ .balign 8
 ic_pay:
- .space 14720                     /* v0.25: 14 pictures (build.py checks the fit; A-B / G-M, Frame blank now) */
+ .space 16384                     /* v0.25: 14 pictures (build.py checks the fit; A-B / G-M blank; v0.28: "Halo" in Frame's place) */
 ic_pend:
+.section .ext11,"ax"
 
 /* st_chk <- jmp from 0x611b201b (bar setup, a3 = the bar, (16,sp) -> its id): the bar's +116 says whether the arrows
  * stop at the ends (1) or wrap around (0); the camera sets 1 for the ids in its table 0x6152d520 (239 u16 ids, 904
@@ -5114,6 +5186,10 @@ st_chk:
  bcs 1f
  movhu (a1),d0
  add -GLB,d0
+ cmp 4,d0
+ bcs 1f
+ movhu (a1),d0
+ add -HLB,d0
  cmp 4,d0
  bcs 1f
  clr d0
@@ -5146,6 +5222,8 @@ rd_a:
  beq 1f
  cmp GL_IT,d0
  beq 1f
+ cmp HL_IT,d0
+ beq 1f
  cmp 5399,d0                      /* v0.25 Shading: these glyphs, in line with its picture (owner: its number sat low) */
  beq 1f
  jmp rda_none
@@ -5170,6 +5248,8 @@ rd_b:
  cmp WH_IT,d0
  beq 1f
  cmp GL_IT,d0
+ beq 1f
+ cmp HL_IT,d0
  beq 1f
  cmp 5399,d0                      /* v0.25 Shading (as rd_a) */
  beq 1f
@@ -7460,13 +7540,16 @@ fl_isdef:
  exthu d0
  add -GRB,d0
  blt 90f
- cmp 0xc0,d0                      /* v0.25: + GLB (row 10), FRB (row 11); rows 7..9 are not ours (FLB films) */
+ cmp 0xe0,d0                      /* v0.25: + GLB (row 10), FRB (row 11); v0.28 HLB (row 13); rows 7..9 (FLB films)
+                                     and 12 (WGB) are not ours */
  bcc 90f
  mov d0,d2
  and 15,d2                        /* k */
  cmp 4,d2
  bcc 90f
  lsr 4,d0                         /* the row */
+ cmp 12,d0
+ beq 90f
  cmp 7,d0
  bcs 6f
  cmp 10,d0
@@ -7514,7 +7597,7 @@ fl_isdef:
  jmp ed_isdef
 fl_xr:                            /* {record offset, slot offset} of the rows GRB, NRB, VFB, BKB, WHB, ABB, GMB (pf_bt),
                                      three unused (FLB), v0.25 GLB, FRB */
- .byte 51,53, 49,51, 50,52, 39,47, 40,48, 37,26, 38,27, 0,0, 0,0, 0,0, 47,49, 48,50
+ .byte 51,53, 49,51, 50,52, 39,47, 40,48, 37,26, 38,27, 0,0, 0,0, 0,0, 47,49, 48,50, 0,0, 57,30   /* v0.28 HLB */
 
 /* fl_live: `call fl_live,[d2,d3,a2,a3],24`, a2 = P, d2 = COLOR k holding film j -> d0 1 when COLOR k now differs from
  * film j as built: its 18 settings (fl_isdef) or the slot's WB shift, Blacks / Whites, Extras (pf_bt). */
