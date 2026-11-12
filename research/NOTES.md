@@ -3070,3 +3070,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (Glow 4), a fade-zone frame (10.8 % bright, Glow 3), daylight (off), dark (none), 1000 x 700 with 24 px padding,
   320 x 256. Steps 2.0-2.7 M for 0.8-1.8 MP frames without glow, 23 M for the 1.8 MP Glow 5 night frame: scaled to
   20 MP about 57 M without lights (~0.6-0.9 s) and ~260 M for dense night scenes (~3-4 s). Analysis.
+- **h2 camera (owner's OM-3, 2026-11-12; camera-tested):** CADLOG "v0.28-dev (halation h2)", 105 events, card files OK;
+  13 JPEG+RAW singles PB122255..267, FILM 1 on COLOR 1 (BUNDLES at the end: Glow 5, Grain 0): the table lamp (255-259),
+  a white floor lamp (260-266), daylight (267). No freeze. Visual: a smooth red-orange glow growing over each series,
+  a clear CineStill-like rim around the white shade (264-266), no cell blocks, no halo in daylight.
+  - White lamp, ring 250..600 px (Y 60..240): Cr 0.7 (260) / 4.0 / 3.9 / 10.2 / 18.7 (265) / 14.6 (266, grainy),
+    Cb down to -12; Cr high-pass "speckle" 0.6-0.73 throughout (266 with grain: 0.60); clipped cores (Y >= 250)
+    neutral: Cr -0.2..-0.8. The shade in 266 is not clipped (Glow + grain) and takes a faint pink.
+  - Table lamp, ring 300..700 px: Cr 10.0 / 12.8 / 18.5 / 23.6 / 24.5 (259, grain), speckle 1.02-1.35; h1's PB122236
+    (grain High) had Cr 15.0 with speckle 2.26: h2 about 60 % stronger with about 40 % less speckle.
