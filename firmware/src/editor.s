@@ -7640,7 +7640,7 @@ fl_live:
  cmp d1,d0
  bne 28f
  inc d3
- cmp 11,d3
+ cmp 16,d3                        /* v0.28: all 16 pf_bt pairs (+ split toning, halation) */
  bcs 22b
  clr d0
  ret [d2,d3,a2,a3],24
@@ -7650,7 +7650,7 @@ fl_live:
 
 /* fl_fch: `call fl_fch,[d2,d3,a2,a3],28`, a2 = P, d0 = film j -> d0 1 when it is changed from how it was built: on
  * its COLOR now (look number = its) -> fl_live; else its saved changes (EDITS.BIN record j, valid) differ from the
- * LOOKS.BIN record in bytes 0..52. Locals (4) j. */
+ * LOOKS.BIN record in bytes 0..57 (v0.28; was 0..52). Locals (4) j. */
 fl_fch:
  mov d0,(4,sp)
  clr d2
@@ -7694,7 +7694,7 @@ fl_fch:
  mov (LPTR,a2),a0
  add d0,a0
  add 32,a0                        /* as built */
- mov 53,d3
+ mov 58,d3                        /* v0.28: bytes 0..57 (+ split toning, halation) */
 6:
  movbu (a0),d0
  movbu (a1),d1
@@ -11232,11 +11232,11 @@ dg_bend:
 98:
  .endm
 
-/* hl_run: `call hl_run,[d2,d3,a2,a3],120`, a0 = buffer record, d0 = strength 1..5.
+/* hl_run: `call hl_run,[d2,d3,a2,a3],124`, a0 = buffer record, d0 = strength 1..5.
  * Locals: (0) call slot, (4) rec, (8) gmax, (12) W, (16) H, (20) pitch, (24) bus, (28) pairs, (32) GW, (36) GH,
  * (40) mem1 = E then G (u16 GW x GH), (44) tmp (u16, max(GW, GH) + 2), (48) line g (u16 GW), (52) y / index,
  * (56) token, (60) cached, (64) sc, (68) any, (72) cells / first pair, (76) passes / spans left, (80) mem2 = Q then w,
- * (84) line w, (88) n, (92) span offset 2k, (96) n_lo, (100) n_hi. */
+ * (84) line w, (88) n, (92) span offset 2k, (96) n_lo, (100) n_hi, (104) mem3 = the broad layer (h4). */
 hl_run:
  mov a0,(4,sp)
  cmp 1,d0
@@ -11328,6 +11328,18 @@ hl_run:
  bra 99f
 2:
  mov a0,(80,sp)
+ mov d2,d0
+ call malloc,[],4                 /* h4: the broad layer's copy of E */
+ cmp 0,a0
+ bne 4f
+ mov (80,sp),a0
+ call free,[],4
+ mov (40,sp),a0
+ call free,[],4
+ bra 99f
+4:
+ mov a0,(104,sp)
+ mov (80,sp),a0
  mov (72,sp),d1                   /* zero both grids */
  mov (40,sp),a1
  clr d0
@@ -11479,60 +11491,49 @@ hl_run:
  cmp d1,d0
  bcs 20b
 
- /* ---- B. blur E: HL_BLUR times across each cell row, then HL_BLUR times down each column */
- mov HL_BLUR,d0
- mov d0,(76,sp)
+ /* ---- B. blur E: a tight layer (HL_BLUR passes) and a broad one (HL_BLUR2, on a copy), mixed (h4) */
+ mov (40,sp),a0
+ mov (104,sp),a1
+ mov (72,sp),d1
 30:
- clr d0
- mov d0,(52,sp)
-31:
- mov (52,sp),d0
- mov (32,sp),d1
- mul d1,d0
- add d0,d0
- mov (40,sp),d1
- add d1,d0
- mov d0,a0
- mov (32,sp),d0
- mov 2,d1
- mov (44,sp),a1
- call hl_b1,[d2,d3,a2,a3],20
- mov (52,sp),d0
- inc d0
- mov d0,(52,sp)
- mov (36,sp),d1
- cmp d1,d0
- bcs 31b
- mov (76,sp),d0
- add -1,d0
- mov d0,(76,sp)
+ movhu (a0),d0
+ movhu d0,(a1)
+ add 2,a0
+ add 2,a1
+ add -1,d1
  bne 30b
- mov HL_BLUR,d0
- mov d0,(76,sp)
-32:
- clr d0
- mov d0,(52,sp)
-33:
- mov (52,sp),d0
- add d0,d0
- mov (40,sp),d1
- add d1,d0
- mov d0,a0
- mov (36,sp),d0
- mov (32,sp),d1
- add d1,d1
+ mov (36,sp),d1
+ asl 16,d1
+ mov (32,sp),d0
+ or d0,d1                         /* GW | GH << 16 */
+ mov d1,(76,sp)
+ mov (40,sp),a0
  mov (44,sp),a1
- call hl_b1,[d2,d3,a2,a3],20
- mov (52,sp),d0
- inc d0
- mov d0,(52,sp)
- mov (32,sp),d1
- cmp d1,d0
- bcs 33b
- mov (76,sp),d0
- add -1,d0
- mov d0,(76,sp)
- bne 32b
+ mov HL_BLUR,d0
+ call hl_blur,[d2,d3,a2,a3],48
+ mov (104,sp),a0
+ mov (44,sp),a1
+ mov HL_BLUR2,d0
+ mov (76,sp),d1
+ call hl_blur,[d2,d3,a2,a3],48
+ mov (40,sp),a0                   /* E = (E (256 - HL_MIX) + E2 HL_MIX + 128) >> 8 */
+ mov (104,sp),a1
+ mov (72,sp),d3
+31:
+ movhu (a0),d0
+ mov 256 - HL_MIX,d1
+ mul d1,d0
+ movhu (a1),d1
+ mov HL_MIX,d2
+ mul d2,d1
+ add d1,d0
+ add 128,d0
+ lsr 8,d0
+ movhu d0,(a0)
+ add 2,a0
+ add 2,a1
+ add -1,d3
+ bne 31b
 
  /* ---- the curve (u in place of E) and the bright-frame count n */
  mov (40,sp),a0
@@ -11807,12 +11808,14 @@ hl_run:
  cmp d1,d0
  bcs 50b
 90:
+ mov (104,sp),a0
+ call free,[],4
  mov (80,sp),a0
  call free,[],4
  mov (40,sp),a0
  call free,[],4
 99:
- ret [d2,d3,a2,a3],120
+ ret [d2,d3,a2,a3],124
 
 /* hl_seg: `call hl_seg,[d2,d3,a2,a3],28`, a0 = first pair, a1 = end (> a0), d2 / d3 = g accumulator / step (32 g + 16),
  * a2 / a3 = w accumulator / step -> a0 = end. Per pair g = d2 >> 5, w = a2 >> 5; g = 0 leaves the pair as it is.
@@ -11931,6 +11934,72 @@ hl_div:
  cmp 0,a2
  bne 1b
  ret [d2,d3,a2,a3],20
+
+/* hl_blur: `call hl_blur,[d2,d3,a2,a3],48` (h4), a0 = grid (u16 GW x GH), a1 = tmp, d0 = passes >= 1, d1 = GW | GH << 16.
+ * Locals (0) call slot, (4) grid, (8) tmp, (12) passes, (16) GW, (20) GH, (24) row / column, (28) passes left. */
+hl_blur:
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ mov d0,(12,sp)
+ mov d1,d0
+ and 0xffff,d0
+ mov d0,(16,sp)
+ lsr 16,d1
+ mov d1,(20,sp)
+ mov (12,sp),d0
+ mov d0,(28,sp)
+1:
+ clr d0
+ mov d0,(24,sp)
+2:
+ mov (24,sp),d0
+ mov (16,sp),d1
+ mul d1,d0
+ add d0,d0
+ mov (4,sp),d1
+ add d1,d0
+ mov d0,a0
+ mov (16,sp),d0
+ mov 2,d1
+ mov (8,sp),a1
+ call hl_b1,[d2,d3,a2,a3],20
+ mov (24,sp),d0
+ inc d0
+ mov d0,(24,sp)
+ mov (20,sp),d1
+ cmp d1,d0
+ bcs 2b
+ mov (28,sp),d0
+ add -1,d0
+ mov d0,(28,sp)
+ bne 1b
+ mov (12,sp),d0
+ mov d0,(28,sp)
+3:
+ clr d0
+ mov d0,(24,sp)
+4:
+ mov (24,sp),d0
+ add d0,d0
+ mov (4,sp),d1
+ add d1,d0
+ mov d0,a0
+ mov (20,sp),d0
+ mov (16,sp),d1
+ add d1,d1
+ mov (8,sp),a1
+ call hl_b1,[d2,d3,a2,a3],20
+ mov (24,sp),d0
+ inc d0
+ mov d0,(24,sp)
+ mov (16,sp),d1
+ cmp d1,d0
+ bcs 4b
+ mov (28,sp),d0
+ add -1,d0
+ mov d0,(28,sp)
+ bne 3b
+ ret [d2,d3,a2,a3],48
 
 /* hl_b1: `call hl_b1,[d2,d3,a2,a3],20`, a0 = first value (u16), d0 = n >= 1, d1 = stride in bytes, a1 = tmp (n + 2
  * u16). v[i] = (t[i] + 2 t[i+1] + t[i+2] + 2) >> 2 with t = v[0], v[0..n-1], v[n-1]. */

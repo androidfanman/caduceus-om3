@@ -3104,3 +3104,14 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   accepted (LPTR set, COLOR 1 = look 1) and the row shows '*' (slot 0 vs film 3). Not reachable in om-emu: the film
   -> slot copy through fl_set (setv 901 runs om-emu out of memory), the capture path (camera test). Static: pf_bt,
   pf_lo, fl_xr and the loop ends checked in the image. Cosmetic: the bar is the -5..+5 one (0 in the middle).
+- **h3 camera (owner, 2026-11-12):** CADLOG "v0.28-dev (halation row h3)", 41 events; PB122268..273: Halation alone on
+  the white lamp (268 / 269: a clear red-orange halo without the soft glow), with Glow (270), Glow alone (271: no
+  red halo), with grain (272), daylight (273: none). No freeze. BUNDLES at the end: COLOR 1 Halation 5, Grain 3.
+  Owner: (1) changing only Halation gives no '*' on the FILM 1 entry; (2) the halo "has too much of a sudden cut
+  off": PB122269 Cr by distance from the shade peaks ~+35 at 120-140 px and falls +30 -> +7 between 180 and 300 px.
+- **h4:** (1) fl_live compares all 16 pf_bt pairs (was 11) and fl_fch bytes 0..57 (was 0..52): the film list's '*'
+  follows split toning and halation too. (2) Two layers: E blurred 3 times (tight) and a copy 10 times (broad, a
+  third malloc), mixed 50/50 (MIX 128), K 900, gmax 43 / 78 / 113 / 156 / 208. On PB122271 (Glow only) at strength 5
+  the half-strength distance moves from ~260 to ~400 px and the tail fades out past 600 px (a 3 + 14, 40/60, K 1200
+  variant was softer still). `hl_blur` (one layer, frame 48) replaces the inline loops; hl_run frame 124.
+  om-emu: the 8 frames bit-exact with the model; steps +25 % on night frames (29.7 M for 1.8 MP at strength 5).

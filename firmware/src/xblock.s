@@ -555,7 +555,7 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  beq 14f
  mov a1,(12,sp)
  mov a1,a0
- call HL_RUN,[d2,d3,a2,a3],120
+ call HL_RUN,[d2,d3,a2,a3],124
  mov (4,sp),a0
  call xb_rec,[d2,d3],12
  clr d0

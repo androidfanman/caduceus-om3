@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Caduceus for OM-3 halation (v0.28 h2): the exact integer model of the camera's pass (editor.s `hl_run`).
+"""Caduceus for OM-3 halation (v0.28 h4): the exact integer model of the camera's pass (editor.s `hl_run`).
 
 Our own code. The method (a threshold-excess grid of 64 px cells, a small blur, a soft knee, then a tint that fades on
 bright pixels) follows Caduceus for the E-P7's halation by cakelesscoder (docs/HALATION_RED.md, camera-tested there);
@@ -10,7 +10,8 @@ Buffer: YCbYCr 4:2:2 (byte 0 Y0, 1 Cb, 2 Y1, 3 Cr per pixel pair; Cb / Cr offset
 
   A. grids: every 2nd row, every pair's Y0: e = Y0 - T if > T summed (u16) into 64 x 64 px cells, and Y0 >> 2
      summed into a second grid; the cell's mean B = (4 sum) // samples
-  B. blur:  [1 2 1] / 4 (rounded, edges repeated), BLUR times across and BLUR times down (the e grid)
+  B. blur:  [1 2 1] / 4 (rounded, edges repeated) BLUR times across and down (tight) and BLUR2 times (broad),
+            mixed v = (tight (256 - MIX) + broad MIX + 128) >> 8 (h4)
   map:      u = 255 v / (v + K) by table (`tables`); n = cells with u >= COV_U: none when n >= COV_HI % of the
             cells, full strength up to COV_LO %, in between sc = ((n_hi - n) 256) // (n_hi - n_lo);
             g = (((u gmax[level]) >> 8) sc) >> 8;  w = min(255, WMUL (255 - B))
@@ -23,7 +24,7 @@ import numpy as np
 
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'firmware'))
-from halation import T, K, BLUR, GMAX, KY, KCB, KCR, WMUL, COV_U, COV_LO, COV_HI, curve, tables   # one set of numbers for both
+from halation import T, K, BLUR, BLUR2, MIX, GMAX, KY, KCB, KCR, WMUL, COV_U, COV_LO, COV_HI, curve, tables   # one set of numbers for both
 
 
 def grid_sums(buf, W, H, pitch):
@@ -42,16 +43,21 @@ def grid_sums(buf, W, H, pitch):
     return E, (4 * Q) // N
 
 
-def blur(a):
+def blur_n(a, passes):
     def b1(x, axis):
         lo = np.take(x, [0], axis=axis); hi = np.take(x, [x.shape[axis] - 1], axis=axis)
         p = np.concatenate([lo, x, hi], axis=axis)
         n = x.shape[axis]
         sl = lambda s, e: np.take(p, range(s, e), axis=axis)
         return (sl(0, n) + 2 * sl(1, n + 1) + sl(2, n + 2) + 2) >> 2
-    for axis in (1,) * BLUR + (0,) * BLUR:
+    for axis in (1,) * passes + (0,) * passes:
         a = b1(a, axis)
     return a
+
+
+def blur(a):
+    """h4: a tight layer (BLUR passes) and a broad one (BLUR2), mixed: a long, soft tail."""
+    return (blur_n(a, BLUR) * (256 - MIX) + blur_n(a, BLUR2) * MIX + 128) >> 8
 
 
 def grids(buf, W, H, pitch, level):
