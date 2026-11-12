@@ -3124,3 +3124,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   is N | star << 8, so it redraws when that flips. The shooting screen's label (fl_lvp) stays without a star.
   om-emu: super control panel with FILM 1 on COLOR 1: "FILM*1" when the film differs from how it was built,
   "FILM 1" with a neutral record equal to the slot. New picture: "FILM*" (quick menu) - owner to approve.
+- **h5b (owner: "it should look like FILM 1*"):** the star moves after the number. fl_sp gains an optional trailing
+  picture (layout words +48..+60: picture, bytes a row, ink width, gap; 0 = none for fl_LS / fl_LVL), counted in the
+  centring and drawn after the last digit; fl_LS1 = fl_LS's "FILM" + digits + the quick menu's '*' (mkicons.sp_star,
+  gap SP_DGAP). Direct calls of fl_sp (om-emu, decoded): "FILM 1*", "FILM 12*" (centred), "FILM 7" (plain layout);
+  the super control panel shows "FILM1*" / "FILM1" for a changed / unchanged film.

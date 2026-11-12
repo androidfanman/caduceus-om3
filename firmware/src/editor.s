@@ -6700,6 +6700,14 @@ fl_sp:
  mov (44,a1),d0
  add d0,d1
 5:
+ mov (48,a1),d0                   /* v0.28: a trailing picture ('*') and its gap */
+ cmp 0,d0
+ beq 7f
+ mov (56,a1),d0
+ add d0,d1
+ mov (60,a1),d0
+ add d0,d1
+7:
  mov (a1),d0
  sub d1,d0
  lsr 1,d0
@@ -6750,7 +6758,35 @@ fl_sp:
  add d1,d2
  mov d2,(48,sp)
  call fl_spd,[],4
-20:                               /* the row as runs: a1 the pixel, a2 the row's end */
+20:                               /* v0.28: the trailing picture after the last digit */
+ mov (20,sp),a1
+ mov (48,a1),d0
+ cmp 0,d0
+ beq 25f
+ mov (16,sp),d0                   /* the last digit */
+ cmp 0,d0
+ bge 24f
+ mov (12,sp),d0
+24:
+ mov (36,a1),a0
+ add d0,a0
+ movbu (a0),d1
+ mov (48,sp),d0
+ add d1,d0
+ mov (60,a1),d1
+ add d1,d0
+ mov d0,d2                        /* its x */
+ mov (28,sp),d0
+ mov (52,a1),d1
+ mul d0,d1
+ mov (48,a1),a0
+ add d1,a0
+ mov (52,a1),d3
+ mov sp,a1
+ add SROW,a1
+ add d2,a1
+ call fl_bl,[],0
+25:                               /* the row as runs: a1 the pixel, a2 the row's end */
  mov (20,sp),a0
  mov (a0),d0
  mov sp,a1
@@ -6832,10 +6868,13 @@ fl_spd:
 .balign 4
 fl_LS:                            /* the quick menu, 160 x 48 */
  .long 160, 48, 0x0b09f02f, fl_sfw, SFW / 2, SFWI, fl_sdg, SDB / 2, SDB * SPH / 2, fl_sdw, SP_GAP, SP_DGAP
-fl_LS1:                           /* v0.28: the quick menu's changed film, "FILM* N" */
- .long 160, 48, 0x0b09f02f, fl_sfws, SFWS / 2, SFWIS, fl_sdg, SDB / 2, SDB * SPH / 2, fl_sdw, SP_GAP, SP_DGAP
+ .long 0, 0, 0, 0                 /* v0.28: {trailing picture, its bytes a row, ink width, gap before}: none */
+fl_LS1:                           /* v0.28: the quick menu's changed film, "FILM N*" (owner) */
+ .long 160, 48, 0x0b09f02f, fl_sfw, SFW / 2, SFWI, fl_sdg, SDB / 2, SDB * SPH / 2, fl_sdw, SP_GAP, SP_DGAP
+ .long fl_sst, SSTB / 2, SSTI, SP_DGAP
 fl_LVL:                           /* the shooting screen, 96 x 44 (film test 9) */
  .long 96, 44, 0x0b05f02b, fl_lvw, LVWB / 2, LVWI, fl_lvd, LVDB / 2, LVDB * 44 / 2, fl_lvdw, LV_GAP, LV_DGAP
+ .long 0, 0, 0, 0
 
 /* fl_scp <- ic_get (d0 / d1 = 15746..15753: the quick menu's "COLOR k" / "COLOR k*", k = 0..3) and fl_lvp <- ic_get
  * (15706..15709: the shooting screen's "COLOR1".."COLOR4", film test 9): when COLOR k holds a film that is there,
@@ -6915,7 +6954,7 @@ fl_pcp:
  bra 2b
 3:
  inc d3
- mov (24,sp),d0                   /* v0.28: the quick menu's "FILM* N" when the film is changed (as the list's cell) */
+ mov (24,sp),d0                   /* v0.28: the quick menu's "FILM N*" when the film is changed (as the list's cell) */
  cmp fl_LS,d0
  bne 6f
  mov (20,sp),d0

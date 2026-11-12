@@ -189,13 +189,13 @@ def sp_parts():
     return fwp, fw.shape[1], boxes, [d.shape[1] for d in ds]
 
 
-def sp_star_word():
-    """v0.28 (owner: the super control panel showed no '*' for a changed film): "FILM*" in the quick menu's lettering
-    (the asterisk sits high, as the camera's "COLOR*"); -> (picture even-padded, ink width)."""
-    fw = _sp_word('FILM*')
-    fwp = np.zeros((SPH, fw.shape[1] + fw.shape[1] % 2), dtype=np.uint8)
-    fwp[:, :fw.shape[1]] = fw
-    return fwp, fw.shape[1]
+def sp_star():
+    """v0.28 (owner: "FILM 1*"): the quick menu's '*' after the number, in its lettering (the asterisk sits high, as the
+    camera's "COLOR*"); -> (picture even-padded, ink width)."""
+    st = _sp_part('*')
+    stp = np.zeros((SPH, st.shape[1] + st.shape[1] % 2), dtype=np.uint8)
+    stp[:, :st.shape[1]] = st
+    return stp, st.shape[1]
 
 
 def sp_film(n, parts=None):
