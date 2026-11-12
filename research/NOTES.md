@@ -3333,3 +3333,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   over film switches and power cycles, and a film without one gets Auto (camera-tested). Film WB is done on the camera
   side; the Control Panel part (WB per film in the editor, export of +59..+62 for v0.28) remains, and per-film exposure
   compensation / ISO are not started.
+
+## Blacks / Whites grid again (2026-11-12; owner)
+- Owner: "with the color profiles getting long", combine Blacks and Whites into one grid row like the WB (A-B / G-M)
+  grid again (bw1, 2026-11-08, was turned down: "that don't look too good"; code in commit 2fa6a5c). This time the
+  grid is black on the Blacks axis and white on the Whites axis. Mock-ups (private project folder, mockups/): plain
+  black edges vanish on the dark screen; owner chose **D**: black -/+ boxes left / right (Blacks), white -/+ boxes
+  top / bottom (Whites), and the grid's edges black (outlined) and white to match.
