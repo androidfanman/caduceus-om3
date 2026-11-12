@@ -2971,3 +2971,13 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   frames PB122172..205 in 7 sequential bursts of 3..8 (mechanical, some with anti-shock) on FILM 9 Velvia 50; the
   photo codes say grain 0 and Glow / Clarity 0 in every frame. With the first run: the 662 KiB loads and stays intact
   through 4K video, photos and RAW+JPEG bursts. Not covered: bursts with grain + Glow (the #28 load).
+- **GX4 grain + Glow burst run (2026-11-12; camera-tested):** 'GXR4' **29 passes, 0 bad of 169336, no gap changed.**
+  19 RAW+JPEG frames PB122206..224 (a single, a burst of 11, a burst of 7 with anti-shock) on FILM 9 at ISO 1600:
+  BUNDLES.BIN slot COLOR 2 = grain High, Glow 5 (Clarity 5 before the run's one edit, event #2); the frames show
+  the grain (high-pass texture in flat areas 11.9 vs 5.1 for PB122180 at ISO 2000). No freeze. **GX4 is complete:
+  0x60f99800..0x6103f000 is proven space** (4K video, photos, RAW+JPEG bursts, grain + Glow bursts). A build that uses
+  it must raise the loader's end word 0x60045e9c to the end it uses, at most 0x6103f000.
+- Found on the way (camera, analysis of the code): the photo code (`ex_cd1`) encodes the film's record from the heap
+  copy of LOOKS.BIN (LPTR), i.e. the film as built, not the changes made on the camera (here grain High + Glow 5 live
+  in BUNDLES / the COLOR slot; every frame's code says grain 0, glow 0). docs/PHOTO_CODE.md says "the LOOKS.BIN record",
+  so it is as specified, but users will expect their on-camera changes in it. Candidate fix: encode the live values.
