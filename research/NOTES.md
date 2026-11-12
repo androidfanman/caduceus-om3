@@ -3541,3 +3541,152 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   halation looks good on real night shots, change only the Control Panel.** The preview alone keeps the glow on dark
   photos (mean cell brightness < 72, full below 60), toned down by the lit share (16 % / lit share): Night street,
   Brasserie, Neon now glow; daylight samples stay off. The preview now differs from the camera on such photos.
+
+## Where the camera keeps its settings: trace 1 (2026-11-12; analysis of the decoded firmware only, nothing run)
+Question (owner): can films and edits live in the camera so any SD card works? Where does the camera save COLOR 1-4?
+- **Setting table (ROM):** 1712 descriptors of 20 B at 0x6061912c, found through a 127-bucket hash in RAM (0x62a84970, nodes
+  0x62a84b70; init 0x60405865, lookup 0x604058bc). Descriptor: +0 id u16, +4 pointer to a ROM list (value to option index),
+  +14 stride, +17 type (1 / 2 byte, 6 bit-field, else u16). Ids run 1..15326, not in order.
+- **Values live in DRAM, not flash:** the low-level store `0x60419368` (get 0x60419315 / 0x6041985d) keeps one 4-byte slot per
+  id 0..2255 at 0xa31f4d3c (the uncached alias of DRAM 0x631f4d3c, about 9 KB), defaults from the ROM table at 0x6062555c
+  (4 B per id: default and a second u16). Ids 6000.. (u16 slots, 0x60419368), 3000..3046 and 10000..10070 have their own
+  ranges (addresses not worked out). Init at 0x6041922c fills / clears them. Each store also posts a message
+  (`0x60063431`, ids 35668 / 35684) to some task.
+- **Settings manager 0x60bb528f** (the editor's SetValue path): store through 0x60aea1de -> 0x603f011a -> 0x603f1637 (per-id
+  descriptor with an optional callback at +20) -> 0x603f1ea1 (notify callbacks, 0x603f2bb8 listeners).
+- **NOT found yet:** the code that copies these slots to permanent storage (or loads them at boot). Hints in the firmware
+  strings: `MODE_POWEROFF_BACKUP`, `unAreaNVmb / unAreaPVmb`, "write to FLASH", and OI.Share's MySet backup / restore
+  protocol (`request_getmysetdata` ... `send_partialmysetdata`: the camera can serialise its settings into one blob).
+- **So still unknown:** whether the save covers every id 0..2255 (then an unused id of ours would be kept for free) or a fixed
+  list; capacity; whether it survives with no card. Next: find the writer (callers of the flash driver / the message
+  handler of ids 35668 / 35684), then a camera test.
+- Status: analysis / guess. Camera-tested only: the camera keeps COLOR 1-4 and its Picture Mode over power off (stock);
+  persistence of ids we write ourselves is "to be confirmed" (dial rows, 2026-11-11), and our film data goes to the card.
+
+### Trace 2: the camera DOES save its settings to its own flash (2026-11-12; analysis of the decoded firmware, nothing run)
+Found through the emulator workspace's OM-1 settings spec (`om-emu/docs/om1-settings-spec.md`, S-FLASHSAVE; same firmware
+family) and confirmed in the OM-3 code. The log strings are the same in the OM-3: `FlD. F1lD. BlD. ElD. MlD.` (load) and
+`FS. F1S. BS. ES. MS.` (save), `FLASH_D SIZE OVER ERROR!!`, `TOTAL:` / `MAX  :` (0x6011ff00..).
+- **Save request:** `0x60419e15` (lock id 983070, event-flag sibling functions 0x60419ebd, 0x60419f65 for other modes) builds the
+  request {mode 1 save, B 0, F 0, E 1, M 1, 0} (six u16) and calls the dispatcher `0x60063afc`. Mode 0 = load (0x60063dc0), 1 = save,
+  2 / 3 = other (0x6006151d, 0x600612c2). The same request as the OM-1's.
+- **Per store, mode 1:** object pointer from the table kind -> RAM word (0xa32bb90c..0xa32bb920, `0x60063a68`), then `0x60061183`
+  (E / F / M) or `0x60061148` (B): if the store's RAM image equals the current flash slot (compare 0x6002488b) nothing is
+  written; otherwise the next slot is picked, the cache is flushed (0x60075f73..) and flash is programmed (`0x6005f580` /
+  `0x6005f502`). So a change in a store's RAM image is saved by the next save request, and unchanged stores cost nothing.
+- **Store objects (built at 0x60062600..0x60062880; fields: flash address, layout list, RAM image, size):**
+
+  | Store (by the request field) | Object word | Size | Flash window | Layout list | RAM image |
+  |---|---|---|---|---|---|
+  | F (+4) | 0xa32bb914 | 131072 B | 0xa34fd280 | 0x600bb5e4 | 0x628d0700 |
+  | B (+2) | 0xa32bb918 | 56 B (14 words) | (sub-CPU backup words, as on the OM-1) | 0x60095508 | 0x62960700 |
+  | E (+6) | 0xa32bb91c | 196608 B | 0xa377d280 | 0x600bda70 | 0x628f0700 |
+  | M (+8) | 0xa32bb920 | 262144 B | 0xa36fd280 | 0x600e4be4 | 0x62920700 |
+  | (a fifth) | 0xa32bb924 | 140 B | - | 0x600e4b58 | - |
+  The letter-to-object mapping for E and M is read directly from the save code (+6 -> 0xa32bb91c, +8 -> 0xa32bb920); F and B
+  by the same order as the OM-1 spec. The layout lists start with an entry count (B 10, M 12, E 76, F 17).
+- So the answer to "where are COLOR 1-4 saved": the settings' data objects sit in the E and M stores (about 448 KiB of
+  internal flash between them) and are written there by the save request, with slot rotation. Not on the SD card.
+- Still to find: **when** the save request fires (every change? a timer? power-off?), how much of E / M is spare (parse the layout
+  lists: entries per data object), and whether a data object we add or reuse is covered. Then an emulator test (write bytes into the
+  M image's spare area, raise a save, read the flash slot) and a camera probe (marker, power off, different card, read back).
+- Status: analysis only (OM-3 code read; the OM-1 spec is the emulator workspace's, not this repo's).
+
+### Trace 3: what triggers the flash save (2026-11-12; analysis only; not settled)
+- `0x60063afc` is a generic "store request" function (first halfword = mode 0 load, 1 save, 2, 3; then B / F / E / M flags). It has
+  about 22 callers across the firmware (0x6006081e, 0x600621d0, 0x600628ea, 0x6006e494, 0x60070daf, 0x6018195d, 0x60419e61,
+  0x60419f09, 0x6041ad1e, 0x60421f0f, 0x6043b0b3, 0x6057c981, 0x607137ad, 0x608b863e, 0x6106bd3a, 0x6181c3ab, 0x6183cb75 ..). Most
+  set mode 1 with different store flags: the saves come from many places, not one timer. Not yet sorted by which flags (E / M).
+- The settings module's own wrappers (0x60419e15 = save {B 0, F 0, E 1, M 1}, lock 983070; 0x60419ebd = {B 1, F 0, E 0, M 0}, lock 983071;
+  0x60419f65, lock 983072, other) sit in a command table (jump table 0x60625488, command id 393217 + case: cases 18 / 20 / 19)
+  entered through `0x60418f3a`. The only direct caller of the E+M save is `0x603f0e6c`, in a routine that first writes setting id
+  15260 (`0x603f1637`) and is reached from the start-up / reset code at 0x603f0db6 (it also calls the clear-all path
+  0x60419b27 and the snapshot copy 0x60419c0e / 0x60419d55). So the regular "save after a change" call is among the other callers above.
+- The settings module also has a second 9024 B + 188 + 92 + 88 + 284 + 1824 B image at 0x62a93c34.. (clear 0x60419b27, copy from the live
+  slots 0x60419c0e, restore 0x60419d6e): a snapshot / undo copy of the same settings, not the flash image.
+- Unknowns left: which call saves after a user change and how soon; the spare space inside the E / M images (layout lists
+  0x600bda70 / 0x600e4be4, entry counts 76 / 12); whether an unused setting id's data object is inside E or M (the OM-1 spec says the
+  M list holds the cursor memories and similar). Cheapest way to settle all three: a camera probe on one unused id (write a marker with
+  the manager like the dial rows do, power off, take the card out, power on, read it back).
+
+### Trace 4: callers of the flash request, and an emulator run (2026-11-12; analysis + emulator only)
+- The 22 callers of `0x60063afc`, request decoded (mode, B, F, E, M): saves of M only at 0x6018195d (then a cache flush and a
+  deliberate hang if it fails: an error / crash handler) and 0x607137ad (error handler: logs, then saves); E + M at 0x618d4d13 (inside the
+  firmware-update code, strings `RecivedSize`, `isEnableFirmup`); everything at 0x6006e494 and 0x6183cb75; E + M with x = 1 at 0x600628ea
+  (inside the flash module's start-up, 0x60062600..); the settings module's own 0x60419e61 (E + M) and 0x60419f09 (B only). None of them
+  is an obvious "setting changed" path; the regular save after a user change is not among the callers I could classify (0x6006081e M only,
+  0x600621d0, 0x60070daf, 0x6041ad1e, 0x60421f0f, 0x6043b0b3, 0x6057c981, 0x608b863e, 0x6106bd3a, 0x6181c3ab, 0x6183cdc8 .. 0x6183df9d
+  not yet looked at).
+- **Emulator (om-emu E147, build out-base, session script with a watch on the save paths; needs `OM_WORKER_ENTRY=60a8f623`, the local edit in
+  camapp.mjs):** COLOR editor, 1 half-press, OK, OK, then dial steps (main / sub) and MENU. Every dial step reaches the settings manager
+  0x60bb528f once and the store write 0x60419368 about 44 times (38 through 0x603f1637: a change fans out to about 40 derived settings).
+  **No call to 0x60063afc, 0x60419e1a / ec2 / f65 (the settings module's save wrappers) or the store writers 0x60061183 / 0x60061148** in any step,
+  also after leaving to the menu and idling. So an ordinary change does not trigger a flash save at once; it is deferred (power-off,
+  an idle timer or a task the emulator does not run is the guess). The emulator stubs the flash write itself (S-SETSAVE), so this is not
+  proof for the camera.
+- Status: analysis / emulator only. The save trigger is still unproven; the camera probe (marker in an unused id, power off, card out,
+  power on) answers it directly.
+
+### Trace 5: the regular settings save = `saveUserSetup`, which writes store M; M has about 27 KB spare (2026-11-12; analysis + emulator memory dump)
+- **Trigger (analysis of the OM-3 code):** the GUI's "save setup flag" (word 0x6036e864; setter `0x61089820`, getter `0x6108983b`, logs
+  `setSaveSetupFlag` / `getSaveSetupFlag`) is set to 1 when the camera leaves a menu or the direct-select screens
+  (`startShootingSubAppStateShootingMenu` 0x610b3182, `endDirectSelectSubAppStateShootingModeDirect` 0x610b4fe6, 0x610b3351 / 0x610b3360,
+  `releaseInternalEvfSw...` 0x610c06b9). When the camera moves to the shooting-ready state (`moveStateToShootingReady...`, function with the
+  `getSaveSetupFlag` log at 0x610917e7) and the flag is 1 it calls `saveUserSetup` (log string 0x612ff0df) through the object vtable +448 and
+  clears the flag. So a change made in the menu or on the Picture Mode screen is written to flash when you go back to shooting, not at power-off.
+- **What `saveUserSetup` does:** API facade 0x60b3dd50 -> singleton (0x6036985c, object 0x62b4e8b0, vtable 0x60e20750, +448 = 0x60b35c21) ->
+  0x60af40f3 -> 0x6041b160 (lock 983107) -> **`0x60063d73`**: `if (0x60061321() == 0 && dirty byte 0xa32bfb32 == 1 && 0x60060400() != 0)`:
+  clear the dirty byte, `0x6006132a(1)`, then `0x60061183(store M object (0xa32bb920), ...)` = write store M to flash (compare with the current
+  slot, next slot, program). **Only store M** on this path.
+- **Dirty byte:** set to 1 by the data-object write function (0x6006355c) when the byte written is different and the store the address
+  belongs to (`0x6006327f`: ranges F 1, ... M 7) is kind 7 = M. A direct memcpy into the M image would not set it; setting the byte ourselves would.
+- **Data-object table (emulator memory after start-up, table at 0xa32a990c, 8 bytes per object, index = code >> 4, +4 = RAM pointer):**
+  2589 objects have a RAM pointer: **M 1215**, E 204, F 128, B 14, others (RAM only, not persisted) 1028. Store objects (0xa32a97c0..): fields
+  {layout entry count, flash address, 0, layout list, RAM image, size, 1, ..}: M = 12 / 0xa36fd280 / 0x600e4be4 / **0x62920700** / 0x40000.
+- **Space:** the last data object in M starts at image offset 0x39459 (objects are 1 to 12 bytes, mostly 1 / 2 / 4); the rest of the 256 KiB image,
+  about **27.5 KB (0x39460..0x40000)**, belongs to no object (zero in the blank-camera image). E: last object at 0x26cdc, about **37 KB** spare
+  (E is not saved on the regular path). F: only 9 KB used of 128 KB. B: 56 B, full. The flash slot has a 12-byte header (the code subtracts 12).
+- So the camera's own permanent store M (saved when you return to shooting after the menu) has room for our films (1.6 KB) and edits (1.6 KB), if
+  nothing else claims the tail and a write there is saved and loaded like the objects. Unproven on the camera: (1) the tail really survives
+  a save / power-off / load (maybe the load or the check touches only listed objects); (2) no check (CRC over the slot, the "FLASH_D SIZE OVER" test
+  with TOTAL / MAX) rejects the changed image; (3) E / M content is reset by a firmware update or "Reset" (our data would go with it).
+- Status: analysis of the code + the emulator's blank-camera memory (not a camera dump). Next: a probe that writes a marker into the M tail,
+  sets the dirty byte, and reads it back after power-off with a different card in the camera.
+
+### Trace 6: the layout lists decoded (option B: our own data object in store M) (2026-11-12; analysis; checked against the emulator's table)
+- **List format** (`layout ptr + 8`, after an 8-byte header {u32 12 for M, u32 0}): entries `{u16 code, u16 count, default bytes[count * es], pad to 4}`,
+  ending with `code == 0`. **code = (index << 4) | flags | es**: index = code >> 4 (0..4095), element size es = code & 3 (0 means 4 bytes;
+  `0x60061333`); bits 2-3 are not decoded. The default bytes are the object's factory values, so the list is also the image's defaults:
+  M's list is 242,228 B (0x600e4bec..0x6011fe20).
+- **Walking the M list gives the emulator's numbers exactly:** M 1215 objects, image bytes used **0x39465**, of 0x40000 minus 12 (header 8 + trailer 4)
+  = free **27,535 B**; E 204 objects, 0x26cdd used, free 37,655 B; F 128, free 122,304 B; B 14, 0x24 of 0x2c, free 8 B. Object offsets are the running
+  cursor from image + 8, aligned to the element size.
+- **Three consumers for M, all end at the code-0 terminator:** (1) `0x60062536` (table registration: for each entry it puts {code, count, RAM pointer} in the
+  8-byte slot table[index] at 0xa32a990c, error if the slot's pointer is already set; the M call is at 0x60062368, cursor starts at image + 8); (2) `0x60062d93`
+  (default image build: copies each entry's defaults to the cursor and subtracts from `remaining = size - 12`; if an object's total is larger than what is left it logs
+  and returns **7427 (0x1d03)**: this is M's size check; wrappers 0x60062d28 -> call at 0x60062d4e, and 0x60062feb -> call at 0x60062fff); (3) a validator `0x60062eb9`
+  used for the store of kind 10 only. The strings `FLASH_D SIZE OVER ERROR!!` / `TOTAL:` / `MAX  :` have no reference from M's path (they belong to the F / flash-data
+  routine at 0x60062ad9, which also prints `DFS DFE nfs nfe`).
+- **No slack to append in place:** the bytes right after M's terminator (0x6011fe20) are other data (`00000000 06000000 00000000 aa040f00 ..`).
+- **Load / save / integrity:** load = a plain copy of the whole image (size / 4 words) from the current flash slot (`0x600610d2`, `0x6006148f`); a slot is valid if its first
+  halfword equals the store id and the 16-bit sum of all halfwords of the **whole** image is 0 (`0x600613d7`, `0x6006137a`); the slot with the right counters wins. So bytes in
+  the unlisted tail are loaded, sealed and checked like any object's.
+- **The camera's write function:** `0x60063431` (a0 object pointer or 0, d0 code, d1 index, a1 value) -> `0x600634ee` writes one element (1 / 2 / 4 bytes by the code), also to
+  the uncached alias, and sets the dirty byte 0xa32bfb32 when the address is in store kind 7 (M).
+- **Chaining plan for B (no copy of OM's list into the repo):** keep the stock list; at the terminator of the two walkers (0x600625c5..cb and 0x60062e7a..) patch a hook:
+  if the list pointer equals the M terminator address 0x6011fe20, switch to our own mini-list (in a section we own) and continue with the same cursor / remaining counters. Our
+  entry then lands right after the last object (offset 0x39465 rounded), gets a table slot at a free index, is zeroed (defaults) and is counted in the size check. Cost: two hooks in
+  start-up code, and a free index to pick (1507 free in the emulator's table; code bits 2-3 to copy from a similar object).
+- **Honest comparison with A (raw bytes at a fixed offset in the tail + set the dirty byte):** for firmware 1.1 the tail is unused for good, A needs no change in start-up code and
+  persists the same way (load / seal / save cover it). B adds an official table entry, a reserved size in the camera's own accounting and defaults, at the price of two start-up hooks. Decision: with the owner.
+
+### Films and edits in the camera: summary and owner decision (2026-11-12)
+- **Question (owner):** can the films and the user's edits live in the camera so any SD card works, with the card only bringing new films in?
+- **Answer from the research (analysis + emulator, no camera proof):** yes, probably. The camera saves its user settings to its own flash: store M (256 KiB, 1215 items, two alternating
+  copies), written when it returns to shooting after the menu if the byte 0xa32bfb32 is 1. M's image has **27,535 unused bytes** (image offsets 0x39465..0x3fff4, RAM 0x62920700 +); load, checksum and
+  save cover the whole image. Detail: traces 1-6 above.
+- **Chosen approach (owner):** A = raw block in M's unused tail at offset 0x3A000 + set the changed byte. B (our own entry chained into M's list, two start-up hooks) is decoded and kept in reserve. Our own flash writes: ruled out.
+- **Owner decision:** he will **not** run camera tests for this. So nothing is built; the design is written down for later, and a release would need a camera test by someone (CLAUDE.md test order).
+- **Design:** `docs/superpowers/specs/2026-11-12-films-in-camera-memory-design.md` (user block format, import rule with a saved-at stamp, fallback to built-in films, card as optional backup, builder's list, tester's checklist).
+- **Method notes for whoever continues:** om-emu needs `OM_WORKER_ENTRY=60a8f623` (the local camapp.mjs edit) for builds with our SD-load worker; `WATCH=pc,...` on `session_ed1.mjs` logs calls; `dump:FILE` dumps RAM
+  (0x60000000-0x63000000 then 0xa2000000-0xa6000000) for table work; the emulator stubs the flash write and never powers off, so it cannot show persistence. Layout walker: see Trace 6 (entry = u16 code, u16 count, defaults; element size code & 3, 0 = 4).
