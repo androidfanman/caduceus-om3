@@ -2,7 +2,8 @@
 > **Experiment branch `experiment/firmware-space-probe-gx4` (GX4), not a release.** On top of v0.27.1 + the v0.28 space 1
 > change (`feature/v0.28-space`): section 6 loads the rest of its gap (0x60f99800 -> 0x6103f000, 662 KiB) holding a probe
 > and a known pattern; at half-presses the probe checks the pattern and that nothing writes into the other unloaded gaps,
-> and writes `OM3MOD/GAPTEST.BIN` ('GXR4'). Emulator: 19 passes, 0 bad of 169336 words. **Camera test pending.**
+> and writes `OM3MOD/GAPTEST.BIN` ('GXR4'). Emulator: 19 passes, 0 bad of 169336 words. **Camera (2026-11-12): 62 passes,
+> 0 bad, no gap changed (4K video, photos): the 662 KiB loads.** A burst session would complete it.
 
 <h1 align="center">Caduceus for OM-3</h1>
 
