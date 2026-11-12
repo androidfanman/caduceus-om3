@@ -11118,18 +11118,22 @@ dg_bend:
 
 
 
-/* ================================================================== v0.28 halation (h1)
+/* ================================================================== v0.28 halation (h2)
  * Our own code. The method follows Caduceus for the E-P7's halation by cakelesscoder (credited in NOTICE / README);
  * the numbers are ours (firmware/halation.py -> hl_tab.inc) and research/halation/model.py is the exact model.
  * Called by the code block's xb_gs after the Soft Focus blend (buffer 0x1000 complete: YCbYCr 4:2:2, byte 1 = Cb,
- * byte 3 = Cr, offset-binary: camera probe h0). Runs in the capture job's task; one malloc per call (several CPUs may
+ * byte 3 = Cr, offset-binary: camera probe h0). Runs in the capture job's task; two mallocs per call (several CPUs may
  * process stills at once), freed again. Image rows through this CPU's bus window under the firmware's lock, as
  * xb_grain (camera-proven): the window's cached view, written back (FLUSH) before the lock goes.
- *   A. every 2nd row, every pair's Y0: e = Y0 - T (if > 0) summed into u16 64 x 64 px cells
- *   B. [1 2 1] / 4 (rounded, edges repeated), HL_BLUR times across, HL_BLUR times down
- *   map: u by table (hl_lo / hl_hi), g = (u gmax) >> 8; cap: more than a third of the cells with g >= HL_CAPG -> none
- *   C. per row the two nearest cell rows lerped, per pair g lerped between cell centres; with t = (255 - Y) g:
- *      Y += (t HL_KY) >> 16, Cb / Cr += (t0 HL_KCB / HL_KCR) >> 16 (floor, clamped). Spans with g = 0 are skipped. */
+ *   A. every 2nd row, every pair's Y0: e = Y0 - T (if > 0) summed into u16 64 x 64 px cells (E), and Y0 >> 2 summed
+ *      into a second grid (Q); the cell's mean B = 4 Q / samples (hl_div)
+ *   B. E: [1 2 1] / 4 (rounded, edges repeated), HL_BLUR times across, HL_BLUR times down
+ *   map: u by table (hl_lo / hl_hi); n = cells with u >= HL_COVU: none at n >= HL_COVHI % of the cells, full strength
+ *      up to HL_COVLO %, faded between (sc); g = (((u gmax) >> 8) sc) >> 8; w = min(255, HL_WMUL (255 - B))
+ *   C. per row g and w lerped between the two nearest cell rows, then per pair between cell centres (hl_seg):
+ *      Y += ((255 - Y) g HL_KY) >> 16 per pixel; with c = (g w) >> 8: Cb / Cr += (c HL_KCB / HL_KCR) >> 8 (floor,
+ *      clamped). h2 (camera h1: the fast grain is in the image before this pass): the chroma weight w comes from the
+ *      cell's mean brightness, not each pixel's, so grain and thin lines don't speckle the tint. */
 .section .ext12,"ax"
  .include "hl_tab.inc"
  .balign 4
@@ -11145,53 +11149,11 @@ dg_bend:
 98:
  .endm
 
- .macro HLAP                      /* one pixel pair at a0 with g in d0 (> 0); uses d0, d1, (64,sp) t0, (80,sp) g */
- mov d0,(80,sp)
- movbu (a0),d1
- mov 255,d0
- sub d1,d0
- mov (80,sp),d1
- mul d1,d0                        /* t0 = (255 - Y0) g */
- mov d0,(64,sp)
- mov HL_KY,d1
- mul d1,d0
- lsr 16,d0
- movbu (a0),d1
- add d1,d0
- movbu d0,(a0)                    /* Y0 */
- mov (64,sp),d0
- mov HL_KCB,d1
- mul d1,d0
- asr 16,d0
- movbu (1,a0),d1
- add d1,d0
- HLCL d0
- movbu d0,(1,a0)                  /* Cb */
- mov (64,sp),d0
- mov HL_KCR,d1
- mul d1,d0
- asr 16,d0
- movbu (3,a0),d1
- add d1,d0
- HLCL d0
- movbu d0,(3,a0)                  /* Cr */
- movbu (2,a0),d1
- mov 255,d0
- sub d1,d0
- mov (80,sp),d1
- mul d1,d0                        /* t1 = (255 - Y1) g */
- mov HL_KY,d1
- mul d1,d0
- lsr 16,d0
- movbu (2,a0),d1
- add d1,d0
- movbu d0,(2,a0)                  /* Y1 */
- .endm
-
-/* hl_run: `call hl_run,[d2,d3,a2,a3],100`, a0 = buffer record, d0 = strength 1..5.
+/* hl_run: `call hl_run,[d2,d3,a2,a3],120`, a0 = buffer record, d0 = strength 1..5.
  * Locals: (0) call slot, (4) rec, (8) gmax, (12) W, (16) H, (20) pitch, (24) bus, (28) pairs, (32) GW, (36) GH,
- * (40) mem = grid (u16 GW x GH), (44) tmp (u16, max(GW, GH) + 2), (48) line (u16 GW), (52) y / index, (56) token,
- * (60) cached, (64) t0, (68) any, (72) cells, (76) passes, (80) g. */
+ * (40) mem1 = E then G (u16 GW x GH), (44) tmp (u16, max(GW, GH) + 2), (48) line g (u16 GW), (52) y / index,
+ * (56) token, (60) cached, (64) sc, (68) any, (72) cells / first pair, (76) passes / spans left, (80) mem2 = Q then w,
+ * (84) line w, (88) n, (92) span offset 2k, (96) n_lo, (100) n_hi. */
 hl_run:
  mov a0,(4,sp)
  cmp 1,d0
@@ -11254,7 +11216,7 @@ hl_run:
  add d0,d0                        /* tmp bytes */
  mov d0,d3
  mov (32,sp),d0
- add d0,d0                        /* line bytes */
+ asl2 d0                          /* two lines */
  add d2,d0
  add d3,d0
  add 3,d0
@@ -11267,19 +11229,35 @@ hl_run:
  mov a0,(40,sp)
  mov a0,d0
  add d2,d0
- mov d0,(44,sp)
+ mov d0,(44,sp)                   /* tmp */
  add d3,d0
- mov d0,(48,sp)
- mov (72,sp),d1                   /* zero the grid */
- clr d0
+ mov d0,(48,sp)                   /* line g */
+ mov (32,sp),d1
+ add d1,d1
+ add d1,d0
+ mov d0,(84,sp)                   /* line w */
+ mov d2,d0
+ call malloc,[],4                 /* Q / w grid */
+ cmp 0,a0
+ bne 2f
+ mov (40,sp),a0
+ call free,[],4
+ bra 99f
 2:
+ mov a0,(80,sp)
+ mov (72,sp),d1                   /* zero both grids */
+ mov (40,sp),a1
+ clr d0
+3:
  movhu d0,(a0)
+ movhu d0,(a1)
  add 2,a0
+ add 2,a1
  add -1,d1
- bne 2b
+ bne 3b
  call FLUSH,[d2,d3],16            /* no stale lines in the window's cached view */
 
- /* ---- A. the grid: every 2nd row, Y0 of every pair */
+ /* ---- A. the grids: every 2nd row, Y0 of every pair */
  clr d0
  mov d0,(52,sp)
 10:
@@ -11308,9 +11286,13 @@ hl_run:
  mov (32,sp),d1
  mul d1,d0
  add d0,d0
- mov (40,sp),d1
+ mov d0,d1
+ mov (40,sp),d0
  add d1,d0
- mov d0,a2                        /* this cell row */
+ mov d0,a2                        /* this E row */
+ mov (80,sp),d0
+ add d1,d0
+ mov d0,a3                        /* this Q row */
  mov (28,sp),d3                   /* pairs left */
 12:
  mov 32,d2
@@ -11319,8 +11301,12 @@ hl_run:
  mov d3,d2
 13:
  sub d2,d3
- clr d1
+ clr d1                           /* e sum */
+ mov 0,a1                         /* Y0 >> 2 sum */
 14:
+ movbu (a0),d0
+ lsr 2,d0
+ add d0,a1
  movbu (a0),d0
  cmp HL_T,d0
  bls 15f
@@ -11334,6 +11320,11 @@ hl_run:
  add d1,d0
  movhu d0,(a2)
  add 2,a2
+ mov a1,d1
+ movhu (a3),d0
+ add d1,d0
+ movhu d0,(a3)
+ add 2,a3
  cmp 0,d3
  bne 12b
  mov (60,sp),d0
@@ -11350,13 +11341,68 @@ hl_run:
  cmp d1,d0
  bcs 10b
 
- /* ---- B. blur: HL_BLUR times across each cell row, then HL_BLUR times down each column */
+ /* ---- w: each cell's mean B = 4 Q / samples, w = min(255, HL_WMUL (255 - B)), in place of Q */
+ mov (80,sp),a2
+ clr d0
+ mov d0,(96,sp)                   /* cy */
+20:
+ mov (96,sp),d0                   /* sampled rows of this cell row: (min(64, H - 64 cy) + 1) >> 1 */
+ asl 6,d0
+ mov (16,sp),d1
+ sub d0,d1
+ cmp 64,d1
+ bls 21f
+ mov 64,d1
+21:
+ add 1,d1
+ lsr 1,d1
+ mov d1,(100,sp)
+ clr d0
+ mov d0,(92,sp)                   /* cx */
+22:
+ mov (92,sp),d0                   /* pairs of this cell column: min(32, pairs - 32 cx) */
+ asl 5,d0
+ mov (28,sp),d1
+ sub d0,d1
+ cmp 32,d1
+ bls 23f
+ mov 32,d1
+23:
+ mov (100,sp),d0
+ mul d0,d1                        /* samples */
+ movhu (a2),d0
+ asl2 d0
+ call hl_div,[d2,d3,a2,a3],20     /* B */
+ mov 255,d1
+ sub d0,d1
+ mov HL_WMUL,d0
+ mul d0,d1
+ cmp 255,d1
+ bls 24f
+ mov 255,d1
+24:
+ movhu d1,(a2)
+ add 2,a2
+ mov (92,sp),d0
+ inc d0
+ mov d0,(92,sp)
+ mov (32,sp),d1
+ cmp d1,d0
+ bcs 22b
+ mov (96,sp),d0
+ inc d0
+ mov d0,(96,sp)
+ mov (36,sp),d1
+ cmp d1,d0
+ bcs 20b
+
+ /* ---- B. blur E: HL_BLUR times across each cell row, then HL_BLUR times down each column */
  mov HL_BLUR,d0
  mov d0,(76,sp)
-20:
+30:
  clr d0
  mov d0,(52,sp)
-21:
+31:
  mov (52,sp),d0
  mov (32,sp),d1
  mul d1,d0
@@ -11373,17 +11419,17 @@ hl_run:
  mov d0,(52,sp)
  mov (36,sp),d1
  cmp d1,d0
- bcs 21b
+ bcs 31b
  mov (76,sp),d0
  add -1,d0
  mov d0,(76,sp)
- bne 20b
+ bne 30b
  mov HL_BLUR,d0
  mov d0,(76,sp)
-22:
+32:
  clr d0
  mov d0,(52,sp)
-23:
+33:
  mov (52,sp),d0
  add d0,d0
  mov (40,sp),d1
@@ -11399,56 +11445,90 @@ hl_run:
  mov d0,(52,sp)
  mov (32,sp),d1
  cmp d1,d0
- bcs 23b
+ bcs 33b
  mov (76,sp),d0
  add -1,d0
  mov d0,(76,sp)
- bne 22b
+ bne 32b
 
- /* ---- the curve, the strength, the cap */
+ /* ---- the curve (u in place of E) and the bright-frame count n */
  mov (40,sp),a0
  mov (72,sp),d3
- clr d2                           /* cells with g >= HL_CAPG */
- clr d0
- mov d0,(68,sp)                   /* any g */
-30:
+ clr d2
+40:
  movhu (a0),d0
  cmp 1024,d0
- bcc 31f
+ bcc 41f
  lsr 2,d0
  mov hl_lo,a1
- bra 32f
-31:
+ bra 42f
+41:
  lsr 8,d0
  cmp 255,d0
- bls 33f
+ bls 43f
  mov 255,d0
-33:
+43:
  mov hl_hi,a1
-32:
+42:
  add d0,a1
  movbu (a1),d0                    /* u */
- mov (8,sp),d1
- mul d1,d0
- lsr 8,d0                         /* g */
  movhu d0,(a0)
- cmp HL_CAPG,d0
- bcs 34f
+ cmp HL_COVU,d0
+ bcs 44f
  inc d2
-34:
- cmp 0,d0
- beq 35f
- mov d0,(68,sp)
-35:
+44:
  add 2,a0
  add -1,d3
- bne 30b
- mov d2,d0
- add d0,d0
- add d2,d0
- mov (72,sp),d1
- cmp d1,d0
- bhi 90f                          /* bright daylight: no halation */
+ bne 40b
+ mov d2,(88,sp)
+ mov (72,sp),d0                   /* n_lo, n_hi = cells x HL_COVLO / 100, x HL_COVHI / 100 */
+ mov HL_COVLO,d1
+ mul d1,d0
+ mov 100,d1
+ call hl_div,[d2,d3,a2,a3],20
+ mov d0,(96,sp)
+ mov (72,sp),d0
+ mov HL_COVHI,d1
+ mul d1,d0
+ mov 100,d1
+ call hl_div,[d2,d3,a2,a3],20
+ mov d0,(100,sp)
+ mov (88,sp),d2
+ cmp d0,d2
+ bcc 90f                          /* too much of the frame is bright: no halation */
+ mov 256,d0
+ mov (96,sp),d1
+ cmp d1,d2
+ bls 45f
+ mov (100,sp),d0                  /* sc = ((n_hi - n) 256) / (n_hi - n_lo) */
+ sub d2,d0
+ asl 8,d0
+ mov (100,sp),d2
+ sub d1,d2
+ mov d2,d1
+ call hl_div,[d2,d3,a2,a3],20
+45:
+ mov d0,(64,sp)
+ mov (40,sp),a0                   /* g = (((u gmax) >> 8) sc) >> 8 */
+ mov (72,sp),d3
+ clr d0
+ mov d0,(68,sp)
+46:
+ movhu (a0),d0
+ mov (8,sp),d1
+ mul d1,d0
+ lsr 8,d0
+ mov (64,sp),d1
+ mul d1,d0
+ lsr 8,d0
+ movhu d0,(a0)
+ cmp 0,d0
+ beq 47f
+ mov d0,(68,sp)
+47:
+ add 2,a0
+ add -1,d3
+ bne 46b
  mov (68,sp),d0
  cmp 0,d0
  beq 90f                          /* nothing glows */
@@ -11456,12 +11536,12 @@ hl_run:
  /* ---- C. each row */
  clr d0
  mov d0,(52,sp)
-40:
+50:
  mov (52,sp),d0                   /* the cell rows: r0 = (y - 32) >> 6, wy = (y - 32) & 63 */
  clr d2                           /* wy */
  clr d1                           /* r0 */
  cmp 32,d0
- bcs 41f
+ bcs 51f
  add -32,d0
  mov d0,d1
  lsr 6,d1
@@ -11470,48 +11550,37 @@ hl_run:
  mov (36,sp),d0
  add -1,d0
  cmp d0,d1
- bcs 41f
+ bcs 51f
  mov d0,d1                        /* the last row */
  clr d2
-41:
+51:
  mov (32,sp),d0
  mul d0,d1
  add d1,d1
+ mov d1,(96,sp)                   /* the row's byte offset in a grid */
  mov (40,sp),d0
- add d0,d1
- mov d1,a0                        /* A = G[r0] */
- mov (32,sp),d0
- add d0,d0
- add d0,d1
- mov d1,a1                        /* B = G[r0 + 1] (only read when wy > 0) */
+ add d1,d0
+ mov d0,a0
+ mov (32,sp),d1
+ add d1,d1
+ add d1,d0
+ mov d0,a1
  mov (48,sp),a2
  mov (32,sp),d3
- clr d0
- mov d0,(68,sp)
-42:
- movhu (a0),d0
- cmp 0,d2
- beq 43f
- movhu (a1),d1
- sub d0,d1
- mul d2,d1                        /* (B - A) wy */
- asl 6,d0
- add d1,d0
- add 32,d0
- lsr 6,d0                         /* (64 A + (B - A) wy + 32) >> 6 */
-43:
- movhu d0,(a2)
- mov (68,sp),d1
- or d0,d1
- mov d1,(68,sp)
- add 2,a0
- add 2,a1
- add 2,a2
- add -1,d3
- bne 42b
- mov (68,sp),d0
+ call hl_vl,[d2,d3,a2,a3],24      /* line g -> d0 = OR */
  cmp 0,d0
- beq 59f                          /* no glow on this row */
+ beq 79f                          /* no glow on this row */
+ mov (96,sp),d1
+ mov (80,sp),d0
+ add d1,d0
+ mov d0,a0
+ mov (32,sp),d1
+ add d1,d1
+ add d1,d0
+ mov d0,a1
+ mov (84,sp),a2
+ mov (32,sp),d3
+ call hl_vl,[d2,d3,a2,a3],24      /* line w */
  mov (52,sp),d0
  mov (20,sp),d1
  mul d1,d0
@@ -11522,125 +11591,263 @@ hl_run:
  call hl_open,[d2,d3,a2,a3],28
  mov d0,(56,sp)
  cmp 0,a0
- beq 58f
+ beq 78f
  mov a0,d0
  clr d1
  cmp 0xb8000000,d0
- bcs 44f
+ bcs 52f
  add -0x40000000,d0
  mov d0,a0
  mov 1,d1
-44:
+52:
  mov d1,(60,sp)
- mov (48,sp),a2                   /* line */
- movhu (a2),d0                    /* pairs 0..15: line[0] */
- cmp 0,d0
- bne 45f
- add 64,a0
- bra 47f
-45:
- mov 16,d3
-46:
- movhu (a2),d0
- HLAP
- add 4,a0
- add -1,d3
- bne 46b
-47:
- mov (32,sp),d0                   /* spans k = 0 .. GW-2: pairs 16 + 32k .. +31, lerped line[k] -> line[k+1] */
+ /* pairs 0..15: line[0] (steps 0) */
+ mov a0,d0
+ add 64,d0
+ mov d0,a1
+ mov (48,sp),a2
+ movhu (a2),d2
+ asl 5,d2
+ add 16,d2
+ clr d3
+ mov (84,sp),a3
+ movhu (a3),d0
+ asl 5,d0
+ add 16,d0
+ mov d0,a2
+ mov 0,a3
+ call hl_seg,[d2,d3,a2,a3],28
+ /* spans k = 0 .. GW-2: pairs 16 + 32k .. +31, lerped line[k] -> line[k+1] */
+ mov (32,sp),d0
  add -1,d0
- mov d0,(76,sp)                   /* spans left */
+ mov d0,(76,sp)
  mov 16,d0
- mov d0,(72,sp)                   /* this span's first pair */
-48:
+ mov d0,(72,sp)
+ clr d0
+ mov d0,(92,sp)
+53:
  mov (76,sp),d0
  cmp 0,d0
- beq 55f
+ beq 56f
  mov (28,sp),d1
  mov (72,sp),d0
  cmp d1,d0
- bcc 57f                          /* past the row */
+ bcc 77f                          /* past the row */
  sub d0,d1
  mov 32,d0
  cmp d0,d1
- bcs 49f
+ bcs 54f
  mov d0,d1                        /* n = min(32, pairs - first) */
-49:
+54:
  asl2 d1
  mov a0,d0
  add d0,d1
  mov d1,a1                        /* end of the span */
+ mov (92,sp),d1
+ mov (48,sp),d0
+ add d1,d0
+ mov d0,a2
  movhu (a2),d2                    /* a */
  movhu (2,a2),d3                  /* b */
  mov d2,d0
  or d3,d0
  cmp 0,d0
- bne 50f
- mov a1,a0                        /* a = b = 0: unchanged */
- bra 54f
-50:
- sub d2,d3                        /* step = b - a */
+ bne 55f
+ mov a1,a0                        /* g = 0 all along: unchanged */
+ bra 57f
+55:
+ sub d2,d3                        /* step g = b - a */
  asl 5,d2
- add 16,d2                        /* acc = 32 a + 16 */
-51:
- mov d2,d0
- lsr 5,d0                         /* g */
- cmp 0,d0
- beq 52f
- HLAP
-52:
- add d3,d2
- add 4,a0
- cmp a1,a0
- bne 51b
-54:
- add 2,a2
+ add 16,d2                        /* acc g = 32 a + 16 */
+ mov (84,sp),d0
+ add d1,d0
+ mov d0,a3
+ movhu (a3),d0                    /* w at k */
+ movhu (2,a3),d1                  /* w at k + 1 */
+ sub d0,d1
+ mov d1,a3                        /* step w */
+ asl 5,d0
+ add 16,d0
+ mov d0,a2                        /* acc w */
+ call hl_seg,[d2,d3,a2,a3],28
+57:
+ mov (92,sp),d0
+ add 2,d0
+ mov d0,(92,sp)
  mov (72,sp),d0
  add 32,d0
  mov d0,(72,sp)
  mov (76,sp),d0
  add -1,d0
  mov d0,(76,sp)
- bra 48b
-55:                               /* after the last centre: line[GW-1] */
+ bra 53b
+56:                               /* after the last centre: line[GW-1] (steps 0) */
  mov (28,sp),d1
  mov (72,sp),d0
  cmp d1,d0
- bcc 57f
+ bcc 77f
  sub d0,d1
  asl2 d1
  mov a0,d0
  add d0,d1
  mov d1,a1
- movhu (a2),d0
- cmp 0,d0
- beq 57f
-56:
- movhu (a2),d0
- HLAP
- add 4,a0
- cmp a1,a0
- bne 56b
-57:
+ mov (92,sp),d1
+ mov (48,sp),d0
+ add d1,d0
+ mov d0,a2
+ movhu (a2),d2
+ asl 5,d2
+ add 16,d2
+ clr d3
+ mov (84,sp),d0
+ add d1,d0
+ mov d0,a3
+ movhu (a3),d0
+ asl 5,d0
+ add 16,d0
+ mov d0,a2
+ mov 0,a3
+ call hl_seg,[d2,d3,a2,a3],28
+77:
  mov (60,sp),d0
  cmp 0,d0
- beq 58f
+ beq 78f
  call FLUSH,[d2,d3],16
-58:
+78:
  mov (56,sp),d0
  call UNLOCK,[d2],8
-59:
+79:
  mov (52,sp),d0
  inc d0
  mov d0,(52,sp)
  mov (16,sp),d1
  cmp d1,d0
- bcs 40b
+ bcs 50b
 90:
+ mov (80,sp),a0
+ call free,[],4
  mov (40,sp),a0
  call free,[],4
 99:
- ret [d2,d3,a2,a3],100
+ ret [d2,d3,a2,a3],120
+
+/* hl_seg: `call hl_seg,[d2,d3,a2,a3],28`, a0 = first pair, a1 = end (> a0), d2 / d3 = g accumulator / step (32 g + 16),
+ * a2 / a3 = w accumulator / step -> a0 = end. Per pair g = d2 >> 5, w = a2 >> 5; g = 0 leaves the pair as it is.
+ * Locals (0) call slot, (4) g, (8) c. */
+hl_seg:
+ cmp a1,a0
+ beq 9f
+1:
+ mov d2,d0
+ lsr 5,d0
+ cmp 0,d0
+ beq 2f
+ mov d0,(4,sp)
+ movbu (a0),d1                    /* Y0 += ((255 - Y0) g HL_KY) >> 16 */
+ mov 255,d0
+ sub d1,d0
+ mov (4,sp),d1
+ mul d1,d0
+ mov HL_KY,d1
+ mul d1,d0
+ lsr 16,d0
+ movbu (a0),d1
+ add d1,d0
+ movbu d0,(a0)
+ movbu (2,a0),d1                  /* Y1 */
+ mov 255,d0
+ sub d1,d0
+ mov (4,sp),d1
+ mul d1,d0
+ mov HL_KY,d1
+ mul d1,d0
+ lsr 16,d0
+ movbu (2,a0),d1
+ add d1,d0
+ movbu d0,(2,a0)
+ mov a2,d0                        /* c = (g w) >> 8 */
+ lsr 5,d0
+ mov (4,sp),d1
+ mul d1,d0
+ lsr 8,d0
+ mov d0,(8,sp)
+ mov HL_KCB,d1                    /* Cb */
+ mul d1,d0
+ asr 8,d0
+ movbu (1,a0),d1
+ add d1,d0
+ HLCL d0
+ movbu d0,(1,a0)
+ mov (8,sp),d0                    /* Cr */
+ mov HL_KCR,d1
+ mul d1,d0
+ asr 8,d0
+ movbu (3,a0),d1
+ add d1,d0
+ HLCL d0
+ movbu d0,(3,a0)
+2:
+ add d3,d2
+ add a3,a2
+ add 4,a0
+ cmp a1,a0
+ bne 1b
+9:
+ ret [d2,d3,a2,a3],28
+
+/* hl_vl: `call hl_vl,[d2,d3,a2,a3],24` (locals (0) call slot, (4) OR), a0 = row A, a1 = row B (read only when wy > 0), a2 = line out, d2 = wy 0..63,
+ * d3 = n >= 1 (u16 each) -> line = (64 A + (B - A) wy + 32) >> 6 (A when wy = 0), d0 = OR of the line. */
+hl_vl:
+ clr d0
+ mov d0,(4,sp)
+1:
+ movhu (a0),d0
+ cmp 0,d2
+ beq 2f
+ movhu (a1),d1
+ sub d0,d1
+ mul d2,d1
+ asl 6,d0
+ add d1,d0
+ add 32,d0
+ lsr 6,d0
+2:
+ movhu d0,(a2)
+ mov (4,sp),d1
+ or d0,d1
+ mov d1,(4,sp)
+ add 2,a0
+ add 2,a1
+ add 2,a2
+ add -1,d3
+ bne 1b
+ mov (4,sp),d0
+ ret [d2,d3,a2,a3],24
+
+/* hl_div: `call hl_div,[d2,d3,a2,a3],20`, d0 / d1 (unsigned, d1 > 0) -> d0, shift and subtract. */
+hl_div:
+ mov d0,d2
+ mov d1,d3
+ clr d0
+ clr d1
+ mov 32,a2
+1:
+ asl 1,d1
+ cmp 0,d2
+ bge 2f
+ or 1,d1
+2:
+ asl 1,d2
+ asl 1,d0
+ cmp d3,d1
+ bcs 3f
+ sub d3,d1
+ or 1,d0
+3:
+ add -1,a2
+ cmp 0,a2
+ bne 1b
+ ret [d2,d3,a2,a3],20
 
 /* hl_b1: `call hl_b1,[d2,d3,a2,a3],20`, a0 = first value (u16), d0 = n >= 1, d1 = stride in bytes, a1 = tmp (n + 2
  * u16). v[i] = (t[i] + 2 t[i+1] + t[i+2] + 2) >> 2 with t = v[0], v[0..n-1], v[n-1]. */

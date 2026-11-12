@@ -6,7 +6,7 @@
  .set XB_LOG, 0                   /* v0.25: the fast-grain logger (GLOG.BIN) off */
  .set XB_SHG, 0                   /* film test 11's Shading check before the camera grain (1: on; rebooted on the camera) */
  .set XB_H0, 0                    /* v0.28 halation probe h0 (camera-tested 2026-11-12): off */
- .set XB_HL, 1                    /* v0.28 h1: halation on Glow stills, strength = Glow 1..5 (editor.s hl_run) */
+ .set XB_HL, 1                    /* v0.28 h2: halation on Glow stills, strength = Glow 1..5 (editor.s hl_run) */
 /* Caduceus for OM-3 v0.20 test 5: the Extras code block (appended to GUIDES.BIN, our own code).
  *
  * Runs from its heap buffer (uncached pool, as the camera's malloc returns), relocated in place by entry 0. Linked at
@@ -555,7 +555,7 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  beq 14f
  mov a1,(12,sp)
  mov a1,a0
- call HL_RUN,[d2,d3,a2,a3],100
+ call HL_RUN,[d2,d3,a2,a3],120
  mov (4,sp),a0
  call xb_rec,[d2,d3],12
  clr d0

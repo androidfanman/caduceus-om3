@@ -1,9 +1,9 @@
 > [!WARNING]
-> **Experiment branch `experiment/halation-h1`, not a release.** On v0.28 space 1: halation h1. On a film with **Glow**
-> (-1..-5), every still also gets a red-orange halo around bright lights, strength = the Glow level (Clarity and 0: none).
-> A CPU pass after the Soft Focus blend (editor.s `hl_run`, numbers in firmware/halation.py, exact model
-> research/halation/model.py); method after Caduceus for the E-P7 (cakelesscoder). Emulator: 7 test frames bit-exact with
-> the model (night, padding, strengths 1-5, daylight cap, dark, 128 px). **Camera test pending.**
+> **Experiment branch `experiment/halation-h2`, not a release.** On v0.28 space 1: halation h2. On a film with **Glow**
+> (-1..-5) a red-orange halo around bright lights, strength = the Glow level. h2 after the h1 camera test: the tint's
+> colour weight comes from each 64 px cell's mean brightness (no speckle from the fast grain), mid-bright surroundings
+> take it too, and bright frames fade it out smoothly (full up to 8 % bright cells, none from 24 %). Emulator: 8 test
+> frames bit-exact with research/halation/model.py. **Camera test pending.**
 
 <h1 align="center">Caduceus for OM-3</h1>
 

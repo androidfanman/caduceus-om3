@@ -3050,3 +3050,23 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
     grain and thin lines don't modulate the tint; keep the per-pixel weight for Y (cores stay white).
   - Next test needs a reference: the same scene with white / LED light, Glow 5 vs Clarity 1 (Soft Focus route without
     halation), with and without grain.
+
+### Halation h2 (2026-11-12; emulator only; branch experiment/halation-h2)
+- Owner: PB122229 / 230 / 231 = Glow 1 / 3 / 5 (ring Cr +7.7 / +8.5 / +11.7); saves "reasonably quick" with h1.
+- Model on the owner's photos: the lamp scene is not capped (6 % of the cells g >= 16 at Glow 5), but the lamp-lit wall
+  is bright, so the per-pixel weight 255 - Y keeps the tint small; the outdoor PB122235 was not capped either (31-33 %
+  at Glow 3-5, under the third) and the dark eave next to the sky turned red-brown.
+- h2 (model first, then the firmware, bit-exact): chroma weight w = min(255, 2 (255 - B)) with B the cell's mean Y0
+  (from Y0 >> 2 sums, B = 4 Q // samples via a shift-subtract `hl_div`), lerped like g; chroma add (c kC) >> 8 with
+  c = (g w) >> 8; Y unchanged (per pixel, cores stay white). Bright frames: n = cells with u >= 32; full strength up
+  to 8 % of the cells, none from 24 %, sc = ((n_hi - n) 256) // (n_hi - n_lo) between. Speckle test (the owner's Glow
+  1 lamp photo + synthetic grain sd 20, Glow 5): Cr high-pass on the wall h1 3.64 (tint +8) -> h2 2.69 (tint +16); a
+  per-pixel clip guard on top gave 3.18 (it reintroduced grain modulation near Y 240) and a smoothed one 2.72, so none.
+  What speckle is left is bright grains clipping in R once tinted. Lamp core Cr +8.0 vs +5.4 without halation.
+- Firmware: two mallocs (E + tmp + two lines; Q / w), `hl_seg` (one loop for the 16 head pairs, the spans and the
+  tail, g and w accumulators d2 / d3 and a2 / a3), `hl_vl` (row lerp; its frame must be 24: (4,sp) is a local - caught
+  before testing), `hl_div`. hl_run frame 120 (xb_gs updated). ext12 still ~74 KB free; GUIDES.BIN 13320 B.
+- om-emu (FLUSH stubbed): **8/8 bit-exact** - night 1536 x 1152 (Glow 5, 16 px padding), Glow 1, night + grain
+  (Glow 4), a fade-zone frame (10.8 % bright, Glow 3), daylight (off), dark (none), 1000 x 700 with 24 px padding,
+  320 x 256. Steps 2.0-2.7 M for 0.8-1.8 MP frames without glow, 23 M for the 1.8 MP Glow 5 night frame: scaled to
+  20 MP about 57 M without lights (~0.6-0.9 s) and ~260 M for dense night scenes (~3-4 s). Analysis.
