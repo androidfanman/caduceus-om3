@@ -2075,7 +2075,7 @@ pf_capto:                         /* v0.21: the same into a3 (code block xb_lkd:
  movbu (d0,a0),d0
  movbu d0,(d1,a3)
  add 2,a1
- cmp pf_bt+34,a1
+ cmp pf_bt+42,a1
  bne 5b
  movbu (36,a3),d0
  and 1,d0                         /* WB on: bit 0 of the slot's WB flags */
@@ -2315,7 +2315,7 @@ pf_put1:                          /* v0.24 (fl_sw): (4) a0, (8) a1, (12) k set, 
 7:
  movbu d0,(d3,a0)
  add 2,a1
- cmp pf_bt+34,a1
+ cmp pf_bt+42,a1
  bne 8b
  movbu (7,a0),d0
  or 2,d0
@@ -2520,10 +2520,11 @@ pf_bt:                            /* record offset, slot offset - 24 (v0.26: mov
  .byte 53,31, 54,32, 55,33, 56,34  /* v0.26: split toning, record +53..+56 <-> slot +55..+58 */
  .byte 57,6                        /* v0.28: halation, record +57 <-> slot +30 */
  .byte 58,9                        /* v0.28: split-tone balance, record +58 <-> slot +33 */
+ .byte 59,10, 60,11, 61,12, 62,13  /* v0.28 film WB: record +59..+62 <-> slot +34..+37 (fw_keep / fw_apply) */
 pf_lo:                            /* record byte i: lo; span = -2 lo for lo < 0, 1 for byte 36 (WB on 0/1), else 0
                                      (test 18: the span half of this table is computed, to make room) */
  .byte -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5
- .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,-5,0,0,0,0,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation, +58 balance */
+ .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,-5,-5,-5,-5,-5,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation, +58 balance, +59..+62 film WB */
 pf_pnew:
  .asciz "C:\\OM3MOD\\LOOKS.NEW"
 pf_pbin:
@@ -5235,6 +5236,188 @@ ic_d\n:
  ICD 12
  ICD 13
 .balign 8
+/* ------------------------------------------------------------------ v0.28 film WB (w3)
+ * Owner: a film (and each COLOR's own settings) remembers the camera's WB last used with it, as its HSL does; one
+ * that never had one gets Auto. The camera's own WB controls are the UI. Settings 1578 = stills WB mode (the 13-mode
+ * table 0x615d1944 {mode, A-B id, movie id}: 0 Auto .. 9 CWB), 107 = Custom WB Kelvin (2000..14000); camera-proven
+ * (probes w1 / w2). Slot +34 / +35: Kelvin, v = (K - 2000) / 100 - 60 (CWB only, else 0); +36 / +37: mode code = the
+ * mode's index in the table (0 = Auto: none). Each as balanced base-11 digits v = lo + 11 hi (lo, hi -5..5): zero
+ * bytes mean none, and every firmware's range checks pass. LOOKS / EDITS record +59..+62 (pf_bt). */
+.section .ext12,"ax"
+ .balign 4
+fw_chg:                           /* 1: fl_set saw a change (fw_keep) and applies the new look's WB (fw_apply) */
+ .byte 0
+ .balign 2
+ .macro FWENC                     /* d0 = v (-60..60) -> d0 = lo, d1 = hi (v = lo + 11 hi, both -5..5) */
+ clr d1
+91:
+ cmp 5,d0
+ ble 92f
+ add -11,d0
+ inc d1
+ bra 91b
+92:
+ cmp -5,d0
+ bge 93f
+ add 11,d0
+ add -1,d1
+ bra 92b
+93:
+ .endm
+ .macro FWDEC                     /* d0 = lo, d1 = hi (s8) -> d0 = lo + 11 hi. Uses d1, d2 */
+ mov 11,d2
+ mul d2,d1
+ add d1,d0
+ .endm
+/* fw_keep: `call fw_keep,[d2,d3,a2,a3],48` from fl_set (inside the manager's 901 call), a2 = P, d0 = k (the COLOR
+ * picked), d1 = its new look n, d2 = its look before -> d0 1 when the look or the picture mode changes, else 0 (the
+ * camera writes 901 again at each half-press). On a change from COLOR 1-4, the camera's WB first goes into the slot of
+ * the COLOR being left (then fl_sw saves a film being left on COLOR k with it). Locals (4) k, (8) changed, (12) 64 x
+ * the COLOR left, (16) mode code, (20) Kelvin v, (24) P (locals stay below the 16 B of saved registers at the
+ * frame's top). Stores: that slot's +34..+37, P+DIRTY. */
+fw_keep:
+ mov d0,(4,sp)
+ mov a2,(24,sp)                   /* P (sget does not keep a2) */
+ clr d3
+ cmp d1,d2
+ beq 1f
+ mov 1,d3
+1:
+ mov d3,(8,sp)
+ mov 111,d0
+ call sget,[],4                   /* the picture mode now (keeps d2, d3) */
+ mov fl_cvt,a0
+ clr d1
+2:
+ movbu (d1,a0),d2
+ cmp d2,d0
+ beq 3f
+ inc d1
+ cmp 4,d1
+ bne 2b
+ mov 1,d0                         /* not on COLOR 1-4 now: a change, nothing to keep */
+ ret [d2,d3,a2,a3],48
+3:
+ mov (4,sp),d2
+ cmp d1,d2
+ beq 4f
+ mov 1,d3
+ mov d3,(8,sp)                    /* another COLOR */
+4:
+ mov (8,sp),d3
+ cmp 0,d3
+ bne 5f
+ clr d0                           /* the same look on the same COLOR */
+ ret [d2,d3,a2,a3],48
+5:
+ asl 6,d1
+ mov d1,(12,sp)
+ mov 1578,d0
+ call sget,[],4                   /* the camera's WB mode */
+ mov 0x615d1944,a0
+ clr d2
+6:
+ mov (a0),d1
+ cmp d1,d0
+ beq 7f
+ add 12,a0
+ inc d2
+ cmp 13,d2
+ bne 6b
+ clr d2                           /* not in the table: none */
+7:
+ mov d2,(16,sp)
+ clr d1
+ mov d1,(20,sp)
+ cmp 9,d0                         /* CWB: its Kelvin too */
+ bne 8f
+ mov 107,d0
+ call sget,[],4
+ add -2000,d0
+ mov 100,d1
+ ext d0
+ div d1,d0
+ cmp 0,d0
+ bge 71f
+ clr d0
+71:
+ cmp 120,d0
+ ble 72f
+ mov 120,d0
+72:
+ add -60,d0
+ mov d0,(20,sp)
+8:
+ mov (12,sp),d2
+ add 66,d2                        /* P + 32 + 64 k + 34 */
+ mov (24,sp),a2
+ mov a2,a0
+ add d2,a0
+ mov (20,sp),d0
+ FWENC
+ movbu d0,(a0)
+ movbu d1,(1,a0)
+ mov (16,sp),d0
+ FWENC
+ movbu d0,(2,a0)
+ movbu d1,(3,a0)
+ mov 1,d0
+ movbu d0,(DIRTY,a2)
+ ret [d2,d3,a2,a3],48
+/* fw_apply: `call fw_apply,[d2,d3,a2,a3],32` from fl_set after a change, a2 = P, d0 = k, a0 inner, a1 mode: COLOR k's
+ * slot (the new look, put there by fl_sw) -> the camera's WB through the settings manager (as pf_put): Kelvin first
+ * for CWB, then the mode; none -> Auto. Locals (4) a0, (8) a1, (12) mode. */
+fw_apply:
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ asl 6,d0
+ add 66,d0
+ mov a2,a0
+ add d0,a0                        /* slot +34 of COLOR k */
+ movbu (2,a0),d0
+ extb d0
+ movbu (3,a0),d1
+ extb d1
+ FWDEC                            /* mode code */
+ clr d2                           /* Auto */
+ cmp 1,d0
+ blt 1f
+ cmp 13,d0
+ bge 1f
+ mov d0,d1
+ asl2 d1
+ mov d1,d2
+ add d1,d1
+ add d2,d1                        /* 12 x code */
+ mov 0x615d1944,a1
+ add d1,a1
+ mov (a1),d2                      /* the mode */
+1:
+ mov d2,(12,sp)
+ cmp 9,d2
+ bne 2f
+ movbu (a0),d0
+ extb d0
+ movbu (1,a0),d1
+ extb d1
+ FWDEC
+ add 60,d0
+ mov 100,d1
+ mul d1,d0
+ add 2000,d0
+ mov d0,d1
+ mov 107,d0
+ mov (4,sp),a0
+ mov (8,sp),a1
+ call manager,[d2,d3,a2,a3],68
+2:
+ mov 1578,d0
+ mov (12,sp),d1
+ mov (4,sp),a0
+ mov (8,sp),a1
+ call manager,[d2,d3,a2,a3],68
+ ret [d2,d3,a2,a3],32
+
 .section .ext12,"ax"               /* v0.28: moved out of the full ext11 */
  .balign 8
 ic_pay:
@@ -5731,6 +5914,17 @@ fl_set:
 31:
  clr d0
 32:
+ mov d0,(24,sp)                   /* v0.28 film WB: the look before (the COLOR path no longer needs the value) */
+ mov (16,sp),d0
+ mov (20,sp),d1
+ mov d0,d2
+ mov (24,sp),d2
+ call fw_keep,[d2,d3,a2,a3],48    /* a change? then the camera's WB into the slot of the COLOR being left */
+ movbu d0,(fw_chg)
+ mov (16,sp),d2
+ mov a2,a0
+ add d2,a0
+ mov (24,sp),d0
  mov (20,sp),d3
  movbu d3,(LIDX,a0)
  cmp d0,d3
@@ -5743,6 +5937,16 @@ fl_set:
  movbu d1,(fl_scf)                /* sd3: the super control panel draws its cell again (fl_scw) */
  movbu d1,(fl_scf + 1)            /* ... and its title (fl_stw) */
 4:
+ movbu (fw_chg),d0                /* v0.28 film WB: after a change, the new look's WB to the camera */
+ cmp 0,d0
+ beq 41f
+ clr d0
+ movbu d0,(fw_chg)
+ mov (16,sp),d0
+ mov (8,sp),a0
+ mov (12,sp),a1
+ call fw_apply,[d2,d3,a2,a3],32
+41:
  mov (16,sp),d0
  mov fl_cvt,a0
  add d0,a0
@@ -7857,7 +8061,7 @@ fl_live:
  cmp d1,d0
  bne 28f
  inc d3
- cmp 17,d3                        /* v0.28: all 17 pf_bt pairs (+ split toning, halation, balance) */
+ cmp 21,d3                        /* v0.28: all 21 pf_bt pairs (+ split toning, halation, balance, film WB) */
  bcs 22b
  clr d0
  ret [d2,d3,a2,a3],24
@@ -7867,7 +8071,7 @@ fl_live:
 
 /* fl_fch: `call fl_fch,[d2,d3,a2,a3],28`, a2 = P, d0 = film j -> d0 1 when it is changed from how it was built: on
  * its COLOR now (look number = its) -> fl_live; else its saved changes (EDITS.BIN record j, valid) differ from the
- * LOOKS.BIN record in bytes 0..58 (v0.28; was 0..52). Locals (4) j. */
+ * LOOKS.BIN record in bytes 0..62 (v0.28; was 0..52). Locals (4) j. */
 fl_fch:
  mov d0,(4,sp)
  clr d2
@@ -7911,7 +8115,7 @@ fl_fch:
  mov (LPTR,a2),a0
  add d0,a0
  add 32,a0                        /* as built */
- mov 59,d3                        /* v0.28: bytes 0..58 (+ split toning, halation, balance) */
+ mov 63,d3                        /* v0.28: bytes 0..62 (+ split toning, halation, balance, film WB) */
 6:
  movbu (a0),d0
  movbu (a1),d1

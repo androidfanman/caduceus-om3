@@ -3312,3 +3312,14 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   digits (v = lo + 11 hi, lo / hi -5..5, so zero bytes = none and every firmware's range check passes): slot
   +34 / +35 Kelvin v = (K - 2000) / 100 - 60 (CWB only, else 0), +36 / +37 mode code = index in the 13-mode table
   (0 = Auto / none); LOOKS / EDITS record +59..+62 (pf_bt pairs, so EDITS, the film's '*' and the hold-OK reset follow).
+- **w3 (feature branch; VERSION "v0.28-dev (film WB w3)"):** fl_set at its COLOR path: fw_keep (frame 48) sees a change
+  (look, or picture mode via sget(111) vs fl_cvt[k]) and first keeps the camera's WB in the slot of the COLOR being
+  left (sget(1578) -> its index in table 0x615d1944, Auto -> 0; CWB also sget(107) -> v), P+DIRTY; fl_sw then saves a
+  film being left with it; at label 4 fw_apply (frame 32) sets the new look's stored WB through the manager (Kelvin
+  first for CWB; none -> Auto). pf_bt + (59,10) (60,11) (61,12) (62,13), loops to pf_bt+42, fl_live 21 pairs, fl_fch
+  bytes 0..62, pf_lo -5 for +59..+62. Bugs met on the way (om-emu): `sget` does not keep a2 (fw_keep saves P in a
+  local); a frame's locals must stay below the saved registers (`call f,[d2,d3,a2,a3],N` keeps them in the top 16 B
+  of N: fw_keep 28 -> 48, fw_apply 20 -> 32; the w1 / w2 probes had the same fault, harmless there by luck).
+  om-emu: FILM 3 Auto -> Sunny by hand -> FILM 7 Auto -> FILM 3 again **Sunny 5300K and FILM 3***; FILM 3 CWB 5400K
+  -> FILM 7 Auto -> FILM 3 **CWB 5400K**. Package E1479999.BIN 9b73b5a0…, GUIDES.BIN 8d8d8c4b… (LABELS / TONES as t2).
+  Not done: the Control Panel's WB fields (with its v0.28 work), the photo code (EXIF) does not carry it.
