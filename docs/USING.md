@@ -23,8 +23,8 @@ This page is for **v0.27.1**, the latest version. Not installed yet? Start with 
 2. Open **Picture Mode** (from the super control panel or the menu).
 3. The top row lists **COLOR 1–4, then FILM 1–20**. Turn to the film you want.
 
-Your films load from the card by themselves a moment after the camera starts. The camera remembers the film you were on
-when you switch it off.
+Your films load from the card at your first half-press after switching on; until then the screen may show the plain
+COLOR look. The camera remembers the film you were on when you switch it off.
 
 What each of the 20 film sims looks like: [the film sims](../README.md#the-20-film-sims).
 

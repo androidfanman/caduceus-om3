@@ -24,7 +24,7 @@ uploaded.
    shows in the preview too.
 5. **Export › Save to card…** (Chrome or Edge on a computer) writes `OM3MOD/LOOKS.BIN` (and `NAMES.BIN`) straight
    onto the card; **Card folder (.zip)** downloads them. Keep **Firmware on the camera: v0.26.1 or later** (it saves split toning and WB past ±5).
-6. On the camera: switch on, and your films are FILM 1–20 in Picture Mode. A film you changed in the
+6. On the camera: switch on and half-press the shutter once (that loads your films): they are FILM 1–20 in Picture Mode. A film you changed in the
    Control Panel starts as built on the camera; the others keep the changes you made on the camera.
 
 ## More

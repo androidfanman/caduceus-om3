@@ -1,4 +1,11 @@
-# Automatic SD loading (v0.26.2; first written for v0.25.1-sdload)
+# Automatic SD loading (v0.26.2 and v0.27; removed in v0.27.1; first written for v0.25.1-sdload)
+
+> [!IMPORTANT]
+> **Removed in v0.27.1 (2026-11-11, camera-tested).** The automatic load could rarely freeze the camera at start-up
+> (live view on, nothing else, power switch dead). From v0.27.1 the two hooks below stay stock, there is no SDLOAD
+> worker and no OK-key trigger: the films load at the first half-press after switching on, as up to v0.26.1. The
+> `sdl_*` code is still in the build but unreachable. This page is kept as the record of how it worked. Details:
+> `research/NOTES.md`, "Sporadic power-on hang on v0.27"; `docs/DEVELOPER_NOTES.md`, "v0.27.1 release".
 
 **Status: camera-tested on the owner's OM-3 (2026-11-09, builds sd1 to sd4) and released in v0.26.2.** The worker's
 design and its offline qualification come from fernandezk26's fork (https://github.com/fernandezk26/camera-stuff); the

@@ -12,11 +12,12 @@ Large = a new area of the firmware · Hard = no camera feature to borrow, everyt
 **Status:** Not started · Researching · Proven possible · Building · Camera testing · Done · Parked.
 Efforts are estimates from what we know of the firmware today.
 
-## What v0.27 can do (camera-tested)
+## What v0.27.1 can do (camera-tested)
 
 - **20 film sims on the camera** as FILM 1–20 in the Picture Mode list, after COLOR 1–4, with their names on the
-  title, quick menu, shooting screen and viewfinder. They load by themselves at power-on (no half-press), and the
-  super control panel's dials step COLOR 1–4, then FILM 1–20. The Control Panel has 62 films to choose from.
+  title, quick menu, shooting screen and viewfinder. They load at the first half-press after switching on (until
+  then the screen may show the plain COLOR look), and the super control panel's dials step COLOR 1–4, then
+  FILM 1–20. The Control Panel has 62 films to choose from.
 - **Per film:** colour (hue, saturation, luminance for 12 colours), Highlights / Midtones / Shadows, Blacks / Whites,
   Contrast, Sharp (−5 Off..+2), Noise Filter (Off / Low / Std / High), Vignette Correction on / off, Shading, WB shift
   A-B / G-M −7..+7 (the camera's own WB grid), split toning (Shadows and Highlights wheels, 12 colours, −5..+5).
@@ -60,7 +61,7 @@ its first user, and the rest is free for halation and the next features (`docs/D
 
 | Feature | Why it matters for film | Effort | Status | Research notes |
 |---|---|---|---|---|
-| Films in the Picture Mode list | Pick a film like loading a roll. | Medium | **Done (v0.24.1, v0.26.2, v0.27)** | FILM 1–20 after COLOR 1–4 with their names; load at power-on and dial stepping in v0.26.2; in v0.27 each Creative Dial position can be COLOR with its own film ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)). Asked for: reorder films on the camera ([#32](https://github.com/androidfanman/caduceus-om3/issues/32)), one button / front dial to switch films ([#30](https://github.com/androidfanman/caduceus-om3/issues/30), main roadmap: tabled 2026-11-11). |
+| Films in the Picture Mode list | Pick a film like loading a roll. | Medium | **Done (v0.24.1, v0.26.2, v0.27)** | FILM 1–20 after COLOR 1–4 with their names; dial stepping in v0.26.2 (v0.26.2 and v0.27 also loaded the films at power-on; v0.27.1 went back to the first half-press because that could rarely freeze the camera at start-up); in v0.27 each Creative Dial position can be COLOR with its own film ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)). Asked for: reorder films on the camera ([#32](https://github.com/androidfanman/caduceus-om3/issues/32)), one button / front dial to switch films ([#30](https://github.com/androidfanman/caduceus-om3/issues/30), main roadmap: tabled 2026-11-11). |
 | White balance mode per film | Tungsten film (CineStill 800T) shoots at 3200 K, daylight film at 5500 K. Today a film can only shift WB (A-B / G-M −7..+7). | Low | Not started | Films already write their settings when chosen; WB mode and Kelvin are more of the same kind. |
 | Exposure compensation per film | Overexposed Portra, pushed Tri-X. Optional per film. | Low | Not started | Same route. Decide whether it adds to the user's exposure dial or sets it. |
 | ISO per film | "Load" Portra 400 and the camera shoots at ISO 400. Optional. | Low | Not started | Same route. Off by default. |

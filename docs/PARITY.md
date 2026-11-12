@@ -15,7 +15,7 @@ Update this page when either project ships a feature, and regenerate the page wi
 3. **Propose schema and min_fw upstream.** Added to our looks today. Their rules ask for new fields to be proposed there first, and their copy of our om3.ts will need one more line at their next sync.
 4. **Settle the hue direction.** The two projects report opposite directions for + hue. One same-scene test on both bodies decides whether shared looks turn hue the right way.
 5. **Line up where Grain, NR and Sharp live.** On the E-P7 they are COLOR profile settings, here they are part of the film. A shared look carries them either way, but the two cameras apply them differently.
-6. **Trade features.** To the OM-3: halation (Next), XPan / 21:9, video colour profile, button functions. To the E-P7: split toning, fast colour grain, loading at power-on, the RAW+JPEG grain lesson.
+6. **Trade features.** To the OM-3: halation (Next), XPan / 21:9, video colour profile, button functions. To the E-P7: split toning, fast colour grain, the RAW+JPEG grain lesson. (Loading at power-on is off the list: the OM-3 dropped it in v0.27.1 because it could freeze the camera at start-up.)
 
 ## Control Panel and formats
 
@@ -62,7 +62,7 @@ Update this page when either project ships a feature, and regenerate the page wi
 | **Built-in films** | 29 colour + 10 mono (some inspired by other people's recipes, credited) | 20 colour, our own designs, tuned from colour-checker photos; 61 to choose from in the panel | Both, different | Different sets. The E-P7 notes suggest adding our 20 to their library, with credit. |
 | **How a film is picked** | Film page on the colour wheel; one look per COLOR 1-4 slot; name in Picture Mode | FILM 1-20 as entries in the Picture Mode list (5 per COLOR); name as the title | Both, different | Different UI on each body; the look data is the same. |
 | **Changes kept per film** | Each slot keeps its edits (BUNDLES.BIN), * when changed | Each film keeps its edits (EDITS.BIN), * when changed, hold OK = as built | Same | Same idea, different files. |
-| **When films load** | First half-press (retries since v0.31a) | At power-on (v0.26.2, from fernandezk26's fork) | Both, different | A port candidate for the E-P7. |
+| **When films load** | First half-press (retries since v0.31a) | First half-press (v0.26.2 and v0.27 loaded at power-on, from fernandezk26's fork; removed in v0.27.1) | Same | The power-on load could rarely freeze the OM-3 at start-up (`research/NOTES.md`, "Sporadic power-on hang on v0.27"); not a port candidate unless that is understood. |
 | **Saving to the card safely** | Yes, with a .BAK | Yes: .NEW read back, then .BAK | Same |  |
 | **Super control panel steps through films** | Not found | v0.26.2: dials go COLOR 1-4, FILM 1-20 | OM-3 only |  |
 | **Film name on the shooting screen / viewfinder** | Name in the Picture Mode list | FILM N on the shooting screen and viewfinder | Both, different |  |

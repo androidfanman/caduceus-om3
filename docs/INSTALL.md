@@ -128,8 +128,9 @@ Run the launcher again and type the version you want instead of pressing Return 
 [releases](../releases/README.md)). Copy `DCOLYMP` and the version's own `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN`
 to the card, and update the camera as in step 4. Your films keep working.
 
-On v0.26.2 and v0.27 the films load by themselves at switch-on; on every other version, half-press the shutter once
-after switching on: that's when your films load.
+On every version except v0.26.2 and v0.27, half-press the shutter once after switching on: that's when your films
+load. (v0.26.2 and v0.27 loaded them by themselves at switch-on, which could rarely freeze the camera; v0.27.1 went
+back to the half-press.)
 
 ## Going back to the camera's own firmware
 

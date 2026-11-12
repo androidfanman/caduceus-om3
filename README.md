@@ -118,10 +118,11 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | Film grain in colour, from the camera's image processor: as fast as a photo without grain | v0.25 |
 | Split toning: Shadows and Highlights pages, 12 colours, −5..+5, also in live view | v0.26 |
 | WB shift up to ±7 per film | v0.26.1 |
-| Films load at power-on; the super control panel's dials step through the films | v0.26.2 |
+| The super control panel's dials step through the films | v0.26.2 |
 | All four arrow keys in Button Function; Creative Dial positions set to CRT / ART / COLOR / MONO, each COLOR with its own film | v0.27 |
 | The film's name and recipe in each JPEG's EXIF; the Control Panel opens a film from a photo | v0.27 |
 | Optional [debug log](debug-log/) (`DEBUG.TXT` → `OM3MOD/CADLOG.TXT`) for bug reports | v0.27 |
+| Films load at the first half-press after switching on (the automatic load at power-on of v0.26.2 and v0.27 was taken out: it could rarely freeze the camera at start-up) | v0.27.1 |
 
 Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/).
 
@@ -139,7 +140,7 @@ Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/page
 ## For developers
 
 - `firmware/src/editor.s`, `editor.ld`: the patch source (MN10300 / AM33 assembly). `firmware/src/xblock.s`: the
-  Extras code block (relocatable, appended to `GUIDES.BIN` and loaded from the card at power-on, from v0.26.2).
+  Extras code block (relocatable, appended to `GUIDES.BIN` and loaded from the card at the first half-press after switching on).
 - `firmware/frames.py`: the white Frame layers (our own JPEGs, written into the resource component).
 - `firmware/build.py`: builds the update file from source (needs binutils built for `--target=mn10300-elf`):
   `python3 firmware/build.py --stock OLY_E_147_1100_0000_0000_3.BIN --toolchain BINUTILS_BUILD --out NEW_DIR`.
