@@ -4235,8 +4235,8 @@ rw_bar:
  beq 3f
  cmp GL_IT,d0                     /* v0.25 Glow / Clarity: -5..+5 as Blacks / Whites */
  beq 3f
- cmp HL_IT,d0                     /* v0.28 Halation: 0..5 on the same bar */
- beq 3f
+ cmp HL_IT,d0                     /* v0.28 Halation: 0..5 (h6: its own ends, so the bar starts at the left) */
+ beq 5f
  cmp AB_IT,d0
  beq 4f
  cmp GM_IT,d0
@@ -4252,6 +4252,19 @@ rw_bar:
  mov a3,d0
  calls (a2)                       /* GetValue(item) -> (24,sp) */
  mov -5,a3
+ mov 5,d0
+ jmp rng_back
+5:                                /* Halation: 0..5 (the "-" greys out at 0; sl_dot spreads 0..5 over the bar) */
+ mov d0,a3
+ call facade,[],4
+ mov (a0),a2
+ mov sp,a1
+ mov (12,a2),a2
+ add 24,a1
+ mov a3,d0
+ calls (a2)
+ clr d0
+ mov d0,a3
  mov 5,d0
  jmp rng_back
 4:                                /* A-B / G-M: -7..+7 */
@@ -5203,6 +5216,12 @@ st_chk:
 /* rd_a / rd_b <- jmp from 0x611d16b4 / 0x611d1725 (the readout glyph lookups, d0 = item): 1011, 5397 (stock) and
  * Blacks / Whites take the 11-entry -5..+5 tables (0x611d16e6 / 0x611d1757), else none (0x611d16ee / 0x611d175f). */
 rd_a:
+ cmp HL_IT,d0                     /* v0.28 h6 Halation 0..5: +-0, then +1..+5 (no -1..-5 entries) */
+ bne 6f
+ mov rd6_a,a0
+ mov 6,d3
+ jmp rda_none
+6:
  cmp AB_IT,d0                     /* A-B / G-M: our -7..+7 tables (sign, digit) into the stock search loop */
  beq 7f
  cmp GM_IT,d0
@@ -5222,14 +5241,18 @@ rd_a:
  beq 1f
  cmp GL_IT,d0
  beq 1f
- cmp HL_IT,d0
- beq 1f
  cmp 5399,d0                      /* v0.25 Shading: these glyphs, in line with its picture (owner: its number sat low) */
  beq 1f
  jmp rda_none
 1:
  jmp rda_11
 rd_b:
+ cmp HL_IT,d0                     /* v0.28 h6 Halation (as rd_a) */
+ bne 6f
+ mov rd6_b,a0
+ mov 6,d3
+ jmp rdb_none
+6:
  cmp AB_IT,d0
  beq 7f
  cmp GM_IT,d0
@@ -5249,8 +5272,6 @@ rd_b:
  beq 1f
  cmp GL_IT,d0
  beq 1f
- cmp HL_IT,d0
- beq 1f
  cmp 5399,d0                      /* v0.25 Shading (as rd_a) */
  beq 1f
  jmp rdb_none
@@ -5262,6 +5283,10 @@ rd15_a:                           /* the readout's sign glyph for -7..+7 (as 0x6
  .long -7, 3, -6, 3, -5, 3, -4, 3, -3, 3, -2, 3, -1, 3, 0, 1, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2, 6, 2, 7, 2
 rd15_b:                           /* ... and its digit (as 0x6154caf8) */
  .long -7, 7, -6, 6, -5, 5, -4, 4, -3, 3, -2, 2, -1, 1, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7
+rd6_a:                            /* v0.28 h6 Halation 0..5: "+-0" (sign 1; sign 0 would hide the number: the callers */
+ .long 0, 1, 1, 2, 2, 2, 3, 2, 4, 2, 5, 2   /* draw 1 "+-%d", 2 "+%d", 3 "-%d", else nothing), then +1..+5 */
+rd6_b:
+ .long 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5
 
 /* sl_dot <- jmp from 0x611d10fb (same frame; a2 value, a3 min): the dot's x = centre (d2) + d1, stock value x 155 px
  * (a -2..+2 bar). The Sharp bar (min -5, from sl_rng) is split at 0, which stays on the centre mark: below 0 it steps
@@ -5270,6 +5295,16 @@ rd15_b:                           /* ... and its digit (as 0x6154caf8) */
 sl_dot:
  mov (8,sp),a0
  mov a2,d1
+ cmp 0,a3                         /* v0.28 h6: a 0..5 bar (Halation): 0 at the left end, 5 at the right end, 124 px a */
+ bne 4f                           /* step (the -5..+5 bars' ends are -310 / +310 px) */
+ mov (4,sp),d0
+ cmp 5,d0
+ bne 4f
+ mov 124,d0
+ mul d0,d1
+ add -310,d1
+ jmp dot_back
+4:
  mov 44,d0                        /* A-B / G-M bar (min -7): 44 px a step (+-7 near the ends) */
  cmp -7,a3
  beq 1f

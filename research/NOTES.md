@@ -3161,3 +3161,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   table) and how its value item gets "1.1"; then either add a second line to the layout or swap the value text for
   "1.1 / Caduceus v0.xx". om-emu tracing notes: read watches only fire on the uncached alias (0xa5...); `call f,[...],N`
   leaves the return address in MDR and the caller's stack at sp + N at f's first instruction.
+
+### Halation h6: the bar runs 0..+5 (2026-11-12; emulator only)
+- Owner (after h5): the Halation bar "looks like it can go from -5 to +5, but we want it to just go from 0 to +5". It
+  borrowed Glow / Clarity's -5..+5 bar (rw_bar ends -5 / +5, 0 in the middle).
+- h6: rw_bar gives HL_IT its own ends a3 = 0, max 5 (the stock "-" greys out at 0, "+" at 5; st_chk already stops
+  HLB at the ends). sl_dot: a 0..5 bar (min 0, max 5) places the dot at value x 124 - 310 px from the centre (0 at the
+  left end, 5 at the right end, as the -5..+5 bars' ends). The readout takes its own tables rd6_a / rd6_b (0..5).
+- The readout can not show a plain "0": the six callers of the sign lookup (e.g. 0x611d1233) draw sign 1 as "+-%d"
+  (char 130), 2 "+%d", 3 "-%d" (wide formats at 0x61551060..70) and nothing at all for any other sign (tried: sign 0 hid
+  the number). So 0 reads "+-0", as on every camera slider. The small dot above the bar's middle is part of the stock
+  bar picture (the -5..+5 and -2..+2 bars both have it), not placed by the dot code: it stays.
+- om-emu (out-h6b, Halation slot +30 poked to 0 / 3 / 5): dot at the left end / 60 % / the right end, "-" grey at 0,
+  "+" grey at 5, readout +-0 / +3 / +5; left column "Halo +3*". Package: E1479999.BIN 6fc8dae8…, GUIDES.BIN 4ad05bf9…
+  (LABELS / TONES as h5). firmware/VERSION "v0.28-dev (halation h6)".
