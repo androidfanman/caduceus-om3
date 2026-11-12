@@ -3400,3 +3400,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **g5 (2026-11-12, emulator only):** ZC_K 1.2 (plate 79 x 36), centred in the shown strip (`mkicons.ZC_WIN`, an
   assert keeps it inside). om-emu: both plates' dark edges visible on both sides (screen x 15..93 in the strip
   14..95). E1479999.BIN 93f434d3…, GUIDES.BIN efd62b87…, LABELS.BIN unchanged (eac8eb47…).
+- **g5 camera (owner, 2026-11-12): "that looks great! and works well too"** (camera-tested: the 0 / 0 icons whole,
+  the B/W icon, -7..+7, the values). The Blacks / Whites grid is done on the camera; the Control Panel part (one
+  Blacks / Whites grid or two -7..+7 sliders, export gated to v0.28) comes with its v0.28 work.
