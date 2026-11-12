@@ -18,7 +18,7 @@ W, H = 46, 46                      # slider-row icon
 CW, CH = 100, 76                   # choice-row cell picture
 # (lines, width, height): one line = (text, cap height px, baseline row)
 PICTURES = [
-    ([('Blk', 18, 30), ('Wht', 18, 60)], CW, CH), ([], 8, 2), ([], 8, 2), ([], 8, 2),  # v0.28 the Blacks / Whites grid row's left cell (was the Blk / Wht slider icons); A-B / G-M unused (the WB grid row shows the camera's WB± picture)
+    ([('Blk', 18, 30), ('Wht', 18, 60)], CW, CH), ([], 8, 2), ([], 8, 2), ([], 8, 2),  # v0.28 the Blacks / Whites grid row's left cell before it is drawn with its values (was the Blk / Wht slider icons); A-B / G-M unused (the WB grid row shows the camera's WB± picture)
     ([('Vignette', 15, 30), ('Off', 18, 60)], CW, CH), ([('Vignette', 15, 30), ('On', 18, 60)], CW, CH),
     ([('Noise', 15, 30), ('Off', 18, 60)], CW, CH), ([('Noise', 15, 30), ('Low', 18, 60)], CW, CH),
     ([('Noise', 15, 30), ('Std', 18, 60)], CW, CH), ([('Noise', 15, 30), ('High', 18, 60)], CW, CH),
@@ -445,7 +445,7 @@ if __name__ == '__main__':
 # v0.25 WB grid row: its left cell (100 x 76, as the camera's WB screen cell): the camera's own WB± picture (82 x 30,
 # picture 12545, copied by the firmware at run time) over the fine-tune values as the camera writes them ("A2.G2",
 # "B1.0"; blank when both are 0). The firmware (xblock xb_wbc) draws it from these glyphs: 0..7, A, B, G, M, '.'.
-WBC_CHARS = '01234567ABGM.'
+WBC_CHARS = '01234567ABGM.+\u2212/'     # v0.25 Blacks / Whites: '+', '\u2212', '/' (indices 13..15)
 WBC_GH, WBC_BASE, WBC_CAP = 26, 22, 18          # glyph rows, baseline row in them, cap height
 WBC_IX, WBC_IY, WBC_TY = 9, 6, 40               # the WB± picture's place; the text glyphs' top row
 
@@ -462,20 +462,36 @@ def wbc_glyphs():
     return out
 
 
-def wbc_text(ab, gm):
+def wbc_text(ab, gm, bw=False):
     if ab == 0 and gm == 0:
         return ''
-    f = lambda v, p, n: '0' if v == 0 else (p if v > 0 else n) + str(abs(v))
-    return f(ab, 'A', 'B') + '.' + f(gm, 'G', 'M')
+    if bw:                                       # Blacks / Whites: "+2/\u22121" (Blk / Wht, as the top line)
+        f = lambda v, p, n: '0' if v == 0 else ('+' if v > 0 else '\u2212') + str(abs(v))
+    else:
+        f = lambda v, p, n: '0' if v == 0 else (p if v > 0 else n) + str(abs(v))
+    return f(ab, 'A', 'B') + ('/' if bw else '.') + f(gm, 'G', 'M')
 
 
-def wbc_cell(ab, gm, wbpm=None):
+def bw_top():
+    """the Blacks / Whites row's cell top (as the WB± picture over the WB cell): "Blk/Wht", 82 x 30"""
+    return picture([('Blk/Wht', 18, 24)], 82, 30, 0.92, (0.20, 0.40, 0.60))
+
+
+def bw_syms():
+    """the Blacks / Whites grid's own symbols in place of the camera's letters: the boxes' '+' / '\u2212' (32 x 32, as
+    the letters G / A / B / M) and the header's '+' (16 x 30, as its letters; its '\u2212' is the camera's 1120)"""
+    return [picture([('+', 22, 27)], 32, 32), picture([('\u2212', 22, 27)], 32, 32), picture([('+', 16, 25)], 16, 30)]
+
+
+def wbc_cell(ab, gm, wbpm=None, bw=False):
     """the cell as the firmware draws it (wbpm: the WB± picture, 30 x 82, for previews only)"""
     cell = np.zeros((CH, CW), dtype=np.uint8)
+    if bw:
+        wbpm = bw_top()
     if wbpm is not None:
         cell[WBC_IY:WBC_IY + 30, WBC_IX:WBC_IX + 82] = wbpm
     gl = wbc_glyphs()
-    t = [gl[WBC_CHARS.index(c)] for c in wbc_text(ab, gm)]
+    t = [gl[WBC_CHARS.index(c)] for c in wbc_text(ab, gm, bw)]
     tot = sum(g.shape[1] - 2 for g in t) + 2 if t else 0
     x = (CW - tot) // 2
     for g in t:

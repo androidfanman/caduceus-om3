@@ -121,23 +121,34 @@ def pack(fill):
     return bytes(b)
 
 
-def wb_glyphs():
-    """v0.25 (LABELS.BIN v3): after the bitmaps, the WB grid row's cell glyphs (firmware/mkicons.py wbc_glyphs, drawn
-    from scratch in our font): 'WBG1' | u16 offset[13] (from 'WBG1') | u8 width[13] | pad to 4 | each glyph's rows,
-    one palette index a byte (0 clear, 7 dark edge, 10 / 11 / 12 fill). The firmware code block (xb_wbc) draws the cell
-    from them."""
+def wb_glyphs(at):
+    """v0.25 (LABELS.BIN v3): after the bitmaps (at = this section's offset in the file), the WB / Blacks-Whites grid
+    rows' cell glyphs and the Blacks / Whites cell top (firmware/mkicons.py wbc_glyphs, bw_top; drawn from scratch in
+    our font): 'WBG1' | u16 offset[N] (from 'WBG1') | u16 offset, length x 4 (the top picture "Blk/Wht" 82 x 30;
+    the grid's box '+' / '-' 32 x 32; the header's '+' 16 x 30) | u8 width[N] | pad | each glyph's rows, one palette
+    index a byte (0 clear, 7 dark edge, 10 / 11 / 12 fill) | the pictures (OSD type 11, each 4-aligned in the file). The firmware (xb_wbc) draws the cells from them."""
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'firmware'))
     import mkicons
     gl = mkicons.wbc_glyphs()
-    head = 4 + 2 * len(gl) + len(gl)
-    head = (head + 3) & ~3
+    n = len(gl)
+    head = (4 + 2 * n + 16 + n + 3) & ~3
     offs, data = [], b''
     for g in gl:
         offs.append(head + len(data))
         data += bytes(int(v) for v in g.flatten())
-    return b'WBG1' + struct.pack('<%dH' % len(gl), *offs) + bytes(g.shape[1] for g in gl) + bytes(head - 4 - 3 * len(gl)) + data
+    pics = [(mkicons.bw_top(), 82, 30)] + [(p, p.shape[1], p.shape[0]) for p in mkicons.bw_syms()]
+    pl = []
+    for px, w, h in pics:
+        st = mkicons.encode11(bytes(px.flatten()), w, h)
+        o = head + len(data)
+        while (at + o) % 4:
+            o += 1
+        data += bytes(o - head - len(data)) + st
+        pl += [o, len(st)]
+    return (b'WBG1' + struct.pack('<%dH' % n, *offs) + struct.pack('<8H', *pl) + bytes(g.shape[1] for g in gl)
+            + bytes(head - 4 - 2 * n - 16 - n) + data)
 
 
 if __name__ == '__main__':
@@ -145,7 +156,8 @@ if __name__ == '__main__':
     a = ap.parse_args()
     fills = [bitmap(t) for t in LABELS]
     imgs = [render(f) for f in fills]
-    body = struct.pack('<I', len(fills)) + b''.join(pack(f) for f in fills) + wb_glyphs()
+    body = struct.pack('<I', len(fills)) + b''.join(pack(f) for f in fills)
+    body += wb_glyphs(12 + len(body))
     out = b'OM3V' + struct.pack('<II', 12 + len(body), zlib.crc32(body) & 0xffffffff) + body
     open(a.out, 'wb').write(out); print(a.out, len(out), 'bytes; largest stream', max(len(encode11(bytes(i.flatten()), W, H)) for i in imgs))
     if a.preview:

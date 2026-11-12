@@ -1773,7 +1773,7 @@ gd_mode:                          /* v0.21: moved from the section-10 tail (room
  * Gates: LUT present; idempotent (O+3828 == O+3832 is remapped only when the builder rebuilt it this pass: art
  * override R+1568 or C+60 & 0x4134063e, the builder's own test); request key 11 (COLOR); table P valid; some COLOR
  * slot has Blacks/Whites != 0; effective COLOR profile 1..4 (getter 63153, as hl_pp / wb_get); slot +47 Blacks,
- * +48 Whites, s8 -5..5 (outside counts as 0). Remap = Caduceus tools/ep7_tone.py remap(), bit-exact.
+ * +48 Whites, s8 -7..7 (v0.28; was -5..5; outside counts as 0). Remap = Caduceus tools/ep7_tone.py remap(), bit-exact.
  * Stores: own stack frame, O+3832..O+4343, O+3828, O+0. */
 .section .ext5,"ax"
 tone:
@@ -1842,20 +1842,20 @@ t2:
  add d0,a0                        /* a0 = slot entry */
  movbu (47,a0),d0                 /* Blacks */
  extb d0
- add 5,d0
- cmp 11,d0
+ add 7,d0                         /* v0.28 g2: -7..+7 (was -5..+5), the same step */
+ cmp 15,d0
  bcs 3f
- mov 5,d0
+ mov 7,d0
 3:
- add -5,d0
+ add -7,d0
  movbu (48,a0),d1                 /* Whites */
  extb d1
- add 5,d1
- cmp 11,d1
+ add 7,d1
+ cmp 15,d1
  bcs 4f
- mov 5,d1
+ mov 7,d1
 4:
- add -5,d1
+ add -7,d1
  mov d0,d2
  or d1,d2
  beq t9                           /* B = W = 0: no copy, no store */
@@ -2524,7 +2524,7 @@ pf_bt:                            /* record offset, slot offset - 24 (v0.26: mov
 pf_lo:                            /* record byte i: lo; span = -2 lo for lo < 0, 1 for byte 36 (WB on 0/1), else 0
                                      (test 18: the span half of this table is computed, to make room) */
  .byte -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5
- .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,-5,-5,-5,-5,-5,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation, +58 balance, +59..+62 film WB */
+ .byte 0, -7,-7,-7,-7, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,-5,-5,-5,-5,-5,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation, +58 balance, +59..+62 film WB */
 pf_pnew:
  .asciz "C:\\OM3MOD\\LOOKS.NEW"
 pf_pbin:
@@ -3087,6 +3087,7 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set TBB, 0x7ee0                  /* its bar ids + k (row 14) */
 .set BWB, 0x7ef0                  /* v0.28 Blacks / Whites grid row (BK_IT): its one option's id + k (row 15, class 14) */
 .set IC_BWG, 0x7f70               /* v0.28 our 8 pictures for the camera's WB grid while it is the Blacks / Whites grid */
+.set IC_BW, 0x7f7f                 /* v0.28 g2 the Blacks / Whites row's left cell with its values (bw_desc, wb_draw) */
 .set ST_VIG, 0x7f00               /* our string ids (st_get answers them; the camera's table has ~6000) */
 .set ST_STD, 0x7f01
 .set ST_BKS, 0x7f02                 /* "Blacks" */
@@ -3272,10 +3273,10 @@ fr_l2:                            /* the strip: the camera's Off / On icons */
  OPT 1, 3, VF_I1
 bw_l0:                            /* v0.28 Blacks / Whites grid row: the title "Blacks / Whites" */
  OPT 0, 4, ST_BKS
-bw_l1:                            /* the left column: "Blk" over "Wht" (mkicons PICTURES[0]) */
- OPT 0, 3, IC_BK
+bw_l1:                            /* the left column: "Blk/Wht" over the values (wb_draw; before it: "Blk" / "Wht") */
+ OPT 0, 3, IC_BW
 bw_l2:
- OPT 0, 3, IC_BK
+ OPT 0, 3, IC_BW
 wb_l0:                            /* v0.25 WB grid row: the title "WB" */
  OPT 0, 4, ST_AB
 wb_l1:                            /* the left column: the WB± picture over the values (wb_draw) */
@@ -3704,13 +3705,16 @@ sl_slot:
 
 /* sl_val: d1 class, a0 slot -> d0 the row's value (Sharp -5..+2, Grain 0..3, NR -2..+1, VigFix -1..0). */
  .macro SL_VAL
- cmp 14,d1                        /* v0.28 Blacks / Whites grid row: one option, value 0 */
+ cmp 14,d1                        /* v0.28 Blacks / Whites grid row: draw its left cell (mode 1); value 0 */
  bne 85f
+ mov 1,d0
+ call wb_draw,[d2,d3,a2,a3],20
  clr d0
  bra 99f
 85:
  cmp 11,d1
  bne 86f
+ clr d0                           /* mode 0: the WB grid row */
  call wb_draw,[d2,d3,a2,a3],20    /* v0.25 WB grid row: draw its left cell from the look's A-B / G-M */
  clr d0
  bra 99f
@@ -3993,9 +3997,9 @@ sl_cnt:
  mov 8,d0
  cmp 1,a3
  beq 6f
- mov 11,d0
+ mov 15,d0
  cmp 5,a3
- bcc 6f                           /* 5 Blacks, 6 Whites: -5..+5 */
+ bcc 6f                           /* 5 Blacks, 6 Whites: -7..+7 (v0.28 g2: 7 steps, as the WB grid; was -5..+5) */
  mov 4,d0
  cmp 4,a3
  bne 6f
@@ -4040,9 +4044,10 @@ sl_cnt:
  mov 8,d1
  cmp 1,a3
  beq 99f
- mov 11,d1
+ mov -7,d0
+ mov 15,d1
  cmp 5,a3
- bcc 99f                          /* Blacks / Whites -5, 11 */
+ bcc 99f                          /* Blacks / Whites -7, 15 (v0.28 g2) */
  clr d0
  mov 4,d1
  cmp 2,a3
@@ -4269,9 +4274,9 @@ sl_set0:
 4:
  cmp 5,a3
  bcs 5f
- cmp -5,d1                        /* Blacks / Whites -5..+5 -> +47 / +48 */
+ cmp -7,d1                        /* Blacks / Whites -7..+7 -> +47 / +48 (v0.28 g2; was -5..+5) */
  blt 7f
- cmp 5,d1
+ cmp 7,d1
  bgt 7f
  add 79,d2                        /* P + 64k + 32 + 47 */
  cmp 5,a3
@@ -4525,6 +4530,18 @@ ic_get:
  mov wb_slot,a0
  retf [],0
 14:
+ cmp IC_BW,d1                     /* v0.28 g2: the Blacks / Whites row's left cell; our "Blk / Wht" until it is drawn */
+ bne 21f
+ mov (bw_desc + 12),a0
+ cmp 0,a0
+ beq 22f
+ mov bw_slot,a0
+ retf [],0
+22:
+ mov IC_BK,d1
+ mov d1,d0
+ bra 20f
+21:
  mov (gr_flag),a0                 /* v0.28: the camera's WB grid while it is the Blacks / Whites grid -> our pictures */
  cmp 0,a0
  beq 17f
@@ -4750,8 +4767,8 @@ wb_wem:
  clr d0
  ret [],4
 .balign 4
-wb_v:
- .long 0, 0, 0, 0, 0, 0, 0, 0, 0
+wb_v:                             /* ... +36 the glyph section in LABELS.BIN (xb_wbc; v0.28 g2) */
+ .long 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 
 /* sh_build: `call sh_build,[d2,d3,a2,a3],20` (pu_hook, once): the Shading row's icon (the camera's picture 16244,
  * 46 x 46, type 11) moved down SH_DY rows into sh_desc (owner, v0.25: its number sat lower than the icon; the row's
@@ -4860,57 +4877,74 @@ sh_desc:
  .short 14, 46, 46, 8, 0, 0
  .long 0, 0, 0
 
-/* wb_draw: `call wb_draw,[d2,d3,a2,a3],20`, a0 = the look's slot: the WB grid row's left cell for its A-B (+26) /
- * G-M (+27), drawn by the code block (xb_wbc, +144) into its buffer, wb_desc pointing there; again only when the
- * values change. Without the block (or a drawing) the cell stays the camera's WB± picture (ic_get). */
+/* wb_draw: `call wb_draw,[d2,d3,a2,a3],20`, a0 = the look's slot, d0 = 0 the WB grid row (A-B +26 / G-M +27 ->
+ * wb_desc) or 1 the Blacks / Whites grid row (v0.28 g2: +47 / +48 -> bw_desc, "Blk/Wht" over "+2/-1"): the left cell
+ * drawn by the code block (xb_wbc, +144) into its buffer, the descriptor pointing there; again only when the values
+ * change (descriptor +24). Without the block (or a drawing) ic_get answers the camera's WB± picture / our "Blk / Wht". */
 wb_draw:
+ mov d0,a3
+ cmp 0,d0
+ bne 1f
  movbu (26,a0),d2
- extb d2
  movbu (27,a0),d3
+ bra 2f
+1:
+ movbu (47,a0),d2
+ movbu (48,a0),d3
+2:
+ extb d2
  extb d3
+ mov wb_desc,a2
+ cmp 0,a3
+ beq 3f
+ mov bw_desc,a2
+3:
  mov d2,d0
  asl 8,d0
  or d3,d0
  exthu d0
- mov (wb_last),d1
+ mov (24,a2),d1                   /* the values it was drawn for */
  cmp d1,d0
  beq 9f
- mov d0,(wb_last)
+ mov d0,(24,a2)
  call xp,[],0
  beq 8f
  add 120,a1
  add 24,a1
  mov d2,d0
  mov d3,d1
- calls (a1)
+ mov a3,a0                        /* the mode */
+ calls (a1)                       /* -> a0 / d0 the cell */
  cmp 0,d0
  beq 8f
- mov wb_desc,a1
- mov d0,(12,a1)
+ mov d0,(12,a2)
  mov a0,d0
  mov d0,d1
  and 0xf0000000,d1
  cmp 0x60000000,d1                /* a cached address -> uncached, as the stock pictures' */
- bne 1f
+ bne 4f
  add 0x40000000,d0
-1:
- mov d0,(16,a1)
+4:
+ mov d0,(16,a2)
  bra 9f
 8:
  clr d0
- mov d0,(wb_desc + 12)
+ mov d0,(12,a2)
  mov -1,d0
- mov d0,(wb_last)                 /* try again next time */
+ mov d0,(24,a2)                   /* try again next time */
 9:
  ret [d2,d3,a2,a3],20
 .balign 4
-wb_last:
- .long -1
 wb_slot:
  .long wb_desc
-wb_desc:                          /* format 14, 100 x 76, as our cell pictures; size, payload from xb_wbc */
+bw_slot:
+ .long bw_desc
+wb_desc:                          /* format 14, 100 x 76, as our cell pictures; size, payload from xb_wbc; +24 drawn for */
  .short 14, 100, 76, 8, 0, 0
- .long 0, 0, 0
+ .long 0, 0, 0, -1
+bw_desc:                          /* v0.28 g2: the Blacks / Whites row's cell */
+ .short 14, 100, 76, 8, 0, 0
+ .long 0, 0, 0, -1
 
 /* gr_id: `call gr_id,[d2,d3],12`, d0 id -> d0: while the grid shows for look k (gr_flag = k + 1), its A-B ids
  * 1580..1592 -> ABB + k and G-M ids 1593..1605 -> GMB + k; else d0 kept. gr_oid = the id

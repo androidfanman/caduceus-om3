@@ -21,7 +21,7 @@ older files, which therefore load unchanged).
 | 1312 | 20 × 16 | names, ASCII, zero-padded (up to 15 characters) |
 
 Record (64 bytes): `+0` hue[12], `+12` light[12], `+24` saturation[12] (all −5..5, slices clockwise from Yellow),
-`+36` WB shift on (0/1), `+37` A/B, `+38` G/M, `+39` Blacks, `+40` Whites (−5..5), `+41` Contrast (−2..2),
+`+36` WB shift on (0/1), `+37` A/B, `+38` G/M, `+39` Blacks, `+40` Whites (−5..5; v0.28: −7..7, the same step), `+41` Contrast (−2..2),
 `+42` Sharpness (−2..2; 0 from v0.22, see `+52`), `+43` Shading (−5..5), `+44` Shadows, `+45` Midtones, `+46` Highlights (−7..7),
 v0.20: `+47` Glow (−5..−1) / Clarity (1..5), `+48` Art Effect (0 Off, 1 Star Light, 2 Pin Hole, 3 none, 4 White Edge,
 5 Frame: the Caduceus ids), `+49` NR (0 Camera, 1 Standard, 2 Low, 3 Off), v0.21: `+50` VigFix (0 Camera: the lens

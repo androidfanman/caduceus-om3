@@ -3366,3 +3366,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   om-emu: the row with our square and boxes; OK -> fine-tune, header "Blk/Wht 0 . 0" (also with Sunny WB), dial ->
   "0 . +1" / "+1 . +2" with the dot; MENU back; the WB row's coloured G / B / A / M grid unchanged. ext11 53264,
   ext12 214176 B. Package E1479999.BIN 33171059…, GUIDES.BIN 511b434b… (LABELS / TONES as before).
+- **g1 camera (owner, 2026-11-12, photo of the screen): "This is looking good."** The row's grid shows the black / white
+  boxes and edges as look D (camera-tested). Owner asks: (1) 7 steps each way to match the WB grid; (2) the values in
+  the left cell, as the WB row's "WB± B1.M1".
+- **g2 (owner: 7 steps as the WB grid; the values in the left cell):** Blacks / Whites -7..+7 with the same step
+  (owner: "Two more steps"): tone clamps 15 / 7 (was 11 / 5), sl_cnt 15 and LOWCNT -7 for classes 5 / 6, sl_set0
+  range, pf_lo +39 / +40 -7, build.py RANGES blacks / whites (-7, 7) (an older firmware's sd_check refuses a BUNDLES.BIN
+  with +47 / +48 beyond 5: going back needs them within 5). Left cell: bw1's xb_wbc mode 1 (two stream buffers, top
+  "Blk/Wht" from LABELS.BIN 'WBG1' pictures), bw1's mklabels / mkicons (WBC_CHARS + '+', '-', '/'; WBC_N in the block's
+  inc), wb_draw with the mode (wb_desc / bw_desc, +24 drawn-for), wb_v + 36, IC_BW 0x7f7f -> bw_desc (our static
+  "Blk / Wht" until drawn), SL_VAL class 14 -> wb_draw mode 1. om-emu: cell "Blk/Wht +3/+7"; fine-tune header
+  "+3 . +7", the dot at the grid's top edge at +7 (the screen stops at the facade's 15); the WB row unchanged.
+  LABELS.BIN 88f4c049… (= bw1's), GUIDES.BIN c3449baf…, E1479999.BIN d4941147….

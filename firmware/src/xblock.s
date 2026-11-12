@@ -2508,28 +2508,51 @@ xb_wbc:
  add -4,sp                        /* (0,sp): our calls' return address slot */
  mov d0,(xb_wtv)
  mov d1,(xb_wtv + 4)
- mov (xb_wbp),d0                  /* the stream buffer, once (malloc: uncached, as the stock pictures') */
+ mov a0,d0
+ mov d0,(xb_wmd)
+ mov xb_wbp,a2                    /* this mode's stream buffer, once (malloc: uncached, as the stock pictures') */
+ asl2 d0
+ add d0,a2
+ mov (a2),d0
  cmp 0,d0
  bne 1f
  mov WB_MAX + 112,d0
  call malloc,[],4
  cmp 0,a0
  beq 90f
- mov a0,(xb_wbp)
+ mov a0,(a2)
 1:
- mov (xb_wbp),d0                  /* the row buffer after the stream's room; the room's end for wb_wem */
- add WB_MAX,d0
+ mov (a2),d0
+ mov d0,(xb_wcur)
+ add WB_MAX,d0                    /* the row buffer after the stream's room; the room's end for wb_wem */
  mov d0,(xb_wrw)
  mov d0,(WB_V + 32)
- /* the source picture: the word at (0x60379740) + 4 x 12545 -> its descriptor {14, 82, 30, ..., size, payload} */
- mov (0x60379740),a0
- add 50180,a0
- mov (a0),a0                      /* the descriptor */
+ mov (xb_lb),a0                   /* the glyphs: LABELS.BIN after its bitmaps, 'WBG1' | u16 offset[N] | u16 top
+                                   * offset, length | u8 width[N] */
  cmp 0,a0
  beq 90f
+ add 16 + XL_N * XL_BM,a0          /* 2-aligned only: halfword reads */
  movhu (a0),d0
- cmp 14,d0
+ cmp 0x4257,d0                    /* 'WB' */
  bne 90f
+ movhu (2,a0),d0
+ cmp 0x3147,d0                    /* 'G1' */
+ bne 90f
+ mov a0,(xb_wsec)
+ mov a0,(WB_V + 36)               /* for the firmware's Blacks / Whites symbols */
+ mov (xb_wmd),d0                  /* the picture on top: 1 our "Blk/Wht" (LABELS.BIN), 0 the camera's WB± */
+ cmp 0,d0
+ beq 2f
+ movhu (4 + 2 * WBC_N,a0),d0
+ mov a0,a1
+ add d0,a1
+ bra 3f
+2:
+ mov (0x60379740),a0              /* the word at (0x60379740) + 4 x 12545 -> its descriptor {14, 82, 30, ...} */
+ add 50180,a0
+ mov (a0),a0
+ cmp 0,a0
+ beq 90f
  movhu (2,a0),d0
  cmp 82,d0
  bne 90f
@@ -2539,9 +2562,11 @@ xb_wbc:
  mov (16,a0),a1
  cmp 0,a1
  beq 90f
+3:
  movbu (3,a1),d0
  cmp 11,d0
  bne 90f
+ mov a1,(xb_wsrc)
  add 4,a1
  mov a1,(WB_V + 0)
  mov 5,d0
@@ -2555,7 +2580,12 @@ xb_wbc:
  cmp 0,d0
  beq 20f
  mov xb_wtv,a1
+ mov (xb_wmd),d0
  mov xb_wtl,a3
+ cmp 0,d0
+ beq 1f
+ add 5,a3                         /* Blacks / Whites: '+' / '-' and '/' */
+1:
  clr d2
 1:
  mov (a1),d0
@@ -2583,7 +2613,7 @@ xb_wbc:
 4:
  cmp 0,d2
  bne 20f
- mov 12,d1                        /* '.' */
+ movbu (4,a3),d1                  /* '.' / '/' */
  movbu d1,(a2)
  inc a2
  inc d3
@@ -2594,17 +2624,6 @@ xb_wbc:
 20:
  mov d3,(xb_wn)
  /* glyph row pointers, widths, places: x0 = (100 - (sum (w - 2) + 2)) / 2 */
- mov (xb_lb),a0                   /* the glyphs: LABELS.BIN after its bitmaps, 'WBG1' | u16 offset[13] | u8 width[13] */
- cmp 0,a0
- beq 90f
- add 16 + XL_N * XL_BM,a0          /* 2-aligned only: halfword reads */
- movhu (a0),d0
- cmp 0x4257,d0                    /* 'WB' */
- bne 90f
- movhu (2,a0),d0
- cmp 0x3147,d0                    /* 'G1' */
- bne 90f
- mov a0,(xb_wsec)
  mov xb_wtx,a2
  mov xb_wgp,a3
  clr d2                           /* i */
@@ -2622,7 +2641,7 @@ xb_wbc:
  mov a0,a1
  add d1,a1
  mov a1,(a3)                      /* xb_wgp[i] */
- add 4 + 2 * 13,a0
+ add 4 + 2 * WBC_N + 16,a0
  movbu (d0,a0),d0
  mov d0,(20,a3)                   /* xb_wgw[i] */
  add d0,d3
@@ -2650,7 +2669,7 @@ xb_wbc:
  bra 7b
 8:
  /* the stream header (h - 1 | w - 1 << 12 | 11 << 24) and the token packer */
- mov (xb_wbp),a0
+ mov (xb_wcur),a0
  mov 0x0b06304b,d0                /* 100 x 76: 75 | 99 << 12 | 11 << 24 */
  mov d0,(a0)
  add 4,a0
@@ -2788,9 +2807,12 @@ xb_wbc:
  mov a0,(WB_V + 16)
 31:
  mov (WB_V + 16),d0
- mov (xb_wbp),a0
+ mov (xb_wcur),a0
  mov a0,d1
  sub d1,d0
+ mov (xb_wsrc),a1                 /* and the top picture (for the fine-tune screen's title) */
+ mov (xb_wsec),a2
+ movhu (4 + 2 * WBC_N + 2,a2),d1
  add 4,sp
  movm (sp),[d2,d3,a2,a3]
  rets
@@ -2804,13 +2826,20 @@ xb_wbc:
  .balign 4
 xb_wtv:                           /* A-B, G-M */
  .long 0, 0
-xb_wtl:                           /* the glyphs A, B (A-B) and G, M (G-M) */
- .byte 8, 9, 10, 11
-xb_wtx:                            /* the text's glyph indices */
+xb_wtl:                           /* WB: A, B, G, M, '.'; Blacks / Whites: '+', '-', '+', '-', '/' */
+ .byte 8, 9, 10, 11, 12, 13, 14, 13, 14, 15
+ .balign 4
+xb_wtx:                           /* the text's glyph indices */
  .byte 0, 0, 0, 0, 0, 0, 0, 0
 xb_wn:
  .long 0
-xb_wbp:                           /* the stream buffer (malloc) */
+xb_wbp:                           /* the stream buffers (malloc), WB and Blacks / Whites */
+ .long 0, 0
+xb_wcur:
+ .long 0
+xb_wmd:
+ .long 0
+xb_wsrc:
  .long 0
 xb_wsec:                          /* the glyphs in LABELS.BIN */
  .long 0
