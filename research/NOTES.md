@@ -2952,3 +2952,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   passes, 0 bad, no gap changed; the nine diagrams byte-identical to v0.27.1. Package (VERSION "v0.28-dev (space 1 +
   GX4 probe)"): E1479999.BIN 6b7ac10f…, GUIDES.BIN 85bb63d0…; LABELS / TONES = v0.27.1. Camera test next: normal use
   incl. bursts, RAW+JPEG, video, Button Function rows, and special modes (Live ND, High Res, ProCapture, bracketing).
+- **GX4 camera result (owner's OM-3, 2026-11-12; camera-tested):** `GAPTEST.BIN` 'GXR4' after the last power-on run:
+  **62 passes, 0 bad pattern words of 169336, the 8 gap sums never changed** (baselines 0x1b100524 0x9be9ff00
+  0x86c31db3 0x04fb821d 0xe355dc76 0xdabfc116 0x3c68c80c 0x6bbc9758: none all-FF, so the gaps stay unloaded).
+  That run: four 4K 30p movies (PB122166 24 s, PB122167 2.5 s, PB122168 4 s, PB122169 3.5 s) and 2 JPEGs
+  (PB122170 / 171); the evening before, one RAW+JPEG (PB112165, an earlier power-on, whose passes the file no longer
+  shows). CADLOG: build "v0.28-dev (space 1 + GX4 probe)", all card files match. No burst in this run (GX3's gap watch
+  already covered this area during bursts). So 0x60f99800..0x6103f000 loads and stays intact through 4K video;
+  a burst + Button Function session would complete the picture.
+- Side finding (owner, 2026-11-12): the films' colour seems to carry into movies (docs say photos only). Sharpness:
+  PB122168 vs PB122169 (same scene, 13 s apart) measure the same (Laplacian variance 169/168 = 0.90..0.98, aligned
+  frames, corr 0.96); no Caduceus edit was saved between them (CADLOG #59..62 "edits waiting no"; the only edit save,
+  #58, came at PB122167's start). Which setting the owner changed is still to be asked. Analysis, to test: the
+  camera's own Color Profile values (per-colour hue / saturation / luminance) may be what movies use, while our own
+  photo-path effects (Sharp row, grain, glow) are not (#6).
