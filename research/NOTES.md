@@ -3386,3 +3386,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   picture "Blk/Wht" in WBG1 (LABELS.BIN); firmware and GUIDES differ from g2 in 12 / 17 bytes (the version string). om-emu: the cell
   shows the icon alone at 0 / 0 and the icon over "+2/+3" when set, the WB row unchanged. LABELS.BIN eac8eb47…,
   GUIDES.BIN 98640306…, E1479999.BIN d931c334….
+- **g4 (2026-11-12, emulator only): at 0 / 0 the icon alone, bigger and centred** (owner, after g3: "when the b/w grid
+  and the wb grid are at zero, the icon should be centered and bigger", for both rows). `mkicons.plate_icon(text, k)`
+  is g3's plate made scalable (k = 1 gives bw_top's plate exactly, checked); `zero_cell()` puts it at k = 1.4 (92 x 42)
+  in the middle of the 100 x 76 cell, for "WB" and "B/W" (the WB one is our drawing too, in the style of the camera's
+  WB± picture, which the cell keeps over its values). build.py: zc_tab / zc_p0..1 in bwg.inc (ext12); wb_draw points
+  the descriptor there when both values are 0 (no xb_wbc call). om-emu: both rows big at 0 / 0, "B/W" small over
+  "+2/+3" when set, big again back at 0 / 0. LABELS.BIN unchanged from g3 (eac8eb47…).

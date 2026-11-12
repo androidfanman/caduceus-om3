@@ -214,6 +214,11 @@ def build(defaults, testfile, out):
         bw += [f'bwg_d{i}:', f' .short 14, {w}, {h}, 8, 0, 0', f' .long {len(st)}, bwg_p{i} + 0x40000000, 0']
     for i, st in enumerate(streams):
         bw += [' .balign 4', f'bwg_p{i}:', db(st).rstrip('\n')]
+    # g4: the WB (0) and Blacks / Whites (1) rows' left cell at 0 / 0, the icon alone, bigger (editor.s wb_draw)
+    zc = [mkicons.encode11(bytes(mkicons.zero_cell(t).flatten().tolist()), mkicons.CW, mkicons.CH) for t in ('WB', 'B/W')]
+    bw += [' .balign 4', 'zc_tab:'] + [f' .long {len(st)}, zc_p{i} + 0x40000000' for i, st in enumerate(zc)]
+    for i, st in enumerate(zc):
+        bw += [' .balign 4', f'zc_p{i}:', db(st).rstrip('\n')]
     (out / 'bwg.inc').write_text('\n'.join(bw) + '\n')
     (out / 'films.inc').write_text('.balign 4\nfl_top:\n' + db(mkicons.pack4(mkicons.film_top())) + 'fl_tops:\n' +
                                    db(mkicons.pack4(mkicons.film_top(True))) + 'fl_dig:\n' +

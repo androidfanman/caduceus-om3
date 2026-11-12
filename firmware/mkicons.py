@@ -472,34 +472,55 @@ def wbc_text(ab, gm, bw=False):
     return f(ab, 'A', 'B') + ('/' if bw else '.') + f(gm, 'G', 'M')
 
 
-def bw_top():
-    """the Blacks / Whites row's cell top (owner, g3: an icon like the WB row's WB± picture, which is the camera's; this
-    one is drawn here from scratch in its style): 82 x 30, a white plate (66 px, 2 px dark edge, rounded corners) with
-    "B/W" in dark letters and a square split on its diagonal, dark with a white '+' and white with a dark '-'."""
-    w, h = 82, 30
-    px = np.zeros((h, w), dtype=np.uint8)
-    x0, x1 = 8, 74
-    px[0:h, x0:x1] = 7
-    px[2:h - 2, x0 + 2:x1 - 2] = 10
-    for y, x in ((0, x0), (0, x1 - 1), (h - 1, x0), (h - 1, x1 - 1), (0, x0 + 1), (0, x1 - 2), (h - 1, x0 + 1),
-                 (h - 1, x1 - 2), (1, x0), (1, x1 - 1), (h - 2, x0), (h - 2, x1 - 1)):
-        px[y, x] = 0
-    cov, b = word('B/W', 17, 34, 1.0)
-    y0, xs = int(round(23 - b)), 12 + (34 - cov.shape[1]) // 2
+def plate_icon(text, k=1.0):
+    """our plate icon (owner, g3: like the WB row's WB± picture, which is the camera's; this one is drawn here from
+    scratch in its style) at k times its size: a white plate (66 x 30 at k = 1, a 2 px dark edge, rounded corners) with
+    `text` in dark letters and a square split on its diagonal, dark with a white '+' and white with a dark '-'."""
+    r = lambda v: int(round(v * k))
+    w, h, e = r(66), r(30), r(2)
+    px = np.full((h, w), 7, dtype=np.uint8)
+    px[e:h - e, e:w - e] = 10
+    for y in range(e):
+        for x in range(e - y):
+            for yy, xx in ((y, x), (y, w - 1 - x), (h - 1 - y, x), (h - 1 - y, w - 1 - x)):
+                px[yy, xx] = 0
+    cov, b = word(text, r(17), r(34), 1.0)
+    y0, xs = int(round(r(23) - b)), r(4) + (r(34) - cov.shape[1]) // 2
     for y in range(cov.shape[0]):
         for x in range(cov.shape[1]):
             c, yy, xx = cov[y, x], y0 + y, xs + x
             if 0 <= yy < h and 0 <= xx < w and px[yy, xx] == 10:
                 px[yy, xx] = 7 if c >= 0.6 else 12 if c >= 0.35 else 11 if c >= 0.15 else 10
-    sx, sy, n = 48, 4, 22
+    sx, sy, n, t, a = r(40), r(4), r(22), r(2), r(4)
     for y in range(n):
         for x in range(n - 1 - y):
             px[sy + y, sx + x] = 7
-    cx, cy = sx + 7, sy + 7
-    px[cy - 1:cy + 1, cx - 4:cx + 5] = 10
-    px[cy - 4:cy + 5, cx - 1:cx + 1] = 10
-    px[sy + 15:sy + 17, sx + 11:sx + 19] = 7
+    cx, cy = sx + r(7), sy + r(7)
+    px[cy - 1:cy - 1 + t, cx - a:cx + a + 1] = 10
+    px[cy - a:cy + a + 1, cx - 1:cx - 1 + t] = 10
+    px[sy + r(15):sy + r(15) + t, sx + r(11):sx + r(19)] = 7
     return px
+
+
+def bw_top():
+    """the Blacks / Whites row's cell top over its values (g3): the plate "B/W", 82 x 30 as the camera's WB±"""
+    px = np.zeros((30, 82), dtype=np.uint8)
+    px[:, 8:74] = plate_icon('B/W')
+    return px
+
+
+ZC_K = 1.4                                       # owner, g4: at 0 / 0 the icon bigger and centred
+
+
+def zero_cell(text):
+    """the WB ('WB') and Blacks / Whites ('B/W') rows' left cell at 0 / 0 (owner, g4: no values -> the icon alone,
+    bigger, centred in the cell): 100 x 76, our plate at ZC_K (92 x 42). editor.s wb_draw points the cell there."""
+    cell = np.zeros((CH, CW), dtype=np.uint8)
+    p = plate_icon(text, ZC_K)
+    y, x = (CH - p.shape[0]) // 2, (CW - p.shape[1]) // 2
+    cell[y:y + p.shape[0], x:x + p.shape[1]] = p
+    return cell
+
 
 def bw_syms():
     """the Blacks / Whites grid's own symbols in place of the camera's letters: the boxes' '+' / '\u2212' (32 x 32, as

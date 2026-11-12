@@ -4880,7 +4880,8 @@ sh_desc:
 /* wb_draw: `call wb_draw,[d2,d3,a2,a3],20`, a0 = the look's slot, d0 = 0 the WB grid row (A-B +26 / G-M +27 ->
  * wb_desc) or 1 the Blacks / Whites grid row (v0.28 g2: +47 / +48 -> bw_desc, "Blk/Wht" over "+2/-1"): the left cell
  * drawn by the code block (xb_wbc, +144) into its buffer, the descriptor pointing there; again only when the values
- * change (descriptor +24). Without the block (or a drawing) ic_get answers the camera's WB± picture / our "Blk / Wht". */
+ * change (descriptor +24). Without the block (or a drawing) ic_get answers the camera's WB± picture / our "Blk / Wht".
+ * g4 (owner): at 0 / 0 no drawing: the descriptor points to our bigger, centred icon alone (zc_tab: 0 "WB", 1 "B/W"). */
 wb_draw:
  mov d0,a3
  cmp 0,d0
@@ -4907,6 +4908,18 @@ wb_draw:
  cmp d1,d0
  beq 9f
  mov d0,(24,a2)
+ cmp 0,d0                         /* g4 (owner): at 0 / 0 the icon alone, bigger and centred (zc_tab, build.py) */
+ bne 5f
+ mov a3,d0
+ asl 3,d0
+ mov zc_tab,a0
+ add d0,a0
+ mov (a0),d0
+ mov d0,(12,a2)
+ mov (4,a0),d0
+ mov d0,(16,a2)
+ bra 9f
+5:
  call xp,[],0
  beq 8f
  add 120,a1
