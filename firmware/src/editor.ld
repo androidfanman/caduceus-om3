@@ -50,6 +50,7 @@ SECTIONS {
   .ext9         0x619a9670 : { *(.ext9) }
   .ext11        0x60f49800 : { *(.ext11) }
   .ext12        0x60f59800 : { *(.ext12) }
+  .gx           0x60f99800 : { *(.gx) }
 }
 color_builder = 0x60518381;
 pm_back       = 0x611bd90f;
