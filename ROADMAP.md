@@ -17,14 +17,16 @@ last two pieces: with them the colour profiles are complete.
 
 | Feature | What it means | Status |
 |---|---|---|
-| **Halation** | The red glow around bright lights of cinema film (CineStill and others), as a film setting. Caduceus for the E-P7 has it; the OM-3 version would ride on the Glow row's route. | Next |
+| **Halation** | The red glow around bright lights of cinema film (CineStill and others): its own Picture Mode row (0–5), with or without Glow. Method after Caduceus for the E-P7. Camera test builds 2026-11-12 (soft fade, works with grain and bursts); the Control Panel slider is still to do. | Building (v0.28) |
 | **Quick film switching and film order** ([#30](https://github.com/androidfanman/caduceus-om3/issues/30), [#32](https://github.com/androidfanman/caduceus-om3/issues/32)) | One button to get straight to COLOR 1–4 / FILM 1–20 (and MONO / ART) and pick with the front dial, as on the E-P7: a button function that opens the Picture Mode list directly, then, if possible, a toggle (button or Fn lever) that turns the front dial into a profile dial. Owner: a must. Also: the films in your own order on the camera ([#32](https://github.com/androidfanman/caduceus-om3/issues/32), low priority). The Creative Dial part ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)) shipped in v0.27. | Tabled (owner, 2026-11-11) |
 | **Gentler Shading** ([#22](https://github.com/androidfanman/caduceus-om3/issues/22)) | Shading is much too strong in both directions. Make the camera's own Shading steps weaker so that −5 / +5 look like today's −2 / +2 (owner, 2026-11-10), with finer steps in between; match the Control Panel preview (also asked for in #22: make the camera's vignette look like the Control Panel's). Likely a small change to the camera's Shading strength data (needs research, then a flash and a before / after camera test). | Planned |
-| **Custom crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9 (as in Caduceus for the E-P7), and your own. | Planned |
+| **Custom crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9 (as in Caduceus for the E-P7), and your own. | Planned for v0.28 |
+| **Our version in the camera's menu** | The firmware screen shows OM's version and, below it, the Caduceus version. | Planned for v0.28 |
 | **Colour chart with changeable light** (Control Panel) | A drawn colour chart to judge a film in sun at different times of day, shade, lamp light and at different camera WB / Kelvin. Built and tried on 2026-11-09, then taken out: it needs a clearer design first. Notes and the kept code: [docs/CHART_LIGHTBOX.md](docs/CHART_LIGHTBOX.md). | Parked |
-| **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size, still at no extra time. | Investigating |
-| **Split toning: midtones and finer steps** | A third wheel (or setting) for the midtones ([#23](https://github.com/androidfanman/caduceus-om3/issues/23)), and finer steps than today's 1 for subtle split tones (film-sim tuning, 2026-11-09). | Requested |
-| **Cleaner JPEGs** | Less JPEG compression blocking at high ISO ([#17](https://github.com/androidfanman/caduceus-om3/issues/17)): look for a higher-quality JPEG setting than the camera's finest. | Requested |
+| **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size, still at no extra time. On hold: the owner first compares today's grain with Lightroom / DxO (2026-11-12). | On hold |
+| **Split toning: finer steps and balance** | Finer steps than today's 1 for subtle split tones, and a balance slider (where shadows end and highlights begin). A midtones wheel ([#23](https://github.com/androidfanman/caduceus-om3/issues/23)) is not planned (owner, 2026-11-12: not a photo-editing norm). | Planned |
+| **Film settings when you pick a film** | A film can set the camera's WB mode / Kelvin, exposure compensation and ISO, like loading a roll (optional per film). | Planned |
+| **Cleaner JPEGs** | Less JPEG compression blocking at high ISO ([#17](https://github.com/androidfanman/caduceus-om3/issues/17)). Out of scope: Caduceus leaves the camera's JPEG compression as it is (owner, 2026-11-12). | Not planned |
 
 ## Bugs being looked at
 

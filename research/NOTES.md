@@ -2930,3 +2930,211 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   hue 5.1 -> 3.6, luminance 3.4 -> 2.5, WB 3.0 -> 2.2; film shoots left out one at a time 4.4 -> 3.8 (shoot-to-shoot
   floor 2.3). The 62 looks' previews move by ΔE 1.7 on average (max 3.7); the 42 graded looks now preview within
   ΔE 1.8 of how their recipes previewed before grading.
+
+## v0.28 code space: the button-picture buffers, space 1 and the GX4 probe (2026-11-11; emulator only)
+- Space left in v0.27.1 (measured from the build): ext11 96 B of 64 KiB; ext12 14896 B of 256 KiB; the `GUIDES.BIN`
+  block ~3.2 KB under the 16448 B malloc cap; ext1..ext10 a few hundred B. `.ext12` held two big reservations:
+  `dg_b0` (2 x 64 KiB body-diagram output buffers) and `ar_pay` (80 KiB for the button pictures).
+- The diagram buffers can't move to the heap: the composed pictures are 38556..59892 B (om-emu, `dg_build` k = 0..8:
+  39468, 39340, 38876, 38556, 51172, 59292, 59236, 59892, 59540), and the firmware malloc (0x60024068) hands out at
+  most 16448 B per block from a small pool (NOTES "gl1b"). They stay as they are; one buffer instead of two would save
+  64 KiB but risks the menu redrawing a picture that was overwritten (not tried).
+- **space 1** (`feature/v0.28-space`): `ar_pay` held 19061 B in 81920 B; now `.space 20480` (build.py's assert
+  `at + len <= ar_pend` keeps it safe). ext12 free 14896 -> 76336 B. The 12 button pictures are byte-identical to
+  v0.27.1 (descriptors and streams); om-emu composes all nine body diagrams byte-identical; Picture Mode screenshot
+  identical. VERSION "v0.28-dev (space 1)".
+- Section map (research/tools/sections.py): section 6's FF gap runs from its data end to section 7's start at
+  0x6103f000 (1006208 B); GX2 + GX3 proved 0x60f49800..0x60f99800. The rest, 0x60f99800..0x6103f000 (677888 B), was
+  never written during the GX3 camera test (gap sums unchanged), so it is the next candidate.
+- **GX4 probe** (`experiment/firmware-space-probe-gx4`, on space 1): section 6's loaded end -> 0x6103f000; `.gx` at
+  0x60f99800 ('GXT4', the GX3 probe, 169336 pattern words); `gx_go` (ext12) called from `lg_pr` at every half-press;
+  gap list: section 1's tail replaces section 6's (now loaded); `GAPTEST.BIN` 'GXR4'. om-emu: 10 half-presses -> 19
+  passes, 0 bad, no gap changed; the nine diagrams byte-identical to v0.27.1. Package (VERSION "v0.28-dev (space 1 +
+  GX4 probe)"): E1479999.BIN 6b7ac10f…, GUIDES.BIN 85bb63d0…; LABELS / TONES = v0.27.1. Camera test next: normal use
+  incl. bursts, RAW+JPEG, video, Button Function rows, and special modes (Live ND, High Res, ProCapture, bracketing).
+- **GX4 camera result (owner's OM-3, 2026-11-12; camera-tested):** `GAPTEST.BIN` 'GXR4' after the last power-on run:
+  **62 passes, 0 bad pattern words of 169336, the 8 gap sums never changed** (baselines 0x1b100524 0x9be9ff00
+  0x86c31db3 0x04fb821d 0xe355dc76 0xdabfc116 0x3c68c80c 0x6bbc9758: none all-FF, so the gaps stay unloaded).
+  That run: four 4K 30p movies (PB122166 24 s, PB122167 2.5 s, PB122168 4 s, PB122169 3.5 s) and 2 JPEGs
+  (PB122170 / 171); the evening before, one RAW+JPEG (PB112165, an earlier power-on, whose passes the file no longer
+  shows). CADLOG: build "v0.28-dev (space 1 + GX4 probe)", all card files match. No burst in this run (GX3's gap watch
+  already covered this area during bursts). So 0x60f99800..0x6103f000 loads and stays intact through 4K video;
+  a burst + Button Function session would complete the picture.
+- Side finding (owner, 2026-11-12): the films' colour seems to carry into movies (docs say photos only). Sharpness:
+  PB122168 vs PB122169 (same scene, 13 s apart) measure the same (Laplacian variance 169/168 = 0.90..0.98, aligned
+  frames, corr 0.96); no Caduceus edit was saved between them (CADLOG #59..62 "edits waiting no"; the only edit save,
+  #58, came at PB122167's start). Which setting the owner changed is still to be asked. Analysis, to test: the
+  camera's own Color Profile values (per-colour hue / saturation / luminance) may be what movies use, while our own
+  photo-path effects (Sharp row, grain, glow) are not (#6).
+- **GX4 burst run (2026-11-12; camera-tested):** 'GXR4' **35 passes, 0 bad of 169336, no gap changed** (new
+  baselines after the power cycle: unloaded RAM keeps whatever is left there, as GX1 / GX2 saw). The run: 34 RAW+JPEG
+  frames PB122172..205 in 7 sequential bursts of 3..8 (mechanical, some with anti-shock) on FILM 9 Velvia 50; the
+  photo codes say grain 0 and Glow / Clarity 0 in every frame. With the first run: the 662 KiB loads and stays intact
+  through 4K video, photos and RAW+JPEG bursts. Not covered: bursts with grain + Glow (the #28 load).
+- **GX4 grain + Glow burst run (2026-11-12; camera-tested):** 'GXR4' **29 passes, 0 bad of 169336, no gap changed.**
+  19 RAW+JPEG frames PB122206..224 (a single, a burst of 11, a burst of 7 with anti-shock) on FILM 9 at ISO 1600:
+  BUNDLES.BIN slot COLOR 2 = grain High, Glow 5 (Clarity 5 before the run's one edit, event #2); the frames show
+  the grain (high-pass texture in flat areas 11.9 vs 5.1 for PB122180 at ISO 2000). No freeze. **GX4 is complete:
+  0x60f99800..0x6103f000 is proven space** (4K video, photos, RAW+JPEG bursts, grain + Glow bursts). A build that uses
+  it must raise the loader's end word 0x60045e9c to the end it uses, at most 0x6103f000.
+- Found on the way (camera, analysis of the code): the photo code (`ex_cd1`) encodes the film's record from the heap
+  copy of LOOKS.BIN (LPTR), i.e. the film as built, not the changes made on the camera (here grain High + Glow 5 live
+  in BUNDLES / the COLOR slot; every frame's code says grain 0, glow 0). docs/PHOTO_CODE.md says "the LOOKS.BIN record",
+  so it is as specified, but users will expect their on-camera changes in it. Candidate fix: encode the live values.
+
+## Halation for the OM-3: design and probe h0 (2026-11-12; analysis + emulator only)
+- Source read (read only, nothing copied): cakelesscoder/caduceus-ep7 at 54c8e54, docs/HALATION_RED.md §14–22,
+  patches/halation/hl.s.in. Their method (camera-tested on the E-P7, h1/h2): a CPU pass over the finished photo after
+  the Soft Focus blend. A: Y of every 2nd pixel / 2nd row, threshold excess summed into 64 x 64 px cells (u8, one
+  malloc <= 16 KB); B: [1 2 1] blur twice per axis; map u = min(255, 21v/8), g = u(511 - u)/256 x gmax/256 (gmax by
+  strength); C: per pixel pair with w = 255 - Y: Y += w g dY / 2^16, C += w0 g dC / 2^16 (clamped), so light cores
+  stay white. Coverage cap: skip when >= 1/3 of the cells glow. Lessons: their 10 s watchdog restarted the camera when
+  CPU grain + halation ran long (their fix: timeout 30 s); h3's speed-ups (drop g < 8, reuse Y0's delta) made the halo
+  blocky and lost thin LEDs, so keep every non-zero g and the per-pixel darkness weight; an unexplained crash on
+  bright daylight frames led to a 30 % cap.
+- OM-3 route (analysis): our Glow / Clarity row already runs the Soft Focus passes (job flag 0x80); `xb_gs` wraps the
+  blend setup SF_ENT, after which buffer 0x1000 (format 0x0c02, YCbYCr 4:2:2, Y in even bytes) is complete and CPU
+  writes reach the JPEG (camera probe g2, v0.21). Fast grain stays the image processor's texture (Glow + Grain fast,
+  camera rc2c), so halation adds only its own CPU time (E-P7: ~0.2–0.3 s without lights, ~1–3 s for night scenes) and
+  stays far from the 10 s watchdog without CPU grain. Plan: the heavy pass in ext12 (cached, 76 KB free), called from
+  the block; rows through the window under the lock as xb_grain.
+- Open: the chroma byte order and sign on the OM-3 (our grain wrote Y only); the control (own row, or a colour on the
+  Glow row: owner); whether halation without Glow should force the Soft Focus passes at a neutral weight.
+- **Probe h0** (`experiment/halation-h0`, on space 1): `xb_gs` calls SF_ENT on every still of our looks (as the CPU
+  grain path did), then `xb_h0`: rows 0..255, left half byte 1 of each pair = 168, right half byte 3 = 168. om-emu,
+  direct call on a 64 x 300 DRAM test buffer: exactly the expected 8128 bytes changed, rows 256.. and padding
+  untouched, stack restored; the window path can't be emulated (om-emu out of memory at 0xce9d4b80). Package
+  E1479999.BIN e8a49eec…, GUIDES.BIN 571b98a2… (13436 B); LABELS / TONES = v0.27.1. Camera: Glow on, a grey wall.
+- **h0 camera result (owner's OM-3, 2026-11-12; camera-tested):** PB122226 (FILM 1, Glow 1, ISO 640) and PB122227
+  (Glow 1 + Grain High, ISO 800), RAW+JPEG, a plain scene. Both show the bands on rows 0..255 exactly. Measured in the
+  JPEGs (PIL YCbCr, offsets from 128): left band (byte 1 = 168) **Cb +39.9 / +39.0, Cr unchanged**; right band (byte 3 =
+  168) **Cr +39.7 / +39.7, Cb unchanged**; below the band Cb, Cr within ±2.2. So **byte 1 = Cb, byte 3 = Cr,
+  offset-binary (128 = neutral)**, as on the E-P7. The grain photo saved normally with the bands (fast grain + the Soft
+  Focus route + a CPU pass: fine). The grain is almost all in Y (Cb / Cr high-pass below the band 0.40 / 0.35 with
+  Grain High vs 0.57 / 0.54 without), so the chroma noise can't tell whether the texture comes before or after xb_gs;
+  the higher Cb noise inside the left band is RGB clipping of bright, blue-shifted grain in the decode, not grain
+  order. Halation adds to Y and C (not a replacement), so grain shows under the halo either way.
+
+### Halation h1 (2026-11-12; emulator only; branch experiment/halation-h1)
+- Look tuned on a synthetic night scene with the exact model (research/halation/model.py): the first tuning gave no
+  halo on small lights (bulbs, a 4 px LED strip) and a flat band with a hard edge around a big window (u = min(255,
+  v >> S) saturated and a 2-pass blur reached only 2 cells). Fix: u = 255 v / (v + K) by two 256-byte tables (no
+  division on the camera), K 600, 3 [1 2 1] passes each way; tint red-orange KY 44 / KCb -40 / KCr 60; gmax 40, 72,
+  104, 144, 192 for strength 1..5; T 200; cap: g >= 16 on more than a third of the cells. All in firmware/halation.py
+  (build.py writes hl_tab.inc; the model imports the same file).
+- Firmware: `hl_run` (+ `hl_b1`, `hl_open` = xb_open's code) in ext12 (1.3 KB code + 532 B tables; ext12 74368 B
+  free); one malloc (grid + blur temp + line, <= 16 KB) per call. The block's xb_gs: on our looks with Glow -1..-5, the
+  Soft Focus setup, then `call HL_RUN` (defsym from build.py), then CPU grain if any (none with the texture). XB_H0 off.
+  editor.ld gains LOCK / UNLOCK / WINMAP / FLUSH. GUIDES.BIN 13320 B.
+- om-emu, direct call on DRAM test frames (FLUSH 0x60070e69 stubbed with `ret [d2,d3],16`: in om-emu it polls a cache
+  register forever; camera-proven through xb_grain): **7/7 bit-exact with the model** - night 1024 x 768 with 16 px
+  padding (strength 3), strength 1, strength 5, daylight (capped: untouched), dark (no glow: untouched), 128 x 128,
+  1000 x 700 with 24 px padding; every call returned with the stack restored. Steps: 1.3-1.5 M for a 0.79 MP frame
+  without glow (pass A + blur + map), 10.7-13.5 M for the night frames (about half the rows glow). Scaled to 20 MP
+  (x 25.6): about 35 M without lights (~0.3-0.6 s at the E-P7's measured rate) and up to ~350 M for dense night scenes
+  (~3-5 s), under the 10 s watchdog with fast grain (no CPU grain). Analysis; the camera will tell.
+- The test harness (scratch, not in the repo) adds `poke:` and `runa:ADDR:A0:D0:N` to sess7; note for zsh: write
+  `${VAR}:a5...` (a bare `$VAR:a` is zsh's absolute-path modifier and jumped the emulator to address 0).
+- **h1 camera, first run (owner's OM-3, 2026-11-12; camera-tested):** CADLOG "v0.28-dev (halation h1)", 97 shutter
+  events, card files OK; 23 RAW+JPEG stills PB122229..251 at ISO 200-1250, FILM 1 Portra 400 on COLOR 1 (BUNDLES at
+  the end: Glow 5, Grain High), incl. bursts of 5 (anti-shock) and 11: **all saved, no freeze or restart.** Scenes: a
+  dim room with a warm table lamp (most frames), a floor lamp on a bright wall, two daylight frames. File times are
+  the capture times (no save-time measurement from the card).
+  - Ring 500..900 px around the lamp (Y 90..235): Cr +7.7 (229) -> 8.5 -> 11.7 -> 12.4 -> 13.3 (236), Cb -17.6 ->
+    -21.7: the tint direction of hl_run and growing over the series (settings per frame not known yet). Modest, and the
+    lamp is tungsten-warm itself, so halo vs lamp light can't be separated without a reference.
+  - With Grain High (236): Cr high-pass noise in the ring 1.78 vs 0.92 far from the lamp; orange / white speckle in
+    the glow and the lampshade's thin dark rim turned orange (visible at 100 %). Cause (analysis): the fast grain's
+    texture is in the development, before xb_gs, so the per-pixel weight 255 - Y0 modulates the chroma add with the
+    grain. Fix for h2: take the chroma weight from a smoothed brightness (e.g. a running mean of Y over ~8 pairs) so
+    grain and thin lines don't modulate the tint; keep the per-pixel weight for Y (cores stay white).
+  - Next test needs a reference: the same scene with white / LED light, Glow 5 vs Clarity 1 (Soft Focus route without
+    halation), with and without grain.
+
+### Halation h2 (2026-11-12; emulator only; branch experiment/halation-h2)
+- Owner: PB122229 / 230 / 231 = Glow 1 / 3 / 5 (ring Cr +7.7 / +8.5 / +11.7); saves "reasonably quick" with h1.
+- Model on the owner's photos: the lamp scene is not capped (6 % of the cells g >= 16 at Glow 5), but the lamp-lit wall
+  is bright, so the per-pixel weight 255 - Y keeps the tint small; the outdoor PB122235 was not capped either (31-33 %
+  at Glow 3-5, under the third) and the dark eave next to the sky turned red-brown.
+- h2 (model first, then the firmware, bit-exact): chroma weight w = min(255, 2 (255 - B)) with B the cell's mean Y0
+  (from Y0 >> 2 sums, B = 4 Q // samples via a shift-subtract `hl_div`), lerped like g; chroma add (c kC) >> 8 with
+  c = (g w) >> 8; Y unchanged (per pixel, cores stay white). Bright frames: n = cells with u >= 32; full strength up
+  to 8 % of the cells, none from 24 %, sc = ((n_hi - n) 256) // (n_hi - n_lo) between. Speckle test (the owner's Glow
+  1 lamp photo + synthetic grain sd 20, Glow 5): Cr high-pass on the wall h1 3.64 (tint +8) -> h2 2.69 (tint +16); a
+  per-pixel clip guard on top gave 3.18 (it reintroduced grain modulation near Y 240) and a smoothed one 2.72, so none.
+  What speckle is left is bright grains clipping in R once tinted. Lamp core Cr +8.0 vs +5.4 without halation.
+- Firmware: two mallocs (E + tmp + two lines; Q / w), `hl_seg` (one loop for the 16 head pairs, the spans and the
+  tail, g and w accumulators d2 / d3 and a2 / a3), `hl_vl` (row lerp; its frame must be 24: (4,sp) is a local - caught
+  before testing), `hl_div`. hl_run frame 120 (xb_gs updated). ext12 still ~74 KB free; GUIDES.BIN 13320 B.
+- om-emu (FLUSH stubbed): **8/8 bit-exact** - night 1536 x 1152 (Glow 5, 16 px padding), Glow 1, night + grain
+  (Glow 4), a fade-zone frame (10.8 % bright, Glow 3), daylight (off), dark (none), 1000 x 700 with 24 px padding,
+  320 x 256. Steps 2.0-2.7 M for 0.8-1.8 MP frames without glow, 23 M for the 1.8 MP Glow 5 night frame: scaled to
+  20 MP about 57 M without lights (~0.6-0.9 s) and ~260 M for dense night scenes (~3-4 s). Analysis.
+- **h2 camera (owner's OM-3, 2026-11-12; camera-tested):** CADLOG "v0.28-dev (halation h2)", 105 events, card files OK;
+  13 JPEG+RAW singles PB122255..267, FILM 1 on COLOR 1 (BUNDLES at the end: Glow 5, Grain 0): the table lamp (255-259),
+  a white floor lamp (260-266), daylight (267). No freeze. Visual: a smooth red-orange glow growing over each series,
+  a clear CineStill-like rim around the white shade (264-266), no cell blocks, no halo in daylight.
+  - White lamp, ring 250..600 px (Y 60..240): Cr 0.7 (260) / 4.0 / 3.9 / 10.2 / 18.7 (265) / 14.6 (266, grainy),
+    Cb down to -12; Cr high-pass "speckle" 0.6-0.73 throughout (266 with grain: 0.60); clipped cores (Y >= 250)
+    neutral: Cr -0.2..-0.8. The shade in 266 is not clipped (Glow + grain) and takes a faint pink.
+  - Table lamp, ring 300..700 px: Cr 10.0 / 12.8 / 18.5 / 23.6 / 24.5 (259, grain), speckle 1.02-1.35; h1's PB122236
+    (grain High) had Cr 15.0 with speckle 2.26: h2 about 60 % stronger with about 40 % less speckle.
+- **Owner decisions (2026-11-12):** halation gets **its own Picture Mode row** (not a choice on the Glow row), so it can
+  be used with or without Glow. The faint pink on a bright, not clipped surface next to the light (the shade in
+  PB122266) stays: it is what real halation does (the bounced light exposes mostly the red layer; clipped cores stay
+  white, bright unclipped surfaces warm up a little).
+
+## v0.28 Halation row h3 (2026-11-12; emulator only; branch feature/v0.28-halation)
+- Owner: halation gets its own Picture Mode row, 0..5, with or without Glow.
+- Storage: BUNDLES slot **+30** (the shared layout's `vignette`, range -5..5 in every OM-3 firmware, unused on the OM-3:
+  going back to v0.27.1 keeps BUNDLES valid); LOOKS / EDITS record **+57** (pf_lo -5: accepted -5..5 with no code
+  change; firmware before v0.28 rejects a LOOKS.BIN with +57 != 0, so the Control Panel gates it by firmware).
+  pf_bt + (57 -> slot 30), both loops to pf_bt+32 (film -> slot, slot -> EDITS record); fl_xr row 13 (HLB) = (57, 30),
+  rows up to 13 with 12 (WGB) skipped. fl_live / fl_fch (the film list's FILM*) still compare only up to Sharp, as for
+  split toning (not changed: old EDITS records could mark films changed).
+- Row: HL_IT 5380 (key 5374), bars HLB 0x7ed0 + k, class 12 (value slot +30, count 6, lowest 0: 0..5), title
+  ST_HAL "Halation", left icon IC_HL = IC_F0 ("Halo", mkicons PICTURES[12], Frame Off's old place; ic_list 10
+  entries, the layout records' choice count 9 -> 10), it_tab 26 entries, the slider cases as Glow's (bar as
+  Blacks / Whites, readout glyphs, rv_chk, stp). pm_list: ... Glow / Clarity, Halation, Film Grain.
+- ext11 was full (96 B): ic_pay (the row pictures, now 16384 B) moved to ext12 -> ext11 51088 of 65536 B.
+- Photo path (block): xb_cap: Halation > 0 with Glow 0 -> the Soft Focus passes (flag 0x80); xb_wt: our looks with
+  Glow 0 -> w 1024 (the sharp image unchanged; was: only with Grain); xb_gs: the level from slot +30 (1..5).
+- om-emu: the row shows ("Halo ±0" in the column; "Halation" title, slider, readout); dial steps 0..5 (below 0
+  refused), "+1" shown and BUNDLES slot +30 = 1 saved at the half-press; a LOOKS.BIN with record 0 +57 = 3 is
+  accepted (LPTR set, COLOR 1 = look 1) and the row shows '*' (slot 0 vs film 3). Not reachable in om-emu: the film
+  -> slot copy through fl_set (setv 901 runs om-emu out of memory), the capture path (camera test). Static: pf_bt,
+  pf_lo, fl_xr and the loop ends checked in the image. Cosmetic: the bar is the -5..+5 one (0 in the middle).
+- **h3 camera (owner, 2026-11-12):** CADLOG "v0.28-dev (halation row h3)", 41 events; PB122268..273: Halation alone on
+  the white lamp (268 / 269: a clear red-orange halo without the soft glow), with Glow (270), Glow alone (271: no
+  red halo), with grain (272), daylight (273: none). No freeze. BUNDLES at the end: COLOR 1 Halation 5, Grain 3.
+  Owner: (1) changing only Halation gives no '*' on the FILM 1 entry; (2) the halo "has too much of a sudden cut
+  off": PB122269 Cr by distance from the shade peaks ~+35 at 120-140 px and falls +30 -> +7 between 180 and 300 px.
+- **h4:** (1) fl_live compares all 16 pf_bt pairs (was 11) and fl_fch bytes 0..57 (was 0..52): the film list's '*'
+  follows split toning and halation too. (2) Two layers: E blurred 3 times (tight) and a copy 10 times (broad, a
+  third malloc), mixed 50/50 (MIX 128), K 900, gmax 43 / 78 / 113 / 156 / 208. On PB122271 (Glow only) at strength 5
+  the half-strength distance moves from ~260 to ~400 px and the tail fades out past 600 px (a 3 + 14, 40/60, K 1200
+  variant was softer still). `hl_blur` (one layer, frame 48) replaces the inline loops; hl_run frame 124.
+  om-emu: the 8 frames bit-exact with the model; steps +25 % on night frames (29.7 M for 1.8 MP at strength 5).
+- **h4 camera (owner, 2026-11-12):** "the fade looks good now"; saves "a little slow, but manageable"; bursts still
+  work. FILM 1* now shows in the Picture Mode list, but not on the super control panel.
+- **h5:** the quick menu (super control panel) cell is ours (fl_scp -> fl_pcp draws "FILM N"); its stock '*' variant
+  ids (15750..15753) follow COLOR k's own settings (fl_pmod, film test 6) and were drawn without a star, so a changed
+  film never showed one there. Now fl_pcp asks fl_fch (as the list cell) and draws "FILM* N" (layout fl_LS1, word
+  picture mkicons.sp_star_word, the asterisk in the quick menu's lettering) when the film is changed; the drawn key
+  is N | star << 8, so it redraws when that flips. The shooting screen's label (fl_lvp) stays without a star.
+  om-emu: super control panel with FILM 1 on COLOR 1: "FILM*1" when the film differs from how it was built,
+  "FILM 1" with a neutral record equal to the slot. New picture: "FILM*" (quick menu) - owner to approve.
+- **h5b (owner: "it should look like FILM 1*"):** the star moves after the number. fl_sp gains an optional trailing
+  picture (layout words +48..+60: picture, bytes a row, ink width, gap; 0 = none for fl_LS / fl_LVL), counted in the
+  centring and drawn after the last digit; fl_LS1 = fl_LS's "FILM" + digits + the quick menu's '*' (mkicons.sp_star,
+  gap SP_DGAP). Direct calls of fl_sp (om-emu, decoded): "FILM 1*", "FILM 12*" (centred), "FILM 7" (plain layout);
+  the super control panel shows "FILM1*" / "FILM1" for a changed / unchanged film.
+
+## Owner decisions on the next look features (2026-11-12)
+- Gentler Shading (#22): yes. Per-film WB mode / exposure / ISO: yes. Split toning: finer steps and a balance
+  slider; no midtones wheel (#23). Our own grain: on hold until the owner compares today's grain with Lightroom /
+  DxO. Highlight roll-off and toe: not planned (Blacks / Whites + the Highlight & Shadow curve cover it). Cleaner
+  JPEGs (#17): out of scope (the camera's JPEG compression stays). Film borders: not planned (added in editing).
+- v0.28 scope: halation (row, Control Panel), our version in the camera's firmware menu, custom crop modes.
+- **h5 camera (owner, 2026-11-12):** "it looks good": FILM 1* on the super control panel, the halo and saves as h4.
+  The owner has used the "Halo" row icon and the "FILM 1*" lettering from h3 / h5 without objection.
