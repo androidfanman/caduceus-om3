@@ -2966,3 +2966,8 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   #58, came at PB122167's start). Which setting the owner changed is still to be asked. Analysis, to test: the
   camera's own Color Profile values (per-colour hue / saturation / luminance) may be what movies use, while our own
   photo-path effects (Sharp row, grain, glow) are not (#6).
+- **GX4 burst run (2026-11-12; camera-tested):** 'GXR4' **35 passes, 0 bad of 169336, no gap changed** (new
+  baselines after the power cycle: unloaded RAM keeps whatever is left there, as GX1 / GX2 saw). The run: 34 RAW+JPEG
+  frames PB122172..205 in 7 sequential bursts of 3..8 (mechanical, some with anti-shock) on FILM 9 Velvia 50; the
+  photo codes say grain 0 and Glow / Clarity 0 in every frame. With the first run: the 662 KiB loads and stays intact
+  through 4K video, photos and RAW+JPEG bursts. Not covered: bursts with grain + Glow (the #28 load).
