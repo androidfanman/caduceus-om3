@@ -2981,3 +2981,27 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   copy of LOOKS.BIN (LPTR), i.e. the film as built, not the changes made on the camera (here grain High + Glow 5 live
   in BUNDLES / the COLOR slot; every frame's code says grain 0, glow 0). docs/PHOTO_CODE.md says "the LOOKS.BIN record",
   so it is as specified, but users will expect their on-camera changes in it. Candidate fix: encode the live values.
+
+## Halation for the OM-3: design and probe h0 (2026-11-12; analysis + emulator only)
+- Source read (read only, nothing copied): cakelesscoder/caduceus-ep7 at 54c8e54, docs/HALATION_RED.md §14–22,
+  patches/halation/hl.s.in. Their method (camera-tested on the E-P7, h1/h2): a CPU pass over the finished photo after
+  the Soft Focus blend. A: Y of every 2nd pixel / 2nd row, threshold excess summed into 64 x 64 px cells (u8, one
+  malloc <= 16 KB); B: [1 2 1] blur twice per axis; map u = min(255, 21v/8), g = u(511 - u)/256 x gmax/256 (gmax by
+  strength); C: per pixel pair with w = 255 - Y: Y += w g dY / 2^16, C += w0 g dC / 2^16 (clamped), so light cores
+  stay white. Coverage cap: skip when >= 1/3 of the cells glow. Lessons: their 10 s watchdog restarted the camera when
+  CPU grain + halation ran long (their fix: timeout 30 s); h3's speed-ups (drop g < 8, reuse Y0's delta) made the halo
+  blocky and lost thin LEDs, so keep every non-zero g and the per-pixel darkness weight; an unexplained crash on
+  bright daylight frames led to a 30 % cap.
+- OM-3 route (analysis): our Glow / Clarity row already runs the Soft Focus passes (job flag 0x80); `xb_gs` wraps the
+  blend setup SF_ENT, after which buffer 0x1000 (format 0x0c02, YCbYCr 4:2:2, Y in even bytes) is complete and CPU
+  writes reach the JPEG (camera probe g2, v0.21). Fast grain stays the image processor's texture (Glow + Grain fast,
+  camera rc2c), so halation adds only its own CPU time (E-P7: ~0.2–0.3 s without lights, ~1–3 s for night scenes) and
+  stays far from the 10 s watchdog without CPU grain. Plan: the heavy pass in ext12 (cached, 76 KB free), called from
+  the block; rows through the window under the lock as xb_grain.
+- Open: the chroma byte order and sign on the OM-3 (our grain wrote Y only); the control (own row, or a colour on the
+  Glow row: owner); whether halation without Glow should force the Soft Focus passes at a neutral weight.
+- **Probe h0** (`experiment/halation-h0`, on space 1): `xb_gs` calls SF_ENT on every still of our looks (as the CPU
+  grain path did), then `xb_h0`: rows 0..255, left half byte 1 of each pair = 168, right half byte 3 = 168. om-emu,
+  direct call on a 64 x 300 DRAM test buffer: exactly the expected 8128 bytes changed, rows 256.. and padding
+  untouched, stack restored; the window path can't be emulated (om-emu out of memory at 0xce9d4b80). Package
+  E1479999.BIN e8a49eec…, GUIDES.BIN 571b98a2… (13436 B); LABELS / TONES = v0.27.1. Camera: Glow on, a grey wall.
