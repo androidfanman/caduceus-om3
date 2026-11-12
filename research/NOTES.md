@@ -3279,3 +3279,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   - Options (owner to choose): (1) our own CPU vignette on stills (the Control Panel's f = 1 + 0.07 s r^1.5, any step
     size; camera Shading 0; route as halation: Soft Focus passes at weight 1024 + a CPU pass; not in live view; a
     little slower saves); (2) more probes for the mask amount (keeps live view, no time cost, uncertain).
+- **Owner (2026-11-12): "if it isn't easy to do, let's scrap it"**: Gentler Shading is **not possible** for now
+  (ROADMAP "Not possible"; #22 to be answered so). The probes stay on `experiment/shading-probe-s1` (s1, s2) for
+  anyone who picks it up: the next lead would be the mask's source (the radial `ausEffectiveShadingCoefficient` table
+  or another unit configured from request +1752 / +1590).
