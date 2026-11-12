@@ -9028,7 +9028,9 @@ sd_san:
 
 /* tw_san: `call tw_san,[d2,a2],12` from fl_mk, a0 = the EDITS.BIN image after its CRC passed. Each of the 24 records
  * (+16 + 68 r): +53..+56 (split toning: colours 0..11, strengths -5..5) <- 0 as a group when a byte is out of range;
- * +57..+62 (unused) <- 0; +63 <- 0 on films (a COLOR's own record keeps its 0 / 1). Uses d0, d2, a0, a2. */
+ * +57..+62 (v0.28: Halation, Tone Balance, film WB; were "unused" and always cleared, so a film saved here lost them
+ * at every power-on, owner w3) <- 0 each when outside -5..5; +63 <- 0 on films (a COLOR's own record keeps its 0 / 1).
+ * Uses d0, d1, d2, a0, a2. */
 tw_san:
  add 16,a0
  mov a0,a2
@@ -9057,13 +9059,22 @@ tw_san:
  movbu d0,(55,a2)
  movbu d0,(56,a2)
 3:
+ mov a2,a0
+ add 57,a0
+ mov 6,d1
+31:
+ movbu (a0),d0
+ extb d0
+ add 5,d0
+ cmp 10,d0
+ bls 32f
  clr d0
- movbu d0,(57,a2)
- movbu d0,(58,a2)
- movbu d0,(59,a2)
- movbu d0,(60,a2)
- movbu d0,(61,a2)
- movbu d0,(62,a2)
+ movbu d0,(a0)
+32:
+ inc a0
+ add -1,d1
+ bne 31b
+ clr d0
  cmp 4,d2
  bhi 6f                           /* d2 counts 24 .. 1: 24 .. 5 = films, 4 .. 1 = COLOR 1-4's own, whose +63 is their '*' (0 / 1) */
  movbu (63,a2),d0

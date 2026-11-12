@@ -3323,3 +3323,9 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   om-emu: FILM 3 Auto -> Sunny by hand -> FILM 7 Auto -> FILM 3 again **Sunny 5300K and FILM 3***; FILM 3 CWB 5400K
   -> FILM 7 Auto -> FILM 3 **CWB 5400K**. Package E1479999.BIN 9b73b5a0…, GUIDES.BIN 8d8d8c4b… (LABELS / TONES as t2).
   Not done: the Control Panel's WB fields (with its v0.28 work), the photo code (EXIF) does not carry it.
+- **w3 camera (owner, 2026-11-12):** the film the camera is left on keeps its WB over a power cycle; **the others come
+  back on Auto**. Cause: tw_san (the EDITS.BIN clean-up at load) cleared record +57..+62 as "unused", so every film
+  saved in EDITS.BIN lost its **film WB, Halation and Tone Balance** at each power-on (the current look lives in the
+  BUNDLES slot, which sd_san checks by range instead). **w4:** tw_san clears each of +57..+62 only when outside -5..5
+  (+63 as before). om-emu (two sessions, the card saved between them: FILM 1 Sunny -> FILM 2 -> save -> restart ->
+  FILM 1): w3 Auto, **w4 Sunny 5300K**. Package E1479999.BIN e9820df4…, GUIDES.BIN f76e06be….
