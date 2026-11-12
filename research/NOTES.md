@@ -3005,3 +3005,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   direct call on a 64 x 300 DRAM test buffer: exactly the expected 8128 bytes changed, rows 256.. and padding
   untouched, stack restored; the window path can't be emulated (om-emu out of memory at 0xce9d4b80). Package
   E1479999.BIN e8a49eec…, GUIDES.BIN 571b98a2… (13436 B); LABELS / TONES = v0.27.1. Camera: Glow on, a grey wall.
+- **h0 camera result (owner's OM-3, 2026-11-12; camera-tested):** PB122226 (FILM 1, Glow 1, ISO 640) and PB122227
+  (Glow 1 + Grain High, ISO 800), RAW+JPEG, a plain scene. Both show the bands on rows 0..255 exactly. Measured in the
+  JPEGs (PIL YCbCr, offsets from 128): left band (byte 1 = 168) **Cb +39.9 / +39.0, Cr unchanged**; right band (byte 3 =
+  168) **Cr +39.7 / +39.7, Cb unchanged**; below the band Cb, Cr within ±2.2. So **byte 1 = Cb, byte 3 = Cr,
+  offset-binary (128 = neutral)**, as on the E-P7. The grain photo saved normally with the bands (fast grain + the Soft
+  Focus route + a CPU pass: fine). The grain is almost all in Y (Cb / Cr high-pass below the band 0.40 / 0.35 with
+  Grain High vs 0.57 / 0.54 without), so the chroma noise can't tell whether the texture comes before or after xb_gs;
+  the higher Cb noise inside the left band is RGB clipping of bright, blue-shifted grain in the decode, not grain
+  order. Halation adds to Y and C (not a replacement), so grain shows under the halo either way.
