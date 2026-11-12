@@ -3079,3 +3079,7 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
     neutral: Cr -0.2..-0.8. The shade in 266 is not clipped (Glow + grain) and takes a faint pink.
   - Table lamp, ring 300..700 px: Cr 10.0 / 12.8 / 18.5 / 23.6 / 24.5 (259, grain), speckle 1.02-1.35; h1's PB122236
     (grain High) had Cr 15.0 with speckle 2.26: h2 about 60 % stronger with about 40 % less speckle.
+- **Owner decisions (2026-11-12):** halation gets **its own Picture Mode row** (not a choice on the Glow row), so it can
+  be used with or without Glow. The faint pink on a bright, not clipped surface next to the light (the shade in
+  PB122266) stays: it is what real halation does (the bounced light exposes mostly the red layer; clipped cores stay
+  white, bright unclipped surfaces warm up a little).
