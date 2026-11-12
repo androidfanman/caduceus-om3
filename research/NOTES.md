@@ -3283,3 +3283,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   Gentler Shading is parked (ROADMAP "Difficult (parked)"; #22 to be answered so). The probes stay on `experiment/shading-probe-s1` (s1, s2) for
   anyone who picks it up: the next lead would be the mask's source (the radial `ausEffectiveShadingCoefficient` table
   or another unit configured from request +1752 / +1590).
+
+## Film WB: a film sets the camera's WB (2026-11-12; emulator, probe w1)
+- Owner: films carry a Kelvin; set on the camera (a new WB row) and later in the Control Panel; values as the
+  camera's own Custom WB (2000..14000 K, 100 K steps); a film or COLOR without one sets **Auto WB**.
+- Settings (om-emu, confirmed by the camera's own super control panel): **1578 = stills WB mode** (the 13-entry table
+  0x615d1944 {mode, stills A-B id, movie id}: 0 Auto, 6 Sunny, 8 Shade, 7 Cloudy, 1 Incandescent, 3 Fluorescent,
+  18 Underwater, 17 Flash, 13..16 one-touch 1..4, **9 = CWB**), **107 = Custom WB Kelvin** (sget 5400 = its default;
+  519 / 520 also read 5400: probably the RAW-edit pair, as the E-P7's 520 / 521). 1579 = movie WB mode.
+- In om-emu the stock getter / facade setter hang for 1578 when called from the debugger (as 901), and the WB screen's
+  reads do not pass sl_get after it opens; writing through the settings manager from our code works.
+- Probe w1 (branch experiment/film-wb-w1): fl_set -> fw_probe (ext12): film on COLOR k -> manager(107, 3000 + 1000 k),
+  manager(1578, 9); COLOR k itself -> manager(1578, 0). om-emu: after picking FILM 3 on COLOR 1 the super control
+  panel reads **CWB 3000K**; scrolling the Picture Mode list applies each entry live (fw_probe runs per step).
+  Package E1479999.BIN d5bd54cf…, GUIDES.BIN 0267380d….
