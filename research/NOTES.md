@@ -3297,3 +3297,6 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   manager(1578, 9); COLOR k itself -> manager(1578, 0). om-emu: after picking FILM 3 on COLOR 1 the super control
   panel reads **CWB 3000K**; scrolling the Picture Mode list applies each entry live (fw_probe runs per step).
   Package E1479999.BIN d5bd54cf…, GUIDES.BIN 0267380d….
+- **w1 camera (owner, 2026-11-12):** picking FILM 1 sets **CWB 3000K** on the camera (camera-tested), but changing the
+  WB afterwards **snaps back to 3000K**: fw_probe ran on every setting-901 write, not only when the selection changed.
+  Owner: the list is COLOR 1-4 then FILM 1-20 (describe tests by FILM number; FILM 1-5 = COLOR 1's looks internally).
