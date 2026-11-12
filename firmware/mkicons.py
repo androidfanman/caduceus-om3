@@ -18,7 +18,7 @@ W, H = 46, 46                      # slider-row icon
 CW, CH = 100, 76                   # choice-row cell picture
 # (lines, width, height): one line = (text, cap height px, baseline row)
 PICTURES = [
-    ([('Blk', 20, 33)], W, H), ([('Wht', 20, 33)], W, H), ([], 8, 2), ([], 8, 2),  # v0.25: A-B / G-M unused (the WB grid row shows the camera's WB± picture)
+    ([('Blk', 18, 30), ('Wht', 18, 60)], CW, CH), ([], 8, 2), ([], 8, 2), ([], 8, 2),  # v0.28 the Blacks / Whites grid row's left cell (was the Blk / Wht slider icons); A-B / G-M unused (the WB grid row shows the camera's WB± picture)
     ([('Vignette', 15, 30), ('Off', 18, 60)], CW, CH), ([('Vignette', 15, 30), ('On', 18, 60)], CW, CH),
     ([('Noise', 15, 30), ('Off', 18, 60)], CW, CH), ([('Noise', 15, 30), ('Low', 18, 60)], CW, CH),
     ([('Noise', 15, 30), ('Std', 18, 60)], CW, CH), ([('Noise', 15, 30), ('High', 18, 60)], CW, CH),
@@ -356,6 +356,58 @@ def pack4(a):
     f = a.flatten().tolist()
     if len(f) % 2: f.append(0)
     return bytes(f[i] | f[i + 1] << 4 for i in range(0, len(f), 2))
+
+
+# v0.28 Blacks / Whites grid (owner, look D): our pictures in place of the camera's WB grid pictures while that grid
+# shows (editor.s bwg_swap): the square (206 x 206, as the camera's 10904: fill 52, a cross with 15 ticks in 81, 6 px
+# bands), its bands black (left / right, outlined) and white (top / bottom); the boxes' letters as -/+ swatches
+# (32 x 32): black for Blacks (B '-', A '+'), white for Whites (M '-', G '+'); the header's letters (16 x 30) and its
+# "WBAuto" (86 x 44) as "Blk/Wht". All drawn here from scratch (palette indices: 7 dark, 10 white, 52 the grid's
+# fill, 81 its lines); no camera graphics copied.
+BWG_TICKS = (12, 25, 38, 51, 64, 77, 90, 103, 115, 128, 141, 154, 167, 180, 193)
+
+
+def bwg_square():
+    n, b = 206, 6
+    px = np.full((n, n), 52, dtype=np.uint8)
+    px[103, b:n - b] = 81
+    px[b:n - b, 103] = 81
+    for t in BWG_TICKS:
+        px[99:108, t] = 81
+        px[t, 99:108] = 81
+    y, x = np.mgrid[0:n, 0:n]
+    d = np.stack([y, n - 1 - y, x, n - 1 - x])          # distance to the top, bottom, left, right edge
+    near = d.min(axis=0)
+    side = d.argmin(axis=0)
+    band = near < b
+    white = band & (side < 2)
+    black = band & (side >= 2)
+    px[white] = 10
+    px[black] = 7
+    px[black & ((near == 0) | (near == b - 1))] = 81     # the black bands' grey outline (else lost on the dark screen)
+    return px
+
+
+def bwg_sign(plus, w, h, bar, length, fg, bg, edge=None):
+    px = np.full((h, w), bg, dtype=np.uint8)
+    cy, cx = h // 2, w // 2
+    px[cy - bar // 2:cy - bar // 2 + bar, cx - length // 2:cx - length // 2 + length] = fg
+    if plus:
+        px[cy - length // 2:cy - length // 2 + length, cx - bar // 2:cx - bar // 2 + bar] = fg
+    if edge is not None:
+        ink = px == fg
+        px[ndimage.binary_dilation(ink, structure=np.ones((3, 3)), iterations=1) & ~ink] = edge
+    return px
+
+
+def bwg_pictures():
+    """[(pixels, w, h)] in bwg_swap order: square, box A '+', box B '-', box G '+', box M '-', header '+', header '-',
+    the header title "Blk/Wht"."""
+    box = lambda plus, fg, bg: bwg_sign(plus, 32, 32, 4, 18, fg, bg)
+    hdr = lambda plus: bwg_sign(plus, 16, 30, 3, 12, 10, 0, 7)
+    return [(bwg_square(), 206, 206), (box(True, 10, 7), 32, 32), (box(False, 10, 7), 32, 32),
+            (box(True, 7, 10), 32, 32), (box(False, 7, 10), 32, 32), (hdr(True), 16, 30), (hdr(False), 16, 30),
+            (picture([('Blk/Wht', 20, 32)], 86, 44, 0.92, (0.20, 0.40, 0.60)), 86, 44)]
 
 
 def encode11(px, w, h):

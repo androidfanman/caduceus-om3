@@ -3354,3 +3354,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   - Pictures (ours, LABELS.BIN 'WBG1' section, mkicons): bw_top "Blk/Wht" 82 x 30, the four boxes, the header '+',
     the edge picture; glyphs '+', '-', '/' for the left cell "Blk/Wht" over "+2/-1" (xb_wbc mode 1, two stream
     buffers). Sizes then: GUIDES.BIN block, LABELS.BIN, ext11 / ext12.
+- **g1 (branch feature/v0.28-bw-grid; VERSION "v0.28-dev (Blacks / Whites grid g1)"; emulator only):** the port as
+  planned: BK_IT the one-option grid row (BWB 0x7ef0 + k, class 14; bw_l0 "Blacks / Whites", left cell IC_BK =
+  mkicons PICTURES[0] now a 100 x 76 "Blk" / "Wht" cell, without values), WH_IT out of pm_list; gr_mode / gr_lmode
+  (gr_upd reloads scene 498 between the two grid rows), gr_id + BKB - ABB, gr_pub from +47 / +48. ic_get, while
+  gr_flag and gr_mode = 1: the WB mode title 11218..11248 (each mode with and without '*': 11223 "WBAuto", 11240
+  "WBAuto*", tables 0x6139a694 / 0x614778fc) and bwg_swap {10904 square, 10327 A, 10325 B, 10324 G, 10328 M, header
+  letters 10813 / 10814 / 10817 / 10818 '+', 10815 / 10816 / 10820 '-'} -> our IC_BWG 0x7f70.. (mkicons
+  bwg_pictures, build.py bwg.inc in ext12: square 206 x 206 drawn to the camera's layout (fill 52, cross and 15 ticks
+  in 81, 6 px bands; black bands outlined in 81), boxes 32 x 32, header signs 16 x 30, title 86 x 44).
+  om-emu: the row with our square and boxes; OK -> fine-tune, header "Blk/Wht 0 . 0" (also with Sunny WB), dial ->
+  "0 . +1" / "+1 . +2" with the dot; MENU back; the WB row's coloured G / B / A / M grid unchanged. ext11 53264,
+  ext12 214176 B. Package E1479999.BIN 33171059…, GUIDES.BIN 511b434b… (LABELS / TONES as before).

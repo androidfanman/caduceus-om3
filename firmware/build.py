@@ -205,6 +205,16 @@ def build(defaults, testfile, out):
     (out / 'lgver.inc').write_text(f'lg_ver:\n .asciz "{ver}"\n')
     import halation                               # v0.28: the halation numbers and tables (firmware/halation.py)
     (out / 'hl_tab.inc').write_text(halation.inc())
+    # v0.28 Blacks / Whites grid: our pictures in place of the camera's WB grid pictures (editor.s bwg_swap / bwg_ent)
+    bw = ['.balign 4', 'bwg_ent:', ' .long ' + ', '.join(f'bwg_d{i}' for i in range(8))]
+    streams = []
+    for i, (px, w, h) in enumerate(mkicons.bwg_pictures()):
+        st = mkicons.encode11(bytes(px.flatten().tolist()), w, h)
+        streams.append(st)
+        bw += [f'bwg_d{i}:', f' .short 14, {w}, {h}, 8, 0, 0', f' .long {len(st)}, bwg_p{i} + 0x40000000, 0']
+    for i, st in enumerate(streams):
+        bw += [' .balign 4', f'bwg_p{i}:', db(st).rstrip('\n')]
+    (out / 'bwg.inc').write_text('\n'.join(bw) + '\n')
     (out / 'films.inc').write_text('.balign 4\nfl_top:\n' + db(mkicons.pack4(mkicons.film_top())) + 'fl_tops:\n' +
                                    db(mkicons.pack4(mkicons.film_top(True))) + 'fl_dig:\n' +
                                    ''.join(db(mkicons.pack4(d)) for d in digs) +
@@ -392,13 +402,13 @@ def build(defaults, testfile, out):
                     (0x615510cc, 32), (sy['sw11_tab'], 32), (0x6155124c, 32), (sy['sw13_tab'], 32)):
         tg = [t for k, t in (struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)) if k == 5394]
         assert len(tg) == 1, hex(base)
-        for item, pre in ((NR_IT, 'nr'), (VF_IT, 'vf'), (FR_IT, 'fr'), (AB_IT, 'wg')):   # v0.25: AB_IT = the WB grid row
+        for item, pre in ((NR_IT, 'nr'), (VF_IT, 'vf'), (FR_IT, 'fr'), (AB_IT, 'wg'), (BK_IT, 'bw')):   # v0.25: AB_IT = the WB grid row; v0.28 BK_IT the Blacks / Whites grid row
             t = sy[pre + '_' + OWN[base]] if base in OWN else sy['lc_' + pre] if base == 0x6155124c else tg[0]
             sw_add(base, n, item, t)
         # Blacks / Whites: slider rows, as item 7's case (key 1) except the bar object's id (f2c) and the left column
         t7 = [t for k, t in (struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)) if k == 1]
         assert len(t7) == 1, hex(base)
-        for item, pre in ((BK_IT, 'bk'), (WH_IT, 'wh'), (GL_IT, 'gl'), (HL_IT, 'hl'), (TB_IT, 'tb')):   # v0.28 + Halation, Tone Balance
+        for item, pre in ((GL_IT, 'gl'), (HL_IT, 'hl'), (TB_IT, 'tb')):   # v0.28 + Halation, Tone Balance (Blacks / Whites: the grid row)
             t = sy[pre + '_f'] if base == 0x61536f2c else t7[0]     # left column: item 7's slider cell
             sw_add(base, n, item, t)
     assert sy['NR_IT'] == NR_IT if 'NR_IT' in sy else True
