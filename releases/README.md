@@ -5,6 +5,7 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.28-alpha](v0.28-alpha/NOTES.md) | Test version of v0.28: Halation row; split toning 0–10 with a Tone Balance row; WB remembered per film and COLOR; Blacks / Whites as one grid (±7). The Control Panel isn't updated for these yet | Test version (firmware camera-tested) |
 | [v0.27.1](v0.27.1/NOTES.md) | v0.27 without the automatic film load at switch-on (films load at the first half-press), fixing a rare freeze at start-up | Camera-tested |
 | [v0.27](v0.27/NOTES.md) | All four arrow keys in Button Function; Creative Dial modes (CRT / ART / COLOR / MONO per position, a film per COLOR position); the film's name and recipe code (om3.1) in each JPEG's EXIF; optional extras: `DEBUG.TXT` (debug log) and the photo code kit for developers | Camera-tested |
 | [v0.26.2](v0.26.2/NOTES.md) | Films load at power-on (no half-press); the super control panel dials step through the films; fixes: Film Grain with RAW+JPEG froze the camera, FILM N missing from the shooting screen when COLOR n itself was changed, bad bytes in `EDITS.BIN` | Camera-tested |
@@ -35,4 +36,6 @@ Each version is also published on the repo's **Releases** page (tag `v0.16` … 
 it was at that version: a GitHub Action (`.github/workflows/releases.yml`) publishes every folder here once, so a
 new version only needs its folder. Optional extras in a folder (`DEBUG.TXT`, `*.zip`, from v0.27) are attached too;
 the launchers never copy them to the card.
+**v0.28-alpha** is a test version: it is published by hand as a GitHub pre-release from `feature/v0.28-halation`
+(not from `main`), and the launchers in its download make it by default.
 See [CHANGELOG.md](../CHANGELOG.md) for the full history.

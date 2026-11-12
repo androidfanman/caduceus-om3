@@ -7,6 +7,7 @@
 > **Blacks / Whites** as one grid row like the WB shift grid, −7…+7, with a "B/W ±" icon (camera-tested, g1..g5). Still
 > to do for v0.28: custom crop modes, then the Control Panel (Halation, split toning 0..10, Tone Balance, film WB,
 > Blacks / Whites ±7: preview and export) last. (Our version in the camera's firmware menu moved to a later update.)
+> **Test version v0.28-alpha** (2026-11-12): a GitHub pre-release of this branch (`releases/v0.28-alpha/`).
 
 <h1 align="center">Caduceus for OM-3</h1>
 

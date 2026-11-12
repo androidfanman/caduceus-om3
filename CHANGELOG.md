@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.28-alpha](#v028-alpha-test-version) | 2026-11-12 (test version) | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7). The Control Panel isn't updated yet |
 | [v0.27.1](#v0271) | 2026-11-11 | Fixes a rare freeze at switch-on: the films load at the first half-press again |
 | [v0.27](#v027) | 2026-11-11 | All four arrow keys in Button Function; Creative Dial modes with a film per position; the film's name and recipe in every JPEG |
 | [v0.26.2](#v0262) | 2026-11-09 | Films load at power-on; the dials step through the films; fix for a freeze with Film Grain and RAW+JPEG |
@@ -27,6 +28,28 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.28-alpha (test version)
+A test version of v0.28 (a GitHub pre-release; v0.27.1 stays the current version). Firmware camera-tested
+(2026-11-12, build g5; only its name was changed). The Control Panel isn't updated for these features yet.
+
+- **Halation:** the red glow around bright lights of cinema film, as its own Picture Mode row "Halation" (0–5, with or
+  without Glow, a 0–5 bar). A soft two-layer glow that fades in bright daylight scenes; works with grain and bursts.
+  Saving with Halation on takes a little longer. Method after Caduceus for the E-P7 (cakelesscoder); our own code.
+- **Split toning:** the Shadows and Highlights wheels run 0–10 in half steps (10 = v0.27's +5, so films keep their
+  look) and only add a colour (no more "opposite colour" below 0). New **Tone Balance** row under HSL (−5..+5: minus
+  the shadow colour reaches further, plus the highlight colour).
+- **WB per film:** each FILM and COLOR remembers the WB last used with it (mode, Custom WB Kelvin) and brings it back
+  when picked; one with no WB of its own gets Auto.
+- **Blacks / Whites grid:** one row with a grid like the WB shift grid instead of two sliders (Blacks left / right,
+  Whites up / down), −7..+7 each with the same step. Its cell shows a new "B/W ±" icon over the values; at 0 / 0 the
+  B/W and WB rows show their icon alone, bigger.
+- **The `*`:** a changed film's star now also counts split toning, Halation, Tone Balance and WB, and shows on the super
+  control panel (FILM N\*).
+- **Going back to v0.27.1:** set Blacks / Whites within ±5 on COLOR 1–4 first; copy v0.27.1's own `GUIDES.BIN` and
+  `LABELS.BIN`. Details: [release notes](releases/v0.28-alpha/NOTES.md).
+- Developer side: more code space (the button-picture area sized to fit; section 6 probed further), `patch.py` and
+  `research/setup.sh` sort test versions (v0.28-alpha before v0.28).
 
 ## v0.27.1
 A fix for a rare freeze at switch-on. Firmware camera-tested (2026-11-11, build na1).

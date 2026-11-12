@@ -127,7 +127,12 @@ rm -rf "$OUT"
 python3 "$REPO/firmware/build.py" --stock "$STOCK" --toolchain "$TC" --out "$OUT" >"$WORK/build-check.log" 2>&1 \
   || { echo "build failed: see $WORK/build-check.log"; exit 1; }
 got=$(python3 -c "import json;print(json.load(open('$OUT/build.json'))['package_sha256'])")
-latest=$(ls -d "$REPO"/releases/v* | sort -V | tail -1)
+latest=$(python3 -c "
+import pathlib, sys
+def k(v):                                          # as firmware/patch.py: v0.28-alpha sorts before v0.28
+    n, _, p = v.lstrip('v').partition('-'); return [int(x) for x in n.split('.')], p == '', p
+print(max((d for d in pathlib.Path(sys.argv[1]).iterdir() if d.name.startswith('v')), key=lambda d: k(d.name)))
+" "$REPO/releases")
 want=$(grep 'DCOLYMP/E1479999.BIN' "$latest/SHA256SUMS" | cut -d' ' -f1)
 if [ "$got" = "$want" ]; then echo "this checkout rebuilds $(basename "$latest") byte for byte ($got)"
 else echo "built $got; $(basename "$latest") is $want (expected if this branch changes the firmware)"; fi

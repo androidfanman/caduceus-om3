@@ -394,6 +394,29 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.28-alpha (branch feature/v0.28-halation; build g5, camera-tested 2026-11-12; GitHub pre-release)
+
+Details and every test: `research/NOTES.md`, the sections from "v0.28 code space" on.
+- Code space: the button-picture area sized to fit (ext12 ~74 KB free); GX4 probe proved the rest of section 6
+  (0x60f99800..0x6103f000, not used yet). ext11 rows' pictures moved to ext12.
+- Halation (h0..h6): `hl_run` in ext12, a CPU pass after the Soft Focus blend; chroma byte 1 = Cb, byte 3 = Cr; colour
+  weight from each cell's mean brightness, daylight fade, two-layer blur (3 + 10 passes). Numbers `firmware/halation.py`,
+  exact model `research/halation/model.py` (bit-exact in om-emu). Row HL_IT 0..5 (class 12; h6: its own 0..+5 bar ends and readout rd6), BUNDLES slot
+  +30, LOOKS / EDITS record +57.
+- Split toning (t1 / t2): strength code v ≥ 0 -> 2v, v < 0 -> −2v − 1 (0..10 half steps), `st_run` `asr 9`; Tone
+  Balance row TB_IT (class 13), slot +33, record +58; `research/splittone/model.py` (`bend28`, `strength()`).
+- Film WB (w1..w4): record +59..+62 / slot +34..+37 (balanced base-11 pairs: Custom WB Kelvin, WB mode index in table
+  0x615d1944); `fw_keep` / `fw_apply` on a film or picture-mode change only (901 is re-sent at each half-press);
+  `tw_san` clears +57..+62 only outside −5..5 (w3 lost them at each power-on).
+- Blacks / Whites grid (g1..g5): the camera's WB fine-tune screen reused in mode 1 (`gr_mode`), our pictures swapped in
+  by `ic_get` (`bwg_swap`, `bwg_ent` in ext12); −7..+7 (`RANGES`, `pf_lo`); left cell drawn by `xb_wbc` mode 1 from
+  LABELS.BIN 'WBG1' (plate icon `mkicons.plate_icon`), 0 / 0 -> `zc_tab` (both rows; the list shows only an 82 px strip
+  of the 100 x 76 cell, from x 9). Older firmware's sd_check refuses a BUNDLES.BIN with +47 / +48 beyond ±5.
+- `firmware/VERSION` "v0.28-alpha, camera-tested build g5", the same length as g5's "v0.28-dev (Blacks / Whites grid
+  g5)": main.bin differs from g5 only in that string and the 3-byte code-block tag, GUIDES.BIN only in that tag and its
+  CRC (checked). E1479999.BIN 4facce3f…, GUIDES.BIN 84236d92…, LABELS.BIN eac8eb47… (new layout from g2: 'WBG1'
+  pictures), TONES.BIN / LOOKS.BIN as v0.27.1.
+
 ## v0.27.1 release (build na1, camera-tested 2026-11-11)
 
 - v0.27 minus the SD loader's two hooks (`.hook_hb` 0x60af0fb9, `.hook_hr` 0x60af101c stay stock): no SDLOAD worker,
