@@ -5235,6 +5235,40 @@ ic_d\n:
  ICD 12
  ICD 13
 .balign 8
+/* ------------------------------------------------------------------ v0.28 film WB probe w1 (TEST, not for release)
+ * Owner: a film can carry a Kelvin; picking it sets the camera's Custom WB to it, a film / COLOR without one sets Auto.
+ * w1 proves the mechanism with fixed values: a film on COLOR k (n >= 1) -> setting 107 (Custom WB Kelvin, 2000..14000,
+ * default 5400; sget) = 3000 + 1000 k, then setting 1578 (stills WB mode; table 0x615d1944: 9 = CWB, last of 13) = 9;
+ * COLOR k itself (n = 0) -> 1578 = 0 (Auto). Through the settings manager as pf_put writes the camera's own settings.
+ * fw_probe: `call fw_probe,[d2,d3,a2,a3],24` from fl_set (inside the manager's 901 call), d0 = k, d1 = n, a0 inner,
+ * a1 mode. Locals (4) a0, (8) a1. */
+.section .ext12,"ax"
+ .balign 2
+fw_probe:
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ cmp 0,d1
+ beq 5f
+ mov 1000,d2
+ mul d0,d2
+ add 3000,d2                      /* 3000 + 1000 k */
+ mov 107,d0
+ mov d2,d1
+ mov (4,sp),a0
+ mov (8,sp),a1
+ call manager,[d2,d3,a2,a3],68
+ mov 1578,d0
+ mov 9,d1                         /* CWB */
+ bra 6f
+5:
+ mov 1578,d0
+ clr d1                           /* Auto */
+6:
+ mov (4,sp),a0
+ mov (8,sp),a1
+ call manager,[d2,d3,a2,a3],68
+ ret [d2,d3,a2,a3],24
+
 .section .ext12,"ax"               /* v0.28: moved out of the full ext11 */
  .balign 8
 ic_pay:
@@ -5743,6 +5777,11 @@ fl_set:
  movbu d1,(fl_scf)                /* sd3: the super control panel draws its cell again (fl_scw) */
  movbu d1,(fl_scf + 1)            /* ... and its title (fl_stw) */
 4:
+ mov (16,sp),d0                   /* v0.28 film WB probe w1: k, n -> the camera's WB (fw_probe) */
+ mov (20,sp),d1
+ mov (8,sp),a0
+ mov (12,sp),a1
+ call fw_probe,[d2,d3,a2,a3],24
  mov (16,sp),d0
  mov fl_cvt,a0
  add d0,a0
