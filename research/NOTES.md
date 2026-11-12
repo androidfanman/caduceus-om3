@@ -3115,3 +3115,12 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   the half-strength distance moves from ~260 to ~400 px and the tail fades out past 600 px (a 3 + 14, 40/60, K 1200
   variant was softer still). `hl_blur` (one layer, frame 48) replaces the inline loops; hl_run frame 124.
   om-emu: the 8 frames bit-exact with the model; steps +25 % on night frames (29.7 M for 1.8 MP at strength 5).
+- **h4 camera (owner, 2026-11-12):** "the fade looks good now"; saves "a little slow, but manageable"; bursts still
+  work. FILM 1* now shows in the Picture Mode list, but not on the super control panel.
+- **h5:** the quick menu (super control panel) cell is ours (fl_scp -> fl_pcp draws "FILM N"); its stock '*' variant
+  ids (15750..15753) follow COLOR k's own settings (fl_pmod, film test 6) and were drawn without a star, so a changed
+  film never showed one there. Now fl_pcp asks fl_fch (as the list cell) and draws "FILM* N" (layout fl_LS1, word
+  picture mkicons.sp_star_word, the asterisk in the quick menu's lettering) when the film is changed; the drawn key
+  is N | star << 8, so it redraws when that flips. The shooting screen's label (fl_lvp) stays without a star.
+  om-emu: super control panel with FILM 1 on COLOR 1: "FILM*1" when the film differs from how it was built,
+  "FILM 1" with a neutral record equal to the slot. New picture: "FILM*" (quick menu) - owner to approve.

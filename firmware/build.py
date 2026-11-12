@@ -215,6 +215,8 @@ def build(defaults, testfile, out):
                                    f'.set LX2, {(82 - (2 * ldw - 2)) // 2}\n.set LX2B, {(82 - (2 * ldw - 2)) // 2 + ldw - 2}\n' +
                                    f'.set SFW, {fwp.shape[1]}\n.set SFWI, {fwi}\n.set SDB, {boxes[0].shape[1]}\n.set SPH, 48\n'
                                    f'.set SP_GAP, {mkicons.SP_GAP}\n.set SP_DGAP, {mkicons.SP_DGAP}\n'
+                                   f'.set SFWS, {mkicons.sp_star_word()[0].shape[1]}\n.set SFWIS, {mkicons.sp_star_word()[1]}\n'
+                                   'fl_sfws:\n' + db(mkicons.pack4(mkicons.sp_star_word()[0])) +
                                    'fl_sfw:\n' + db(mkicons.pack4(fwp)) + 'fl_sdg:\n' + ''.join(db(mkicons.pack4(x)) for x in boxes) +
                                    'fl_sdw:\n' + db(bytes(dw)) + ' .balign 4\n' +
                                    'fl_slab:\n' + db(slab) + f'.set SLS, {len(slab)}\n .balign 4\n' +

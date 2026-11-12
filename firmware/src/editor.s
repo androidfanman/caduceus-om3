@@ -6832,6 +6832,8 @@ fl_spd:
 .balign 4
 fl_LS:                            /* the quick menu, 160 x 48 */
  .long 160, 48, 0x0b09f02f, fl_sfw, SFW / 2, SFWI, fl_sdg, SDB / 2, SDB * SPH / 2, fl_sdw, SP_GAP, SP_DGAP
+fl_LS1:                           /* v0.28: the quick menu's changed film, "FILM* N" */
+ .long 160, 48, 0x0b09f02f, fl_sfws, SFWS / 2, SFWIS, fl_sdg, SDB / 2, SDB * SPH / 2, fl_sdw, SP_GAP, SP_DGAP
 fl_LVL:                           /* the shooting screen, 96 x 44 (film test 9) */
  .long 96, 44, 0x0b05f02b, fl_lvw, LVWB / 2, LVWI, fl_lvd, LVDB / 2, LVDB * 44 / 2, fl_lvdw, LV_GAP, LV_DGAP
 
@@ -6913,6 +6915,17 @@ fl_pcp:
  bra 2b
 3:
  inc d3
+ mov (24,sp),d0                   /* v0.28: the quick menu's "FILM* N" when the film is changed (as the list's cell) */
+ cmp fl_LS,d0
+ bne 6f
+ mov (20,sp),d0
+ call fl_fch,[d2,d3,a2,a3],28
+ cmp 0,d0
+ beq 6f
+ or 0x100,d3                      /* the drawn key: N | star << 8 */
+ mov fl_LS1,d0
+ mov d0,(24,sp)
+6:
  mov (32,sp),d0
  mov a2,a0
  add d0,a0
@@ -6933,6 +6946,7 @@ fl_pcp:
  add d1,a0                        /* picture k */
  mov a0,(4,sp)
  mov d3,d0
+ and 0xff,d0                      /* N (the key may carry the star) */
  mov (24,sp),a1
  call fl_sp,[d2,d3,a2,a3],240
  mov d2,d1                        /* descriptor k */
