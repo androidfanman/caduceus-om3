@@ -5235,13 +5235,12 @@ ic_d\n:
  ICD 12
  ICD 13
 .balign 8
-/* ------------------------------------------------------------------ v0.28 Shading probe s1 (TEST, not for release)
- * Owner: make Shading gentler (#22). The camera's Shading is the image processor's combiner 33 with a "shading block" in
- * its config (O+7988 +128..+152: +128 {512, target 0 darker / 1023 lighter by the sign of request +1752}, +132 512,
- * +144 0x151500, +148 0x04000400, +152 1024); the strength itself is not among them. This probe scales one candidate
- * gain to 40 % per COLOR so one camera photo each shows which one softens the effect: COLOR 1 stock, COLOR 2 +128's
- * 512 -> 205, COLOR 3 +132 512 -> 205, COLOR 4 +152 1024 -> 410. Only kind-0 requests (development, stills and live
- * view) with request +1752 != 0 (Shading on) and the COLOR context (key != 12).
+/* ------------------------------------------------------------------ v0.28 Shading probe s2 (TEST, not for release)
+ * s1 (camera): O+7988 +128 = {Cb target << 16 | Y target}, +132 = Cr target (512 = neutral; 205 gave olive / green
+ * corners), +152 1024 -> 410 changed almost nothing; stock -5 leaves the corners at ~6 % of the centre. s2 tries:
+ * COLOR 2 +192 1024 -> 410 (set by the dispatcher 0x60504b2b for every combiner), COLOR 3 +148 0x04000400 ->
+ * 0x019a019a, COLOR 4 the Y target 0 -> 409 (darker) / 1023 -> 614 (lighter); COLOR 1 stock. With the logger
+ * (xblock XB_LOG 1, GLOG.BIN) for the requests of shots at -5 / -3 / -1.
  * sh_h33 <- combiner 33's handler word (build.py), entered by `jmp (a0)` in the dispatcher 0x60504b2b's frame
  * (`ret [d2,d3,a2,a3],28`), a2 = context. */
 .section .ext12,"ax"
@@ -5266,22 +5265,30 @@ sh_h33:
  add 7988,a0                      /* the combiner's config */
  cmp 2,d0
  bne 1f
- mov (128,a0),d1                  /* COLOR 2: +128's upper half 512 -> 205 */
- and 0xffff,d1
- or 0x00cd0000,d1
- mov d1,(128,a0)
+ mov 410,d1                       /* COLOR 2: +192 1024 -> 410 */
+ mov d1,(192,a0)
  bra 9f
 1:
  cmp 3,d0
  bne 2f
- mov 205,d1                       /* COLOR 3: +132 512 -> 205 */
- mov d1,(132,a0)
+ mov 0x019a019a,d1                /* COLOR 3: +148 0x04000400 -> 0x019a019a */
+ mov d1,(148,a0)
  bra 9f
 2:
  cmp 4,d0
  bne 9f
- mov 410,d1                       /* COLOR 4: +152 1024 -> 410 */
- mov d1,(152,a0)
+ mov (128,a0),d1                  /* COLOR 4: the Y target 0 -> 409 / 1023 -> 614 */
+ mov d1,d0
+ and 0xffff0000,d1
+ and 0xffff,d0
+ cmp 0,d0
+ bne 3f
+ or 409,d1
+ bra 4f
+3:
+ or 614,d1
+4:
+ mov d1,(128,a0)
 9:
  ret [d2,d3,a2,a3],28
 

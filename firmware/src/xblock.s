@@ -3,7 +3,7 @@
  .set XB_ART, 0                   /* v0.25 (owner): no Art Effect at all (Frame caused too many issues); 1 = Frame */
  .set XB_FX, 1                    /* ft5: Glow / Clarity / Art back on (grain by texture where the development allows) */
  .set XB_OWNOFF, 0                /* rc1: 1 = COLOR k's own Glow / Art Effect ignored (no rows then) */
- .set XB_LOG, 0                   /* v0.25: the fast-grain logger (GLOG.BIN) off */
+ .set XB_LOG, 1                   /* v0.28 Shading probe s2: the logger (GLOG.BIN) on (was off since v0.25) */
  .set XB_SHG, 0                   /* film test 11's Shading check before the camera grain (1: on; rebooted on the camera) */
  .set XB_H0, 0                    /* v0.28 halation probe h0 (camera-tested 2026-11-12): off */
  .set XB_HL, 1                    /* v0.28: the Halation row (slot +30, 1..5) on our looks' stills (editor.s hl_run) */
