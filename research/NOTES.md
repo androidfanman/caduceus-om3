@@ -3136,5 +3136,28 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   DxO. Highlight roll-off and toe: not planned (Blacks / Whites + the Highlight & Shadow curve cover it). Cleaner
   JPEGs (#17): out of scope (the camera's JPEG compression stays). Film borders: not planned (added in editing).
 - v0.28 scope: halation (row, Control Panel), our version in the camera's firmware menu, custom crop modes.
+  (Later the same day the version screen moved to a later update: see the section on it below.)
 - **h5 camera (owner, 2026-11-12):** "it looks good": FILM 1* on the super control panel, the halo and saves as h4.
   The owner has used the "Halo" row icon and the "FILM 1*" lettering from h3 / h5 without objection.
+
+### Our version on the camera's Firmware Version screen: first look, parked (2026-11-12; emulator / disassembly only)
+- Owner: wanted for v0.28; after hearing it is more work than expected: "we can just scrap it. it can be a future
+  update." Parked; nothing built. What was found, so the next try starts here:
+- **The screen:** MENU -> wrench tab page 6 "Reset/Clock/Language/Others" -> "Firmware Version" (row value "1.1" on
+  the camera, "0.0" in om-emu) -> OK opens a page titled "Firmware Version" with one centred line "Body : 1.1" (a lens
+  adds a "Lens" line). om-emu walk (research/emulator/nav.mjs): `menu left up up right right right right right right
+  down down down down down ok`.
+- **The text:** the labels are resource strings (UTF-16, the English table loaded at 0x65126fe0 "Body\0Lens\0Flash\0
+  Acc", read by the GUI through the uncached alias 0xa5...). The page is drawn as glyph BITMAP commands into the OSD
+  command list (the writer is 0x61046980, deep under the GUI's draw stack 0x61043680 / 0x61045ea6 / 0x610f6834 /
+  0x610eb14f ...). The firmware's wide sprintf 0x610fc42c (frame 116) and wide copy 0x610fce25 are NOT used for this
+  page (only for the live-view info).
+- **Data-driven:** with an exec trace of the whole OK step, opening Firmware Version and opening Certification run
+  exactly the same code addresses (99,200 PCs each, none different): the pages are built by generic code from layout
+  data, so the hook is not a screen-specific function but the layout entry for this page (or the generic value
+  formatter it names). Not found yet: the layout record, and where the "1.1" comes from (om-emu has no body version:
+  0.0; `API_FIRMWARE_VERSION_BODY` is only a debug-command name list at 0x60b60a75).
+- Next step, when picked up: find the page's layout record (by its title string id, "Firmware Version" in the resource
+  table) and how its value item gets "1.1"; then either add a second line to the layout or swap the value text for
+  "1.1 / Caduceus v0.xx". om-emu tracing notes: read watches only fire on the uncached alias (0xa5...); `call f,[...],N`
+  leaves the return address in MDR and the caller's stack at sp + N at f's first instruction.
