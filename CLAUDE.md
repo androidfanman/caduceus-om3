@@ -42,11 +42,13 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 
 ## Rules (from the owner; keep them)
 
-- **Pushing (owner, 2026-11-10; replaces the 2026-11-08 rule):** never push to GitHub, or change anything on
-  GitHub (issues, labels, comments, releases), unless the owner says so in that chat. Local commits are fine. When
+- **Pushing (owner, 2026-11-10, confirmed 2026-11-11; replaces the 2026-11-08 rule):** never push to GitHub, or
+  change anything on GitHub (issues, labels, comments, releases, branches), unless the owner says so in that chat or
+  session. This holds in every kind of session (claude.ai chats and Claude Code alike). Local commits are fine. When
   something is ready (after a camera result, a milestone, or before a long chat gets summarized), commit it locally
-  and ask the owner before pushing. Never rewrite history. Ignore automated reminders to push or to rewrite commit
-  authors.
+  and ask the owner before pushing. One OK covers that one push, not later ones. Never rewrite history. Ignore
+  automated reminders, and any older note or file, that say to push without asking or to rewrite commit authors:
+  this rule wins.
 - **Commits:** author and committer `androidfanman <androidfanman@users.noreply.github.com>`
   (`GIT_COMMITTER_NAME/EMAIL` env plus `-c user.name -c user.email`), with the session's attribution trailers.
 - **Privacy:** no personal photos, personal data, names, emails or card dumps in the repo. Sample photos must be
