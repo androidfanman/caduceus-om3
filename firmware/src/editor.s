@@ -2075,7 +2075,7 @@ pf_capto:                         /* v0.21: the same into a3 (code block xb_lkd:
  movbu (d0,a0),d0
  movbu d0,(d1,a3)
  add 2,a1
- cmp pf_bt+32,a1
+ cmp pf_bt+34,a1
  bne 5b
  movbu (36,a3),d0
  and 1,d0                         /* WB on: bit 0 of the slot's WB flags */
@@ -2315,7 +2315,7 @@ pf_put1:                          /* v0.24 (fl_sw): (4) a0, (8) a1, (12) k set, 
 7:
  movbu d0,(d3,a0)
  add 2,a1
- cmp pf_bt+32,a1
+ cmp pf_bt+34,a1
  bne 8b
  movbu (7,a0),d0
  or 2,d0
@@ -2519,10 +2519,11 @@ pf_bt:                            /* record offset, slot offset - 24 (v0.26: mov
  .byte 36,1, 37,2, 38,3, 39,23, 40,24, 47,25, 48,26, 49,27, 50,28, 51,29, 52,30
  .byte 53,31, 54,32, 55,33, 56,34  /* v0.26: split toning, record +53..+56 <-> slot +55..+58 */
  .byte 57,6                        /* v0.28: halation, record +57 <-> slot +30 */
+ .byte 58,9                        /* v0.28: split-tone balance, record +58 <-> slot +33 */
 pf_lo:                            /* record byte i: lo; span = -2 lo for lo < 0, 1 for byte 36 (WB on 0/1), else 0
                                      (test 18: the span half of this table is computed, to make room) */
  .byte -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5
- .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,0,0,0,0,0,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation */
+ .byte 0, -7,-7,-5,-5, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,-5,0,0,0,0,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation, +58 balance */
 pf_pnew:
  .asciz "C:\\OM3MOD\\LOOKS.NEW"
 pf_pbin:
@@ -3043,7 +3044,7 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * the colour wheel), tone (Contrast, Highlight & Shadow, Blacks, Whites), white balance
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
- .long 111, 5397, 8, 5398, BK_IT, WH_IT, AB_IT, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, 5400   /* v0.25: Shading back,
+ .long 111, 5397, TB_IT, 8, 5398, BK_IT, WH_IT, AB_IT, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, 5400   /* v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 
@@ -3081,6 +3082,8 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set FR_IT, 5381
 .set HL_IT, 5380                  /* v0.28 Halation slider row (class 12, slot +30, 0..5) */
 .set HLB, 0x7ed0                  /* its bar ids + k (row 13; row 12 is WGB) */
+.set TB_IT, 5379                  /* v0.28 split-tone Balance slider row (class 13, slot +33, -5..+5) */
+.set TBB, 0x7ee0                  /* its bar ids + k (row 14) */
 .set ST_VIG, 0x7f00               /* our string ids (st_get answers them; the camera's table has ~6000) */
 .set ST_STD, 0x7f01
 .set ST_BKS, 0x7f02                 /* "Blacks" */
@@ -3090,6 +3093,7 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set ST_GLC, 0x7f06                 /* "Glow / Clarity" */
 .set ST_FRM, 0x7f07                 /* "Frame" */
 .set ST_HAL, 0x7f08                 /* v0.28 "Halation" */
+.set ST_TBL, 0x7f09                 /* v0.28 "Tone Balance" */
 .set IC_BK, 0x7f80                /* our picture ids (ic_get answers them; the camera's table has ~20000 slots) */
 .set IC_WH, 0x7f81
 .set IC_AB, 0x7f82
@@ -3105,6 +3109,7 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set IC_F0, 0x7f8c
 .set IC_F1, 0x7f8d
 .set IC_HL, IC_F0                 /* v0.28 "Halo" slider icon (mkicons PICTURES[12], Frame's old place) */
+.set IC_TB, IC_F1                 /* v0.28 "Bal" slider icon (mkicons PICTURES[13], Frame On's old place) */
 .set IC_END, 0x7f8e
 .set IC_WB, 0x7f8f                 /* v0.25 the WB grid row's left cell (wb_desc, drawn at run time) */
 .set FV0, 100                     /* v0.24 film list: picture-mode values FV0 + j for film j (COLOR k = j / 5, look j % 5 + 1) */
@@ -3169,6 +3174,8 @@ fr_tab:
  .long 54, FRB, 55, FRB + 1, 56, FRB + 2, 64, FRB + 3
 hl_tab:
  .long 54, HLB, 55, HLB + 1, 56, HLB + 2, 64, HLB + 3
+tb_tab:
+ .long 54, TBB, 55, TBB + 1, 56, TBB + 2, 64, TBB + 3
 .balign 8
 sw11_tab:                         /* the row switches 0x615511cc and 0x6155134c (16 entries, full with our rows) */
  .space 32 * 8                    /* re-hashed by build.py into 32 entries */
@@ -3185,6 +3192,7 @@ it_tab:                           /* the stock 17 item entries (filled by build.
  .long GL_IT, 0, 0, 0, gl_title, 0, 9 << 16, 0, 0, 0           /* v0.25: icon 9 = IC_GL */
  .long FR_IT, fr_title, fr_l0, 2, 0, fr_l1, 2, 0, fr_l2, 2      /* v0.25: as Vignette Correction */
  .long HL_IT, 0, 0, 0, hl_title, 0, 10 << 16, 0, 0, 0          /* v0.28: icon 10 = IC_HL */
+ .long TB_IT, 0, 0, 0, tb_title, 0, 11 << 16, 0, 0, 0          /* v0.28: icon 11 = IC_TB */
 bk_title:
  .short 4, ST_BKS
  .long 0x6154b480
@@ -3205,6 +3213,9 @@ fr_title:
  .long 0x6154b480
 hl_title:
  .short 4, ST_HAL
+ .long 0x6154b480
+tb_title:
+ .short 4, ST_TBL
  .long 0x6154b480
 nr_title:
  .short 4, 188                    /* string 188 "Noise Filter" */
@@ -3323,8 +3334,14 @@ gr_lc:
  bra 9f
 10:
  cmp HL_IT,d0                     /* v0.28 Halation */
- bne 9f
+ bne 11f
  mov hl_tab,a3
+ mov 4,d2
+ bra 9f
+11:
+ cmp TB_IT,d0                     /* v0.28 Tone Balance */
+ bne 9f
+ mov tb_tab,a3
  mov 4,d2
 9:
  jmp lc_back                      /* 0x611d19b4: cmp 0,a3 */
@@ -3373,8 +3390,13 @@ st_get:
  ret [d2],8
 8:
  cmp ST_HAL,d0                    /* v0.28 */
- bne 2f
+ bne 9f
  mov hal_str,a0
+ ret [d2],8
+9:
+ cmp ST_TBL,d0                    /* v0.28 */
+ bne 2f
+ mov tbl_str,a0
  ret [d2],8
 2:
  cmp ST_F0,d0                     /* v0.24: film names */
@@ -3428,6 +3450,8 @@ frm_str:                          /* "Frame" */
  .short 70, 114, 97, 109, 101, 0
 hal_str:                          /* v0.28 "Halation" */
  .short 72, 97, 108, 97, 116, 105, 111, 110, 0
+tbl_str:                          /* v0.28 "Tone Balance" */
+ .short 84, 111, 110, 101, 32, 66, 97, 108, 97, 110, 99, 101, 0
  .balign 16
 std_str:                          /* "Std" */
  .short 83, 116, 100, 0
@@ -3480,6 +3504,7 @@ ch_id:
  CHC wh_f, WHB, f2c_obj
  CHC gl_f, GLB, f2c_obj           /* v0.25 Glow / Clarity slider */
  CHC hl_f, HLB, f2c_obj           /* v0.28 Halation slider */
+ CHC tb_f, TBB, f2c_obj           /* v0.28 Tone Balance slider */
  CHC wg_a, WGB, cha_back          /* v0.25 WB grid row: as the Frame row, one option */
  CHC wg_b, WGB, chb_back
  CHC wg_c, WGB, chc_back
@@ -3582,6 +3607,11 @@ sl_slot:
  add -HLB,d2
  cmp 4,d2
  bcs 2f
+ mov 13,d1                        /* v0.28 Tone Balance */
+ mov d3,d2
+ add -TBB,d2
+ cmp 4,d2
+ bcs 2f
  mov 1,d1
  cmp 7,d3
  beq 1f
@@ -3614,6 +3644,9 @@ sl_slot:
  beq 1f
  mov 12,d1                        /* v0.28 Halation */
  cmp HL_IT,d3
+ beq 1f
+ mov 13,d1                        /* v0.28 Tone Balance */
+ cmp TB_IT,d3
  bne 8f
 1:
  mov d1,d3                        /* the class, over the getter */
@@ -3654,8 +3687,14 @@ sl_slot:
  bra 99f
 86:
  cmp 12,d1
- bne 87f
+ bne 88f
  movbu (30,a0),d0                 /* v0.28 Halation 0..5 (slot +30) */
+ extb d0
+ bra 99f
+88:
+ cmp 13,d1
+ bne 87f
+ movbu (33,a0),d0                 /* v0.28 Tone Balance -5..+5 (slot +33) */
  extb d0
  bra 99f
 87:
@@ -3874,6 +3913,12 @@ sl_gb:
  exthu d2
  add -HLB,d2
  cmp 4,d2
+ bcs 90f
+ mov 13,a3                        /* v0.28 Tone Balance */
+ mov d0,d2
+ exthu d2
+ add -TBB,d2
+ cmp 4,d2
  bcc \miss
 90:
  PVAL \miss
@@ -3895,6 +3940,9 @@ sl_cnt:
  beq 6f
  mov 6,d0                         /* v0.28: 12 Halation 0..5 */
  cmp 12,a3
+ beq 6f
+ mov 11,d0                        /* v0.28: 13 Tone Balance -5..+5 */
+ cmp 13,a3
  beq 6f
  mov 11,d0                        /* v0.25: 9 Glow / Clarity -5..+5 */
  cmp 9,a3
@@ -3932,6 +3980,10 @@ sl_cnt:
  clr d0                           /* v0.28: 12 Halation 0, 6 */
  mov 6,d1
  cmp 12,a3
+ beq 99f
+ mov -5,d0                        /* v0.28: 13 Tone Balance -5, 11 */
+ mov 11,d1
+ cmp 13,a3
  beq 99f
  mov -5,d0                        /* v0.25: 9 Glow / Clarity -5, 11; 10 Frame 0, 2 */
  mov 11,d1
@@ -4080,6 +4132,16 @@ sl_set0:
  movbu d1,(62,a3)
  jmp s_dirty
 14:
+ cmp 13,a3
+ bne 15f
+ cmp -5,d1                        /* v0.28 Tone Balance -5..+5 -> +33 */
+ blt 7f
+ cmp 5,d1
+ bgt 7f
+ mov d2,a3
+ movbu d1,(65,a3)
+ jmp s_dirty
+15:
  cmp 9,a3
  bne 12f
  cmp -5,d1                        /* v0.25 Glow / Clarity -5..+5 -> +49 */
@@ -4237,6 +4299,8 @@ rw_bar:
  beq 3f
  cmp HL_IT,d0                     /* v0.28 Halation: 0..5 (h6: its own ends, so the bar starts at the left) */
  beq 5f
+ cmp TB_IT,d0                     /* v0.28 Tone Balance: -5..+5 */
+ beq 3f
  cmp AB_IT,d0
  beq 4f
  cmp GM_IT,d0
@@ -4356,6 +4420,10 @@ rv_chk:
  bcs 1f
  movhu (a0),d0
  add -HLB,d0
+ cmp 4,d0
+ bcs 1f
+ movhu (a0),d0
+ add -TBB,d0
  cmp 4,d0
  bcc 2f
 1:
@@ -5141,6 +5209,7 @@ ic_list:
  .long 0xffff, 7, 7, IC_GM
  .long 0xffff, 7, 7, IC_GL         /* v0.25: 9 = Glow / Clarity */
  .long 0xffff, 7, 7, IC_HL         /* v0.28: 10 = Halation */
+ .long 0xffff, 7, 7, IC_TB         /* v0.28: 11 = Tone Balance */
 ic_lend:
 ic_ent:                           /* the slot word of each of our pictures, in firmware/mkicons.py PICTURES order */
  .long ic_d0, ic_d1, ic_d2, ic_d3, ic_d4, ic_d5, ic_d6, ic_d7, ic_d8, ic_d9, ic_d10, ic_d11, ic_d12, ic_d13
@@ -5205,6 +5274,10 @@ st_chk:
  add -HLB,d0
  cmp 4,d0
  bcs 1f
+ movhu (a1),d0
+ add -TBB,d0
+ cmp 4,d0
+ bcs 1f
  clr d0
  mov d0,(a0)
  jmp stp_back
@@ -5241,6 +5314,8 @@ rd_a:
  beq 1f
  cmp GL_IT,d0
  beq 1f
+ cmp TB_IT,d0                     /* v0.28 Tone Balance */
+ beq 1f
  cmp 5399,d0                      /* v0.25 Shading: these glyphs, in line with its picture (owner: its number sat low) */
  beq 1f
  jmp rda_none
@@ -5271,6 +5346,8 @@ rd_b:
  cmp WH_IT,d0
  beq 1f
  cmp GL_IT,d0
+ beq 1f
+ cmp TB_IT,d0                     /* v0.28 Tone Balance */
  beq 1f
  cmp 5399,d0                      /* v0.25 Shading (as rd_a) */
  beq 1f
@@ -7628,7 +7705,7 @@ fl_isdef:
  exthu d0
  add -GRB,d0
  blt 90f
- cmp 0xe0,d0                      /* v0.25: + GLB (row 10), FRB (row 11); v0.28 HLB (row 13); rows 7..9 (FLB films)
+ cmp 0xf0,d0                      /* v0.25: + GLB (row 10), FRB (row 11); v0.28 HLB (row 13), TBB (14); rows 7..9 (FLB films)
                                      and 12 (WGB) are not ours */
  bcc 90f
  mov d0,d2
@@ -7685,7 +7762,7 @@ fl_isdef:
  jmp ed_isdef
 fl_xr:                            /* {record offset, slot offset} of the rows GRB, NRB, VFB, BKB, WHB, ABB, GMB (pf_bt),
                                      three unused (FLB), v0.25 GLB, FRB */
- .byte 51,53, 49,51, 50,52, 39,47, 40,48, 37,26, 38,27, 0,0, 0,0, 0,0, 47,49, 48,50, 0,0, 57,30   /* v0.28 HLB */
+ .byte 51,53, 49,51, 50,52, 39,47, 40,48, 37,26, 38,27, 0,0, 0,0, 0,0, 47,49, 48,50, 0,0, 57,30, 58,33   /* v0.28 HLB, TBB */
 
 /* fl_live: `call fl_live,[d2,d3,a2,a3],24`, a2 = P, d2 = COLOR k holding film j -> d0 1 when COLOR k now differs from
  * film j as built: its 18 settings (fl_isdef) or the slot's WB shift, Blacks / Whites, Extras (pf_bt). */
@@ -7728,7 +7805,7 @@ fl_live:
  cmp d1,d0
  bne 28f
  inc d3
- cmp 16,d3                        /* v0.28: all 16 pf_bt pairs (+ split toning, halation) */
+ cmp 17,d3                        /* v0.28: all 17 pf_bt pairs (+ split toning, halation, balance) */
  bcs 22b
  clr d0
  ret [d2,d3,a2,a3],24
@@ -7738,7 +7815,7 @@ fl_live:
 
 /* fl_fch: `call fl_fch,[d2,d3,a2,a3],28`, a2 = P, d0 = film j -> d0 1 when it is changed from how it was built: on
  * its COLOR now (look number = its) -> fl_live; else its saved changes (EDITS.BIN record j, valid) differ from the
- * LOOKS.BIN record in bytes 0..57 (v0.28; was 0..52). Locals (4) j. */
+ * LOOKS.BIN record in bytes 0..58 (v0.28; was 0..52). Locals (4) j. */
 fl_fch:
  mov d0,(4,sp)
  clr d2
@@ -7782,7 +7859,7 @@ fl_fch:
  mov (LPTR,a2),a0
  add d0,a0
  add 32,a0                        /* as built */
- mov 58,d3                        /* v0.28: bytes 0..57 (+ split toning, halation) */
+ mov 59,d3                        /* v0.28: bytes 0..58 (+ split toning, halation, balance) */
 6:
  movbu (a0),d0
  movbu (a1),d1
@@ -7888,18 +7965,20 @@ s_wl:
  * research/NOTES.md "Split toning": the RGB gamma stage (0x60516ad9) copies the picture-mode curve into the job three
  * times (O+1252 R / +1892 G / +2532 B: 256 x u16 12-bit + 64 x u16 fine table, 640 B each) before the stage list that
  * holds our tone hook. st_run runs at tone's exit (same context C in d3, all registers as at the hook) and bends each
- * channel: t' = t + ((Ks ws + Kh wh) >> 8), ws = (t s >> 12) s >> 12, wh = (t t >> 12) s >> 12, s = 4095 - t
+ * channel: t' = t + ((Ks ws + Kh wh) >> 9), ws = (u s >> 12) s >> 12, wh = (u u >> 12) s >> 12, s = 4095 - u
  * (research/splittone/model.py), clamped 0..4095 and kept rising (running max, the 256 and the 64 entries apart).
- * K = st_k[colour] x strength: the effective COLOR's slot +55 / +56 (Shadows colour 0..11, strength -5..5; minus =
- * the opposite colour) and +57 / +58 (Highlights). Camera-proven with fixed values (probe st1). Gates: COLOR still
+ * v0.28: u = t moved by the Tone Balance b (slot +33, -5..+5): the hand-over point c = 2048 - 256 b, u = t 2048 / c
+ * below c, 2048 + (t - c) 2047 / (4095 - c) above (b = 0: u = t); + = the highlight colour covers more.
+ * K = st_k[colour] x strength: the effective COLOR's slot +55 / +56 (Shadows colour 0..11, strength 0..5; v0.28:
+ * half the step of v0.26 (>> 9), negative = off) and +57 / +58 (Highlights). Camera-proven with fixed values (probe st1). Gates: COLOR still
  * (key 11, or 12 with +1731 0, as tone); P valid; a strength set; R, G and B tables identical before (stock COLOR
  * copies one curve three times: a repeated pass never bends twice and art curves are left alone).
  * Frame: (0) getter return, (4..28) registers, (32..52) Ks R G B, Kh R G B, (56) segment, (60) running max, (64) d0,
- * (68) Ks, (72) Kh of the segment.
+ * (68) Ks, (72) Kh of the segment, v0.28 (76) c, (80) f1 = 2^27 / c, (84) f2 = 2047 << 16 / (4095 - c), (88) t.
  * Stores: own stack frame, O+1252..O+3171. */
 .section .ext11,"ax"
 st_run:
- add -76,sp
+ add -92,sp
  mov d0,(64,sp)
  mov d1,(4,sp)
  mov d2,(8,sp)
@@ -7979,9 +8058,9 @@ st_run:
  bcs 3f
  clr d1                           /* no colour: off */
 3:
- cmp -5,d1
+ cmp 0,d1                         /* v0.28: 0..5 (negative: off; the wheels only add a colour) */
  bge 31f
- mov -5,d1
+ clr d1
 31:
  cmp 5,d1
  ble 32f
@@ -8009,6 +8088,32 @@ st_run:
  bne 2b
  cmp 0,d2
  beq s9                           /* both strengths 0 */
+ movbu (65,a2),d1                 /* v0.28 Tone Balance b (slot +33), -5..+5 */
+ extb d1
+ cmp -5,d1
+ bge 33f
+ mov -5,d1
+33:
+ cmp 5,d1
+ ble 34f
+ mov 5,d1
+34:
+ asl 8,d1
+ mov 2048,d0
+ sub d1,d0                        /* c = 2048 - 256 b: 768..3328 */
+ mov d0,(76,sp)
+ mov d0,d1
+ mov 134217728,d0                 /* f1 = 2048 << 16 / c */
+ ext d0
+ div d1,d0
+ mov d0,(80,sp)
+ mov 4095,d1
+ mov (76,sp),d0
+ sub d0,d1                        /* 4095 - c */
+ mov 134152192,d0                 /* f2 = 2047 << 16 / (4095 - c) */
+ ext d0
+ div d1,d0
+ mov d0,(84,sp)
  mov a3,a0
  add 1252,a0                      /* a0 = R table */
  mov a0,a1
@@ -8057,6 +8162,21 @@ st_run:
  mov d2,(60,sp)                   /* running max */
 8:
  movhu (a0),d0                    /* t */
+ mov d0,(88,sp)
+ mov (76,sp),d1                   /* v0.28: u = t moved by the balance */
+ cmp d1,d0
+ bcc 81f
+ mov (80,sp),d1
+ mul d1,d0
+ lsr 16,d0
+ bra 82f
+81:
+ sub d1,d0
+ mov (84,sp),d1
+ mul d1,d0
+ lsr 16,d0
+ add 2048,d0
+82:
  mov 4095,d1
  sub d0,d1                        /* s */
  mov d0,d2
@@ -8074,7 +8194,8 @@ st_run:
  mov (72,sp),d1
  mul d1,d3                        /* Kh wh */
  add d3,d2
- asr 8,d2
+ asr 9,d2                         /* v0.28: half the v0.26 step */
+ mov (88,sp),d0                   /* t */
  add d2,d0
  bge 9f
  clr d0
@@ -8108,11 +8229,11 @@ s9:
  mov (16,sp),a1
  mov (20,sp),a2
  mov (24,sp),a3
- add 76,sp
+ add 92,sp
  mov d3,a0                        /* displaced 0x605197d7 */
  jmp tone_next                    /* 0x60518fa4; returns to 0x605197de */
-st_k:                             /* K per strength step, R G B, for the wheel's 12 colours (4.8 Cb/Cr units at the
-                                   * weight peak per step: up to 24 at 5, as Cross Process I) */
+st_k:                             /* K per strength step, R G B, for the wheel's 12 colours (v0.26: 4.8 Cb/Cr units at
+                                   * the weight peak per step; v0.28 >> 9: 2.4 a step, up to 12 at 5) */
  .byte 7,7,-57          /* Yellow */
  .byte 26,-4,-47          /* Orange */
  .byte 37,-12,-33          /* Orange-red */
@@ -8130,7 +8251,7 @@ st_k:                             /* K per strength step, R G B, for the wheel's
 /* ------------------------------------------------------------------ split toning wheels (v0.26)
  * The HSL wheel gets two more pages after Luminance: axis 5 Shadows and axis 6 Highlights (INFO: Color -> Color All ->
  * Hue -> Luminance -> Shadows -> Highlights -> Color). On them the 12 colours are the tint's colour: the rear dial on
- * a colour sets its strength -5..5 (minus = the opposite colour) and makes it the page's colour; the other colours
+ * a colour sets its strength 0..5 (v0.28; was -5..5, minus = the opposite colour) and makes it the page's colour; the other colours
  * read 0. Slot +55 / +56 (Shadows colour 0..11, strength), +57 / +58 (Highlights); LOOKS.BIN record +53..+56.
  * TONEP miss: P valid, the editor's marker, axis 5 or 6 -> a2 = P, d3 = axis. Uses d3, a2. */
  .macro TONEP miss
@@ -8144,7 +8265,7 @@ st_k:                             /* K per strength step, R G B, for the wheel's
  cmp 7,d3
  bcc \miss
  .endm
-/* TONEV: d2 = sector id - 928 (12k + colour), a2 = P, d3 = axis -> d0 = the value shown (-5..5). Uses d2, d3, a2. */
+/* TONEV: d2 = sector id - 928 (12k + colour), a2 = P, d3 = axis -> d0 = the value shown (0..5). Uses d2, d3, a2. */
  .macro TONEV
  clr d0
 71:
@@ -8163,9 +8284,9 @@ st_k:                             /* K per strength step, R G B, for the wheel's
  bne 73f
  movbu (88,a2),d0                 /* its strength */
  extb d0
- cmp -5,d0
+ cmp 0,d0                         /* v0.28: 0..5 (an old negative reads 0: off) */
  bge 74f
- mov -5,d0
+ clr d0
 74:
  cmp 5,d0
  ble 75f
@@ -8225,7 +8346,7 @@ tn_set:
  add -928,d2
  cmp 48,d2
  bcc 9f
- cmp -5,d1
+ cmp 0,d1                         /* v0.28: 0..5 only (the wheels add a colour, never take one away) */
  blt 8f
  cmp 5,d1
  bgt 8f

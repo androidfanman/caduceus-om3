@@ -3175,3 +3175,36 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - om-emu (out-h6b, Halation slot +30 poked to 0 / 3 / 5): dot at the left end / 60 % / the right end, "-" grey at 0,
   "+" grey at 5, readout +-0 / +3 / +5; left column "Halo +3*". Package: E1479999.BIN 6fc8dae8…, GUIDES.BIN 4ad05bf9…
   (LABELS / TONES as h5). firmware/VERSION "v0.28-dev (halation h6)".
+- **h6 camera (owner, 2026-11-12): "that looks great!"** The Halation bar runs 0..+5 on the camera. Halation is done
+  on the camera side; the Control Panel part remains. Owner: custom crop modes go last in v0.28; split toning next.
+
+### Split toning t1: gentler steps, positive-only wheels, Tone Balance row (2026-11-12; emulator only)
+- Owner: lessen the effect; wheels only positive ("we are always adding, not removing"); a balance ("make the shadow
+  tone more, or the highlight more"). Chosen: 0..5 with half-size steps (+5 = v0.26's +2.5; films keep their numbers,
+  so they come out at half strength); Balance as a Picture Mode row right under the HSL wheels row ("that is where
+  you'll be adjusting it"). Custom crop modes moved to the end of v0.28.
+- Engine (st_run): `>> 9` (was 8): 2.4 Cb/Cr units per step at the weight peak; strengths clamped 0..5 (negative =
+  off, so an old -n reads as off). Balance b (slot +33): weights at u instead of t, hand-over point c = 2048 - 256 b
+  (768..3328), u = t * f1 >> 16 below c, 2048 + ((t - c) * f2 >> 16) above, f1 = 2^27 / c, f2 = (2047 << 16) /
+  (4095 - c) (two divs per pass; b = 0 gives u = t exactly). Frame 76 -> 92: (76) c, (80) f1, (84) f2, (88) t.
+  research/splittone/model.py `bend28` = the camera's math.
+- om-emu (out-t1, probe_test.py's stage + tone passes, slot bytes poked): Cyan 5 / Orange 5 at balance 0, +5, -5,
+  +2, Shadows -3 (off) / Orange 2, Yellow 1 / Green 4 at -3: all **bit-exact** with the reference (all 320 entries x 3
+  channels); model.bend28 equals the 256-entry part. Tints at balance 0 are half of v0.26's (input 16: Cr -8.4 vs
+  -16.7). +5 pulls the highlight tint down (input 64: Cb -8.1 Cr +2.9 vs -6.9 / -1.0 at 0); -5 pushes the shadow
+  tint up (input 128: Cr -3.8 vs +3.5).
+- Wheels: tn_set refuses values below 0, TONEV shows 0..5. om-emu: on Shadows, rear dial down at 0 does nothing,
+  up to 3 sets the colour, back down to 0 switches it off (slot colour and strength 0), further down stays 0.
+- Row: TB_IT 5379 (key 5373), bars TBB 0x7ee0 + k (row 14), class 13 (slot +33, -5..+5, as Glow's bar and readout),
+  title ST_TBL "Tone Balance", left icon IC_TB = IC_F1 ("Bal", mkicons PICTURES[13], Frame On's old place); it_tab 27,
+  ic_list 11 (choice count 11), pm_list: Picture Mode, HSL, Tone Balance, Contrast, ...
+- Storage: BUNDLES slot **+33** (the shared layout's first `sat` byte: -5..5 in every OM-3 firmware's range table,
+  unused on COLOR slots: going back keeps BUNDLES valid); LOOKS / EDITS record **+58** (pf_lo -5; pf_bt 58,9; loops
+  to pf_bt+34; fl_xr row 14 = (58, 33); fl_live 17 pairs, fl_fch bytes 0..58). Firmware before v0.28 rejects a
+  LOOKS.BIN with +58 != 0 (Control Panel: gate as halation). docs/FORMATS.md now also lists the v0.26 split-toning
+  bytes.
+- om-emu UI: the row under HSL ("Bal +-0"; "Bal +5*" when set), bar -5..+5 with the dot at -3 / +5, readout -3 / +5.
+- Not done yet: the Control Panel (preview at half strength + balance, 0..5 wheels, +58 export gated to v0.28); the
+  photo code (EXIF, om3.1) still carries record bytes 0..56 only (no halation, no balance).
+- Package t1: E1479999.BIN 2040a94e…, GUIDES.BIN bfe23233… (LABELS / TONES as h6). VERSION "v0.28-dev (split tone t1)".
+  New picture "Bal" (left column) sent to the owner for approval.
