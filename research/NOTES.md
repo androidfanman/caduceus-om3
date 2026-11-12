@@ -3252,3 +3252,14 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   om-emu: boots, menus and half-press as t2 (the emulator runs no development, so the hook itself is camera-only).
   Package: E1479999.BIN 44816a42…, GUIDES.BIN 237ef8ee…. Camera: Shading -5 (and +5) on COLOR 1-4, one even-lit
   photo each.
+- **s1 camera (owner, 2026-11-12; PB122284-291, 17 mm f1.8 1/40 ISO 400, plain wall, Shading -5 then +5 on COLOR
+  1-4):** Y by radius (centre .. corner, 400x300): stock -5 130 -> 7 (corner / centre **0.057**), +5 131 -> 243
+  (1.85). COLOR 2 (+128 upper half 205): corners **olive** (-5) / **yellow** (+5); COLOR 3 (+132 205): **green** /
+  **cyan**; COLOR 4 (+152 410): about stock (corner 8.5 vs 7.4). So **+128 = {Cb target << 16 | Y target 0 / 1023},
+  +132 = Cr target (512 neutral)**: the corners are blended toward that colour by a radial mask that is ~1 at the
+  corners at -5 / +5; +152 is not its strength. The mask's strength is set elsewhere.
+- Probe s2 (branch experiment/shading-probe-s1, VERSION "v0.28-dev (shading probe s2)"): COLOR 2 +192 1024 -> 410
+  (the dispatcher's default for every combiner), COLOR 3 +148 -> 0x019a019a, COLOR 4 Y target 0 -> 409 / 1023 -> 614
+  (tells a linear blend toward grey from a multiplicative one), + the GLOG.BIN logger (xblock XB_LOG 1; copy A = the
+  first kind-0 request's first 1856 B) for COLOR 1 at -5 / -3 / -1. Package E1479999.BIN d87eaf60…, GUIDES.BIN
+  06ba2216…; om-emu: boots, saves (no capture there, so no log).
