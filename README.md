@@ -1,8 +1,9 @@
 > [!WARNING]
-> **Feature branch `feature/films-in-camera`, steps 1 (f1) and 2 (f2), not released.** Step 2 builds GUIDES / LABELS / TONES into the firmware, so any card works (camera-tested 2026-11-13, also with no OM3MOD folder at all). The films, on-camera edits and Extras
-> settings live in the camera's own settings memory (store M), so a card without films still has them; a card brings
-> in only films the camera never had; no copies on the card (owner, 2026-11-13). Issue #35, design by iancw (#36),
-> camera probe mp1. Emulator-tested; **camera-tested 2026-11-13** (rounds 1 and 2: first-time copy, then a card without films after a battery pull). Details in `research/NOTES.md`, "Films in camera memory, step 1".
+> **Feature branch `feature/films-in-camera`: test version v0.29-beta** (a GitHub pre-release, 2026-11-13; v0.28 stays
+> the current version). The films, on-camera edits and Extras settings live in the camera's own settings memory, and
+> GUIDES / LABELS / TONES are built into the firmware, so any card works; a card brings in only films the camera never
+> had; no copies on the card (owner, 2026-11-13). Camera-tested (build f2). Issue #35, research and design by iancw
+> (#36). Details: `releases/v0.29-beta/NOTES.md`, `research/NOTES.md` "Films in camera memory".
 
 <h1 align="center">Caduceus for OM-3</h1>
 

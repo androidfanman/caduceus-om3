@@ -3611,7 +3611,7 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   check ("BlR." where it expects "BlD."): drop `scpu` from the NV file between runs (only M / E matter here).
 - **Not yet:** GUIDES / LABELS / TONES still come from the card (step 2: into the firmware); without them films apply but
   Glow / Clarity, grain, guide and film pictures don't. The Control Panel's saved-at stamp (step 3) is not needed with the
-  "never had" rule. Package: `test-builds/2026-11-13-films-in-camera-f1` (private).
+  "never had" rule. Test package for the owner (kept outside the repo).
 - **Camera, round 1 (owner, 2026-11-13, f1):** CADLOG.TXT: "a valid block at power-on: no / Films from: the card (first
   time) / Block written this power-on: 2 times, generation now 2 / the camera's changed byte: 0". The owner's change (COLOR 1
   from FILM 4 to FILM 1) was written (event #2: edits waiting, save result 1) and the camera saved M at the menu exit (changed
@@ -3643,7 +3643,7 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   kept; new films taken; an old card ignored; the cards' f1 GUIDES.BIN ignored, the code block still loads); a blank card and
   a card with only DEBUG.TXT: GPTR / XPTR / tg_ptr set from the built-in copies, the three opened at the first half-press
   (rows 0, 1, 2), the Picture Mode screen drawn in full, CADLOG "Card files: all match this firmware".
-- Package: `test-builds/2026-11-13-films-in-camera-f2` (only E1479999.BIN to copy). Camera test pending.
+- Test package for the owner (kept outside the repo): only E1479999.BIN to copy. Camera test pending.
 - **Camera, round 1 (owner, 2026-11-13, f2): passed.** (A first attempt still ran f1: the owner had not held OK at power-on;
   f1 kept working, an edit -> generation 4.) After the flash: CADLOG build "v0.29-dev (films in camera f2)", "Card files:
   all match this firmware", LOOKS / EDITS / BUNDLES "not needed (kept in the camera's memory)", "a valid block at power-on:
@@ -3656,10 +3656,20 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   grain plain at 1:1). So the films and Extras come from the camera's memory, and the code block, labels and tone pictures
   from the firmware: **any card works.** (No debug log in this round: no DEBUG.TXT on the card.)
 - **Camera, new films from a Control Panel export (owner, 2026-11-13, f2): works.** The camera's 20 films loaded into the
-  Control Panel (a bank link made from the card's LOOKS.BIN taken in at f1), FILM 15 Seaside Pastel Midtones +6 -> +7 with the
+  Control Panel (a bank link made from the card's LOOKS.BIN taken in at f1), FILM 15 (one of the owner's own films) Midtones +6 -> +7 with the
   UI's + button, then Export › Single files › LOOKS.BIN ("v0.28 or later"); the file differs from the camera's films only in
   that byte (record 15 +45), its CRC and the selection bytes. On the card (a new OM3MOD with LOOKS.BIN and DEBUG.TXT). Camera:
-  the photo PB132430 on FILM 15 Seaside Pastel has Midtones 7 in its photo code (Shadows 3, Highlights -1, Contrast -1,
+  the photo PB132430 on FILM 15 has Midtones 7 in its photo code (Shadows 3, Highlights -1, Contrast -1,
   Blacks 3, as exported); the last power-on's CADLOG: "LOOKS.BIN: on the card (the camera takes only films it never had) /
   a valid block at power-on: yes, generation 8 / Films from: the camera" (the set was taken at an earlier power-on, then not
   again). So the whole path works on the camera: Control Panel -> one LOOKS.BIN -> the camera's memory.
+
+## v0.29-beta (test version) prepared (2026-11-13)
+- Owner: a pre-release first (v0.28 stays the main release), with the 20 redesigned films (v7) in the optional LOOKS.BIN
+  and in the Control Panel (published with v0.29, as the live site is built from `main`).
+- Firmware: f2 renamed "v0.29-beta (camera-tested, f2)" (same length; only the name, the code-block tag and the built-in
+  GUIDES copy's CRC / tag differ, checked by a byte diff of main.bin). `releases/v0.29-beta`: patch.json (158 runs,
+  321,613 bytes changed), LOOKS.BIN b7b6dabb… (v7 films, selection 0), DEBUG.TXT and the photo code kit as v0.28, no card
+  files. `patch.py --release v0.29-beta` makes E1479999.BIN b75ae112… (= the build) and only DCOLYMP; v0.28 still makes
+  d7f13db0… with its card files.
+- Control Panel: rebuilt into `looklab/` on this branch (v7 films; v0.29 wording in Install and Export); webapp tests pass.
