@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.28](#v028) | 2026-11-12 | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7); the film as set in each photo's code; the Control Panel knows all of it |
 | [v0.28-alpha](#v028-alpha-test-version) | 2026-11-12 (test version) | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7). The Control Panel isn't updated yet |
 | [v0.27.1](#v0271) | 2026-11-11 | Fixes a rare freeze at switch-on: the films load at the first half-press again |
 | [v0.27](#v027) | 2026-11-11 | All four arrow keys in Button Function; Creative Dial modes with a film per position; the film's name and recipe in every JPEG |
@@ -28,6 +29,24 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.28
+Halation, finer split toning, a WB for every film, Blacks / Whites as one grid, and the film as you set it in each
+photo's code. Firmware camera-tested (2026-11-12, build pc1; only its name was changed). Everything from the
+[v0.28-alpha](#v028-alpha-test-version) test version, plus:
+
+- **The film in the photo, as you set it:** the om3.1 code in each FILM photo's EXIF now holds the film as it was set
+  when the photo was taken (the changes made on the camera, Halation, Tone Balance, Blacks / Whites to ±7 and the
+  camera's WB at that moment), read at the half-press before the shot. It stays om3.1: split toning is written in the
+  old whole steps (older readers still read it, half a step lower where v0.28 has a half step), with the half steps in
+  the last spare byte. Before, the code held the film as built in the Control Panel. Readers updated: the Control
+  Panel, `firmware/photocode.py` and the photo code kit (`docs/PHOTO_CODE.md`).
+- **Control Panel:** Halation (slider and preview), the Shadows / Highlights wheels 0–10 and a Tone Balance slider
+  (previewed), a WB mode per film (with Kelvin for Custom WB; previewed as if the photo was taken in daylight), and
+  Blacks / Whites on their own grid to ±7. The firmware choice under Export defaults to **v0.28 or later**; older
+  choices leave the new settings out and say which looks lose something.
+- **Fix:** the photo code's text was 2 bytes longer than its buffer (harmless padding took them since v0.27).
+- Not planned after all (owner): custom crop modes (set aside), exposure and ISO per film.
 
 ## v0.28-alpha (test version)
 A test version of v0.28 (a GitHub pre-release; v0.27.1 stays the current version). Firmware camera-tested

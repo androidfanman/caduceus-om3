@@ -463,7 +463,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
       onclick: () => { S.tab = t; renderEditor(); },
     }, TAB_NAME[t], tabHas(t) ? h('span', { class: 'dot' }) : null))),
     split && !om3Fw25() ? h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.26: '), 'Export is set to an older firmware, so split toning is not previewed or saved. Choose "v0.26 or later" under Export › Firmware on the camera.') : null,
-    split && om3Fw25() && !om3Fw28() && cur() % 2 ? h('p', { class: 'warn' }, h('b', {}, 'Half steps need firmware v0.28: '), `the export is set to an older firmware, so ${cur()} is saved and previewed as ${cur() + 1}. Choose "v0.28-alpha or later" under Export › Firmware on the camera.`) : null,
+    split && om3Fw25() && !om3Fw28() && cur() % 2 ? h('p', { class: 'warn' }, h('b', {}, 'Half steps need firmware v0.28: '), `the export is set to an older firmware, so ${cur()} is saved and previewed as ${cur() + 1}. Choose "v0.28 or later" under Export › Firmware on the camera.`) : null,
     svg,
     h('div', { class: 'hw-ctl' },
       h('button', { class: 'icon', title: 'Previous colour (front dial)', 'aria-label': 'Previous colour', onclick: () => move(-1) }, '‹'),
@@ -695,11 +695,11 @@ function wbModeRow(l: Look, changed: () => void): HTMLElement {
     mode !== 'auto' ? h('p', { class: 'help' }, odd ? 'Not shown in the preview (it follows the water or your own measurement).' : 'The preview shows it as if the photo was taken in daylight (5300 K).') : null);
 }
 
-/** The firmware chosen under Export › Firmware on the camera (v0.26.1 or later by default). Settings a firmware can't
+/** The firmware chosen under Export › Firmware on the camera (v0.28 or later by default, from the v0.28 release). Settings a firmware can't
  *  take are left out of the preview as they are left out of its LOOKS.BIN: split toning before v0.26; Halation, Tone
  *  Balance, the film's WB mode and Blacks / Whites past ±5 before v0.28 (split toning then in whole v0.26 steps). */
 const FW_VALUES = ['20', '21', '22', '23', '24', '25', '26', '28'];
-const fwSetting = (): Fw => { try { const s = localStorage.getItem('caduceus.om3.fw'); if (s !== null && FW_VALUES.includes(s)) return Number(s) as Fw; } catch { /* storage blocked */ } return 26; };
+const fwSetting = (): Fw => { try { const s = localStorage.getItem('caduceus.om3.fw'); if (s !== null && FW_VALUES.includes(s)) return Number(s) as Fw; } catch { /* storage blocked */ } return 28; };
 const om3Fw25 = () => fwSetting() >= 25;
 const om3Fw28 = () => fwSetting() >= 28;
 function splitPv(l: Look): Look {
@@ -714,7 +714,7 @@ function splitPv(l: Look): Look {
 }
 /** A note under a v0.28 setting while the export is for an older firmware. */
 const needs28 = (what: string) => (om3Fw28() ? null : h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.28: '),
-  `the export is set to an older firmware, so ${what} is not previewed or saved. Choose "v0.28-alpha or later" under Export › Firmware on the camera.`));
+  `the export is set to an older firmware, so ${what} is not previewed or saved. Choose "v0.28 or later" under Export › Firmware on the camera.`));
 
 function refreshProblems() {
   const el = document.getElementById('problems');
@@ -1371,7 +1371,7 @@ function om3ExportDialog() {
     fw = Number((e.target as HTMLSelectElement).value) as Fw;
     try { localStorage.setItem('caduceus.om3.fw', String(fw)); } catch { /* storage blocked */ }
     renderEditor(); schedulePreview(); wbNote();   // v0.26: split toning shows only with the v0.26 export; v0.28 its settings
-  } }, h('option', { value: '28', selected: fw === 28 }, 'v0.28-alpha or later'), h('option', { value: '26', selected: fw === 26 }, 'v0.26.1 – v0.27.1'), h('option', { value: '25', selected: fw === 25 }, 'v0.26 (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
+  } }, h('option', { value: '28', selected: fw === 28 }, 'v0.28 or later'), h('option', { value: '26', selected: fw === 26 }, 'v0.26.1 – v0.27.1'), h('option', { value: '25', selected: fw === 25 }, 'v0.26 (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
   const wbBig = O.bank.flat().filter((l) => l?.wb && Math.max(Math.abs(l.wb.a_b), Math.abs(l.wb.g_m)) > 5).map((l) => l!.name);
   const wbBox = h('p', { class: 'warn' });
   const v28 = O.bank.flat().filter((l) => l && v28Parts(l).length).map((l) => `${l!.name} (${v28Parts(l!).join(', ')})`);
@@ -1379,8 +1379,8 @@ function om3ExportDialog() {
     const big = wbBig.length && fw < 26, new28 = v28.length && fw < 28;
     wbBox.hidden = !big && !new28;
     wbBox.replaceChildren(
-      ...(big ? [h('b', {}, 'WB beyond ±5: '), `${wbBig.join(', ')}. Firmware v0.26 and older refuse a LOOKS.BIN with a WB shift past ±5, so this export saves it as ±5. Choose "v0.26.1 – v0.27.1" or "v0.28-alpha or later" for the full ±7. `] : []),
-      ...(new28 ? [h('b', {}, 'v0.28 settings left out: '), `${v28.join('; ')}. Older firmware refuses a LOOKS.BIN with them, so this export saves these looks without them (Blacks / Whites as ±5, split toning in whole v0.26 steps). Choose "v0.28-alpha or later" if the camera has v0.28.`] : []));
+      ...(big ? [h('b', {}, 'WB beyond ±5: '), `${wbBig.join(', ')}. Firmware v0.26 and older refuse a LOOKS.BIN with a WB shift past ±5, so this export saves it as ±5. Choose "v0.26.1 – v0.27.1" or "v0.28 or later" for the full ±7. `] : []),
+      ...(new28 ? [h('b', {}, 'v0.28 settings left out: '), `${v28.join('; ')}. Older firmware refuses a LOOKS.BIN with them, so this export saves these looks without them (Blacks / Whites as ±5, split toning in whole v0.26 steps). Choose "v0.28 or later" if the camera has v0.28.`] : []));
   };
   wbNote();
   const cardFiles = async () => [{ name: 'LOOKS.BIN', data: looksBin() }, { name: 'NAMES.BIN', data: await namesBin(O.bank) as Uint8Array }];
@@ -1402,7 +1402,7 @@ function om3ExportDialog() {
       ? h('div', { class: 'problems-box' }, h('b', {}, `${probs.length} problem(s) to fix first:`), h('ul', { class: 'problems' }, ...probs.slice(0, 12).map((p) => h('li', {}, fmt(p)))))
       : h('p', { class: 'ok' }, `✓ ${n} looks pass the camera's checks (Caduceus for OM-3 v0.19 or later; NR, Glow / Clarity and Art Effects need v0.20, Grain and lens correction v0.21, Sharp v0.22, split toning v0.26, Halation, Tone Balance, the WB mode and Blacks / Whites past ±5 v0.28; the export leaves out what the chosen firmware can't take; on v0.17–v0.18 use the PROFILES.BIN file below).`),
     h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'Firmware on the camera'), h('p', { class: 'help' }, 'v0.28 (a test version so far) adds Halation, Tone Balance, the film\'s WB mode, split toning in half steps and Blacks / Whites to ±7; v0.26 split toning; v0.22 adds Sharp, v0.21 Grain and the lens vignette correction choice to LOOKS.BIN. Older firmware would reject a file with the newer settings, so they are left out for it: for v0.21 the look\'s sharpness goes to the camera\'s Sharpness setting instead (−2 to +2, softer values as −2); for v0.20 and older there is no grain either and every look keeps the camera\'s correction.')),
+      h('div', {}, h('b', {}, 'Firmware on the camera'), h('p', { class: 'help' }, 'v0.28 adds Halation, Tone Balance, the film\'s WB mode, split toning in half steps and Blacks / Whites to ±7; v0.26 split toning; v0.22 adds Sharp, v0.21 Grain and the lens vignette correction choice to LOOKS.BIN. Older firmware would reject a file with the newer settings, so they are left out for it: for v0.21 the look\'s sharpness goes to the camera\'s Sharpness setting instead (−2 to +2, softer values as −2); for v0.20 and older there is no grain either and every look keeps the camera\'s correction.')),
       fwSel),
     wbBox,
     h('div', { class: 'ex-row' },

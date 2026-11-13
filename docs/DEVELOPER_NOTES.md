@@ -394,6 +394,23 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.28 release (branch feature/v0.28-halation; build pc1, camera-tested 2026-11-12)
+
+v0.28-alpha (below) plus:
+- Photo code (pc1): `ex_live` reads COLOR k's settings (pf_capto) and the camera's WB (1578 / 107) at each half-press
+  in the HLS_EVENT task (from lg_pr, and for the first half-press from sd_load's last call `nm_ex`; ext1 is full) into
+  ex_rec / ex_rk; `ex_cd1` codes ex_rec when ex_rk == the shot's COLOR, else the LOOKS.BIN record, with split toning
+  in v0.26 steps (+54 / +56 v < 0 -> ~v) and the half steps in +63 (bit 0 / 1). ex_code 48 -> 52 B. Camera: 17 photos
+  incl. a burst, every setting in the code. Readers: webapp `lookFromPhotoCode`, `firmware/photocode.py`,
+  `devkit/photo-code`; spec `docs/PHOTO_CODE.md`.
+- Control Panel (webapp): look fields `halation`, `tone_balance`, `film_wb`; split strengths in v0.26 steps with halves;
+  firmware choice Fw 28 (default) writes record +39 / +40 to ±7, the half-step code and +57..+62; preview: Tone
+  Balance (bend28's u map), the WB mode as daylight gains, Halation ported from `research/halation/model.py`.
+- build.py asserts GUIDES.BIN <= 16448 B (one malloc block).
+- `firmware/VERSION` "v0.28 (camera-tested, pc1)", the same length as pc1's "v0.28-dev (photo code pc1)": main.bin
+  differs only in that string and the code-block tag, GUIDES.BIN only in the tag and its CRC (checked).
+  E1479999.BIN d7f13db0…, GUIDES.BIN 8073a978…, LABELS.BIN eac8eb47…; TONES / LOOKS as v0.27.1; photo code kit rebuilt.
+
 ## v0.28-alpha (branch feature/v0.28-halation; build g5, camera-tested 2026-11-12; GitHub pre-release)
 
 Details and every test: `research/NOTES.md`, the sections from "v0.28 code space" on.

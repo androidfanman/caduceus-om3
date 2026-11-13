@@ -5,6 +5,7 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.28](v0.28/NOTES.md) | Halation row; split toning 0–10 with a Tone Balance row; WB remembered per film and COLOR; Blacks / Whites as one grid (±7); the film as set in each photo's code; the Control Panel knows all of it | Camera-tested |
 | [v0.28-alpha](v0.28-alpha/NOTES.md) | Test version of v0.28: Halation row; split toning 0–10 with a Tone Balance row; WB remembered per film and COLOR; Blacks / Whites as one grid (±7). The Control Panel isn't updated for these yet | Test version (firmware camera-tested) |
 | [v0.27.1](v0.27.1/NOTES.md) | v0.27 without the automatic film load at switch-on (films load at the first half-press), fixing a rare freeze at start-up | Camera-tested |
 | [v0.27](v0.27/NOTES.md) | All four arrow keys in Button Function; Creative Dial modes (CRT / ART / COLOR / MONO per position, a film per COLOR position); the film's name and recipe code (om3.1) in each JPEG's EXIF; optional extras: `DEBUG.TXT` (debug log) and the photo code kit for developers | Camera-tested |

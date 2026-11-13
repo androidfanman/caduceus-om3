@@ -40,15 +40,17 @@ The rows under Picture Mode change the film (or the COLOR) you're on, straight a
 | Row | What it does |
 |---|---|
 | **HSL** | The colour wheel: change each colour's saturation, hue and brightness, and split toning (see below). |
+| **Tone Balance** | Where the split toning's two colours meet, −5 to +5: minus lets the shadow colour reach further up, plus the highlight colour further down. Only does something when the film has a split tone. |
 | **Contrast** | The camera's own contrast. |
 | **Highlight & Shadow** | The camera's own tone curve: brighter or darker shadows, midtones and highlights. |
-| **Blk** / **Wht** | Blacks and Whites, −5 to +5. Plus lifts the blacks or brightens the whites; minus deepens or softens them. |
+| **B/W** | Blacks and Whites on one grid, −7 to +7 each: left / right for Blacks, up / down for Whites. Plus lifts the blacks or brightens the whites; minus deepens or softens them. Press **OK** to open the grid; the row shows the values under its icon (e.g. +3/−2). |
 | **WB** | Shifts the colour balance: A–B (amber to blue) and G–M (green to magenta), −7 to +7. Works in every white balance mode, Auto included. Press **OK** to open the camera's own grid; **MENU** or **OK** brings you back. |
 | **Sharpness** | −5 = off, −4 to −1 softer, 0 the camera's normal, +1 and +2 crisper. |
 | **Noise Filter** | Off, Low, Std or High. |
 | **Vignette Correction** | Off = the lens's natural darker corners. On = the camera corrects them. |
 | **Shading** | Darker or lighter corners, as an effect. |
 | **Glow** | +1 to +5 adds a soft glow. −1 to −5 adds Clarity (crisper local contrast). 0 = off. |
+| **Halation** | 0 to 5: a red-orange glow around bright lights, as on cinema film (CineStill). Works with or without Glow; fades out in bright daylight scenes. Saving takes a little longer with it on. |
 | **Film Grain** | Off, Low, Med or High. Added in colour, with no extra wait after the photo. |
 
 <!-- picture: the Picture Mode rows for one film -->
@@ -67,8 +69,9 @@ Blue-cyan, Cyan, Green-cyan, Green, Yellow-green.
 - **Luminance**, −5 to +5: makes that colour darker or brighter.
 
 **Split toning** uses the **Shadows** and **Highlights** pages. Each tints the dark or the bright parts of the photo
-toward one colour. The front dial picks the colour, the rear dial the strength (−5 to +5; minus tints toward the
-opposite colour; 0 = off). For a classic split tone, use both: for example blue shadows and orange highlights.
+toward one colour. The front dial picks the colour, the rear dial the strength (0 to 10; 0 = off). For a classic
+split tone, use both: for example blue shadows and orange highlights. The **Tone Balance** row (under HSL) moves where
+the two meet.
 
 <!-- picture: the HSL wheel on the Hue page; the Shadows page -->
 
@@ -98,10 +101,17 @@ Both are in the camera's **Button Function** menu, with the other buttons.
 - After you switch the camera on, half-press once: that loads your films, and the dial position's setting takes effect
   (a dial turn does it too).
 
+## The film's white balance
+
+Each film and COLOR remembers the white balance you last used with it (any mode, Custom WB with its Kelvin), as it
+keeps its HSL. Picking the film brings that white balance back; one that never had its own gets Auto. Set a film's
+white balance in the Control Panel, or just change it on the camera while you're on that film.
+
 ## The film in your photos
 
 Every JPEG taken on a FILM keeps the film in its EXIF: the name (Image Description, for example `FILM 9 Velvia 50`) and
-the whole recipe as a short code in the User Comment. Open the JPEG in the Control Panel (**Open...**), or paste the
+the whole recipe as a short code in the User Comment: the film as it was set when you took the photo, with your
+changes on the camera and the white balance. Open the JPEG in the Control Panel (**Open...**), or paste the
 comment with **Paste link**, and the film is added to your films. Photos on COLOR 1–4 with your own settings, CRT, ART
 and MONO don't get one.
 

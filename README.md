@@ -1,14 +1,3 @@
-> [!WARNING]
-> **Feature branch `feature/v0.28-halation`, work in progress (not released).** v0.28 so far: the button-picture space
-> sized to fit, and **Halation** as its own Picture Mode row (0..5, with or without Glow; a soft two-layer fade; slot +30,
-> LOOKS.BIN +57) with a 0..+5 bar, FILM n* in the list and FILM N* on the super control panel; **split toning** wheels
-> 0..10 in half steps (positive only) and a **Tone Balance** row (slot +33, LOOKS.BIN +58). **Camera-tested in test
-> builds h3..h6 and t1..t2 (2026-11-12).** **Film WB**: each film and COLOR remembers its WB (camera-tested, w4).
-> **Blacks / Whites** as one grid row like the WB shift grid, −7…+7, with a "B/W ±" icon (camera-tested, g1..g5). The
-> **Control Panel** knows all of it (choose "v0.28-alpha or later" under Export; live site not updated yet). Custom crop modes
-> are set aside for now. (Our version in the camera's firmware menu moved to a later update.)
-> **Test version v0.28-alpha** (2026-11-12): a GitHub pre-release of this branch (`releases/v0.28-alpha/`).
-
 <h1 align="center">Caduceus for OM-3</h1>
 
 <p align="center"><strong>Film looks and a colour editor, built into the OM SYSTEM OM-3.</strong></p>
@@ -25,7 +14,7 @@
 </p>
 
 <p align="center">
-  Latest: <b>v0.27.1</b> (2026-11-11)
+  Latest: <b>v0.28</b> (2026-11-12)
 </p>
 
 ## What it does
@@ -126,14 +115,18 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | Changes kept per film and per COLOR, over power off; **hold OK** to reset; `*` marks what's changed | v0.25 |
 | Hue and Luminance for each of the 12 colours, next to the camera's Saturation | v0.11 |
 | Picture Mode rows: Blacks / Whites, WB shift grid, Sharpness (−5 Off..+2), Noise Filter (incl. High), Vignette Correction, Shading, Glow / Clarity, Film Grain | v0.25 |
+| Blacks / Whites as one grid row, −7..+7 | v0.28 |
 | Film grain in colour, from the camera's image processor: as fast as a photo without grain | v0.25 |
-| Split toning: Shadows and Highlights pages, 12 colours, −5..+5, also in live view | v0.26 |
+| Split toning: Shadows and Highlights pages, 12 colours, also in live view (0..10 and a Tone Balance row from v0.28) | v0.26 |
 | WB shift up to ±7 per film | v0.26.1 |
 | The super control panel's dials step through the films | v0.26.2 |
 | All four arrow keys in Button Function; Creative Dial positions set to CRT / ART / COLOR / MONO, each COLOR with its own film | v0.27 |
 | The film's name and recipe in each JPEG's EXIF; the Control Panel opens a film from a photo | v0.27 |
 | Optional [debug log](debug-log/) (`DEBUG.TXT` → `OM3MOD/CADLOG.TXT`) for bug reports | v0.27 |
 | Films load at the first half-press after switching on (the automatic load at power-on of v0.26.2 and v0.27 was taken out: it could rarely freeze the camera at start-up) | v0.27.1 |
+| Halation: a red glow around bright lights, its own Picture Mode row (0..5) | v0.28 |
+| Each film and COLOR remembers its white balance (mode and Kelvin) | v0.28 |
+| The photo's code records the film as set when the photo is taken (on-camera changes, Halation, Tone Balance, WB) | v0.28 |
 
 Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/).
 
