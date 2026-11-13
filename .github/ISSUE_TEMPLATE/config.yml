@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions (FAQ)
+    url: https://androidfanman.github.io/caduceus-om3/pages/faq/
+    about: Answers to common questions about installing and using Caduceus for OM-3.

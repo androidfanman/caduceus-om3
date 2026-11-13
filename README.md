@@ -16,7 +16,14 @@
 </p>
 
 <p align="center">
-  Latest: <b>v0.29</b> (2026-11-13)
+  <a href="https://github.com/androidfanman/caduceus-om3/issues/new?template=bug.yml">Report a problem</a> &nbsp;·&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/issues/new?template=suggestion.yml">Suggest a feature</a> &nbsp;·&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/issues?q=is%3Aissue%20is%3Aopen%20label%3Abug">Open problems</a> &nbsp;·&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/issues?q=is%3Aissue%20is%3Aopen%20label%3Asuggestion">Suggestions</a>
+</p>
+
+<p align="center">
+  Latest: <b>v0.29.1</b> (2026-11-13)
 </p>
 
 ## What it does
@@ -28,7 +35,7 @@
   WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
 - **Make films on your computer** in the [LookLab](https://androidfanman.github.io/caduceus-om3/looklab/), with a preview, then copy one file (`LOOKS.BIN`) to the card: the camera takes films it never had.
 - **Your films live in the camera:** the films, your changes to them and the Extras settings are kept in the camera's
-  own memory (from v0.29), so any SD card works, even a blank one.
+  own memory (from v0.29), so any SD card works, even a blank one, or none at all (v0.29.1).
 - **Your buttons and Creative Dial:** all four arrow keys in Button Function, and each Creative Dial position set to
   CRT, ART, COLOR or MONO, with its own film.
 - **The film in every photo:** its name and recipe in the JPEG's EXIF, so LookLab (or a recipe site, with the
@@ -133,6 +140,7 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | Films load at the first half-press after switching on (the automatic load at power-on of v0.26.2 and v0.27 was taken out: it could rarely freeze the camera at start-up) | v0.27.1 |
 | Halation: a red glow around bright lights, its own Picture Mode row (0..5) | v0.28 |
 | Films, on-camera changes and Extras settings kept in the camera's own memory, so any card works; a card brings in only films the camera never had | v0.29 |
+| The films load with no card in the camera too | v0.29.1 |
 | Each film and COLOR remembers its white balance (mode and Kelvin) | v0.28 |
 | The photo's code records the film as set when the photo is taken (on-camera changes, Halation, Tone Balance, WB) | v0.28 |
 

@@ -3779,3 +3779,31 @@ The camera chart shoot decides. Portra 400's grey tint: preview says slightly wa
   again when only Blacks / Whites changed (they are set on their own row), the left cell's small curve (14534 /
   14539, 82 x 62).
 - om-emu tokens for the row: `s1 ok ok down down down down` (COLOR 1, H&S row), then `main+N` Sh, `sub+N` Hi.
+## Films with no card in the camera (#38) (2026-11-13; camera-tested)
+- Report (#38, v0.29): with no card in the camera the Picture Mode list shows no films; the films load only at the first
+  half-press. The owner's camera loaded them with a reformatted card (2026-11-13).
+- Cause (analysis): `pr_gate` still ends with the medium check from probe 2 (one of 0x603692f8 / 0x60369300 /
+  0x60369308 == 0xF000, MOUNT OK; 0x60369308 is the kind-4 medium, the card slot, docs/SD_LOADER.md). With no card
+  mounted it returns without claiming STATE, at every shutter event, so `sd_load` never runs: no P, no films, though
+  they are in M's block. Which word, if any, reads 0xF000 with the slot empty is not known on the camera.
+- om-emu can't take the card out on E147 (`card_input`: no HLS media side for this model), and its medium words are
+  always 0 (the harness writes 0x60369308 = 0xF000 itself). With that write left out (a blank card, "no card mounted"):
+  v0.29 (f2 main.bin) STATE 0 after two half-presses, nothing loaded.
+- **Build n1** (branch `fix/films-no-card`, VERSION "v0.29.1-dev (no-card test, n1)", same length as v0.29's): pr_gate's
+  last medium test `bne pr_gout` -> `beq pr_go; jmp pr_nmd` (ext1 1738 -> 1742 of 1744); `pr_nmd` (end of ext12):
+  `ub_chk` -> a valid block: `jmp pr_go` (sd_load as usual: BUNDLES / LOOKS / NAMES opens fail without a card, the
+  Extras and films come from the block, GUIDES / LABELS / TONES from the built-in copies); no block: `jmp pr_gout` (wait
+  for a card, as before). Side effect: a card that is in but not yet mounted at that shutter event has its new LOOKS.BIN
+  taken at the next power-on. E1479999.BIN dc13b574…; vs v0.29 main.bin 107 runs / 1509 bytes (ext1 after pr_gate moved
+  5 bytes and the calls into it, the name, pr_nmd). Unchanged source still rebuilds v0.29 cd99362c… byte for byte.
+- **Emulator (n1):** no card mounted + a block: films load at the first half-press (lidx 4,5,5,4, CADLOG "Films from: the
+  camera"), menu opens; card mounted: as v0.29; no block and no card mounted: nothing loads, STATE 0 (as before).
+- Not done: the films loading at switch-on without a half-press (the other half of #38). The v0.26.2 automatic load
+  (SDLOAD worker + sdl_poke) was dropped in v0.27.1 as the suspected cause of rare power-on hangs ("Sporadic power-on
+  hang on v0.27"); a switch-on load needs another route.
+- Test package for the owner (kept outside the repo): only E1479999.BIN to copy.
+- **Camera (owner, 2026-11-13, n1): passed.** Flashed n1 from a freshly formatted card (DCOLYMP only); with the card
+  taken out, switched on and half-pressed: the films show in the Picture Mode list. (No debug log in this test.)
+- **Released as v0.29.1** (owner, 2026-11-13): n1 renamed "v0.29.1 (tested on camera, n1)" (same length; byte diff: only the
+  name, the code-block tag, the built-in GUIDES CRC / tag). `releases/v0.29.1`: patch.json (158 runs, 321,631 bytes),
+  extras as v0.29. `patch.py` (no --release) makes v0.29.1 = E1479999.BIN 8bb07ccc…; `--release v0.29` still cd99362c….

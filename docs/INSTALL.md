@@ -111,7 +111,7 @@ the files again (step 2), copy them again (step 3) and try once more.
    accident.
 2. Put the card in the camera, switch it on and **half-press the shutter once**: that loads your films (the first
    time, from the card into the camera's own memory). From then on your films and the changes you make on the camera
-   live in the camera: any card works, even a blank one.
+   live in the camera: any card works, even a blank one (from v0.29.1 also no card at all).
 3. Turn the mode dial to the COLOR position and open **Picture Mode**. After COLOR 1–4 you'll find **FILM 1–20**.
 
 Next: [how to use it](USING.md).
@@ -120,7 +120,8 @@ Next: [how to use it](USING.md).
 
 Do steps 1–5 again with the new version. On the card:
 
-- **From v0.28 or older to v0.29:** copy only `DCOLYMP`. **Keep** `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` in
+- **From v0.29 to v0.29.1:** copy only `DCOLYMP`. Your films stay in the camera.
+- **From v0.28 or older to v0.29 or v0.29.1:** copy only `DCOLYMP`. **Keep** `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` in
   `OM3MOD` for the first start: at the first half-press the camera copies your films and your changes into its own
   memory (once). `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` aren't needed any more (the camera ignores them).
 - **New film sims (v0.29):** copy the new `LOOKS.BIN` into `OM3MOD`. The camera takes a set of films once, if it never

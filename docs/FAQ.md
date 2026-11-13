@@ -84,7 +84,7 @@ them in once. See [updating](INSTALL.md#updating-from-an-earlier-version).
 
 From v0.29, yes: your films, your changes and the Extras are in the camera, and the rest is built into the firmware, so
 a card with nothing of ours works in full. A card only brings new films in (`OM3MOD/LOOKS.BIN`), and only films the
-camera never had. A Reset in the camera's menu or an OM firmware update probably clears the films from the camera:
+camera never had. From v0.29.1 the films also load with no card in the camera. A Reset in the camera's menu or an OM firmware update probably clears the films from the camera:
 keep a `LOOKS.BIN` of your films to bring them back.
 
 ### I'm coming from v0.16–v0.18.
@@ -100,7 +100,8 @@ themselves, but that could rarely freeze the camera at start-up, so v0.27.1 went
 
 ### There are no films in the Picture Mode list.
 
-Half-press the shutter once after switching on: that's when the films load. The first time with v0.29 (or after a
+Half-press the shutter once after switching on: that's when the films load. (With no card in the camera, v0.29 never
+loaded them: update to v0.29.1.) The first time with v0.29 (or after a
 Reset in the camera's menu), check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
 and is exactly 1,632 bytes; if not, download it again, or save it again from LookLab. Then check the update
 really went on: v0.27 adds rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't
