@@ -36,6 +36,7 @@ WB per film, the Blacks / Whites grid) the colour profiles are complete for now;
 
 | Bug | What happens | Status |
 |---|---|---|
+| **No films without a card** ([#38](https://github.com/androidfanman/caduceus-om3/issues/38)) | v0.29: with no card in the camera the films never loaded (the Picture Mode list showed COLOR 1–4 only), although they are kept in the camera: the load at the first half-press still waited for a card. The films loading at switch-on, without the half-press (the other half of #38), is still open. | Fixed in v0.29.1 |
 | **Film Grain with RAW+JPEG** | With image quality set to RAW+JPEG, a photo with Film Grain was saved, then the screen went black and the camera froze (battery out). v0.25 to v0.26.1. A RAW+JPEG photo develops a second, smaller picture for the RAW file, and that upset the grain. Probably the cause of [#12](https://github.com/androidfanman/caduceus-om3/issues/12). | Fixed in v0.26.2 |
 | **Glow with grain** | Reported: the camera shuts down after taking a photo with Glow and grain together ([#12](https://github.com/androidfanman/caduceus-om3/issues/12)), and Med grain is much stronger when Glow is on ([#16](https://github.com/androidfanman/caduceus-om3/issues/16)). | Fixed in v0.26.1 |
 | **Playback while saving** | Pressing playback while the photo is still being written can freeze the camera (dark grey screen; only taking the battery out helps; the photo is fine). Listed as fixed in v0.26.1, but no fix is recorded in the changelog or the notes and the reporter saw it on v0.26.1; asked whether it happens on v0.26.2 ([#15](https://github.com/androidfanman/caduceus-om3/issues/15)). | Not confirmed |
@@ -73,6 +74,7 @@ WB per film, the Blacks / Whites grid) the colour profiles are complete for now;
 
 | Feature | Released |
 |---|---|
+| **Films with no card:** the films load from the camera's memory with no card in the camera ([#38](https://github.com/androidfanman/caduceus-om3/issues/38)) | v0.29.1 (released 2026-11-13) |
 | **Films in the camera:** films, on-camera changes and Extras kept in the camera's own memory, guide pictures / code / labels / tone pictures built into the firmware: any card works ([#35](https://github.com/androidfanman/caduceus-om3/issues/35)) | v0.29 (released 2026-11-13) |
 | **Start-up freeze fix:** films load at the first half-press again (the automatic load could freeze the camera at switch-on) | v0.27.1 (released 2026-11-11) |
 | **Buttons and the film in the photo:** all four arrow keys in Button Function ([#9](https://github.com/androidfanman/caduceus-om3/issues/9)); the Creative Dial positions each set to CRT / ART / COLOR / MONO, with each COLOR position keeping its own film ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)); the film's name and recipe code in each JPEG's EXIF, read by LookLab and a kit for other sites ([#20](https://github.com/androidfanman/caduceus-om3/issues/20)); an optional debug log | v0.27 (released 2026-11-11) |

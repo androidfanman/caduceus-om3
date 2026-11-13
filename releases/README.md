@@ -5,6 +5,7 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.29.1](v0.29.1/NOTES.md) | v0.29 with one fix: the films load with no card in the camera (from the camera's own memory) | Camera-tested |
 | [v0.29](v0.29/NOTES.md) | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware (no card files); a card brings in only films the camera never had; no copies on the card; the colour-matched standard 20 (optional `LOOKS.BIN`) | Camera-tested |
 | [v0.29-beta](v0.29-beta/NOTES.md) | Test version of v0.29: films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware (no card files); a card brings in only films the camera never had; the 20 films redesigned (optional `LOOKS.BIN`) | Test version (firmware camera-tested) |
 | [v0.28](v0.28/NOTES.md) | Halation row; split toning 0–10 with a Tone Balance row; WB remembered per film and COLOR; Blacks / Whites as one grid (±7); the film as set in each photo's code; the Control Panel knows all of it | Camera-tested |

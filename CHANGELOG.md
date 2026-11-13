@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.29.1](#v0291) | 2026-11-13 | Fix: the films load with no card in the camera |
 | [v0.29](#v029) | 2026-11-13 | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the colour-matched standard 20 |
 | [v0.29-beta](#v029-beta-test-version) | 2026-11-13 (test version) | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the 20 films redesigned |
 | [v0.28](#v028) | 2026-11-12 | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7); the film as set in each photo's code; the Control Panel knows all of it |
@@ -31,6 +32,18 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.29.1
+v0.29 with one fix. Firmware camera-tested (2026-11-13, build n1; only its name was changed).
+
+- **Fixed: no films without a card** ([#38](https://github.com/androidfanman/caduceus-om3/issues/38)). With no card in
+  the camera, v0.29 never loaded the films (the Picture Mode list showed only COLOR 1–4), because the load at the first
+  half-press still waited for a card. Now the films, your changes and the Extras load from the camera's own memory with
+  or without a card. If a card with new films isn't ready yet at that first half-press, the camera takes them at the
+  next switch-on.
+- The films still load at the first half-press, not at switch-on (planned; it needs a safer way than the v0.26.2 /
+  v0.27 automatic load, which could rarely freeze the camera at start-up).
+  Details: [release notes](releases/v0.29.1/NOTES.md).
 
 ## v0.29
 Films in the camera's own memory, so any SD card works. Firmware camera-tested (2026-11-13, build f2, the same

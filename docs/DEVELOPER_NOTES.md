@@ -394,6 +394,17 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.29.1 release (fix/films-no-card; build n1, camera-tested 2026-11-13)
+
+v0.29 plus one fix (#38): `pr_gate`'s last medium test `bne pr_gout` became `beq pr_go; jmp pr_nmd`; `pr_nmd` (end of
+ext12) runs `ub_chk` and, with a valid block in M, goes on to `pr_go` with no card mounted (sd_load's card opens fail; the
+Extras and films come from the block, GUIDES / LABELS / TONES from the built-in copies). No block: wait for a card, as
+before. ext1 1742 of 1744 B. Details: `research/NOTES.md` ("Films with no card in the camera").
+- `firmware/VERSION` "v0.29.1 (tested on camera, n1)", the same length as n1's "v0.29.1-dev (no-card test, n1)": main.bin
+  differs only in that string, the code-block tag and the built-in GUIDES copy's CRC / tag (checked). E1479999.BIN
+  8bb07ccc…; `patch.py` makes it by default and only DCOLYMP; `--release v0.29` still makes cd99362c….
+- Extras (LOOKS.BIN, DEBUG.TXT, photo code kit) copied from v0.29 unchanged. Control Panel unchanged.
+
 ## v0.29 release (feature/films-in-camera merged into main; build f2, camera-tested 2026-11-13)
 
 v0.29-beta (below) plus:

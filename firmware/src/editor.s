@@ -324,7 +324,8 @@ pr_gate:                          /* frame 36: (12,sp) = tid out */
  beq pr_go
  mov (MS_C),d0
  cmp d1,d0
- bne pr_gout                      /* no medium MOUNT OK: retry at the next shutter event */
+ beq pr_go
+ jmp pr_nmd                       /* v0.29.1 (#38): no medium MOUNT OK: pr_nmd (ext12) loads from the camera's memory */
 pr_go:
  mov 0xffff,d0
  movhu d0,(STATE)                 /* one attempt per power-on */
@@ -13732,3 +13733,15 @@ bf_tab:                           /* {name, address, size} x VF_N; address and s
  .long lg_f2, 0, 0                /* TONES.BIN */
 bf_pool:
  .space 16 * VF_SLOTS
+
+pr_nmd:                           /* v0.29.1 (#38): jmp from pr_gate (its frame) when no medium is mounted. With a valid
+                                   * block the films come from the camera's memory: load now, so a camera with no card
+                                   * gets its films too (v0.29 waited for a card for ever). A card's new LOOKS.BIN, if
+                                   * its card was not mounted yet at this shutter event, is then taken at the next
+                                   * power-on. No block: wait for a card as before. */
+ call ub_chk,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 1f
+ jmp pr_go
+1:
+ jmp pr_gout
