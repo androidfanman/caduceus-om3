@@ -1,16 +1,18 @@
 // The film sims for the OM-3: our own looks, designed by hand from public descriptions of each film and tuned by eye
 // (scripts/films.py makes src/data/om3films.json from short recipes). Each becomes an ordinary OM-3 look: Hue / Light
-// / Saturation per sector, Highlights / Shadows / Midtones, Blacks / Whites, Contrast, Sharp and the WB shift. No grain,
-// Glow / Clarity or Art Effects: those stay the user's choice.
+// / Saturation per sector, Highlights / Shadows / Midtones, Blacks / Whites, Contrast, Sharp and the WB shift; from v0.28
+// a film known for them may also carry its WB mode and Halation (owner). No grain, Glow / Clarity or Art Effects: those
+// stay the user's choice.
 import filmsJson from './data/om3films.json';
-import { blankLook, type Look } from './pack';
+import { blankLook, type FilmWb, type Look } from './pack';
 
 export interface Film {
   name: string; group: FilmGroup; film: string; desc: string;
   hue: number[]; light: number[]; sat: number[];
   tone: Look['tone']; contrast: number; wb: { a_b: number; g_m: number } | null;
   sharp: number;   // firmware v0.22 Sharp, the camera's numbers (0 = its normal)
-  split?: { sh_color: number; sh: number; hl_color: number; hl: number };   // v0.26 split toning
+  split?: { sh_color: number; sh: number; hl_color: number; hl: number };   // v0.26 split toning (v0.28: halves)
+  tone_balance?: number; halation?: number; film_wb?: FilmWb;                // v0.28 (signature films, owner 2026-11-12)
 }
 export type FilmGroup = 'fuji' | 'slide' | 'neg' | 'instant' | 'print';
 export const FILM_GROUPS: [FilmGroup, string][] = [
@@ -44,6 +46,9 @@ export function filmLook(f: Film): Look {
   l.advice = { contrast: f.contrast, sharpness: f.sharp ?? 0 };
   l.wb = f.wb ? { ...f.wb } : null;
   if (f.split) l.split = { ...f.split };
+  if (f.tone_balance) l.tone_balance = f.tone_balance;
+  if (f.halation) l.halation = f.halation;
+  if (f.film_wb) l.film_wb = { ...f.film_wb };
   l.notes = f.desc;
   return l;
 }

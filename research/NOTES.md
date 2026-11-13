@@ -3541,3 +3541,18 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   halation looks good on real night shots, change only the Control Panel.** The preview alone keeps the glow on dark
   photos (mean cell brightness < 72, full below 60), toned down by the lit share (16 % / lit share): Night street,
   Brasserie, Neon now glow; daylight samples stay off. The preview now differs from the camera on such photos.
+
+## The 20 films redesigned as signature looks (v7, 2026-11-12; Control Panel preview only so far)
+- Owner: "our film sims in the looklab tool just don't look like what they are simulating". In the preview the v6 films
+  (graded to reference-photo statistics, 2026-11-11) sat close to the original and to each other: matching averages of
+  many photos washed out each film's character (e.g. Portra 400 v6: Contrast +1, Highlights +2, no split, where the film
+  is soft). Owner's choices: signature looks; 5 first (Portra 400, Kodachrome 64, CineStill 800T, Velvia 50, Gold 200),
+  then all 20 ("Yes, do all 20"); a film may carry its WB mode and Halation where it is known for them.
+- `webapp/scripts/films.py` SIGNATURE: a trait recipe per camera film that replaces the recipe and GRADED; new keys
+  `bal` (Tone Balance), `halo` (Halation), `wbmode`; split toning in halves (v0.28); Blacks / Whites to ±7. Film / filmLook
+  carry tone_balance, halation, film_wb. CineStill 800T: Custom WB 3200 K, Halation 3, teal shadows / warm highlights
+  (blue in daylight, true under lamps); CineStill 400D: Halation 2. Our own designs from public descriptions (no LUTs).
+  First-pass fixes after the all-20 sheets: Superia's green and Eterna / Vision3's flatness toned down, CineStill 800T's
+  greens less cyan (the taxi went olive).
+- Sheets (private mockups/films-v7-*): original / v6 / v7 on portrait, meadow, taxi, night street. Not camera-tested;
+  not live. The released LOOKS.BIN (v0.27.1's films) is unchanged.

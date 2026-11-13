@@ -13,6 +13,9 @@ Recipe keys (all integers; out-of-range sums are clamped to the camera's limits)
   ab / gm       white balance shift: + amber / − blue, + green / − magenta
   con           the camera's Contrast (−2..2)
   hl sh mid     Highlights / Shadows / Midtones (+ brighter)      blk wht   Blacks (+ = lifted, faded) / Whites (− = dimmer)
+  split         (Shadows colour, strength, Highlights colour, strength): v0.26 steps, halves allowed (v0.28: 0..5 = 0..10)
+  bal           v0.28 Tone Balance −5..5 (− the shadow colour reaches further)      halo   v0.28 Halation 0..5
+  wbmode        v0.28 the film's WB mode: 'sunny', 'incandescent', … or ('custom', Kelvin)
 Sharp (firmware v0.22, the camera's own numbers: 0 its normal, + crisper, − softer, −5 Off) comes from SHARP below:
 fine-grained slide and negative films a step crisper, portrait, cinema and fast films softer, instant film softest.
 No grain, Glow / Clarity or Art Effects: those stay the user's choice."""
@@ -20,7 +23,7 @@ import json, os
 
 SECTORS = ['Y', 'O', 'OR', 'R', 'M', 'V', 'B', 'BC', 'C', 'GC', 'G', 'YG']
 FAM = {'y': ['Y'], 'o': ['O'], 'r': ['OR', 'R'], 'm': ['M', 'V'], 'b': ['B', 'BC'], 'c': ['C'], 'g': ['GC', 'G', 'YG']}
-LIM = {'hue': 5, 'light': 5, 'sat': 5, 'hl': 7, 'sh': 7, 'mid': 7, 'blk': 5, 'wht': 5, 'con': 2, 'ab': 5, 'gm': 5}
+LIM = {'hue': 5, 'light': 5, 'sat': 5, 'hl': 7, 'sh': 7, 'mid': 7, 'blk': 7, 'wht': 7, 'con': 2, 'ab': 5, 'gm': 5, 'bal': 5, 'halo': 5}   # v0.28: blk / wht ±7
 
 def settings(r):
     out = {'hue': [0] * 12, 'light': [0] * 12, 'sat': [r.get('sat', 0)] * 12}
@@ -28,7 +31,7 @@ def settings(r):
         if k[:2] in ('h_', 'l_', 's_'):
             arr = {'h_': 'hue', 'l_': 'light', 's_': 'sat'}[k[:2]]; f = k[2:]
             for s in FAM.get(f, [f]): out[arr][SECTORS.index(s)] += v
-        else: assert k in LIM or k in ('sat', 'split'), k
+        else: assert k in LIM or k in ('sat', 'split', 'wbmode'), k
     for a in ('hue', 'light', 'sat'): out[a] = [max(-LIM[a], min(LIM[a], v)) for v in out[a]]
     c = lambda k: max(-LIM[k], min(LIM[k], r.get(k, 0)))
     out['tone'] = {'highlights': c('hl'), 'shadows': c('sh'), 'midtones': c('mid'), 'blacks': c('blk'), 'whites': c('wht')}
@@ -36,8 +39,14 @@ def settings(r):
     out['wb'] = {'a_b': c('ab'), 'g_m': c('gm')} if r.get('ab') or r.get('gm') else None
     if r.get('split'):   # v0.26 split toning: (Shadows colour, strength, Highlights colour, strength), the wheel's colours
         sc, sv, hc, hv = r['split']
-        assert abs(sv) <= 5 and abs(hv) <= 5
+        assert 0 <= sv <= 5 and 0 <= hv <= 5 and (2 * sv) % 1 == 0 and (2 * hv) % 1 == 0   # v0.28: halves, never minus
         out['split'] = {'sh_color': SECTORS.index(sc), 'sh': sv, 'hl_color': SECTORS.index(hc), 'hl': hv}
+    if r.get('bal'): out['tone_balance'] = c('bal')                       # v0.28
+    if r.get('halo'): out['halation'] = max(0, c('halo'))
+    if r.get('wbmode'):
+        m = r['wbmode']
+        out['film_wb'] = {'mode': 'custom', 'kelvin': m[1]} if isinstance(m, tuple) else {'mode': m}
+        assert out['film_wb']['mode'] in ('sunny', 'shade', 'cloudy', 'incandescent', 'fluorescent', 'underwater', 'flash', 'custom')
     return out
 
 # name (camera, ≤ 15 characters), group, film, description, recipe
@@ -51,7 +60,7 @@ FILMS = [
   dict(sat=1, s_r=3, l_r=-1, s_y=2, h_y=1, s_g=-1, h_g=1, l_g=-1, s_b=2, l_b=-1, h_b=-1, ab=1, con=2, sh=-2, blk=-1, split=('B', 1, 'Y', 1))),
  ('Portra 800', 'neg', 'Kodak Portra 800', "Kodak Portra 800: fast Portra for low light, warmer and richer than 400, with a touch more colour in the reds.",
   dict(ab=2, s_O=1, l_O=1, h_O=-1, s_r=1, s_g=-1, h_g=1, s_b=-1, h_b=1, hl=-1, mid=1, split=('BC', 1, 'O', 1))),
- ('CineStill 800T', 'neg', 'CineStill 800T', "CineStill 800T: tungsten-balanced cinema film for night and city lights; cool, teal-leaning colour with warm skin and glowing reds (no halation: add Glow yourself).",
+ ('CineStill 800T', 'neg', 'CineStill 800T', "CineStill 800T: tungsten-balanced cinema film for night and city lights (3200 K: true under lamps, blue in daylight), teal shadows, warm skin, glowing reds and a red halation around lights.",
   dict(ab=-2, s_O=1, s_OR=1, s_r=1, h_b=1, s_b=1, h_g=-1, s_g=-1, con=1, sh=-1, hl=-1, blk=1, split=('C', 2, 'O', 2))),
  ('Ektar 100', 'neg', 'Kodak Ektar 100', "Kodak Ektar 100: the finest-grained colour negative, with saturated colour, bold reds, vivid greens and strong, clean blues.",
   dict(sat=2, s_r=1, s_b=1, h_b=-1, s_O=-1, h_O=1, s_g=1, con=1, sh=-1)),
@@ -65,7 +74,7 @@ FILMS = [
   dict(sat=1, gm=1, ab=-1, s_g=2, h_g=-1, h_b=1, h_r=1, s_O=-1, con=1, sh=-1, split=('G', 2, 'Y', 0))),
  ('ColorPlus 200', 'neg', 'Kodak ColorPlus 200', "Kodak ColorPlus 200: the budget Kodak classic, warm and yellow-golden, softer and more muted than Gold, with a nostalgic snapshot feel.",
   dict(sat=-1, ab=2, s_y=2, h_y=1, s_O=1, s_g=-1, h_g=1, s_b=-1, hl=-1, blk=1)),
- ('CineStill 400D', 'neg', 'CineStill 400D', "CineStill 400D: daylight cinema film for stills, soft and warm with pastel colour, glowing skin and gentle cyan skies (no halation).",
+ ('CineStill 400D', 'neg', 'CineStill 400D', "CineStill 400D: daylight cinema film for stills, soft and warm with pastel colour, glowing skin, gentle cyan skies and a light red halation.",
   dict(ab=1, s_O=1, l_O=1, h_b=1, s_b=-1, h_g=-1, s_g=-1, hl=-1, sh=1, blk=1, split=('BC', 1, 'O', 1))),
  ('Fuji C200', 'neg', 'Fujicolor C200', "Fujicolor C200: Fuji's everyday film, with cool greens and blues, slightly muted reds and a clear, airy look.",
   dict(ab=-1, gm=1, s_r=-1, s_g=1, h_g=-1, s_b=1, h_b=1, mid=1, hl=-1, split=('GC', 1, 'Y', 0))),
@@ -270,7 +279,64 @@ GRADED = {
 }
 TUNED_SHARP = {'Gold 200': -1}
 
+# v7 signature looks (owner, 2026-11-12: the graded films looked alike and too close to the original; redesign each around
+# what makes it recognizable, with v0.28's tools; a film may carry its WB mode and Halation where it is known for them).
+# Our own designs from public descriptions of each film; these replace the recipe and GRADED entirely.
+SIGNATURE = {
+ # warm, soft and airy: creamy skin, olive-leaning muted greens, pale cyan-leaning blues, low contrast, lifted blacks
+ 'Portra 400': dict(sat=-1, s_O=1, l_O=1, h_O=-1, s_g=-2, h_g=2, l_g=1, s_b=-2, h_b=1, ab=2, con=-1, hl=-2, sh=2, mid=1,
+                    blk=3, wht=-1, split=('BC', 1.5, 'O', 1.5)),
+ # dense and contrasty: deep reds, golden yellows, dark rich blue skies, restrained darker greens, inky shadows
+ 'Kodachrome 64': dict(sat=1, s_r=3, l_r=-1, s_y=3, h_y=1, s_O=1, s_g=-1, h_g=1, l_g=-2, s_b=3, l_b=-2, ab=1, con=2,
+                       sh=-2, blk=-3, wht=1, split=('B', 1.5, 'Y', 1.5)),
+ # tungsten film: 3200 K (blue in daylight, true under lamps), teal shadows and greens, warm glowing reds, red halation
+ 'CineStill 800T': dict(wbmode=('custom', 3200), halo=3, s_r=2, s_O=1, l_O=1, s_y=1, s_g=-2, h_g=-1, s_b=1, h_b=1, sh=-1,
+                        hl=-1, blk=2, split=('C', 2, 'O', 1.5), bal=-1),
+ # intense: lush greens, deep blues toward violet, vivid magentas, contrasty with dark shadows, a hint of magenta
+ 'Velvia 50': dict(sat=4, s_g=2, s_b=2, l_b=-1, h_b=-1, s_m=2, s_r=1, s_O=-2, s_y=1, gm=-1, ab=1, con=2, hl=-1, sh=-2,
+                   blk=-2, split=('B', 1, 'Y', 1)),
+ # golden: warm yellow cast, rich yellows and oranges, yellow-green foliage, softer cyan skies, a little faded
+ 'Gold 200': dict(sat=1, ab=3, s_y=3, h_y=1, s_O=1, l_O=1, s_r=1, h_g=2, s_g=-1, s_b=-1, h_b=1, l_b=1, con=1, hl=-1,
+                  blk=2, split=('O', 1, 'Y', 2), bal=1),
+ # Portra pushed for low light: warmer and richer than 400, a little more colour in the reds
+ 'Portra 800': dict(s_O=1, l_O=1, h_O=-1, s_r=1, s_g=-1, h_g=2, s_b=-1, h_b=1, ab=3, hl=-1, sh=1, mid=1, blk=2, wht=-1,
+                    split=('BC', 1, 'O', 2), bal=1),
+ # punchy and clean: saturated reds (skin leans red), vivid deep blues, crisp contrast, neutral-cool
+ 'Ektar 100': dict(sat=3, s_r=2, h_O=1, s_b=2, h_b=-1, l_b=-1, s_g=1, con=2, sh=-1, blk=-1, wht=1),
+ # Kodak's everyday film: warm, saturated and punchy, yellow-leaning, a touch of contrast
+ 'Ultramax 400': dict(sat=2, ab=2, s_y=2, s_r=1, s_b=1, h_g=1, con=1, sh=-1, split=('B', 1, 'Y', 1)),
+ # pastel and airy: minty greens, cyan skies, pale skin, a faint green cast, bright and soft
+ 'Pro 400H': dict(sat=-1, gm=1, h_g=-2, l_g=1, h_b=2, l_b=1, s_O=-1, l_O=1, con=-1, hl=-1, sh=2, mid=2, blk=3, wht=-1,
+                  split=('C', 1, 'Y', 0.5)),
+ # Fuji's everyday film: green shadows, cool cyan skies, magenta-leaning reds, vivid greens, snappy
+ 'Superia 400': dict(sat=1, gm=1, s_g=2, h_g=-1, h_b=1, h_r=1, s_O=-1, con=1, sh=-1, split=('GC', 1.5, 'Y', 0.5)),
+ # budget Kodak: golden like Gold but softer and more muted, faded, nostalgic
+ 'ColorPlus 200': dict(sat=-1, ab=3, s_y=2, s_O=1, s_g=-2, h_g=2, s_b=-2, con=-1, hl=-1, sh=1, blk=3, wht=-1,
+                       split=('O', 1, 'Y', 1.5)),
+ # daylight cinema film for stills: soft warm pastel, glowing skin, cyan skies, a light red halation
+ 'CineStill 400D': dict(halo=2, sat=-1, ab=1, s_O=1, l_O=1, h_b=1, s_b=-1, h_g=-1, s_g=-1, con=-1, hl=-1, sh=1, blk=2,
+                        split=('BC', 1.5, 'O', 1.5)),
+ # cool and clean: cool greens and blues, slightly muted reds, airy, a faint green cast
+ 'Fuji C200': dict(ab=-1, gm=1, s_r=-1, s_g=1, h_g=-1, s_b=1, h_b=1, mid=1, hl=-1, sh=1, blk=1, split=('GC', 1, 'Y', 0.5)),
+ # clean, neutral-cool slide film: crisp contrast, deep clear blues and cyans, neutral skin
+ 'Ektachrome E100': dict(sat=1, s_b=2, s_c=1, s_O=-1, ab=-1, con=2, sh=-1, blk=-2, wht=1, split=('BC', 1, 'Y', 0)),
+ # natural and true: clean greens, accurate skin, a faint cool-green Fuji cleanliness
+ 'Reala 100': dict(sat=1, s_g=1, s_b=1, ab=-1, gm=1, hl=-1, split=('GC', 0.5, 'Y', 0)),
+ # accurate slide film: clean blue skies, crisp natural contrast, a little cool
+ 'Provia 100F': dict(sat=1, s_b=2, s_g=1, s_O=-1, ab=-1, con=1, sh=-1, blk=-1, wht=1),
+ # modern cinema negative: very soft, open shadows, gentle highlights, low colour, warm skin
+ 'Vision3 250D': dict(sat=-1, s_O=1, h_b=1, con=-1, sh=2, hl=-2, blk=3, wht=-1, split=('BC', 1.5, 'O', 1)),
+ # Fuji's cinema negative: very muted, soft, quiet cyan-green tones, open shadows
+ 'Fuji Eterna': dict(sat=-2, s_O=-1, h_g=-1, ab=-1, con=-2, sh=2, hl=-2, blk=2, wht=-2, split=('GC', 1.5, 'Y', 0.5),
+                     bal=-1),
+ # the soft portrait slide film: smooth skin, gentle contrast, moderate colour with good blues
+ 'Astia 100F': dict(sat=1, l_O=1, h_O=-1, s_b=1, hl=-1, sh=1, split=('B', 0.5, 'Y', 0.5)),
+ # intensely saturated: strong reds and deep blues, a faint green cast, contrasty
+ 'Agfa Ultra 100': dict(sat=4, s_r=2, s_b=2, h_b=-1, s_g=1, gm=1, con=2, sh=-1, blk=-1, split=('B', 1, 'Y', 0.5)),
+}
+
 def tuned(name, s):
+    if name in SIGNATURE: return settings(SIGNATURE[name])
     t = GRADED.get(name)
     if not t: return s
     s = dict(s, hue=list(t['hue']), light=list(t['light']), sat=list(t['sat']))
