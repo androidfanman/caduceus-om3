@@ -161,6 +161,25 @@ section:nth-of-type(even) { background: var(--bg2); }
 .step-ico svg { width: 44px; height: 44px; fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 code { font: 500 .88em var(--mono); background: #262b33; border-radius: 5px; padding: 1px 5px; }
 
+
+/* top bar: the GitHub links */
+.topnav a.tab.report { color: var(--accent); }
+.topnav a.tab.report:hover { color: #ffb37a; }
+.topnav a.tab.gh { border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; }
+.topnav a.tab.gh:hover { border-color: var(--muted); }
+
+/* help: the debug log */
+.help-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; counter-reset: hs; }
+.help-steps li { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 18px 20px; display: grid; gap: 8px; align-content: start; counter-increment: hs; }
+.help-steps li::before { content: counter(hs); width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 800 15px/30px var(--display); text-align: center; }
+.help-steps h3 { font-size: 17px; font-weight: 700; }
+.help-steps p { color: #c9ced8; font-size: 14.5px; }
+.help-steps .btn { justify-self: start; padding: 8px 14px; font-size: 14px; margin-top: 4px; }
+.help-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.help-notes p { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; color: #c9ced8; font-size: 14.5px; }
+.help-notes b { color: var(--ink); }
+.help-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+
 /* cards */
 .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: grid; gap: 10px; align-content: start; }
@@ -189,11 +208,15 @@ footer a { color: var(--muted); }
   .rows button { white-space: nowrap; }
   .three { grid-template-columns: 1fr; max-width: 560px; }
 }
+@media (max-width: 1080px) {
+  .help-steps { grid-template-columns: 1fr 1fr; }
+}
 @media (max-width: 680px) {
+  .help-steps { grid-template-columns: 1fr; }
   .in { padding: 0 16px; }
   .hero { padding-top: 36px; }
   .hero-lcd { left: -8px; width: 62%; }
-  .two, .cards, .editor-media, .flow { grid-template-columns: 1fr; }
+  .two, .cards, .editor-media, .flow, .help-notes { grid-template-columns: 1fr; }
   .flow li::after { display: none; }
   .film-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   section { padding: 52px 0; }
@@ -204,14 +227,16 @@ footer a { color: var(--muted); }
 <body>
 
 <nav class="topnav" aria-label="Caduceus for OM-3"><div class="in">
-  <a class="brand" href="https://github.com/androidfanman/caduceus-om3">Caduceus for OM-3</a>
+  <a class="brand" href="./">Caduceus for OM-3</a>
   <a class="tab opt" href="#films">Films</a>
   <a class="tab opt" href="#editor">Colour editor</a>
-  <a class="tab opt" href="#halation">Halation</a>
   <a class="tab opt" href="#v029">New in v0.29</a>
+  <a class="tab opt" href="#help">Help</a>
   <a class="tab" href="pages/install/">Install</a>
   <a class="tab" href="looklab/">Control Panel</a>
   <a class="tab" href="https://github.com/androidfanman/caduceus-om3/releases/latest">Download</a>
+  <a class="tab report" href="https://github.com/androidfanman/caduceus-om3/issues">Report a problem</a>
+  <a class="tab gh" href="https://github.com/androidfanman/caduceus-om3" aria-label="Caduceus for OM-3 on GitHub">GitHub&nbsp;↗</a>
 </div></nav>
 
 <header class="hero">
@@ -451,12 +476,41 @@ footer a { color: var(--muted); }
   </div>
 </section>
 
+<section id="help">
+  <div class="in">
+    <div class="head">
+      <div class="eyebrow">Help</div>
+      <h2>Something not right? Send a debug log.</h2>
+      <p>A debug log tells us what your camera loaded and what it was doing when things went wrong. It’s a short text file: no photos and nothing personal.</p>
+    </div>
+    <ol class="help-steps">
+      <li><h3>Download the switch</h3><p>Get <code>DEBUG.TXT</code> from the latest release. What’s inside doesn’t matter: the camera only checks that it’s there.</p>
+        <a class="btn" href="https://github.com/androidfanman/caduceus-om3/releases/latest/download/DEBUG.TXT">Download DEBUG.TXT</a></li>
+      <li><h3>Put it on the card</h3><p>Copy it into a folder called <code>OM3MOD</code> at the top of the card. Make the folder if it isn’t there (with v0.29 the card may have none).</p></li>
+      <li><h3>Use the camera</h3><p>Put the card in, switch on, half-press the shutter a few times, then do whatever goes wrong until the problem happens.</p></li>
+      <li><h3>Send the log</h3><p>Back on your computer, the card now has <code>OM3MOD/CADLOG.TXT</code>. Open a new issue on GitHub, say what happened and attach that file.</p>
+        <a class="btn primary" href="https://github.com/androidfanman/caduceus-om3/issues/new">Report a problem</a></li>
+    </ol>
+    <div class="help-notes">
+      <p><b>When you’re done,</b> delete <code>DEBUG.TXT</code> from the card, so the camera stops writing the log.</p>
+      <p><b>No <code>CADLOG.TXT</code> after switching on and half-pressing?</b> Then the camera isn’t running Caduceus: the update didn’t install. See <a href="pages/install/#step-4-update-the-camera">Install, step 4</a>.</p>
+    </div>
+    <div class="help-ctas">
+      <a class="btn" href="https://github.com/androidfanman/caduceus-om3/issues">See open issues</a>
+      <a class="btn" href="pages/faq/">FAQ</a>
+      <a class="btn" href="https://github.com/androidfanman/caduceus-om3/tree/main/debug-log">The debug log in detail</a>
+      <a class="btn" href="https://github.com/androidfanman/caduceus-om3">The project on GitHub</a>
+    </div>
+    <p class="note" style="margin-top:14px">Reporting needs a free GitHub account.</p>
+  </div>
+</section>
+
 </main>
 
 <footer><div class="in">
   <p><b>About these pictures.</b> The camera screens are the v0.29 firmware (the camera-tested build f2) running in <a href="https://github.com/flatpanda/om-emu">om-emu</a>, an emulator of the OM-3: the firmware's own drawing, not photos of a camera. The emulator can't draw the colour wheel, so the wheels are drawn by us in the Control Panel's style, from the values on each screen. The film and setting photos are previews from the Control Panel: close to what the camera makes, but not camera JPEGs. Noise Filter and Vignette Correction aren't in the preview, so their photos are illustrations.</p>
   <p><b>Sample photos</b> (public domain): meadow, portrait, taxi and the canal at blue hour from Unsplash (CC0); Paris by Pierre Blaché, Bourtzi harbour by Jebulon (CC0) and Roy's Motel &amp; Cafe at dusk by Blervis (CC0), all on Wikimedia Commons. <a href="https://github.com/androidfanman/caduceus-om3/blob/main/webapp/public/samples/CREDITS.md">Credits</a>.</p>
-  <p>Caduceus for OM-3 is an independent open-source project, part of the <a href="https://github.com/cakelesscoder/caduceus-ep7">Caduceus</a> family. It is not made or supported by OM Digital Solutions. <a href="https://github.com/androidfanman/caduceus-om3">Source on GitHub</a>.</p>
+  <p>Caduceus for OM-3 is an independent open-source project, part of the <a href="https://github.com/cakelesscoder/caduceus-ep7">Caduceus</a> family. It is not made or supported by OM Digital Solutions. <a href="https://github.com/androidfanman/caduceus-om3">Source on GitHub</a> · <a href="https://github.com/androidfanman/caduceus-om3/issues">Report a problem</a>.</p>
 </div></footer>
 
 <script>
