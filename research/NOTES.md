@@ -3453,3 +3453,9 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   whiteBalanceMode, split toning 0..10; examples v028 / v028wb; README table), docs/PHOTO_CODE.md (v0.28 used the last
   spare byte: the next new setting needs om3.2). The release's photo code kit zip is rebuilt with v0.28.
 - Package pc1: E1479999.BIN 640cdafd…, GUIDES.BIN 572226a4… (LABELS / TONES as g5). VERSION "v0.28-dev (photo code pc1)".
+- **pc1 camera (owner, 2026-11-12): works.** 17 photos on FILM 5 CineStill 800T (only the UserComment code read off
+  the card, nothing copied or kept): the first 3 as the film was (Highlights Green-cyan 2 of 10, WB Auto); after the
+  owner's changes on the camera **Halation 3, Tone Balance -2, Blacks -2 / Whites +6, Highlights Orange-red 3 of 10
+  (byte 56 = 1, byte 63 bit 1), Glow 1, Grain Med, Custom WB 3200 K**; then WB Sunny for one photo and a 12-photo burst,
+  every code the same and complete (camera-tested: the live record at the half-press, the WB at the shot's half-press,
+  bursts).
