@@ -1198,7 +1198,7 @@ function renderOm3Editor(l: Look) {
           const v = l.halation ?? 0, r = lastHalation;
           note.hidden = !v || (om3Fw28() && r !== 'off' && r !== 'none');
           if (!om3Fw28()) { note.className = 'warn'; note.replaceChildren(h('b', {}, 'Needs firmware v0.28: '), 'the export is set to an older firmware, so Halation is not previewed or saved. Choose "v0.28 or later" under Export › Firmware on the camera.'); }
-          else if (r === 'off') { note.className = 'help'; note.replaceChildren(h('b', {}, 'Not on this photo: '), 'like the camera, Halation fades out when much of the picture is bright (daylight, a well-lit street). Pick a darker photo with lights, such as Blue hour, to see it.'); }
+          else if (r === 'off') { note.className = 'help'; note.replaceChildren(h('b', {}, 'Not on this photo: '), 'like the camera, Halation fades out in bright, daylight photos. Pick a night photo with lights, such as Night street or Blue hour, to see it.'); }
           else { note.className = 'help'; note.replaceChildren(h('b', {}, 'Not on this photo: '), 'it has no bright lights for the glow to form around.'); }
         };
         afterPreview = show;

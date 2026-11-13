@@ -273,7 +273,8 @@ function planckRgb(T: number): [number, number, number] {
 /** What Halation did on the last preview: 'off' = the photo is too bright (the camera skips it too), 'none' = no bright
  *  lights, 'done', or null (not set). */
 export let lastHalation: 'off' | 'none' | 'done' | null = null;
-const HL = { T: 200, K: 900, BLUR: 3, BLUR2: 10, MIX: 128, GMAX: [0, 43, 78, 113, 156, 208], KY: 44, KCB: -40, KCR: 60, WMUL: 2, COV_U: 32, COV_LO: 8, COV_HI: 24 };
+const HL = { T: 200, K: 900, BLUR: 3, BLUR2: 10, MIX: 128, GMAX: [0, 43, 78, 113, 156, 208], KY: 44, KCB: -40, KCR: 60, WMUL: 2, COV_U: 32, COV_LO: 8, COV_HI: 24,
+  DLO: 60, DHI: 72, DCOV: 16 };   // DLO / DHI / DCOV: the preview's dark-photo allowance (not in the firmware)
 function om3Halation(img: Float32Array, w: number, h: number, level: number): 'off' | 'none' | 'done' {
   const sc = FULL_WIDTH / w, Wc = FULL_WIDTH, Hc = Math.round(h * sc);
   const GW = Math.ceil(Wc / 64), GH = Math.max(1, Math.ceil(Hc / 64));
@@ -313,8 +314,14 @@ function om3Halation(img: Float32Array, w: number, h: number, level: number): 'o
     if (u[g] >= HL.COV_U) bright++;
   }
   const lo = (u.length * HL.COV_LO) / 100, hi = (u.length * HL.COV_HI) / 100;
-  if (bright >= hi) return 'off';            // a bright frame (daylight): no halation
-  const cov = bright <= lo ? 1 : (hi - bright) / (hi - lo);
+  let cov = bright >= hi ? 0 : bright <= lo ? 1 : (hi - bright) / (hi - lo);   // many bright cells: daylight, fade out
+  // Preview only (owner, 2026-11-12; the camera keeps its own rule): a dark photo (night) keeps the glow, toned down
+  // when many cells are lit. The sample night streets are brighter, edited JPEGs that pass the camera's bright-frame
+  // cut-off, where the owner's own night shots get the glow on the camera.
+  let mb = 0; for (let g = 0; g < Bs.length; g++) mb += Bs[g];
+  const f = Math.min(1, (HL.DHI - mb / Bs.length) / (HL.DHI - HL.DLO));
+  if (f > 0) cov = Math.max(cov, (bright ? Math.min(1, (u.length * HL.DCOV) / (100 * bright)) : 1) * f);
+  if (cov <= 0) return 'off';                // a bright frame (daylight): no halation
   const G = u.map((x) => (x * HL.GMAX[Math.min(5, level)] / 256) * cov);
   if (!G.some((x) => x >= 1)) return 'none';
   const Wt = Bs.map((b) => Math.min(255, HL.WMUL * (255 - b)));

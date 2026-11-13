@@ -23,8 +23,8 @@ uploaded.
    correction, Grain, Sharp, Glow ↔ Clarity, Halation). The preview on the test photos (or your own: drag
    the line on the photo to compare before and after) shows grain, glow and clarity; Noise Filter and the lens
    correction are not previewed. Art Effects are not used from v0.25. **Split toning** and **Tone Balance** show in the
-   preview too; the **WB mode** as if the photo was taken in daylight; **Halation** around bright lights in darker
-   photos (as on the camera, it fades out when much of the picture is bright: try Blue hour).
+   preview too; the **WB mode** as if the photo was taken in daylight; **Halation** around bright lights in night
+   photos (as on the camera, it fades out in bright daylight photos).
 5. **Export › Save to card…** (Chrome or Edge on a computer) writes `OM3MOD/LOOKS.BIN` (and `NAMES.BIN`) straight
    onto the card; **Card folder (.zip)** downloads them. Keep **Firmware on the camera: v0.28 or later** (older choices leave Halation, Tone Balance, the WB mode and
    Blacks / Whites past ±5 out).

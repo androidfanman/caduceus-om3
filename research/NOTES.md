@@ -3534,3 +3534,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   one line each) show it with Copy. Check: the as-built CineStill 800T code equals the camera's own (photo PB122390,
   pc1); the owner's pc1 photo code pasted into Paste link gives Halation 3, Tone Balance -2, Custom WB 3200 K,
   B/W -2 / +6. vitest 50 pass (round trip test).
+- **Halation on the sample night streets (2026-11-12):** the owner saw no glow on "Night street" at 5. Cause: that
+  photo (and Brasserie) has 37 % lit cells, past the bright-frame cut-off (24 %), in the exact model too. A dark-frame
+  rule was tried in the model and the firmware (frame mean B < 72, scaled by 16 % / the lit share; h7, not
+  finished in om-emu: the direct hl_run call hung in this session's harness), then dropped: **owner: the camera's
+  halation looks good on real night shots, change only the Control Panel.** The preview alone keeps the glow on dark
+  photos (mean cell brightness < 72, full below 60), toned down by the lit share (16 % / lit share): Night street,
+  Brasserie, Neon now glow; daylight samples stay off. The preview now differs from the camera on such photos.
