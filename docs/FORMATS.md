@@ -21,13 +21,20 @@ older files, which therefore load unchanged).
 | 1312 | 20 × 16 | names, ASCII, zero-padded (up to 15 characters) |
 
 Record (64 bytes): `+0` hue[12], `+12` light[12], `+24` saturation[12] (all −5..5, slices clockwise from Yellow),
-`+36` WB shift on (0/1), `+37` A/B, `+38` G/M, `+39` Blacks, `+40` Whites (−5..5), `+41` Contrast (−2..2),
+`+36` WB shift on (0/1), `+37` A/B, `+38` G/M, `+39` Blacks, `+40` Whites (−5..5; v0.28: −7..7, the same step), `+41` Contrast (−2..2),
 `+42` Sharpness (−2..2; 0 from v0.22, see `+52`), `+43` Shading (−5..5), `+44` Shadows, `+45` Midtones, `+46` Highlights (−7..7),
 v0.20: `+47` Glow (−5..−1) / Clarity (1..5), `+48` Art Effect (0 Off, 1 Star Light, 2 Pin Hole, 3 none, 4 White Edge,
 5 Frame: the Caduceus ids), `+49` NR (0 Camera, 1 Standard, 2 Low, 3 Off), v0.21: `+50` VigFix (0 Camera: the lens
 shading correction as set, 1 Off), `+51` Grain (0 Off, 1 Low, 2 Med, 3 High), v0.22: `+52` Sharp (−5..+2, the
-camera's own sharpness numbers, 0 its normal, −5 Off; the Control Panel's v0.22 export leaves `+42` at 0), `+53..63`
-zero. Bytes `+47..+49` and `+51` are checked as −5..5 by the camera, `+50` as −1..1, `+52` as −5..2; the editor keeps
+camera's own sharpness numbers, 0 its normal, −5 Off; the Control Panel's v0.22 export leaves `+42` at 0), v0.26: `+53` Shadows
+colour (0..11, the wheel's colours clockwise from Yellow), `+54` its strength, `+55` Highlights colour, `+56` its
+strength (−5..5; v0.26: minus = the opposite colour. From v0.28 a code for 0..10 in half the v0.26 step: v ≥ 0 means
+2v, so v0.26 values keep their strength, v < 0 means −2v − 1), `+63` zero.
+v0.28: `+57` Halation (0 Off, 1..5; checked as −5..5, 0 and below = Off), `+58` Tone Balance (−5..5: − the shadow
+colour reaches further, + the highlight colour), `+59..+62` film WB (each pair a value v = lo + 11 hi, lo / hi −5..5:
+`+59` / `+60` the Custom WB Kelvin as (K − 2000) / 100 − 60 when the mode is Custom WB, else 0; `+61` / `+62` the WB
+mode as its index in the camera's 13-mode list, 0 = Auto / none). Firmware before v0.28 needs `+57..+62` to be 0 and
+ignores the whole file otherwise, so the Control Panel's older exports leave them out. Bytes `+47..+49` and `+51` are checked as −5..5 by the camera, `+50` as −1..1, `+52` as −5..2; the editor keeps
 them in the ranges above. v0.20 and older require `+50` and `+51` to be 0, and v0.21 and older `+52` (they ignore the
 whole file otherwise), so the Control Panel's older exports leave them out; its v0.21 export puts the look's sharpness
 in `+42` instead (−2..+2, softer values as −2).
@@ -64,7 +71,10 @@ u32 payload 512 | u32 CRC-32 over bytes 0..15 + 20..543 | 4 bytes decoded-firmwa
 8 slots × 64 bytes (slot k = COLOR k+1): hue[12] `+0`, light[12] `+12`, `+25` WB flags (bit 0 on), `+26` A/B,
 `+27` G/M, `+31` flags (bit 1 = Hue/Light on), `+47` Blacks, `+48` Whites, v0.20 Extras: `+49` Glow/Clarity,
 `+50` Art Effect, `+51` NR (as the LOOKS.BIN record's `+47..+49`), v0.21: `+52` VigFix, `+53` Grain (the record's
-`+50`, `+51`), v0.22: `+54` Sharp (the record's `+52`).
+`+50`, `+51`), v0.22: `+54` Sharp (the record's `+52`), v0.26: `+55..+58` split toning (the record's `+53..+56`). v0.28: `+30`
+Halation 0..5 (the record's `+57`; the shared layout's `vignette` byte, −5..5 to every OM-3 firmware, unused before),
+`+33` Tone Balance −5..5 (the record's `+58`; the shared layout's first `sat` byte, −5..5 to every OM-3 firmware,
+unused on COLOR slots), `+34..+37` film WB (the record's `+59..+62`, also `sat` bytes).
 
 ## GUIDES.BIN v4
 

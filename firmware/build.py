@@ -123,7 +123,7 @@ MAGIC = b'OM3B'
 RANGES = {'hue': (-7, 7), 'light': (-7, 7), 'grain': (0, 6), 'wb_flags': (0, 1), 'wb_ab': (-7, 7),
           'wb_gm': (-7, 7), 'effect_id': (0, 3), 'effect_strength': (0, 5), 'vignette': (-5, 5),
           'flags': (0, 3), 'colour': (0, 1), 'sat': (-5, 5), 'bloom_tint': (0, 4), 'art_effect': (0, 5),
-          'blacks': (-5, 5), 'whites': (-5, 5), 'fx': (-5, 5), 'frame': (-5, 5), 'nr': (-5, 5), 'vig': (0, 1), 'fgrain': (0, 3), 'sharp': (-5, 2),
+          'blacks': (-7, 7), 'whites': (-7, 7), 'fx': (-5, 5), 'frame': (-5, 5), 'nr': (-5, 5), 'vig': (0, 1), 'fgrain': (0, 3), 'sharp': (-5, 2),
           'sh_col': (0, 11), 'sh_str': (-5, 5), 'hl_col': (0, 11), 'hl_str': (-5, 5)}   # v0.26 split toning
 
 
@@ -203,6 +203,23 @@ def build(defaults, testfile, out):
     ver = (HERE / 'VERSION').read_text().strip().replace('"', "'")
     assert ver.isprintable() and len(ver) < 60
     (out / 'lgver.inc').write_text(f'lg_ver:\n .asciz "{ver}"\n')
+    import halation                               # v0.28: the halation numbers and tables (firmware/halation.py)
+    (out / 'hl_tab.inc').write_text(halation.inc())
+    # v0.28 Blacks / Whites grid: our pictures in place of the camera's WB grid pictures (editor.s bwg_swap / bwg_ent)
+    bw = ['.balign 4', 'bwg_ent:', ' .long ' + ', '.join(f'bwg_d{i}' for i in range(8))]
+    streams = []
+    for i, (px, w, h) in enumerate(mkicons.bwg_pictures()):
+        st = mkicons.encode11(bytes(px.flatten().tolist()), w, h)
+        streams.append(st)
+        bw += [f'bwg_d{i}:', f' .short 14, {w}, {h}, 8, 0, 0', f' .long {len(st)}, bwg_p{i} + 0x40000000, 0']
+    for i, st in enumerate(streams):
+        bw += [' .balign 4', f'bwg_p{i}:', db(st).rstrip('\n')]
+    # g4: the WB (0) and Blacks / Whites (1) rows' left cell at 0 / 0, the icon alone, bigger (editor.s wb_draw)
+    zc = [mkicons.encode11(bytes(mkicons.zero_cell(t).flatten().tolist()), mkicons.CW, mkicons.CH) for t in ('WB', 'B/W')]
+    bw += [' .balign 4', 'zc_tab:'] + [f' .long {len(st)}, zc_p{i} + 0x40000000' for i, st in enumerate(zc)]
+    for i, st in enumerate(zc):
+        bw += [' .balign 4', f'zc_p{i}:', db(st).rstrip('\n')]
+    (out / 'bwg.inc').write_text('\n'.join(bw) + '\n')
     (out / 'films.inc').write_text('.balign 4\nfl_top:\n' + db(mkicons.pack4(mkicons.film_top())) + 'fl_tops:\n' +
                                    db(mkicons.pack4(mkicons.film_top(True))) + 'fl_dig:\n' +
                                    ''.join(db(mkicons.pack4(d)) for d in digs) +
@@ -213,6 +230,8 @@ def build(defaults, testfile, out):
                                    f'.set LX2, {(82 - (2 * ldw - 2)) // 2}\n.set LX2B, {(82 - (2 * ldw - 2)) // 2 + ldw - 2}\n' +
                                    f'.set SFW, {fwp.shape[1]}\n.set SFWI, {fwi}\n.set SDB, {boxes[0].shape[1]}\n.set SPH, 48\n'
                                    f'.set SP_GAP, {mkicons.SP_GAP}\n.set SP_DGAP, {mkicons.SP_DGAP}\n'
+                                   f'.set SSTB, {mkicons.sp_star()[0].shape[1]}\n.set SSTI, {mkicons.sp_star()[1]}\n'
+                                   'fl_sst:\n' + db(mkicons.pack4(mkicons.sp_star()[0])) + ' .balign 4\n' +
                                    'fl_sfw:\n' + db(mkicons.pack4(fwp)) + 'fl_sdg:\n' + ''.join(db(mkicons.pack4(x)) for x in boxes) +
                                    'fl_sdw:\n' + db(bytes(dw)) + ' .balign 4\n' +
                                    'fl_slab:\n' + db(slab) + f'.set SLS, {len(slab)}\n .balign 4\n' +
@@ -328,7 +347,7 @@ def build(defaults, testfile, out):
     for a, c in ((0x611d040d, 0x611d0422), (0x611d0846, 0x611d0859)):
         assert bytes(m[o(a):o(a) + 6]) == b'\xfc\xdc' + struct.pack('<I', IT) and bytes(m[o(c):o(c) + 2]) == b'\xa5\x11', hex(a)
         struct.pack_into('<I', m, o(a) + 2, sy['it_tab'])
-        m[o(c) + 1] = 25                         # v0.25: + Glow / Clarity, Frame
+        m[o(c) + 1] = 27                         # v0.25: + Glow / Clarity, Frame; v0.28 + Halation, Tone Balance
     # v0.24 film list: item 111's option lists (title / left column / strip, 48 x 12 B) -> fl_l0..2 (the stock 48, then
     # the films, written by editor.s), and setting 901's value table entry (COLOR 1-4) -> fl_rec, 4 + 20 records
     e = struct.unpack_from('<10I', m, o(sy['it_tab']))
@@ -353,7 +372,7 @@ def build(defaults, testfile, out):
     struct.pack_into('<I', m, o(0x611c3c09), sy['fl_rtab'])
     assert bytes(m[o(0x611c3cae):o(0x611c3cb0)]) == b'\xa5\x08'
     m[o(0x611c3caf)] = 8 + 20
-    NR_IT, VF_IT, BK_IT, WH_IT, AB_IT, GM_IT, GL_IT, FR_IT = 5394, 5389, 5386, 5385, 5384, 5383, 5382, 5381
+    NR_IT, VF_IT, BK_IT, WH_IT, AB_IT, GM_IT, GL_IT, FR_IT, HL_IT, TB_IT = 5394, 5389, 5386, 5385, 5384, 5383, 5382, 5381, 5380, 5379
     def sw_add(base, n, item, target):
         key = item - 6
         ents = [struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)]
@@ -388,13 +407,13 @@ def build(defaults, testfile, out):
                     (0x615510cc, 32), (sy['sw11_tab'], 32), (0x6155124c, 32), (sy['sw13_tab'], 32)):
         tg = [t for k, t in (struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)) if k == 5394]
         assert len(tg) == 1, hex(base)
-        for item, pre in ((NR_IT, 'nr'), (VF_IT, 'vf'), (FR_IT, 'fr'), (AB_IT, 'wg')):   # v0.25: AB_IT = the WB grid row
+        for item, pre in ((NR_IT, 'nr'), (VF_IT, 'vf'), (FR_IT, 'fr'), (AB_IT, 'wg'), (BK_IT, 'bw')):   # v0.25: AB_IT = the WB grid row; v0.28 BK_IT the Blacks / Whites grid row
             t = sy[pre + '_' + OWN[base]] if base in OWN else sy['lc_' + pre] if base == 0x6155124c else tg[0]
             sw_add(base, n, item, t)
         # Blacks / Whites: slider rows, as item 7's case (key 1) except the bar object's id (f2c) and the left column
         t7 = [t for k, t in (struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)) if k == 1]
         assert len(t7) == 1, hex(base)
-        for item, pre in ((BK_IT, 'bk'), (WH_IT, 'wh'), (GL_IT, 'gl')):
+        for item, pre in ((GL_IT, 'gl'), (HL_IT, 'hl'), (TB_IT, 'tb')):   # v0.28 + Halation, Tone Balance (Blacks / Whites: the grid row)
             t = sy[pre + '_f'] if base == 0x61536f2c else t7[0]     # left column: item 7's slider cell
             sw_add(base, n, item, t)
     assert sy['NR_IT'] == NR_IT if 'NR_IT' in sy else True
@@ -406,8 +425,8 @@ def build(defaults, testfile, out):
         at = [i for i in range(o(0x61455000), o(0x61456000), 4) if bytes(m[i:i + 8]) == pat]
         assert len(at) == 1, hex(L)
         struct.pack_into('<II', m, at[0], sy['ic_list'], sy['ic_lend'])
-        assert m[at[0] - 3] == 3, hex(L)          # the record's choice count (object +131): 3 -> 9 (v0.25 + Glow)
-        m[at[0] - 3] = 9
+        assert m[at[0] - 3] == 3, hex(L)          # the record's choice count (object +131): 3 -> 11 (v0.25 + Glow, v0.28 + Halation, Balance)
+        m[at[0] - 3] = 11
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons
     pics = mkicons.streams()
@@ -616,7 +635,7 @@ def build(defaults, testfile, out):
     g = bytearray((out / 'pictures.bin').read_bytes()); assert g[:4] == b'OM3G' and len(g) % 4 == 0
     g += xblock
     struct.pack_into('<I', g, 4, len(g)); struct.pack_into('<I', g, 8, zlib.crc32(bytes(g[12:])) & 0xffffffff)
-    assert len(g) <= 24576
+    assert len(g) <= 16448, ('GUIDES.BIN', len(g))   # the camera loads it in one malloc block: its pools end at 16448 B (research/NOTES.md); gd_load's own check (24 KB) is looser
     (out / 'GUIDES.BIN').write_bytes(bytes(g))
     hdr, trl = mc['hdr'], bytearray(mc['trl'])
     struct.pack_into('<I', trl, 28, 0)
@@ -653,12 +672,13 @@ def make_xblock(out, sy, xtag):
                STATE=sy['STATE'], HMAX=sy['HMAX'], POOL=sy['POOL'], MAGIC=sy['MAGIC'], BUFIDX=0x604afdf9, SF_ENT=0x604be2aa, LOCK=0x60075f73, UNLOCK=0x60075fbc, WINMAP=0x60071018, FLUSH=0x60070e69, free=0x6002409a,
                SEL=0x6052cf39, fwrite=0x608d4da9, PF_CAPTO=sy['pf_capto'], PF_CAP=sy['pf_cap'], E_LK=sy['e_lk'], E_RET=sy['e_ret'], E_RST=sy['e_rst'], REFRESH=0x611b20ea, XT_TAB=sy['xt_tab'], EMARK=680, EMAGIC=0x45334d4f,
                FL_HAS=sy['fl_has'], FACADE=0x60b8696a, AGET=0x603f039d, TXGET=0x604cd921, TXATT=0x604bc0cf, TXPF=0x604b77fb, TWO=sy['TWO'], TW_LEN=sy['TW_LEN'], FV0=sy['FV0'],
-               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'])
+               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'], HL_RUN=sy['hl_run'])
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons                                # v0.25 WB grid row: the left cell's glyphs (xblock xb_wbc)
     inc = ''.join(f'.set {k}, {getattr(mkicons, k)}\n' for k in ('WBC_IX', 'WBC_IY', 'WBC_TY', 'WBC_GH'))
     subprocess.run([sys.executable, ROOT / 'card' / 'mklabels.py', out / 'LABELS.BIN'], check=True, capture_output=True)
     inc += f'.set XL_FILE, {(out / "LABELS.BIN").stat().st_size}\n'      # v0.25: LABELS.BIN v3 (+ the WB cell glyphs)
+    inc += f'.set WBC_N, {len(mkicons.WBC_CHARS)}\n'           # v0.28: + '+', '-', '/' for the Blacks / Whites cell
     (out / 'wbglyph.inc').write_text(inc)
     subprocess.run([P.AS, '-I', out, '-o', out / 'xb.o', XB_SRC], check=True)
     imgs, xs = [], None

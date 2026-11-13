@@ -394,6 +394,46 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.28 release (branch feature/v0.28-halation; build pc1, camera-tested 2026-11-12)
+
+v0.28-alpha (below) plus:
+- Photo code (pc1): `ex_live` reads COLOR k's settings (pf_capto) and the camera's WB (1578 / 107) at each half-press
+  in the HLS_EVENT task (from lg_pr, and for the first half-press from sd_load's last call `nm_ex`; ext1 is full) into
+  ex_rec / ex_rk; `ex_cd1` codes ex_rec when ex_rk == the shot's COLOR, else the LOOKS.BIN record, with split toning
+  in v0.26 steps (+54 / +56 v < 0 -> ~v) and the half steps in +63 (bit 0 / 1). ex_code 48 -> 52 B. Camera: 17 photos
+  incl. a burst, every setting in the code. Readers: webapp `lookFromPhotoCode`, `firmware/photocode.py`,
+  `devkit/photo-code`; spec `docs/PHOTO_CODE.md`.
+- Control Panel (webapp): look fields `halation`, `tone_balance`, `film_wb`; split strengths in v0.26 steps with halves;
+  firmware choice Fw 28 (default) writes record +39 / +40 to ±7, the half-step code and +57..+62; preview: Tone
+  Balance (bend28's u map), the WB mode as daylight gains, Halation ported from `research/halation/model.py`.
+- build.py asserts GUIDES.BIN <= 16448 B (one malloc block).
+- `firmware/VERSION` "v0.28 (camera-tested, pc1)", the same length as pc1's "v0.28-dev (photo code pc1)": main.bin
+  differs only in that string and the code-block tag, GUIDES.BIN only in the tag and its CRC (checked).
+  E1479999.BIN d7f13db0…, GUIDES.BIN 8073a978…, LABELS.BIN eac8eb47…; TONES / LOOKS as v0.27.1; photo code kit rebuilt.
+
+## v0.28-alpha (branch feature/v0.28-halation; build g5, camera-tested 2026-11-12; GitHub pre-release)
+
+Details and every test: `research/NOTES.md`, the sections from "v0.28 code space" on.
+- Code space: the button-picture area sized to fit (ext12 ~74 KB free); GX4 probe proved the rest of section 6
+  (0x60f99800..0x6103f000, not used yet). ext11 rows' pictures moved to ext12.
+- Halation (h0..h6): `hl_run` in ext12, a CPU pass after the Soft Focus blend; chroma byte 1 = Cb, byte 3 = Cr; colour
+  weight from each cell's mean brightness, daylight fade, two-layer blur (3 + 10 passes). Numbers `firmware/halation.py`,
+  exact model `research/halation/model.py` (bit-exact in om-emu). Row HL_IT 0..5 (class 12; h6: its own 0..+5 bar ends and readout rd6), BUNDLES slot
+  +30, LOOKS / EDITS record +57.
+- Split toning (t1 / t2): strength code v ≥ 0 -> 2v, v < 0 -> −2v − 1 (0..10 half steps), `st_run` `asr 9`; Tone
+  Balance row TB_IT (class 13), slot +33, record +58; `research/splittone/model.py` (`bend28`, `strength()`).
+- Film WB (w1..w4): record +59..+62 / slot +34..+37 (balanced base-11 pairs: Custom WB Kelvin, WB mode index in table
+  0x615d1944); `fw_keep` / `fw_apply` on a film or picture-mode change only (901 is re-sent at each half-press);
+  `tw_san` clears +57..+62 only outside −5..5 (w3 lost them at each power-on).
+- Blacks / Whites grid (g1..g5): the camera's WB fine-tune screen reused in mode 1 (`gr_mode`), our pictures swapped in
+  by `ic_get` (`bwg_swap`, `bwg_ent` in ext12); −7..+7 (`RANGES`, `pf_lo`); left cell drawn by `xb_wbc` mode 1 from
+  LABELS.BIN 'WBG1' (plate icon `mkicons.plate_icon`), 0 / 0 -> `zc_tab` (both rows; the list shows only an 82 px strip
+  of the 100 x 76 cell, from x 9). Older firmware's sd_check refuses a BUNDLES.BIN with +47 / +48 beyond ±5.
+- `firmware/VERSION` "v0.28-alpha, camera-tested build g5", the same length as g5's "v0.28-dev (Blacks / Whites grid
+  g5)": main.bin differs from g5 only in that string and the 3-byte code-block tag, GUIDES.BIN only in that tag and its
+  CRC (checked). E1479999.BIN 4facce3f…, GUIDES.BIN 84236d92…, LABELS.BIN eac8eb47… (new layout from g2: 'WBG1'
+  pictures), TONES.BIN / LOOKS.BIN as v0.27.1.
+
 ## v0.27.1 release (build na1, camera-tested 2026-11-11)
 
 - v0.27 minus the SD loader's two hooks (`.hook_hb` 0x60af0fb9, `.hook_hr` 0x60af101c stay stock): no SDLOAD worker,

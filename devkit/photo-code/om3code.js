@@ -7,6 +7,7 @@
 //
 // The camera writes the EXIF UserComment "Caduceus FILM 19 Astia 100F om3.1.<43 characters>". The 43 characters are
 // the film's 64 settings bytes, one 4-bit value each, two to a byte (32 bytes), in base64url without padding.
+// From v0.28 the code holds the film as it was set when the photo was taken, plus Halation, Tone Balance and the WB.
 
 export const PREFIX = 'om3.1.';
 const CODE_RE = /om3\.1\.([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
@@ -18,9 +19,13 @@ export const WHEEL = ['Yellow', 'Orange', 'Orange-red', 'Red', 'Magenta', 'Viole
 export const ART_EFFECTS = ['Off', 'Star Light', 'Pin Hole', 'Off', 'White Edge', 'Frame'];   // 3 is unused (read as Off)
 export const NOISE_REDUCTION = ['Camera setting', 'Standard', 'Low', 'Off', 'High'];
 export const GRAIN = ['Off', 'Low', 'Medium', 'High'];
+/** v0.28: the camera's WB modes, in its own order (bytes 61 / 62). */
+export const WB_MODES = ['Auto', 'Sunny', 'Shade', 'Cloudy', 'Incandescent', 'Fluorescent', 'Underwater', 'Flash',
+  'One-touch 1', 'One-touch 2', 'One-touch 3', 'One-touch 4', 'Custom WB'];
 
-/** Bytes read as 0..15. Every other byte is signed (-8..7). Bytes 57..63 are spare: future settings, 0 = off. */
-const UNSIGNED = new Set([36, 48, 49, 50, 51, 53, 55, 57, 58, 59, 60, 61, 62, 63]);
+/** Bytes read as 0..15. Every other byte is signed (-8..7). v0.27 had 57..63 spare; v0.28 uses them all (57 Halation,
+ *  58 Tone Balance, 59..62 the WB, 63 split toning's half steps). */
+const UNSIGNED = new Set([36, 48, 49, 50, 51, 53, 55, 57, 63]);
 
 /** Find a code in text (a UserComment, a pasted string) or in a photo's bytes. Returns the 43 characters, or null. */
 export function findCode(input) {
@@ -45,13 +50,19 @@ export function decodeBytes(code) {
 export function decode(code) {
   const b = decodeBytes(code), wheel = (at) => Object.fromEntries(WHEEL.map((c, i) => [c, b[at + i]]));
   const fx = b[47];
+  // split toning on the camera's v0.28 scale 0..10: v0.26 steps x 2 + byte 63's half step; a v0.26 / v0.27 minus
+  // (the opposite colour) as the opposite colour of the wheel
+  const tone = (col, st, bit) => (b[st] < 0 ? { colour: WHEEL[(b[col] + 6) % 12] ?? null, strength: -2 * b[st] }
+    : { colour: WHEEL[b[col]] ?? null, strength: 2 * b[st] + ((b[63] >> bit) & 1) });
+  const sh = tone(53, 54, 0), hl = tone(55, 56, 1);
+  const mode = b[61] + 11 * b[62], kv = b[59] + 11 * b[60];
   return {
     version: 'om3.1',
     hue: wheel(0),                       // -5..5 per colour
     lightness: wheel(12),                // -5..5 per colour
     saturation: wheel(24),               // -5..5 per colour
     whiteBalance: b[36] ? { amberBlue: b[37], greenMagenta: b[38] } : null,   // -7..7 each; null = the camera's own
-    blacks: b[39], whites: b[40],        // -5..5
+    blacks: b[39], whites: b[40],        // -7..7 (-5..5 before v0.28)
     contrast: b[41],                     // -2..2
     shadows: b[44], midtones: b[45], highlights: b[46],   // -7..7
     shading: b[43],                      // vignette, -5..5
@@ -62,10 +73,11 @@ export function decode(code) {
     noiseReduction: NOISE_REDUCTION[b[49]] ?? 'Camera setting',
     lensShadingCorrection: b[50] === 0,  // true = the camera's correction (normal); false = turned off
     grain: GRAIN[b[51]] ?? 'Off',
-    splitToning: b[54] || b[56]
-      ? { shadows: { colour: WHEEL[b[53]] ?? null, strength: b[54] }, highlights: { colour: WHEEL[b[55]] ?? null, strength: b[56] } }
-      : null,                            // strength -5..5; minus = the opposite colour
-    spare: b.slice(57, 64),              // future settings; all 0 in om3.1 photos from today's firmware
+    splitToning: sh.strength || hl.strength ? { shadows: sh, highlights: hl } : null,   // strength 0..10 (as the camera from v0.28)
+    toneBalance: b[58],                  // -5..5 (v0.28): - the shadow colour reaches further, + the highlight colour
+    halation: b[57],                     // 0..5 (v0.28)
+    whiteBalanceMode: mode > 0 && mode < WB_MODES.length   // v0.28: the camera's WB when the photo was taken; null = Auto (or an older photo)
+      ? { mode: WB_MODES[mode], kelvin: mode === 12 ? 2000 + 100 * (kv + 60) : null } : null,
     bytes: b,
   };
 }
@@ -88,8 +100,11 @@ export function describe(r) {
     ['blacks', 'Blacks'], ['whites', 'Whites'], ['shading', 'Shading']]) if (r[k]) lines.push(`${l} ${sg(r[k])}`);
   if (r.sharpness) lines.push(`Sharpness ${typeof r.sharpness === 'number' ? sg(r.sharpness) : r.sharpness}`);
   if (r.splitToning) for (const [k, l] of [['shadows', 'Split toning shadows'], ['highlights', 'Split toning highlights']]) {
-    const t = r.splitToning[k]; if (t.strength) lines.push(`${l}: ${t.colour} ${sg(t.strength)}`);
+    const t = r.splitToning[k]; if (t.strength) lines.push(`${l}: ${t.colour} ${t.strength} of 10`);
   }
+  if (r.toneBalance) lines.push(`Tone balance ${sg(r.toneBalance)}`);
+  if (r.whiteBalanceMode) lines.push(`White balance mode: ${r.whiteBalanceMode.mode}${r.whiteBalanceMode.kelvin ? ` ${r.whiteBalanceMode.kelvin} K` : ''}`);
+  if (r.halation) lines.push(`Halation ${r.halation}`);
   if (r.glow) lines.push(`Glow ${r.glow}`);
   if (r.clarity) lines.push(`Clarity ${r.clarity}`);
   if (r.grain !== 'Off') lines.push(`Grain ${r.grain}`);

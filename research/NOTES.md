@@ -3136,5 +3136,388 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   DxO. Highlight roll-off and toe: not planned (Blacks / Whites + the Highlight & Shadow curve cover it). Cleaner
   JPEGs (#17): out of scope (the camera's JPEG compression stays). Film borders: not planned (added in editing).
 - v0.28 scope: halation (row, Control Panel), our version in the camera's firmware menu, custom crop modes.
+  (Later the same day the version screen moved to a later update: see the section on it below.)
 - **h5 camera (owner, 2026-11-12):** "it looks good": FILM 1* on the super control panel, the halo and saves as h4.
   The owner has used the "Halo" row icon and the "FILM 1*" lettering from h3 / h5 without objection.
+
+### Our version on the camera's Firmware Version screen: first look, parked (2026-11-12; emulator / disassembly only)
+- Owner: wanted for v0.28; after hearing it is more work than expected: "we can just scrap it. it can be a future
+  update." Parked; nothing built. What was found, so the next try starts here:
+- **The screen:** MENU -> wrench tab page 6 "Reset/Clock/Language/Others" -> "Firmware Version" (row value "1.1" on
+  the camera, "0.0" in om-emu) -> OK opens a page titled "Firmware Version" with one centred line "Body : 1.1" (a lens
+  adds a "Lens" line). om-emu walk (research/emulator/nav.mjs): `menu left up up right right right right right right
+  down down down down down ok`.
+- **The text:** the labels are resource strings (UTF-16, the English table loaded at 0x65126fe0 "Body\0Lens\0Flash\0
+  Acc", read by the GUI through the uncached alias 0xa5...). The page is drawn as glyph BITMAP commands into the OSD
+  command list (the writer is 0x61046980, deep under the GUI's draw stack 0x61043680 / 0x61045ea6 / 0x610f6834 /
+  0x610eb14f ...). The firmware's wide sprintf 0x610fc42c (frame 116) and wide copy 0x610fce25 are NOT used for this
+  page (only for the live-view info).
+- **Data-driven:** with an exec trace of the whole OK step, opening Firmware Version and opening Certification run
+  exactly the same code addresses (99,200 PCs each, none different): the pages are built by generic code from layout
+  data, so the hook is not a screen-specific function but the layout entry for this page (or the generic value
+  formatter it names). Not found yet: the layout record, and where the "1.1" comes from (om-emu has no body version:
+  0.0; `API_FIRMWARE_VERSION_BODY` is only a debug-command name list at 0x60b60a75).
+- Next step, when picked up: find the page's layout record (by its title string id, "Firmware Version" in the resource
+  table) and how its value item gets "1.1"; then either add a second line to the layout or swap the value text for
+  "1.1 / Caduceus v0.xx". om-emu tracing notes: read watches only fire on the uncached alias (0xa5...); `call f,[...],N`
+  leaves the return address in MDR and the caller's stack at sp + N at f's first instruction.
+
+### Halation h6: the bar runs 0..+5 (2026-11-12; emulator only)
+- Owner (after h5): the Halation bar "looks like it can go from -5 to +5, but we want it to just go from 0 to +5". It
+  borrowed Glow / Clarity's -5..+5 bar (rw_bar ends -5 / +5, 0 in the middle).
+- h6: rw_bar gives HL_IT its own ends a3 = 0, max 5 (the stock "-" greys out at 0, "+" at 5; st_chk already stops
+  HLB at the ends). sl_dot: a 0..5 bar (min 0, max 5) places the dot at value x 124 - 310 px from the centre (0 at the
+  left end, 5 at the right end, as the -5..+5 bars' ends). The readout takes its own tables rd6_a / rd6_b (0..5).
+- The readout can not show a plain "0": the six callers of the sign lookup (e.g. 0x611d1233) draw sign 1 as "+-%d"
+  (char 130), 2 "+%d", 3 "-%d" (wide formats at 0x61551060..70) and nothing at all for any other sign (tried: sign 0 hid
+  the number). So 0 reads "+-0", as on every camera slider. The small dot above the bar's middle is part of the stock
+  bar picture (the -5..+5 and -2..+2 bars both have it), not placed by the dot code: it stays.
+- om-emu (out-h6b, Halation slot +30 poked to 0 / 3 / 5): dot at the left end / 60 % / the right end, "-" grey at 0,
+  "+" grey at 5, readout +-0 / +3 / +5; left column "Halo +3*". Package: E1479999.BIN 6fc8dae8…, GUIDES.BIN 4ad05bf9…
+  (LABELS / TONES as h5). firmware/VERSION "v0.28-dev (halation h6)".
+- **h6 camera (owner, 2026-11-12): "that looks great!"** The Halation bar runs 0..+5 on the camera. Halation is done
+  on the camera side; the Control Panel part remains. Owner: custom crop modes go last in v0.28; split toning next.
+
+### Split toning t1: gentler steps, positive-only wheels, Tone Balance row (2026-11-12; emulator only)
+- Owner: lessen the effect; wheels only positive ("we are always adding, not removing"); a balance ("make the shadow
+  tone more, or the highlight more"). Chosen: 0..5 with half-size steps (+5 = v0.26's +2.5; films keep their numbers,
+  so they come out at half strength); Balance as a Picture Mode row right under the HSL wheels row ("that is where
+  you'll be adjusting it"). Custom crop modes moved to the end of v0.28.
+- Engine (st_run): `>> 9` (was 8): 2.4 Cb/Cr units per step at the weight peak; strengths clamped 0..5 (negative =
+  off, so an old -n reads as off). Balance b (slot +33): weights at u instead of t, hand-over point c = 2048 - 256 b
+  (768..3328), u = t * f1 >> 16 below c, 2048 + ((t - c) * f2 >> 16) above, f1 = 2^27 / c, f2 = (2047 << 16) /
+  (4095 - c) (two divs per pass; b = 0 gives u = t exactly). Frame 76 -> 92: (76) c, (80) f1, (84) f2, (88) t.
+  research/splittone/model.py `bend28` = the camera's math.
+- om-emu (out-t1, probe_test.py's stage + tone passes, slot bytes poked): Cyan 5 / Orange 5 at balance 0, +5, -5,
+  +2, Shadows -3 (off) / Orange 2, Yellow 1 / Green 4 at -3: all **bit-exact** with the reference (all 320 entries x 3
+  channels); model.bend28 equals the 256-entry part. Tints at balance 0 are half of v0.26's (input 16: Cr -8.4 vs
+  -16.7). +5 pulls the highlight tint down (input 64: Cb -8.1 Cr +2.9 vs -6.9 / -1.0 at 0); -5 pushes the shadow
+  tint up (input 128: Cr -3.8 vs +3.5).
+- Wheels: tn_set refuses values below 0, TONEV shows 0..5. om-emu: on Shadows, rear dial down at 0 does nothing,
+  up to 3 sets the colour, back down to 0 switches it off (slot colour and strength 0), further down stays 0.
+- Row: TB_IT 5379 (key 5373), bars TBB 0x7ee0 + k (row 14), class 13 (slot +33, -5..+5, as Glow's bar and readout),
+  title ST_TBL "Tone Balance", left icon IC_TB = IC_F1 ("Bal", mkicons PICTURES[13], Frame On's old place); it_tab 27,
+  ic_list 11 (choice count 11), pm_list: Picture Mode, HSL, Tone Balance, Contrast, ...
+- Storage: BUNDLES slot **+33** (the shared layout's first `sat` byte: -5..5 in every OM-3 firmware's range table,
+  unused on COLOR slots: going back keeps BUNDLES valid); LOOKS / EDITS record **+58** (pf_lo -5; pf_bt 58,9; loops
+  to pf_bt+34; fl_xr row 14 = (58, 33); fl_live 17 pairs, fl_fch bytes 0..58). Firmware before v0.28 rejects a
+  LOOKS.BIN with +58 != 0 (Control Panel: gate as halation). docs/FORMATS.md now also lists the v0.26 split-toning
+  bytes.
+- om-emu UI: the row under HSL ("Bal +-0"; "Bal +5*" when set), bar -5..+5 with the dot at -3 / +5, readout -3 / +5.
+- Not done yet: the Control Panel (preview at half strength + balance, 0..5 wheels, +58 export gated to v0.28); the
+  photo code (EXIF, om3.1) still carries record bytes 0..56 only (no halation, no balance).
+- Package t1: E1479999.BIN 2040a94e…, GUIDES.BIN bfe23233… (LABELS / TONES as h6). VERSION "v0.28-dev (split tone t1)".
+  New picture "Bal" (left column) sent to the owner for approval.
+- **t1 camera (owner, 2026-11-12):** (1) "I struggle to see the tone at all now": back to the first proposal, the top
+  as strong as v0.26's +5 with twice the steps (0..10). (2) Bug: on a wheel colour the dial still counts below zero
+  without showing it (the camera's wheel keeps its own value; tn_set refused it), so after scrolling down you need
+  extra clicks up. (3) "the balance slider looks great!"
+
+### Split toning t2: 0..10 on the dial, no hidden count (2026-11-12; emulator only)
+- Strength s 0..10 in half the v0.26 step (st_run >> 9 as t1): **10 = v0.26's +5 exactly** (om-emu: the tables equal
+  v0.26's formula at Cyan 5 / Orange 5). Stored as a code -5..5 so every firmware's range checks still pass (BUNDLES
+  valid on v0.27.1, LOOKS +54 / +56 within pf_lo -5): v >= 0 -> s = 2v (v0.26 / film values keep their strength:
+  a film's 2 is now 4 of 10, the same look), v < 0 -> s = -2v - 1 (1, 3, 5, 7, 9). Older firmware would read the odd
+  steps as the opposite colour (going back only). research/splittone/model.py `strength()`.
+- The bug of t1 (owner: the dial counts below zero unseen): the wheel keeps its own value per colour and t1's tn_set
+  refused negatives. Now the wheel's own -5..+5 is the strength: TONEV shows s - 5 for the page's colour and -5 for
+  the others; tn_set stores w + 5 (the wheel stops at both ends itself). om-emu: down at 0 x3 -> nothing; up 1..10
+  (codes -1, 1, -2, 2 .. 5), stops at 10; 12 down -> 0 (off); one up -> 1 at once.
+- Readout (wheel caller 0x611d1427, item 5397, on axis 5 / 6 only: TONEPG in rd_a / rd_b, a2 saved by movm):
+  rd10_a / rd10_b give "+-0", "+1".."+9". The record's text has 3 characters (+2..+7, then its flags), so "+10"
+  would overrun: for 10 rd_a gives sign 0 (the caller writes nothing) and rd_b, when MDR = 0x611d1433 (that caller),
+  writes "10" itself. om-emu: "+9", "10", "+-0" on Highlights; the Saturation page still -5..+5 ("-2").
+- Engine (out-t2b, the probe stage): codes 5 / 5, -3 / -1, 5 / 5 with balance +3, -5 / 1 with -2: bit-exact.
+- Package t2: E1479999.BIN 8547ddaa…, GUIDES.BIN 40c1ffeb… (LABELS / TONES as h6). VERSION "v0.28-dev (split tone t2)".
+- **t2 camera (owner, 2026-11-12): "It works!!"** Wheels 0..10 with no hidden count, the tone strength back, Tone
+  Balance as in t1. The owner has used the "Bal" row picture without objection. Split toning is done on the camera
+  side; the Control Panel part remains (half-step preview with model.py bend28 / strength(), 0..10 wheels, the
+  balance slider, +58 export gated to v0.28).
+
+## Gentler Shading (#22): first look and probe s1 (2026-11-12; analysis + emulator only)
+- Owner: make Shading less powerful (roadmap: -5 / +5 like today's -2 / +2, finer steps between; #22: "make the
+  camera match your looklab", whose preview is f = 1 + 0.07 s r^1.5 on RGB, r = (distance / half-diagonal)^2).
+- Static (analysis): request **+1752** (s8) is the Shading level; in code it is read (as a byte) only by combiner 33's
+  handler 0x60505142 (also +1089 in kind-3 records), and only for its **sign**. With Shading on the handler sets a
+  "shading block" in the combiner config (O+7988): +128 = {512 << 16 | 0 (darker) or 1023 (lighter)}, +132 512,
+  +136 / +140 0, +144 0x151500, +148 0x04000400, +152 1024 (the MONO branch zeroes 128..148 and sets +144 0x2a1500
+  when Shading is 0). None of them carries the level's size, so the amount is set elsewhere (candidates: the
+  development's radial shading table, `ausEffectiveShadingCoefficient[64]` at +124 of the struct the RAW-parameter
+  dump 0x61a3171b prints, with `ucShadingCancel` at +252; not traced). Readers of +1753 (0x60501066) index 18-entry
+  hue tables (toning / colour filter), not Shading.
+- Probe s1 (branch `experiment/shading-probe-s1`, VERSION "v0.28-dev (shading probe s1)"): combiner 33's handler word
+  (table 0x606cc794, entry 33) -> sh_h33 (ext12): the stock handler in a dispatcher-like frame (`call
+  h33_stock,[d2,d3,a2,a3],28`, as the archived gl4 s_h / xb_h33), then for kind-0 requests with +1752 != 0 and the
+  COLOR context: COLOR 2 +128's 512 -> 205, COLOR 3 +132 512 -> 205, COLOR 4 +152 1024 -> 410 (40 %); COLOR 1 stock.
+  om-emu: boots, menus and half-press as t2 (the emulator runs no development, so the hook itself is camera-only).
+  Package: E1479999.BIN 44816a42…, GUIDES.BIN 237ef8ee…. Camera: Shading -5 (and +5) on COLOR 1-4, one even-lit
+  photo each.
+- **s1 camera (owner, 2026-11-12; PB122284-291, 17 mm f1.8 1/40 ISO 400, plain wall, Shading -5 then +5 on COLOR
+  1-4):** Y by radius (centre .. corner, 400x300): stock -5 130 -> 7 (corner / centre **0.057**), +5 131 -> 243
+  (1.85). COLOR 2 (+128 upper half 205): corners **olive** (-5) / **yellow** (+5); COLOR 3 (+132 205): **green** /
+  **cyan**; COLOR 4 (+152 410): about stock (corner 8.5 vs 7.4). So **+128 = {Cb target << 16 | Y target 0 / 1023},
+  +132 = Cr target (512 neutral)**: the corners are blended toward that colour by a radial mask that is ~1 at the
+  corners at -5 / +5; +152 is not its strength. The mask's strength is set elsewhere.
+- Probe s2 (branch experiment/shading-probe-s1, VERSION "v0.28-dev (shading probe s2)"): COLOR 2 +192 1024 -> 410
+  (the dispatcher's default for every combiner), COLOR 3 +148 -> 0x019a019a, COLOR 4 Y target 0 -> 409 / 1023 -> 614
+  (tells a linear blend toward grey from a multiplicative one), + the GLOG.BIN logger (xblock XB_LOG 1; copy A = the
+  first kind-0 request's first 1856 B) for COLOR 1 at -5 / -3 / -1. Package E1479999.BIN d87eaf60…, GUIDES.BIN
+  06ba2216…; om-emu: boots, saves (no capture there, so no log).
+- **s2 camera (owner, 2026-11-12; PB122292-297, room with a window, 17 mm f1.8 1/100 ISO 200; COLOR 1 at -5 / -3 /
+  -1, COLOR 2-4 at -5) + GLOG.BIN ('GLG3', 10 marks: two per photo, the first two photos overwritten):**
+  - Each photo has two kind-0 developments: key 0xb0000 (context key 11, effect 0x0c00, combiner 33) and key 0x20000
+    (context key 2, effect 0, combiner 0), then kind-3 finals. The request differs between -1 and -5 (both
+    developments) only at **+1752** (0xff / 0xfb), +1655 / +1663 (1 / 0), +1590 (105 / 0, first development only)
+    and +1556..+1559 (0 / 48, 95, 98; +1557 differs between the -5 shots too): **no strength table in the request**;
+    the level reaches the mask some other way (not traced).
+  - Y by radius (centre .. corner): -5 105 / 74 (r .45-.6) / 22 (.7-.8) / 3.5 (corner); -3 114 / 78 / 25 / 5.1;
+    -1 107 / 80 / 30 / 8.8: the camera's levels mostly move the ring inwards; even -1 leaves the corner at ~8 %.
+  - COLOR 2 (+192 1024 -> 410): the **whole picture** at ~0.40 (an overall gain, set to 1024 by the dispatcher for
+    every combiner). COLOR 3 (+148 -> 0x019a019a): about stock. COLOR 4 (Y target 409): the corners go **grey and
+    foggy** (dark areas lifted): the blend is linear toward the target colour, Y' = Y + m (Yt - Y). So a softer
+    target is no way to a gentler vignette, and the mask amount is still unfound.
+  - Options: (1) our own CPU vignette on stills (the Control Panel's f = 1 + 0.07 s r^1.5, any step
+    size; camera Shading 0; route as halation: Soft Focus passes at weight 1024 + a CPU pass; not in live view; a
+    little slower saves); (2) more probes for the mask amount (keeps live view, no time cost, uncertain).
+- **Owner (2026-11-12): "if it isn't easy to do, let's scrap it"**, then: not "not possible" but **difficult**:
+  Gentler Shading is parked (ROADMAP "Difficult (parked)"; #22 to be answered so). The probes stay on `experiment/shading-probe-s1` (s1, s2) for
+  anyone who picks it up: the next lead would be the mask's source (the radial `ausEffectiveShadingCoefficient` table
+  or another unit configured from request +1752 / +1590).
+
+## Film WB: a film sets the camera's WB (2026-11-12; emulator, probe w1)
+- Owner: films carry a Kelvin; set on the camera (a new WB row) and later in the Control Panel; values as the
+  camera's own Custom WB (2000..14000 K, 100 K steps); a film or COLOR without one sets **Auto WB**.
+- Settings (om-emu, confirmed by the camera's own super control panel): **1578 = stills WB mode** (the 13-entry table
+  0x615d1944 {mode, stills A-B id, movie id}: 0 Auto, 6 Sunny, 8 Shade, 7 Cloudy, 1 Incandescent, 3 Fluorescent,
+  18 Underwater, 17 Flash, 13..16 one-touch 1..4, **9 = CWB**), **107 = Custom WB Kelvin** (sget 5400 = its default;
+  519 / 520 also read 5400: probably the RAW-edit pair, as the E-P7's 520 / 521). 1579 = movie WB mode.
+- In om-emu the stock getter / facade setter hang for 1578 when called from the debugger (as 901), and the WB screen's
+  reads do not pass sl_get after it opens; writing through the settings manager from our code works.
+- Probe w1 (branch experiment/film-wb-w1): fl_set -> fw_probe (ext12): film on COLOR k -> manager(107, 3000 + 1000 k),
+  manager(1578, 9); COLOR k itself -> manager(1578, 0). om-emu: after picking FILM 3 on COLOR 1 the super control
+  panel reads **CWB 3000K**; scrolling the Picture Mode list applies each entry live (fw_probe runs per step).
+  Package E1479999.BIN d5bd54cf…, GUIDES.BIN 0267380d….
+- **w1 camera (owner, 2026-11-12):** picking FILM 1 sets **CWB 3000K** on the camera (camera-tested), but changing the
+  WB afterwards **snaps back to 3000K**: fw_probe ran on every setting-901 write, not only when the selection changed.
+  Owner: the list is COLOR 1-4 then FILM 1-20 (describe tests by FILM number; FILM 1-5 = COLOR 1's looks internally).
+- **Probe w2** (experiment/film-wb-w1): fl_set keeps the look before in its (24,sp) (unused on the COLOR path) and
+  passes it to fw_probe, which returns when the look is the same and sget(111) is already COLOR k's picture mode (the
+  camera writes 901 again at each half-press: caller 0x60ae741e). om-emu: FILM 3 -> CWB 3000K; WB changed by hand
+  stays after two half-presses; FILM 20 -> 6000K; COLOR 4 -> Auto. Package E1479999.BIN b7923634…, GUIDES.BIN a3412046….
+- **w2 camera (owner, 2026-11-12):** a WB set by hand now stays (camera-tested), until another film is picked.
+  Owner: "Ideally it will keep its balance when changed so you can go back to it. like it does for hsl": **each film
+  (and COLOR) remembers the WB last used on it**. New design (w3): no WB row; the camera's own WB controls are the UI.
+  When the look or picture mode changes (fl_set), the camera's WB (1578 mode, 107 Kelvin for CWB) is first kept in the
+  slot of the COLOR being left, then the new look's stored WB is set (none / Auto -> Auto). Stored as balanced base-11
+  digits (v = lo + 11 hi, lo / hi -5..5, so zero bytes = none and every firmware's range check passes): slot
+  +34 / +35 Kelvin v = (K - 2000) / 100 - 60 (CWB only, else 0), +36 / +37 mode code = index in the 13-mode table
+  (0 = Auto / none); LOOKS / EDITS record +59..+62 (pf_bt pairs, so EDITS, the film's '*' and the hold-OK reset follow).
+- **w3 (feature branch; VERSION "v0.28-dev (film WB w3)"):** fl_set at its COLOR path: fw_keep (frame 48) sees a change
+  (look, or picture mode via sget(111) vs fl_cvt[k]) and first keeps the camera's WB in the slot of the COLOR being
+  left (sget(1578) -> its index in table 0x615d1944, Auto -> 0; CWB also sget(107) -> v), P+DIRTY; fl_sw then saves a
+  film being left with it; at label 4 fw_apply (frame 32) sets the new look's stored WB through the manager (Kelvin
+  first for CWB; none -> Auto). pf_bt + (59,10) (60,11) (61,12) (62,13), loops to pf_bt+42, fl_live 21 pairs, fl_fch
+  bytes 0..62, pf_lo -5 for +59..+62. Bugs met on the way (om-emu): `sget` does not keep a2 (fw_keep saves P in a
+  local); a frame's locals must stay below the saved registers (`call f,[d2,d3,a2,a3],N` keeps them in the top 16 B
+  of N: fw_keep 28 -> 48, fw_apply 20 -> 32; the w1 / w2 probes had the same fault, harmless there by luck).
+  om-emu: FILM 3 Auto -> Sunny by hand -> FILM 7 Auto -> FILM 3 again **Sunny 5300K and FILM 3***; FILM 3 CWB 5400K
+  -> FILM 7 Auto -> FILM 3 **CWB 5400K**. Package E1479999.BIN 9b73b5a0…, GUIDES.BIN 8d8d8c4b… (LABELS / TONES as t2).
+  Not done: the Control Panel's WB fields (with its v0.28 work), the photo code (EXIF) does not carry it.
+- **w3 camera (owner, 2026-11-12):** the film the camera is left on keeps its WB over a power cycle; **the others come
+  back on Auto**. Cause: tw_san (the EDITS.BIN clean-up at load) cleared record +57..+62 as "unused", so every film
+  saved in EDITS.BIN lost its **film WB, Halation and Tone Balance** at each power-on (the current look lives in the
+  BUNDLES slot, which sd_san checks by range instead). **w4:** tw_san clears each of +57..+62 only when outside -5..5
+  (+63 as before). om-emu (two sessions, the card saved between them: FILM 1 Sunny -> FILM 2 -> save -> restart ->
+  FILM 1): w3 Auto, **w4 Sunny 5300K**. Package E1479999.BIN e9820df4…, GUIDES.BIN f76e06be….
+- **w4 camera (owner, 2026-11-12): "that worked perfectly!"** Each film keeps its WB (Custom WB Kelvin and presets)
+  over film switches and power cycles, and a film without one gets Auto (camera-tested). Film WB is done on the camera
+  side; the Control Panel part (WB per film in the editor, export of +59..+62 for v0.28) remains, and per-film exposure
+  compensation / ISO are not started.
+
+## Blacks / Whites grid again (2026-11-12; owner)
+- Owner: "with the color profiles getting long", combine Blacks and Whites into one grid row like the WB (A-B / G-M)
+  grid again (bw1, 2026-11-08, was turned down: "that don't look too good"; code in commit 2fa6a5c). This time the
+  grid is black on the Blacks axis and white on the Whites axis. Mock-ups (private project folder, mockups/): plain
+  black edges vanish on the dark screen; owner chose **D**: black -/+ boxes left / right (Blacks), white -/+ boxes
+  top / bottom (Whites), and the grid's edges black (outlined) and white to match.
+- Port plan (bw1 = commit 2fa6a5c, on v0.25 code; branch `feature/v0.28-bw-grid` from feature/v0.28-halation):
+  - Row: BK_IT becomes the one-option grid row (it_tab {BK_IT, bk_title, bw_l0 "Blacks / Whites", bw_l1 / bw_l2
+    IC_BW}); WH_IT leaves pm_list. Bars **BWB = 0x7ef0 + k (row 15; 0x7ed0 is now HLB)**, **class 14** (bw1 used 12,
+    now Halation; 13 is Tone Balance), so every bw1 "class >= 11 = grid" test becomes "class 11 or 14": SL_VAL
+    (wb_draw mode), sl_cnt (1), LOWCNT (0, 1), sl_set0 (nothing stored). sl_slot / sl_gb: BWB and BK_IT -> 14.
+    CHC bw_a..bw_f, lc_bw; build.py: BK_IT 'bw' in the OWN switch loop (as AB_IT 'wg'), BK / WH out of the slider
+    loop. gr_lc BK_IT -> bw_tab. The BKB / WHB bar ids and classes 5 / 6 stay (gr_id maps the grid's ids to them).
+  - Grid screen (gr_mode 1, gr_lmode; gr_upd by row; gr_id + BKB - ABB; gr_pub's dot from +47 / +48): ic_get swaps
+    while gr_flag and gr_mode = 1: box letters G 10324 / A 10327 / B 10325 / M 10328 -> look D boxes (A '+' and B
+    '-' black, G '+' and M '-' white, 32 x 32), header letters -> '+' / '-', "WBAuto" 11240 -> "Blk/Wht", and the
+    grid's coloured edges -> black (left / right) and white (top / bottom): find which of 10904..10907 carries them.
+  - Pictures (ours, LABELS.BIN 'WBG1' section, mkicons): bw_top "Blk/Wht" 82 x 30, the four boxes, the header '+',
+    the edge picture; glyphs '+', '-', '/' for the left cell "Blk/Wht" over "+2/-1" (xb_wbc mode 1, two stream
+    buffers). Sizes then: GUIDES.BIN block, LABELS.BIN, ext11 / ext12.
+- **g1 (branch feature/v0.28-bw-grid; VERSION "v0.28-dev (Blacks / Whites grid g1)"; emulator only):** the port as
+  planned: BK_IT the one-option grid row (BWB 0x7ef0 + k, class 14; bw_l0 "Blacks / Whites", left cell IC_BK =
+  mkicons PICTURES[0] now a 100 x 76 "Blk" / "Wht" cell, without values), WH_IT out of pm_list; gr_mode / gr_lmode
+  (gr_upd reloads scene 498 between the two grid rows), gr_id + BKB - ABB, gr_pub from +47 / +48. ic_get, while
+  gr_flag and gr_mode = 1: the WB mode title 11218..11248 (each mode with and without '*': 11223 "WBAuto", 11240
+  "WBAuto*", tables 0x6139a694 / 0x614778fc) and bwg_swap {10904 square, 10327 A, 10325 B, 10324 G, 10328 M, header
+  letters 10813 / 10814 / 10817 / 10818 '+', 10815 / 10816 / 10820 '-'} -> our IC_BWG 0x7f70.. (mkicons
+  bwg_pictures, build.py bwg.inc in ext12: square 206 x 206 drawn to the camera's layout (fill 52, cross and 15 ticks
+  in 81, 6 px bands; black bands outlined in 81), boxes 32 x 32, header signs 16 x 30, title 86 x 44).
+  om-emu: the row with our square and boxes; OK -> fine-tune, header "Blk/Wht 0 . 0" (also with Sunny WB), dial ->
+  "0 . +1" / "+1 . +2" with the dot; MENU back; the WB row's coloured G / B / A / M grid unchanged. ext11 53264,
+  ext12 214176 B. Package E1479999.BIN 33171059…, GUIDES.BIN 511b434b… (LABELS / TONES as before).
+- **g1 camera (owner, 2026-11-12, photo of the screen): "This is looking good."** The row's grid shows the black / white
+  boxes and edges as look D (camera-tested). Owner asks: (1) 7 steps each way to match the WB grid; (2) the values in
+  the left cell, as the WB row's "WB± B1.M1".
+- **g2 (owner: 7 steps as the WB grid; the values in the left cell):** Blacks / Whites -7..+7 with the same step
+  (owner: "Two more steps"): tone clamps 15 / 7 (was 11 / 5), sl_cnt 15 and LOWCNT -7 for classes 5 / 6, sl_set0
+  range, pf_lo +39 / +40 -7, build.py RANGES blacks / whites (-7, 7) (an older firmware's sd_check refuses a BUNDLES.BIN
+  with +47 / +48 beyond 5: going back needs them within 5). Left cell: bw1's xb_wbc mode 1 (two stream buffers, top
+  "Blk/Wht" from LABELS.BIN 'WBG1' pictures), bw1's mklabels / mkicons (WBC_CHARS + '+', '-', '/'; WBC_N in the block's
+  inc), wb_draw with the mode (wb_desc / bw_desc, +24 drawn-for), wb_v + 36, IC_BW 0x7f7f -> bw_desc (our static
+  "Blk / Wht" until drawn), SL_VAL class 14 -> wb_draw mode 1. om-emu: cell "Blk/Wht +3/+7"; fine-tune header
+  "+3 . +7", the dot at the grid's top edge at +7 (the screen stops at the facade's 15); the WB row unchanged.
+  LABELS.BIN 88f4c049… (= bw1's), GUIDES.BIN c3449baf…, E1479999.BIN d4941147….
+- **g2 camera (owner, 2026-11-12): "that works and looks good"** (camera-tested: -7..+7, the values in the left cell).
+  Owner: an icon for the cell like the WB row's WB± icon (instead of the word "Blk/Wht").
+- **g3 (2026-11-12, emulator only): the cell's icon.** The owner chose icon A from two drawn previews: a plate like
+  the WB row's WB± icon reading "B/W" with a ± square (82×30, drawn from scratch in `mkicons.bw_top()`; dark text on
+  a white plate, the square's upper-left half dark with a white '+', a dark '−' lower right). It replaces the word
+  picture "Blk/Wht" in WBG1 (LABELS.BIN); firmware and GUIDES differ from g2 in 12 / 17 bytes (the version string). om-emu: the cell
+  shows the icon alone at 0 / 0 and the icon over "+2/+3" when set, the WB row unchanged. LABELS.BIN eac8eb47…,
+  GUIDES.BIN 98640306…, E1479999.BIN d931c334….
+- **g4 (2026-11-12, emulator only): at 0 / 0 the icon alone, bigger and centred** (owner, after g3: "when the b/w grid
+  and the wb grid are at zero, the icon should be centered and bigger", for both rows). `mkicons.plate_icon(text, k)`
+  is g3's plate made scalable (k = 1 gives bw_top's plate exactly, checked); `zero_cell()` puts it at k = 1.4 (92 x 42)
+  in the middle of the 100 x 76 cell, for "WB" and "B/W" (the WB one is our drawing too, in the style of the camera's
+  WB± picture, which the cell keeps over its values). build.py: zc_tab / zc_p0..1 in bwg.inc (ext12); wb_draw points
+  the descriptor there when both values are 0 (no xb_wbc call). om-emu: both rows big at 0 / 0, "B/W" small over
+  "+2/+3" when set, big again back at 0 / 0. LABELS.BIN unchanged from g3 (eac8eb47…).
+- **g4 camera (owner, 2026-11-12): the big icons' left and right edges are clipped.** The Picture Mode list shows only
+  an 82 px strip of the 100 x 76 cell, cell x 9..90 (WBC_IX, the WB± picture's slot): om-emu shows it too (the
+  92 px plate's dark edges missing; I missed it in the g4 shots). Lesson: measure the drawn edges in the emulator
+  shot, not only look at it.
+- **g5 (2026-11-12, emulator only):** ZC_K 1.2 (plate 79 x 36), centred in the shown strip (`mkicons.ZC_WIN`, an
+  assert keeps it inside). om-emu: both plates' dark edges visible on both sides (screen x 15..93 in the strip
+  14..95). E1479999.BIN 93f434d3…, GUIDES.BIN efd62b87…, LABELS.BIN unchanged (eac8eb47…).
+- **g5 camera (owner, 2026-11-12): "that looks great! and works well too"** (camera-tested: the 0 / 0 icons whole,
+  the B/W icon, -7..+7, the values). The Blacks / Whites grid is done on the camera; the Control Panel part (one
+  Blacks / Whites grid or two -7..+7 sliders, export gated to v0.28) comes with its v0.28 work.
+
+## Control Panel for v0.28 (2026-11-12; local dev server + vitest, not live)
+- Owner: update the Control Panel for everything in v0.28 (Halation, split toning 0..10 + Tone Balance, film WB,
+  Blacks / Whites ±7). Owner's choices: Blacks / Whites as a **grid like the camera's** (not the curve ends any more);
+  the film's WB mode **previewed as if the photo was taken in daylight**.
+- Look JSON (schema still caduceus-om3-look/1: new fields only): `halation` 1..5, `tone_balance` -5..5, `film_wb`
+  {mode: one of the camera's 13 (table 0x615d1944 order, checked in the decoded firmware: auto, sunny, shade, cloudy,
+  incandescent, fluorescent, underwater, flash, one_touch_1..4, custom), kelvin 2000..14000 / 100 for custom};
+  `split.sh` / `split.hl` stay in v0.26 steps, now in halves 0..5 (the editor shows the camera's 0..10). A v0.26
+  minus (opposite colour) is read as the wheel's opposite colour (+6) with a plus.
+- LOOKS.BIN: firmware choice "v0.28-alpha or later" (Fw 28): +39 / +40 -7..7, +54 / +56 the half-step code (n even ->
+  n / 2, odd -> -(n + 1) / 2), +57 Halation, +58 Tone Balance, +59..+62 film WB (balanced base-11 as FWENC: Kelvin v =
+  (K - 2000) / 100 - 60, then the mode index). Older choices leave all of it out (±5, whole v0.26 steps, rounded up);
+  the export dialog lists the looks that lose something. Reading: half-step codes when the choice is v0.28 or any
+  record has +57..+62 set (a v0.26 file's minus otherwise). Photo code: bytes 58..62 now read signed.
+- Preview: Tone Balance in `bendSplit` (bend28's u mapping); film WB = linear gains white(5300 K) / white(mode K)
+  (Planck locus, Kim et al.), Auto / Underwater / one-touch not shown; Halation = a float port of
+  research/halation/model.py on the camera's pixel scale (5184 px wide, 64 px cells). Check against the exact model
+  (photo upscaled to 5184, halate level 5, back down) on the sample photos: bluehour R corr 0.978, neon 0.986, mean
+  abs diff < 1 level per channel; paris and brasserie "off" (too bright) in both.
+- Default firmware choice stays v0.26.1 – v0.27.1 (the released versions): the new settings then show a "Needs
+  firmware v0.28" note and are left out of the preview, as split toning was before v0.26. Default film looks unchanged
+  (their split tones are whole steps).
+- Not done: `looklab/` (the live site) not rebuilt; docs/USING.md not updated. Both with the v0.28 release (or when
+  the owner wants the live site updated).
+
+## Photo code for v0.28: the film as set, Halation / Tone Balance / WB, still om3.1 (2026-11-12; emulator only, pc1)
+- Owner asked whether the EXIF code reflects the v0.28 settings: it did not (it coded the film's LOOKS.BIN record as
+  built, never the on-camera changes; v0.28 records the new settings mostly on the camera). Owner: **keep om3.1**
+  (no new name): the new settings go into the spare bytes; split toning, whose LOOKS.BIN meaning changed in v0.28 (the
+  half-step code), stays in v0.26 steps in the code with the half steps in the last spare byte 63.
+- The settings getter is not safe during the capture (v0.24's AGET reboot), so **ex_live** reads them at each
+  half-press in the HLS_EVENT task (the gate of lg_write, whose sget calls are camera-tested in the debug log):
+  COLOR k's settings now (pf_capto) + the camera's WB now (1578 / 107 as fw_keep, FWENC into +59..+62) -> ex_rec,
+  ex_rk = k. Called from lg_pr (every half-press after the first) and, for the first half-press of a power-on, from
+  sd_load's last call (`nm_ex` = nm_load + ex_live: same size call in ext4; ext1 is full, 1744 / 1744 B).
+- ex_cd1 (at the shot, d2 = COLOR k): ex_rec when ex_rk == k, else the LOOKS.BIN record as built; copied to ex_out,
+  +54 / +56 v < 0 -> ~v with bit 0 / 1 in +63; then the nibble / base64 code as before.
+- Found: ex_code was 48 B for 50 written (om3.1. + 43 + NUL): the last 2 bytes went into alignment padding (harmless
+  since v0.27); now 52 B.
+- om-emu (scratchpad pc1test.mjs, `runp:` = call with a2 = P): ex_rk 0 after the first half-press (COLOR 1); with
+  slot pokes (Halation 3, Tone Balance -2, Highlights colour 9, code -2 = 3 half steps) and a second half-press,
+  ex_rec +55..+58 = 9, -2, 3, -2, WB Auto (+59..+62 0); ex_cd1 for k = 0 -> ex_out +55..+63 = 9, 1, 3, -2, 0, 0, 0, 0, 2
+  and the code `om3.1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRPgAAI` (= the expected encoding); k = 1..3 the record as
+  built. Menus and further half-presses afterwards: no crash.
+- Readers: Control Panel `lookFromPhotoCode` (photo codes: v0.26 steps + byte 63, never the LOOKS.BIN half-step code),
+  `firmware/photocode.py` (split_steps, film_wb), `devkit/photo-code` (om3code.js: halation, toneBalance,
+  whiteBalanceMode, split toning 0..10; examples v028 / v028wb; README table), docs/PHOTO_CODE.md (v0.28 used the last
+  spare byte: the next new setting needs om3.2). The release's photo code kit zip is rebuilt with v0.28.
+- Package pc1: E1479999.BIN 640cdafd…, GUIDES.BIN 572226a4… (LABELS / TONES as g5). VERSION "v0.28-dev (photo code pc1)".
+- **pc1 camera (owner, 2026-11-12): works.** 17 photos on FILM 5 CineStill 800T (only the UserComment code read off
+  the card, nothing copied or kept): the first 3 as the film was (Highlights Green-cyan 2 of 10, WB Auto); after the
+  owner's changes on the camera **Halation 3, Tone Balance -2, Blacks -2 / Whites +6, Highlights Orange-red 3 of 10
+  (byte 56 = 1, byte 63 bit 1), Glow 1, Grain Med, Custom WB 3200 K**; then WB Sunny for one photo and a 12-photo burst,
+  every code the same and complete (camera-tested: the live record at the half-press, the WB at the shot's half-press,
+  bursts).
+
+## Code space check (2026-11-12, after pc1; owner asked to double-check the numbers)
+- Two clean rebuilds of b72881b (a fresh worktree): the same section sizes and E1479999.BIN 640cdafd… (= pc1, camera-
+  tested). Sizes read twice (build.py's SIZE lines; the ELF's section headers, readelf): ext12 217664 of 262144 B
+  (**44480 free**), ext11 53408 of 65536 B (**12128 free**); the section tails ext1 1744 / 1744, ext10 1264 / 1264 (full),
+  ext4 1588 / 1776, the others a few bytes each (hooks only).
+- The free bytes are 0xFF in the build and in the stock main block; the loader end word 0x60045e9c is 0x60f99800 in the
+  build (stock 0x60f49800), so ext11 / ext12 load whole. Reserve (GX4 camera probe): 0x60f99800..0x6103f000 =
+  **677888 B (662 KiB)**, all 0xFF in stock, OM's code resumes at 0x6103f000; using it needs the end word raised.
+- **GUIDES.BIN: 13416 of 16448 B, 3032 free** (the whole file is one malloc block, pools end at 16448 B: pictures
+  6792 + code block 6624). build.py now asserts 16448 (it allowed 24576, gd_load's own limit). The earlier "about
+  10 KB" told to the owner counted the code block alone against 16448: wrong, corrected.
+
+## Custom crop modes: what Caduceus for the E-P7 did (2026-11-12; read only, their docs/ASPECT.md, issues #7 / #23)
+- Read only (nothing copied): cakelesscoder/caduceus-ep7 docs/ASPECT.md, patches/aspect*, README, issue #23. Their
+  addresses are E-P7 1.1 and none apply here; this is a map of what to look for in the OM-3 firmware.
+- Approach: the E-P7's aspect setting (sid 270, values 1..10) has hidden still values 5:4, 7:6, 6:5, 7:5 (in its
+  tables, absent from the menus). They turned 7:6 and 6:5 into **Panorama 65:24 (5184 x 1920)** and **Wide 21:9
+  (5184 x 2224)**: full sensor width, centred, the same width / centre as 16:9.
+- What had to change, each found by a camera round (8+ rounds, 145 edits / ~2 KB, then 13 stubs / 484 B):
+  1. the option lists (main menu, Super Control Panel strip, a third list for the SCP current-value cell);
+  2. the static setting validator (it filtered the new values out of every list);
+  3. capture sizes (split W / H tables per aspect id x size class: L, M, S, previews, thumbnail) and the RAW
+     AspectFrame crop tag (a jump table per id);
+  4. the live view / AF ratio pair (LV crop) and the hard-coded LV output-size switches (else the view was squished);
+     playback frame; rec-view size;
+  5. the pixel-size readout ("0x0" until patched; then "XPAN 5184x1920" / "UW ..."), new XP / 21:9 icons (OSD);
+  6. issue #23 (user flickering-star; their fork's site list was used with credit): AF point selector crash, wrong AF
+     grid, iAuto, face / eye frames, AF points, metering marks, grid lines missing, setting lost at power-off: every
+     other aspect-keyed lookup found nothing for the new ids. Fix: map the new ids to the 16:9 entry everywhere (AF,
+     tracking, AUTO, overlays, metering). Grid lines still not fixed there (need their own pictures).
+- For the OM-3: find its aspect setting, whether it has hidden spare aspect values (the E-P7's were the way in), every
+  table / switch keyed by aspect (menus, validator, sizes, RAW frame, LV, playback, AF / subject detection, metering,
+  overlays), then probe one ratio on the camera first. The OM-3 has more AF / computational modes than the E-P7, so
+  likely more lookups. Space is not the limit (ext12 ~43 KB free, 662 KiB reserve). Credit cakelesscoder (and
+  flickering-star for the AF site list idea) if their method is followed; the code would be ours.
+- **Owner, 2026-11-12: not worth it for now** (custom crop modes set aside; ROADMAP "Set aside").
+
+## Film Mode (a "roll" that locks the film): feasibility (2026-11-12; analysis only)
+- Owner idea, after Fujifilm's X half "Film Camera Mode" (pick a film simulation and a roll of 36 / 54 / 72 shots;
+  the film cannot be changed until the roll is done; it also hides review, which the owner does not want): a setting
+  **Film Mode**, off by default: pick a roll length, and the film picked is locked until the roll is shot.
+- **The lock: one place already sees every film / picture-mode change from the UI.** The facade SetValue's manager
+  call is hooked (.hook_set -> sl_set -> sx_set): 901 (COLOR 1-4 / FILM 1-20, fl_set) and 897 (the picture-mode
+  family: CRT 900, ART 899, COLOR 901, MONO 988; the Creative Dial and the Picture Mode list). While a roll runs, sx_set
+  can replace the value with the locked one (the v0.27 dial mapping already rewrites 897 / 901 this way, camera-
+  tested), so every attempt lands back on the locked film. Paths that do not use the facade (power-on sets 897
+  directly, NOTES "Creative Dial"; custom-mode recall and menu reset: not traced): re-check at each half-press
+  (ex_live's moment, HLS_EVENT) and set the locked film back through the manager.
+- **Counting shots:** ex_hook runs once per photo (pc1: 17 photos incl. a 12-shot burst, every one coded), in the
+  capture: an increment of a RAM counter there is safe (no settings calls). Open: whether it runs for RAW-only shots
+  (the ORF carries EXIF too; check on the camera). The camera's own file number is an alternative (not traced).
+- **Keeping the roll over power-off:** state (on, the locked selection, length, shots) in a small card file written
+  at the half-press save (as EDITS.BIN). A battery pull loses the shots since the last half-press (X half: removing
+  card / battery can abandon the roll).
+- **Setting it / showing the count:** a Picture Mode choice row "Film Mode" (Off / roll lengths), like Noise Filter /
+  Film Grain; its left cell drawn at run time with the shots left (as the WB / B/W cells, xb_wbc); the super control
+  panel's FILM N cell (fl_scp) could add the count too. Nicest: the shooting screen's own shots-remaining number
+  showing the roll's frames left (display path to be found; it must not change the card-full logic).
+- Effort guess: small-to-medium (two or three test rounds): the lock and the counter reuse proven pieces; the screen
+  counter is the unknown.
+- **Owner, 2026-11-12: tabled as a future idea** (ROADMAP "Film Mode (a roll of film)").

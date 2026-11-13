@@ -7,7 +7,7 @@
 import { toneIsZero, type Tone } from './pack';
 import toneData from './data/tone_hsm.json';
 
-export const BW_LIMIT = 5;
+export const BW_LIMIT = 7;   // OM-3 v0.28: Blacks / Whites -7..7, the same step (the firmware's routine, its clamp widened)
 /** The identity knot LUT (knot k -> its own 10-bit level). */
 export const IDENTITY_LUT: readonly number[] = Array.from({ length: 256 }, (_, k) => Math.round((k * 1023) / 255));
 

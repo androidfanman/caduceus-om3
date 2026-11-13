@@ -18,13 +18,13 @@ W, H = 46, 46                      # slider-row icon
 CW, CH = 100, 76                   # choice-row cell picture
 # (lines, width, height): one line = (text, cap height px, baseline row)
 PICTURES = [
-    ([('Blk', 20, 33)], W, H), ([('Wht', 20, 33)], W, H), ([], 8, 2), ([], 8, 2),  # v0.25: A-B / G-M unused (the WB grid row shows the camera's WB± picture)
+    ([('Blk', 18, 30), ('Wht', 18, 60)], CW, CH), ([], 8, 2), ([], 8, 2), ([], 8, 2),  # v0.28 the Blacks / Whites grid row's left cell before it is drawn with its values (was the Blk / Wht slider icons); A-B / G-M unused (the WB grid row shows the camera's WB± picture)
     ([('Vignette', 15, 30), ('Off', 18, 60)], CW, CH), ([('Vignette', 15, 30), ('On', 18, 60)], CW, CH),
     ([('Noise', 15, 30), ('Off', 18, 60)], CW, CH), ([('Noise', 15, 30), ('Low', 18, 60)], CW, CH),
     ([('Noise', 15, 30), ('Std', 18, 60)], CW, CH), ([('Noise', 15, 30), ('High', 18, 60)], CW, CH),
     ([('HSL', 26, 44)], 82, 62),   # v0.24 film test 7 (owner): the Color row's cell, stock "Color / Vivid" (82 x 62)
     ([('Glow', 20, 33)], W, H),    # v0.25: the Glow (+) / Clarity (-) slider's icon (owner: named for the + side)
-    ([], 8, 2), ([], 8, 2),  # v0.25: Frame Off / On unused (owner: Frame removed)
+    ([('Halo', 20, 33)], W, H), ([('Bal', 20, 33)], W, H),  # v0.28: the Halation and Tone Balance sliders' icons (Frame Off / On's places)
 ]
 STYLE = {10: (0.88, (0.20, 0.40, 0.60))}   # width, coverage thresholds (as the FILM cells, matched to the stock lettering)
 
@@ -189,6 +189,15 @@ def sp_parts():
     return fwp, fw.shape[1], boxes, [d.shape[1] for d in ds]
 
 
+def sp_star():
+    """v0.28 (owner: "FILM 1*"): the quick menu's '*' after the number, in its lettering (the asterisk sits high, as the
+    camera's "COLOR*"); -> (picture even-padded, ink width)."""
+    st = _sp_part('*')
+    stp = np.zeros((SPH, st.shape[1] + st.shape[1] % 2), dtype=np.uint8)
+    stp[:, :st.shape[1]] = st
+    return stp, st.shape[1]
+
+
 def sp_film(n, parts=None):
     fwp, fwi, boxes, dw = sp_parts() if parts is None else parts
     ds = [int(c) for c in str(n)]
@@ -349,6 +358,58 @@ def pack4(a):
     return bytes(f[i] | f[i + 1] << 4 for i in range(0, len(f), 2))
 
 
+# v0.28 Blacks / Whites grid (owner, look D): our pictures in place of the camera's WB grid pictures while that grid
+# shows (editor.s bwg_swap): the square (206 x 206, as the camera's 10904: fill 52, a cross with 15 ticks in 81, 6 px
+# bands), its bands black (left / right, outlined) and white (top / bottom); the boxes' letters as -/+ swatches
+# (32 x 32): black for Blacks (B '-', A '+'), white for Whites (M '-', G '+'); the header's letters (16 x 30) and its
+# "WBAuto" (86 x 44) as "Blk/Wht". All drawn here from scratch (palette indices: 7 dark, 10 white, 52 the grid's
+# fill, 81 its lines); no camera graphics copied.
+BWG_TICKS = (12, 25, 38, 51, 64, 77, 90, 103, 115, 128, 141, 154, 167, 180, 193)
+
+
+def bwg_square():
+    n, b = 206, 6
+    px = np.full((n, n), 52, dtype=np.uint8)
+    px[103, b:n - b] = 81
+    px[b:n - b, 103] = 81
+    for t in BWG_TICKS:
+        px[99:108, t] = 81
+        px[t, 99:108] = 81
+    y, x = np.mgrid[0:n, 0:n]
+    d = np.stack([y, n - 1 - y, x, n - 1 - x])          # distance to the top, bottom, left, right edge
+    near = d.min(axis=0)
+    side = d.argmin(axis=0)
+    band = near < b
+    white = band & (side < 2)
+    black = band & (side >= 2)
+    px[white] = 10
+    px[black] = 7
+    px[black & ((near == 0) | (near == b - 1))] = 81     # the black bands' grey outline (else lost on the dark screen)
+    return px
+
+
+def bwg_sign(plus, w, h, bar, length, fg, bg, edge=None):
+    px = np.full((h, w), bg, dtype=np.uint8)
+    cy, cx = h // 2, w // 2
+    px[cy - bar // 2:cy - bar // 2 + bar, cx - length // 2:cx - length // 2 + length] = fg
+    if plus:
+        px[cy - length // 2:cy - length // 2 + length, cx - bar // 2:cx - bar // 2 + bar] = fg
+    if edge is not None:
+        ink = px == fg
+        px[ndimage.binary_dilation(ink, structure=np.ones((3, 3)), iterations=1) & ~ink] = edge
+    return px
+
+
+def bwg_pictures():
+    """[(pixels, w, h)] in bwg_swap order: square, box A '+', box B '-', box G '+', box M '-', header '+', header '-',
+    the header title "Blk/Wht"."""
+    box = lambda plus, fg, bg: bwg_sign(plus, 32, 32, 4, 18, fg, bg)
+    hdr = lambda plus: bwg_sign(plus, 16, 30, 3, 12, 10, 0, 7)
+    return [(bwg_square(), 206, 206), (box(True, 10, 7), 32, 32), (box(False, 10, 7), 32, 32),
+            (box(True, 7, 10), 32, 32), (box(False, 7, 10), 32, 32), (hdr(True), 16, 30), (hdr(False), 16, 30),
+            (picture([('Blk/Wht', 20, 32)], 86, 44, 0.92, (0.20, 0.40, 0.60)), 86, 44)]
+
+
 def encode11(px, w, h):
     """OSD type-11 stream; as the stock pictures, no run crosses a row's end."""
     toks, i = [], 0
@@ -384,7 +445,7 @@ if __name__ == '__main__':
 # v0.25 WB grid row: its left cell (100 x 76, as the camera's WB screen cell): the camera's own WB± picture (82 x 30,
 # picture 12545, copied by the firmware at run time) over the fine-tune values as the camera writes them ("A2.G2",
 # "B1.0"; blank when both are 0). The firmware (xblock xb_wbc) draws it from these glyphs: 0..7, A, B, G, M, '.'.
-WBC_CHARS = '01234567ABGM.'
+WBC_CHARS = '01234567ABGM.+\u2212/'     # v0.25 Blacks / Whites: '+', '\u2212', '/' (indices 13..15)
 WBC_GH, WBC_BASE, WBC_CAP = 26, 22, 18          # glyph rows, baseline row in them, cap height
 WBC_IX, WBC_IY, WBC_TY = 9, 6, 40               # the WB± picture's place; the text glyphs' top row
 
@@ -401,20 +462,85 @@ def wbc_glyphs():
     return out
 
 
-def wbc_text(ab, gm):
+def wbc_text(ab, gm, bw=False):
     if ab == 0 and gm == 0:
         return ''
-    f = lambda v, p, n: '0' if v == 0 else (p if v > 0 else n) + str(abs(v))
-    return f(ab, 'A', 'B') + '.' + f(gm, 'G', 'M')
+    if bw:                                       # Blacks / Whites: "+2/\u22121" (Blk / Wht, as the top line)
+        f = lambda v, p, n: '0' if v == 0 else ('+' if v > 0 else '\u2212') + str(abs(v))
+    else:
+        f = lambda v, p, n: '0' if v == 0 else (p if v > 0 else n) + str(abs(v))
+    return f(ab, 'A', 'B') + ('/' if bw else '.') + f(gm, 'G', 'M')
 
 
-def wbc_cell(ab, gm, wbpm=None):
+def plate_icon(text, k=1.0):
+    """our plate icon (owner, g3: like the WB row's WB± picture, which is the camera's; this one is drawn here from
+    scratch in its style) at k times its size: a white plate (66 x 30 at k = 1, a 2 px dark edge, rounded corners) with
+    `text` in dark letters and a square split on its diagonal, dark with a white '+' and white with a dark '-'."""
+    r = lambda v: int(round(v * k))
+    w, h, e = r(66), r(30), r(2)
+    px = np.full((h, w), 7, dtype=np.uint8)
+    px[e:h - e, e:w - e] = 10
+    for y in range(e):
+        for x in range(e - y):
+            for yy, xx in ((y, x), (y, w - 1 - x), (h - 1 - y, x), (h - 1 - y, w - 1 - x)):
+                px[yy, xx] = 0
+    cov, b = word(text, r(17), r(34), 1.0)
+    y0, xs = int(round(r(23) - b)), r(4) + (r(34) - cov.shape[1]) // 2
+    for y in range(cov.shape[0]):
+        for x in range(cov.shape[1]):
+            c, yy, xx = cov[y, x], y0 + y, xs + x
+            if 0 <= yy < h and 0 <= xx < w and px[yy, xx] == 10:
+                px[yy, xx] = 7 if c >= 0.6 else 12 if c >= 0.35 else 11 if c >= 0.15 else 10
+    sx, sy, n, t, a = r(40), r(4), r(22), r(2), r(4)
+    for y in range(n):
+        for x in range(n - 1 - y):
+            px[sy + y, sx + x] = 7
+    cx, cy = sx + r(7), sy + r(7)
+    px[cy - 1:cy - 1 + t, cx - a:cx + a + 1] = 10
+    px[cy - a:cy + a + 1, cx - 1:cx - 1 + t] = 10
+    px[sy + r(15):sy + r(15) + t, sx + r(11):sx + r(19)] = 7
+    return px
+
+
+def bw_top():
+    """the Blacks / Whites row's cell top over its values (g3): the plate "B/W", 82 x 30 as the camera's WB±"""
+    px = np.zeros((30, 82), dtype=np.uint8)
+    px[:, 8:74] = plate_icon('B/W')
+    return px
+
+
+ZC_K = 1.2                                       # owner, g4: at 0 / 0 the icon bigger and centred (g5: 1.4 was clipped)
+ZC_WIN = 82                                      # the list shows only this strip of the cell, from WBC_IX (the WB±
+                                                 # picture's place): g4's 92 px plate lost its edges (camera; om-emu too)
+
+
+def zero_cell(text):
+    """the WB ('WB') and Blacks / Whites ('B/W') rows' left cell at 0 / 0 (owner, g4: no values -> the icon alone,
+    bigger, centred in the cell): 100 x 76, our plate at ZC_K (79 x 36) in the middle of the shown strip. editor.s
+    wb_draw points the cell there."""
+    cell = np.zeros((CH, CW), dtype=np.uint8)
+    p = plate_icon(text, ZC_K)
+    assert p.shape[1] <= ZC_WIN - 2
+    y, x = (CH - p.shape[0]) // 2, WBC_IX + (ZC_WIN - p.shape[1]) // 2
+    cell[y:y + p.shape[0], x:x + p.shape[1]] = p
+    return cell
+
+
+def bw_syms():
+    """the Blacks / Whites grid's own symbols in place of the camera's letters: the boxes' '+' / '\u2212' (32 x 32, as
+    the letters G / A / B / M) and the header's '+' (16 x 30, as its letters; its '\u2212' is the camera's 1120)"""
+    return [picture([('+', 22, 27)], 32, 32), picture([('\u2212', 22, 27)], 32, 32), picture([('+', 16, 25)], 16, 30)]
+
+
+def wbc_cell(ab, gm, wbpm=None, bw=False):
     """the cell as the firmware draws it (wbpm: the WB± picture, 30 x 82, for previews only)"""
     cell = np.zeros((CH, CW), dtype=np.uint8)
+    if bw:
+        wbpm = bw_top()
     if wbpm is not None:
         cell[WBC_IY:WBC_IY + 30, WBC_IX:WBC_IX + 82] = wbpm
     gl = wbc_glyphs()
-    t = [gl[WBC_CHARS.index(c)] for c in wbc_text(ab, gm)]
+    t = [gl[WBC_CHARS.index(c)] for c in wbc_text(ab, gm, bw)]
     tot = sum(g.shape[1] - 2 for g in t) + 2 if t else 0
     x = (CW - tot) // 2
     for g in t:

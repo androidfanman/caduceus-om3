@@ -2,8 +2,8 @@ import './style.css';
 import libraryJson from './data/library.json';
 import { type Problem } from './format';
 import {
-  NOTE_MAX, PACK_SCHEMA, TONE_KEYS,
-  parsePack, toneIsZero, toneLimit, type Look, type Pack, type Tone,
+  KELVIN, NOTE_MAX, PACK_SCHEMA,
+  parsePack, toneLimit, type FilmWb, type Look, type Pack, type Tone,
 } from './pack';
 import { History } from './history';
 import { fromLibrary, libraryOrigin, resetLook } from './reset';
@@ -13,10 +13,10 @@ import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
 import {
   BANK_SCHEMA, PHOTO_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromPhotoCode, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
-  SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw,
+  SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw, v28Parts,
 } from './om3';
 import { namesBin } from './om3names';
-import { SPLIT_COLOURS, SPLIT_MAX, type Split } from './split';
+import { SPLIT_COLOURS, SPLIT_STEPS, fromSteps, toSteps, type Split } from './split';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
 // ---------------------------------------------------------------- state
@@ -335,20 +335,22 @@ const signed = (v: number) => (v > 0 ? `+${v}` : String(v));
 const TAB_NAME: Record<Tab, string> = { sat: 'Color', hue: 'Hue', light: 'Luminance', sh: 'Shadows', hl: 'Highlights' };
 
 /** The HSL wheel with the camera's five pages. Color / Hue / Luminance: a value for each of the 12 colours (±5).
- *  Shadows / Highlights (v0.26 split toning): one colour and a strength. Click a colour (or ← →, the front dial),
+ *  Shadows / Highlights (v0.26 split toning): one colour and a strength, 0..10 as the camera's v0.28 wheel (half the
+ *  v0.26 step; the look keeps v0.26 steps in halves). Click a colour (or ← →, the front dial),
  *  then set the value with the slider (or ↑ ↓ / the mouse wheel, the rear dial). */
 function hslPanel(l: Look, changed: () => void): HTMLElement {
   const tab = S.tab;
   const split = tab === 'sh' || tab === 'hl';
   const sp = (): Split => l.split ?? { sh_color: 8, sh: 0, hl_color: 1, hl: 0 };
   const cKey = tab === 'sh' ? 'sh_color' : 'hl_color';
-  const lim = split ? SPLIT_MAX : 5;
+  const lim = split ? SPLIT_STEPS : 5;
   if (split) S.sector = sp()[cKey as 'sh_color'];
-  const valueOf = (i: number) => (split ? (i === sp()[cKey as 'sh_color'] ? sp()[tab as 'sh'] : 0) : l[tab as 'sat'][i]);
+  const cur = () => toSteps(sp()[tab as 'sh']);                // split: the strength in the camera's 0..10
+  const valueOf = (i: number) => (split ? (i === sp()[cKey as 'sh_color'] ? cur() : 0) : l[tab as 'sat'][i]);
   const setValue = (i: number, v: number) => {
-    v = Math.max(-lim, Math.min(lim, v));
+    v = Math.max(split ? 0 : -lim, Math.min(lim, v));
     if (split) {
-      const s = { ...sp(), [cKey]: i, [tab]: v } as Split;
+      const s = { ...sp(), [cKey]: i, [tab]: fromSteps(v) } as Split;
       if (s.sh || s.hl) l.split = s; else delete l.split;
     } else l[tab as 'sat'][i] = v;
     changed();
@@ -384,9 +386,9 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
   const hubVal = svgEl('text', { x: 14, y: 44, class: 'hw-hub-val' });
   svg.append(hubName, hubVal);
 
-  const { inp, out } = slider(-lim, lim, valueOf(S.sector), (v) => { setValue(S.sector, v); draw(false); }, undefined, `${TAB_NAME[tab]} value`);
+  const { inp, out } = slider(split ? 0 : -lim, lim, valueOf(S.sector), (v) => { setValue(S.sector, v); draw(false); }, split ? String : undefined, `${TAB_NAME[tab]} value`);
   const selName = h('span', { class: 'hw-sel' });
-  const move = (d: number) => { S.sector = (S.sector + d + 12) % 12; if (split) setValue(S.sector, sp()[tab as 'sh']); draw(); };
+  const move = (d: number) => { S.sector = (S.sector + d + 12) % 12; if (split) setValue(S.sector, cur()); draw(); };
   function draw(syncSlider = true) {
     let d = '';
     for (let i = 0; i < 12; i++) {
@@ -394,16 +396,16 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
       d += `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
       dots[i].setAttribute('cx', x.toFixed(1)); dots[i].setAttribute('cy', y.toFixed(1));
       dots[i].classList.toggle('sel', i === S.sector);
-      nums[i].textContent = v ? signed(v) : '';
+      nums[i].textContent = v ? (split ? String(v) : signed(v)) : '';
       wedges[i].classList.toggle('sel', i === S.sector);
     }
     poly.setAttribute('d', d + 'Z');
     const v = valueOf(S.sector), nm = SPLIT_COLOURS[S.sector][0];
     hubName.textContent = split && !v ? TAB_NAME[tab] : nm;
-    hubVal.textContent = split && !v ? 'Off' : signed(v);
-    selName.textContent = split && v < 0 ? `${nm} (opposite)` : nm;
+    hubVal.textContent = split ? (v ? String(v) : 'Off') : signed(v);
+    selName.textContent = nm;
     selName.style.setProperty('--sw', SPLIT_COLOURS[S.sector][1]);
-    if (syncSlider) { inp.value = String(v); out.textContent = signed(v); }
+    if (syncSlider) { inp.value = String(v); out.textContent = split ? String(v) : signed(v); }
   }
   svg.addEventListener('keydown', (e) => {
     const k = (e as KeyboardEvent).key;
@@ -427,7 +429,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     svg.setPointerCapture(e.pointerId);
     S.sector = i;
-    if (split) setValue(i, sp()[tab as 'sh'] || 2);
+    if (split) setValue(i, cur() || 4);
     draw(); svg.focus({ preventScroll: true, focusVisible: false } as FocusOptions); e.preventDefault();
   });
   svg.addEventListener('pointermove', (e) => {
@@ -450,7 +452,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
   draw();
 
   const help = split
-    ? `${tab === 'sh' ? 'Tints the shadows' : 'Tints the highlights'} toward one colour: pick it, then set the strength (minus tints toward the opposite colour). One colour at a time. Needs firmware v0.26.`
+    ? `${tab === 'sh' ? 'Tints the shadows' : 'Tints the highlights'} toward one colour: pick it, then set the strength 0–10 (as the camera from v0.28; 10 = v0.26's +5). One colour at a time. Needs firmware v0.26; the odd steps (1, 3 … 9) need v0.28 and are rounded up for older firmware. Tone Balance (below) moves where the two tints meet.`
     : tab === 'hue' ? 'Turns a colour toward its clockwise neighbour (+: Yellow → Orange).'
       : tab === 'light' ? 'Darker or brighter, per colour.' : 'Saturation, per colour.';
   return h('div', { class: 'group cam' },
@@ -461,6 +463,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
       onclick: () => { S.tab = t; renderEditor(); },
     }, TAB_NAME[t], tabHas(t) ? h('span', { class: 'dot' }) : null))),
     split && !om3Fw25() ? h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.26: '), 'Export is set to an older firmware, so split toning is not previewed or saved. Choose "v0.26 or later" under Export › Firmware on the camera.') : null,
+    split && om3Fw25() && !om3Fw28() && cur() % 2 ? h('p', { class: 'warn' }, h('b', {}, 'Half steps need firmware v0.28: '), `the export is set to an older firmware, so ${cur()} is saved and previewed as ${cur() + 1}. Choose "v0.28 or later" under Export › Firmware on the camera.`) : null,
     svg,
     h('div', { class: 'hw-ctl' },
       h('button', { class: 'icon', title: 'Previous colour (front dial)', 'aria-label': 'Previous colour', onclick: () => move(-1) }, '‹'),
@@ -470,8 +473,9 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
     h('p', { class: 'help' }, help, ' Drag a colour\'s corner out (+) or in (−), or scroll / ↑ ↓ on the wheel; double-click a colour on the ring to zero it.'));
 }
 
-/** Highlight & Shadow, Blk and Wht: the curve with its sliders. Drag the handles on the curve up or down: S, M and H
- *  (Shadows, Midtones, Highlights), and the two ends (Blk, Wht). */
+/** Highlight & Shadow: the curve with its sliders. Drag the handles on the curve up or down: S, M and H (Shadows,
+ *  Midtones, Highlights). The two ends show Blacks / Whites (set on their own grid, bwPanel, as on the camera from v0.28). */
+let toneRedraw: (() => void) | null = null;
 function tonePanel(l: Look, changed: () => void): HTMLElement {
   const { svg, draw: drawCurve, X, Y } = toneCurve(l.tone);
   const syncs: (() => void)[] = [];
@@ -485,7 +489,13 @@ function tonePanel(l: Look, changed: () => void): HTMLElement {
   const HANDLES: [keyof Tone, number, string][] = [['blacks', 0, 'Blk'], ['shadows', 0.25, 'Sh'], ['midtones', 0.5, 'Mid'], ['highlights', 0.75, 'Hi'], ['whites', 1, 'Wht']];
   const STEP = 9;   // px of drag per step
   const knobs = HANDLES.map(([k, , t]) => {
-    const g = svgEl('g', { class: `tc-knob${k === 'blacks' || k === 'whites' ? ' end' : ''}`, tabindex: 0, role: 'slider', 'aria-label': `${({ Sh: 'Shadows', Mid: 'Midtones', Hi: 'Highlights' } as Record<string, string>)[t] ?? t}: drag up or down` });
+    if (k === 'blacks' || k === 'whites') {      // v0.28: shown only (Blacks / Whites have their grid)
+      const g = svgEl('g', { class: 'tc-knob end ro', 'aria-hidden': 'true' });
+      g.append(svgEl('circle', { r: 3.5, class: 'pip' }));
+      svg.append(g);
+      return g;
+    }
+    const g = svgEl('g', { class: 'tc-knob', tabindex: 0, role: 'slider', 'aria-label': `${({ Sh: 'Shadows', Mid: 'Midtones', Hi: 'Highlights' } as Record<string, string>)[t] ?? t}: drag up or down` });
     // the camera marks Sh / Hi (and Mid on its INFO page) with a small cross on the curve; the ends with a dot
     g.append(svgEl('circle', { r: 10, class: 'hit' }), svgEl('path', { d: 'M-6,0H6M0,-6V6', class: 'cross' }), svgEl('circle', { r: 3.5, class: 'pip' }));
     let d: { id: number; y: number; v0: number } | null = null;
@@ -521,13 +531,80 @@ function tonePanel(l: Look, changed: () => void): HTMLElement {
       h('span', { class: l.tone[k] ? 'on' : '' }, ({ shadows: 'Sh', midtones: 'Mid', highlights: 'Hi' } as Record<string, string>)[k], ' ', l.tone[k] ? signed(l.tone[k]) : '±0')));
   }
   const top = h('div', { class: 'tc-top' });
-  const rows = [row('shadows', 'Shadows'), row('midtones', 'Midtones'), row('highlights', 'Highlights'), h('div', { class: 'tone-sep' }), row('blacks', 'Blk'), row('whites', 'Wht')];
+  const rows = [row('shadows', 'Shadows'), row('midtones', 'Midtones'), row('highlights', 'Highlights')];
   draw();
+  toneRedraw = draw;
+  const hsm = () => l.tone.shadows || l.tone.midtones || l.tone.highlights;
   return h('div', { class: 'group cam' },
     h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'Highlight & Shadow'),
-      !toneIsZero(l.tone) ? h('button', { class: 'link', onclick: () => { for (const k of TONE_KEYS) l.tone[k] = 0; renderEditor(); changed(); } }, 'Reset') : null),
+      hsm() ? h('button', { class: 'link', onclick: () => { for (const k of ['shadows', 'midtones', 'highlights'] as const) l.tone[k] = 0; renderEditor(); changed(); } }, 'Reset') : null),
     h('div', { class: 'cam-screen-wrap' }, top, svg), ...rows,
-    h('p', { class: 'help' }, 'Drag Sh, Mid and Hi on the curve, or its two ends (Blk, Wht), up or down; double-click one to zero it. The curve shows the camera\'s normal → this look.'));
+    h('p', { class: 'help' }, 'Drag Sh, Mid and Hi on the curve up or down; double-click one to zero it. The curve shows the camera\'s normal → this look; its two ends follow Blacks / Whites (their own grid below).'));
+}
+
+/** Blacks / Whites (v0.28, as the camera's grid row): Blacks across (− left, + right), Whites up (+) and down (−),
+ *  −7..+7 each. Black boxes and edges for Blacks, white ones for Whites, as on the camera. */
+function bwPanel(l: Look, changed: () => void): HTMLElement {
+  const N = OM3.bw, CELL = 12, PAD = 34, BOX = CELL * (2 * N + 1), SZ = PAD * 2 + BOX;
+  const svg = svgEl('svg', { viewBox: `0 0 ${SZ} ${SZ}`, class: 'wb-grid bw-grid cam-screen', role: 'slider', tabindex: 0, 'aria-label': 'Blacks and Whites: left and right for Blacks, up and down for Whites' });
+  const X = (b: number) => PAD + (b + N + 0.5) * CELL, Y = (w: number) => PAD + (N - w + 0.5) * CELL;
+  svg.append(svgEl('rect', { x: 0, y: 0, width: SZ, height: SZ, rx: 14, class: 'cs-bg' }),
+    svgEl('rect', { x: PAD, y: PAD, width: BOX, height: BOX, class: 'wb-box' }));
+  for (let i = -N; i <= N; i++) if (i) {
+    svg.append(svgEl('line', { x1: X(i), y1: Y(0) - 2, x2: X(i), y2: Y(0) + 2, class: 'wb-tick' }), svgEl('line', { x1: X(0) - 2, y1: Y(i), x2: X(0) + 2, y2: Y(i), class: 'wb-tick' }));
+  }
+  if (!om3Fw28()) {                              // older firmware: ±5 only; the outer rings greyed
+    const a = PAD + CELL * 2, b = CELL * (2 * 5 + 1);
+    svg.append(svgEl('rect', { x: a, y: a, width: b, height: b, class: 'bw-limit' }));
+  }
+  const edge = (x1: number, y1: number, x2: number, y2: number, c: string) => svgEl('line', { x1, y1, x2, y2, class: `wb-edge ${c}` });
+  svg.append(edge(PAD, PAD, PAD + BOX, PAD, 'wh'), edge(PAD, PAD + BOX, PAD + BOX, PAD + BOX, 'wh'), edge(PAD, PAD, PAD, PAD + BOX, 'bk'), edge(PAD + BOX, PAD, PAD + BOX, PAD + BOX, 'bk'));
+  const tag = (t: string, x: number, y: number, c: string) => {
+    const g = svgEl('g');
+    g.append(svgEl('rect', { x: x - 10, y: y - 10, width: 20, height: 20, rx: 2, class: `bw-tag ${c}` }));
+    const e = svgEl('text', { x, y, class: `bw-lab ${c}`, 'text-anchor': 'middle', 'dominant-baseline': 'central' }); e.textContent = t; g.append(e);
+    return g;
+  };
+  svg.append(tag('+', SZ / 2, PAD / 2 - 1, 'wh'), tag('−', SZ / 2, SZ - PAD / 2 + 1, 'wh'), tag('−', PAD / 2 - 1, SZ / 2, 'bk'), tag('+', SZ - PAD / 2 + 1, SZ / 2, 'bk'));
+  const dot = svgEl('g', { class: 'wb-dot' });
+  dot.append(svgEl('path', { d: 'M-8,0H-3M3,0H8M0,-8V-3M0,3V8', class: 'wb-cross' }), svgEl('circle', { r: 3 }));
+  svg.append(dot);
+  const read = h('output', { class: 'wb-read' });
+  const get = () => [l.tone.blacks, l.tone.whites];
+  function set(b: number, w: number) {
+    l.tone.blacks = Math.max(-N, Math.min(N, b)); l.tone.whites = Math.max(-N, Math.min(N, w));
+    draw(); toneRedraw?.(); changed();
+  }
+  const sg = (v: number) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : '0');
+  function draw() {
+    const [b, w] = get();
+    dot.setAttribute('transform', `translate(${X(b)},${Y(w)})`);
+    read.textContent = `${sg(b)}/${sg(w)}`;           // as the camera's cell: Blacks / Whites, "+3/−2"
+    svg.setAttribute('aria-valuetext', `Blacks ${sg(b)}, Whites ${sg(w)}`);
+  }
+  const cellAt = (e: PointerEvent) => {
+    const r = svg.getBoundingClientRect(), x = ((e.clientX - r.left) / r.width) * SZ, y = ((e.clientY - r.top) / r.height) * SZ;
+    return [Math.round((x - PAD) / CELL - 0.5) - N, N - Math.round((y - PAD) / CELL - 0.5)];
+  };
+  let dragId: number | null = null;
+  svg.addEventListener('pointerdown', (e) => { if (e.button) return; dragId = e.pointerId; svg.setPointerCapture(e.pointerId); const [b, w] = cellAt(e); set(b, w); svg.focus({ preventScroll: true, focusVisible: false } as FocusOptions); e.preventDefault(); });
+  svg.addEventListener('pointermove', (e) => { if (dragId !== e.pointerId) return; const [b, w] = cellAt(e), [b0, w0] = get(); if (b !== b0 || w !== w0) set(b, w); });
+  const bwEnd = (e: PointerEvent) => { if (dragId === e.pointerId) { dragId = null; checkpoint(); } };
+  svg.addEventListener('pointerup', bwEnd); svg.addEventListener('pointercancel', bwEnd);
+  svg.addEventListener('keydown', (e) => {
+    const [b, w] = get(), k = (e as KeyboardEvent).key;
+    const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] } as Record<string, number[]>)[k];
+    if (d) { set(b + d[0], w + d[1]); checkpoint(); e.preventDefault(); }
+    else if (k === '0' || k === 'Delete' || k === 'Backspace') { set(0, 0); checkpoint(); e.preventDefault(); }
+  });
+  draw();
+  const big = Math.abs(l.tone.blacks) > 5 || Math.abs(l.tone.whites) > 5;
+  return h('div', { class: 'group cam' },
+    h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'Blacks / Whites'), read,
+      h('button', { class: 'link', onclick: () => { set(0, 0); checkpoint(); } }, 'Reset')),
+    svg,
+    big ? needs28('Blacks / Whites past ±5') : null,
+    h('p', { class: 'help' }, 'Click or drag on the grid (or arrow keys). Blacks left and right: + lifts the darkest tones (softer, faded blacks), − deepens them. Whites up and down: + brightens the lightest tones, − tones them down. −7 to +7 needs firmware v0.28 (±5 before).'));
 }
 
 /** WB: the camera's fine-tune grid, A–B across and G–M up and down (−7..+7). Click a square, or use the arrow keys. */
@@ -586,13 +663,58 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
   return h('div', { class: 'group cam' },
     h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'WB'), read,
       h('button', { class: 'link', onclick: () => { set(0, 0); checkpoint(); } }, 'Reset')),
+    wbModeRow(l, changed),
     svg,
     h('p', { class: 'help' }, 'Click or drag on the grid (or arrow keys). The look\'s shift, added to the camera\'s own WB in every WB mode (A amber / B blue, G green / M magenta). Past ±5 needs firmware v0.26.1.'));
 }
 
-/** v0.26 split toning reaches the camera only with the "v0.26 or later" export: before that the preview leaves it out. */
-const om3Fw25 = () => { try { const s = localStorage.getItem('caduceus.om3.fw'); return s === null || s === '25' || s === '26'; } catch { return true; } };   // v0.26.1 is the default
-const splitPv = (l: Look): Look => (l.split && !om3Fw25() ? { ...l, split: undefined } : l);
+/** v0.28 film WB: the WB mode (and Custom WB Kelvin) the camera switches to when this film is picked; the camera then
+ *  remembers changes made on it per film. Auto = none of its own. Previewed as if the photo was taken in daylight. */
+const WB_MODE_NAMES: [FilmWb['mode'] | 'auto', string][] = [['auto', 'Auto'], ['sunny', 'Sunny (5300 K)'], ['shade', 'Shade (7500 K)'],
+  ['cloudy', 'Cloudy (6000 K)'], ['incandescent', 'Incandescent (3000 K)'], ['fluorescent', 'Fluorescent (4000 K)'], ['underwater', 'Underwater'],
+  ['flash', 'Flash (5500 K)'], ['custom', 'Custom WB (Kelvin)'], ['one_touch_1', 'One-touch 1'], ['one_touch_2', 'One-touch 2'], ['one_touch_3', 'One-touch 3'], ['one_touch_4', 'One-touch 4']];
+function wbModeRow(l: Look, changed: () => void): HTMLElement {
+  const mode = l.film_wb?.mode ?? 'auto';
+  const sel = h('select', { 'aria-label': 'WB mode for this film', onchange: (e: Event) => {
+    const m = (e.target as HTMLSelectElement).value as FilmWb['mode'] | 'auto';
+    if (m === 'auto') delete l.film_wb; else l.film_wb = m === 'custom' ? { mode: m, kelvin: l.film_wb?.kelvin ?? KELVIN.dflt } : { mode: m };
+    renderEditor(); changed(); checkpoint();
+  } }, ...WB_MODE_NAMES.map(([v, t]) => h('option', { value: v, selected: v === mode }, t)));
+  const kOut = h('output', {}, `${l.film_wb?.kelvin ?? KELVIN.dflt} K`);
+  const kIn = l.film_wb?.mode === 'custom' ? h('input', {
+    type: 'range', min: KELVIN.lo, max: KELVIN.hi, step: KELVIN.step, value: l.film_wb.kelvin ?? KELVIN.dflt, 'aria-label': 'Custom WB Kelvin',
+    oninput: (e: Event) => { const k = Number((e.target as HTMLInputElement).value); kOut.textContent = `${k} K`; draft(() => { l.film_wb = { mode: 'custom', kelvin: k }; changed(); }); },
+    onchange: checkpoint,
+  }) : null;
+  const odd = mode === 'underwater' || mode.startsWith('one_touch');
+  return h('div', { class: 'wb-mode' },
+    h('div', { class: 'crow', title: 'The WB the camera switches to when you pick this film (Auto: none of its own). Changes you make on the camera are remembered for the film.' },
+      h('span', { class: 'cname' }, 'WB mode'), sel),
+    kIn ? h('div', { class: 'crow' }, h('span', { class: 'cname' }, 'Kelvin'), kIn, kOut) : null,
+    mode !== 'auto' ? needs28('the WB mode') : null,
+    mode !== 'auto' ? h('p', { class: 'help' }, odd ? 'Not shown in the preview (it follows the water or your own measurement).' : 'The preview shows it as if the photo was taken in daylight (5300 K).') : null);
+}
+
+/** The firmware chosen under Export › Firmware on the camera (v0.28 or later by default, from the v0.28 release). Settings a firmware can't
+ *  take are left out of the preview as they are left out of its LOOKS.BIN: split toning before v0.26; Halation, Tone
+ *  Balance, the film's WB mode and Blacks / Whites past ±5 before v0.28 (split toning then in whole v0.26 steps). */
+const FW_VALUES = ['20', '21', '22', '23', '24', '25', '26', '28'];
+const fwSetting = (): Fw => { try { const s = localStorage.getItem('caduceus.om3.fw'); if (s !== null && FW_VALUES.includes(s)) return Number(s) as Fw; } catch { /* storage blocked */ } return 28; };
+const om3Fw25 = () => fwSetting() >= 25;
+const om3Fw28 = () => fwSetting() >= 28;
+function splitPv(l: Look): Look {
+  const fw = fwSetting();
+  if (fw >= 28) return l;
+  const c = (v: number) => Math.max(-5, Math.min(5, v));
+  const r: Look = { ...l, tone: { ...l.tone, blacks: c(l.tone.blacks), whites: c(l.tone.whites) } };
+  delete r.halation; delete r.tone_balance; delete r.film_wb;
+  if (r.split) r.split = fw >= 25 ? { ...r.split, sh: Math.round(r.split.sh), hl: Math.round(r.split.hl) } : undefined;
+  if (!r.split) delete r.split;
+  return r;
+}
+/** A note under a v0.28 setting while the export is for an older firmware. */
+const needs28 = (what: string) => (om3Fw28() ? null : h('p', { class: 'warn' }, h('b', {}, 'Needs firmware v0.28: '),
+  `the export is set to an older firmware, so ${what} is not previewed or saved. Choose "v0.28 or later" under Export › Firmware on the camera.`));
 
 function refreshProblems() {
   const el = document.getElementById('problems');
@@ -1027,8 +1149,15 @@ function renderOm3Editor(l: Look) {
         }, 'Reset look'),
         h('button', { class: 'share-btn', onclick: () => om3ShareProfile(l), title: 'Share this look as a link' }, 'Share'))),
     hslPanel(l, changed),
+    h('div', { class: 'group cam' },
+      (() => {
+        const { inp, out } = slider(-5, 5, l.tone_balance ?? 0, (x) => { if (x) l.tone_balance = x; else delete l.tone_balance; changed(); }, undefined, 'Tone Balance');
+        return h('div', { class: 'crow', title: 'Where the Shadows and Highlights tints meet: − the shadow colour reaches further up, + the highlight colour further down' }, h('span', { class: 'cname' }, 'Tone Balance'), steps(inp), out);
+      })(),
+      l.tone_balance ? needs28('Tone Balance') : null),
     h('div', { class: 'group cam' }, crow('Contrast', OM3.contrast, () => l.advice.contrast ?? 0, (x) => { l.advice.contrast = x; }, 'The camera\'s Contrast for this look')),
     tonePanel(l, changed),
+    bwPanel(l, changed),
     wbPanel(l, changed),
     h('div', { class: 'group cam rows' },
       (() => {
@@ -1050,12 +1179,17 @@ function renderOm3Editor(l: Look) {
         }, (x) => (x === 0 ? '0' : x > 0 ? `+${x}` : String(x)), 'Glow');
         return h('div', { class: 'crow', title: '+ Glow (a soft glow), − Clarity (local contrast)' }, h('span', { class: 'cname' }, 'Glow'), steps(inp), out);
       })(),
+      (() => {
+        const { inp, out } = slider(0, OM3.halation, l.halation ?? 0, (x) => { if (x) l.halation = x; else delete l.halation; changed(); }, (x) => (x ? `+${x}` : '0'), 'Halation');
+        return h('div', { class: 'crow', title: 'A red-orange glow around bright lights, as on cinema film (fades out in bright daylight scenes); works with or without Glow' }, h('span', { class: 'cname' }, 'Halation'), steps(inp), out);
+      })(),
+      l.halation ? needs28('Halation') : null,
       cseg('Film Grain', [['0', 'Off'], ['1', 'Low'], ['2', 'Med'], ['3', 'High']], String(l.film_grain ?? 0), (x) => {
         if (x === '0') delete l.film_grain; else l.film_grain = Number(x);
         renderEditor(); changed();
       }, 'Colour film grain, made by the camera as the photo develops'),
       grainWarn,
-      h('p', { class: 'help' }, 'In the camera\'s Picture Mode order. Glow: + Glow, − Clarity. Hover a row for what it does.')),
+      h('p', { class: 'help' }, 'In the camera\'s Picture Mode order. Glow: + Glow, − Clarity. Halation needs firmware v0.28; saving a photo with it takes a little longer. Hover a row for what it does.')),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes'),
       h('textarea', {
         rows: 3, maxlength: 400, placeholder: 'What the look is for…', onchange: checkpoint,
@@ -1104,7 +1238,7 @@ async function om3OnFile(e: Event) {
   const bytes = new Uint8Array(await f.arrayBuffer());
   const magic = bytes.length >= 4 ? String.fromCharCode(...bytes.subarray(0, 4)) : '';
   try {
-    if (magic === 'OM3P') { replaceBank(readProfiles(bytes), `Opened ${f.name} (${readProfiles(bytes).flat().filter(Boolean).length} looks)`); return; }
+    if (magic === 'OM3P') { const bk = readProfiles(bytes, om3Fw28()); replaceBank(bk, `Opened ${f.name} (${bk.flat().filter(Boolean).length} looks)`); return; }
     if (magic === 'OM3N') { toast('That is NAMES.BIN (the name pictures). Open LOOKS.BIN instead: it holds the names too.', 'err'); return; }
     if (bytes[0] === 0xff && bytes[1] === 0xd8) {                                  // v0.27: a JPEG from the camera: its om3.1. code
       const txt = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 262144)));
@@ -1231,18 +1365,22 @@ function om3ExportDialog() {
   const fname = (O.name || 'om3-looks').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'om3-looks';
   const n = O.bank.flat().filter(Boolean).length;
   const bankJson = () => JSON.stringify(exportBank(), null, 1) + '\n';
-  let fw: Fw = 26; try { const s = localStorage.getItem('caduceus.om3.fw'); if (['20', '21', '22', '23', '24', '25', '26'].includes(s ?? '')) fw = Number(s) as Fw; } catch { /* storage blocked */ }
+  let fw: Fw = fwSetting();
   const looksBin = () => profilesBin(O.bank, fw);
   const fwSel = h('select', { onchange: (e: Event) => {
     fw = Number((e.target as HTMLSelectElement).value) as Fw;
     try { localStorage.setItem('caduceus.om3.fw', String(fw)); } catch { /* storage blocked */ }
-    renderEditor(); schedulePreview(); wbNote();   // v0.26: split toning shows only with the v0.26 export
-  } }, h('option', { value: '26', selected: fw === 26 }, 'v0.26.1 or later (WB ±7)'), h('option', { value: '25', selected: fw === 25 }, 'v0.26 (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
+    renderEditor(); schedulePreview(); wbNote();   // v0.26: split toning shows only with the v0.26 export; v0.28 its settings
+  } }, h('option', { value: '28', selected: fw === 28 }, 'v0.28 or later'), h('option', { value: '26', selected: fw === 26 }, 'v0.26.1 – v0.27.1'), h('option', { value: '25', selected: fw === 25 }, 'v0.26 (split toning)'), h('option', { value: '24', selected: fw === 24 }, 'v0.25'), h('option', { value: '23', selected: fw === 23 }, 'v0.24.1'), h('option', { value: '22', selected: fw === 22 }, 'v0.22'), h('option', { value: '21', selected: fw === 21 }, 'v0.21'), h('option', { value: '20', selected: fw === 20 }, 'v0.20 or older'));
   const wbBig = O.bank.flat().filter((l) => l?.wb && Math.max(Math.abs(l.wb.a_b), Math.abs(l.wb.g_m)) > 5).map((l) => l!.name);
   const wbBox = h('p', { class: 'warn' });
+  const v28 = O.bank.flat().filter((l) => l && v28Parts(l).length).map((l) => `${l!.name} (${v28Parts(l!).join(', ')})`);
   const wbNote = () => {
-    wbBox.hidden = !(wbBig.length && fw < 26);
-    wbBox.replaceChildren(h('b', {}, 'WB beyond ±5: '), `${wbBig.join(', ')}. Firmware v0.26 and older refuse a LOOKS.BIN with a WB shift past ±5, so this export saves it as ±5. Choose "v0.26.1 or later" for the full ±7.`);
+    const big = wbBig.length && fw < 26, new28 = v28.length && fw < 28;
+    wbBox.hidden = !big && !new28;
+    wbBox.replaceChildren(
+      ...(big ? [h('b', {}, 'WB beyond ±5: '), `${wbBig.join(', ')}. Firmware v0.26 and older refuse a LOOKS.BIN with a WB shift past ±5, so this export saves it as ±5. Choose "v0.26.1 – v0.27.1" or "v0.28 or later" for the full ±7. `] : []),
+      ...(new28 ? [h('b', {}, 'v0.28 settings left out: '), `${v28.join('; ')}. Older firmware refuses a LOOKS.BIN with them, so this export saves these looks without them (Blacks / Whites as ±5, split toning in whole v0.26 steps). Choose "v0.28 or later" if the camera has v0.28.`] : []));
   };
   wbNote();
   const cardFiles = async () => [{ name: 'LOOKS.BIN', data: looksBin() }, { name: 'NAMES.BIN', data: await namesBin(O.bank) as Uint8Array }];
@@ -1262,9 +1400,9 @@ function om3ExportDialog() {
   modal('Export for the OM-3', h('div', { class: 'export' },
     probs.length
       ? h('div', { class: 'problems-box' }, h('b', {}, `${probs.length} problem(s) to fix first:`), h('ul', { class: 'problems' }, ...probs.slice(0, 12).map((p) => h('li', {}, fmt(p)))))
-      : h('p', { class: 'ok' }, `✓ ${n} looks pass the camera's checks (Caduceus for OM-3 v0.19 or later; NR, Glow / Clarity and Art Effects need v0.20, Grain and lens correction v0.21, Sharp v0.22, older firmware ignores them; on v0.17–v0.18 use the PROFILES.BIN file below).`),
+      : h('p', { class: 'ok' }, `✓ ${n} looks pass the camera's checks (Caduceus for OM-3 v0.19 or later; NR, Glow / Clarity and Art Effects need v0.20, Grain and lens correction v0.21, Sharp v0.22, split toning v0.26, Halation, Tone Balance, the WB mode and Blacks / Whites past ±5 v0.28; the export leaves out what the chosen firmware can't take; on v0.17–v0.18 use the PROFILES.BIN file below).`),
     h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'Firmware on the camera'), h('p', { class: 'help' }, 'v0.22 adds Sharp, v0.21 Grain and the lens vignette correction choice to LOOKS.BIN. Older firmware would reject a file with the newer settings, so they are left out for it: for v0.21 the look\'s sharpness goes to the camera\'s Sharpness setting instead (−2 to +2, softer values as −2); for v0.20 and older there is no grain either and every look keeps the camera\'s correction.')),
+      h('div', {}, h('b', {}, 'Firmware on the camera'), h('p', { class: 'help' }, 'v0.28 adds Halation, Tone Balance, the film\'s WB mode, split toning in half steps and Blacks / Whites to ±7; v0.26 split toning; v0.22 adds Sharp, v0.21 Grain and the lens vignette correction choice to LOOKS.BIN. Older firmware would reject a file with the newer settings, so they are left out for it: for v0.21 the look\'s sharpness goes to the camera\'s Sharpness setting instead (−2 to +2, softer values as −2); for v0.20 and older there is no grain either and every look keeps the camera\'s correction.')),
       fwSel),
     wbBox,
     h('div', { class: 'ex-row' },

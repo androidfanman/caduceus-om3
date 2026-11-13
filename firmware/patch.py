@@ -188,8 +188,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--stock', help=f'the official {STOCK_NAME}')
     ap.add_argument('--download', action='store_true', help="ask OM's update server for the official file")
-    rels = sorted((d.name for d in (ROOT / 'releases').iterdir() if (d / 'patch.json').is_file()),
-                  key=lambda v: [int(x) for x in v.lstrip('v').split('.')])
+    def vkey(v):                                   # v0.28-alpha: a test version sorts before its release v0.28
+        num, _, pre = v.lstrip('v').partition('-')
+        return [int(x) for x in num.split('.')], pre == '', pre
+    rels = sorted((d.name for d in (ROOT / 'releases').iterdir() if (d / 'patch.json').is_file()), key=vkey)
     ap.add_argument('--release', choices=rels, help='version to make (default: the newest, ' + rels[-1] + ')')
     ap.add_argument('--out', default=str(ROOT / 'SD card files'))
     a = ap.parse_args()

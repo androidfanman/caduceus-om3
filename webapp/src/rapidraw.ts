@@ -149,7 +149,7 @@ export function rrAdjustments(look: Look): Record<string, unknown> {
     temperature: (look.wb?.a_b ?? 0) * TEMP_PER_AB,
     tint: -(look.wb?.g_m ?? 0) * TINT_PER_GM + 0,
     glowAmount: glowy ? (halation ? Math.round(GLOW[st] * 0.4) : GLOW[st]) : 0,
-    halationAmount: halation ? GLOW[st] : 0,
+    halationAmount: look.halation ? GLOW[clamp(look.halation, 0, 5)] : halation ? GLOW[st] : 0,   // OM-3 v0.28 Halation 1..5
     clarity: e?.type === 'clarity' ? CLARITY[st] : 0,
     vignetteAmount: (look.vignette ?? 0) * VIGNETTE_PER_STEP,
     monochromeEnabled: mono,

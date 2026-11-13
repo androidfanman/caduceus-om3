@@ -13,6 +13,10 @@ caduceus-bundles-layout.json), the Caduceus Control Panel web app (webapp/, buil
 (webapp/src/om3.ts, om3names.ts and the OM-3 parts of main.ts, preview.ts and pack.ts), and the official-firmware
 download request in patch.py.
 
+Halation (v0.28: firmware/src/editor.s `hl_run`, firmware/halation.py, research/halation/) is our own code and numbers;
+its method (a threshold-excess cell grid, a small blur, then a warm tint that fades on bright pixels) follows Caduceus
+for the E-P7's halation by cakelesscoder (docs/HALATION_RED.md in their repository).
+
 Sample photos in webapp/public/samples are public domain (CC0 1.0); see webapp/public/samples/CREDITS.md.
 
 The Control Panel's OM-3 mode loads "OM3 Label Condensed", a renamed ASCII subset of DejaVu Sans Condensed (Bitstream

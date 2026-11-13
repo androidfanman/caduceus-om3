@@ -5,6 +5,8 @@
  .set XB_OWNOFF, 0                /* rc1: 1 = COLOR k's own Glow / Art Effect ignored (no rows then) */
  .set XB_LOG, 0                   /* v0.25: the fast-grain logger (GLOG.BIN) off */
  .set XB_SHG, 0                   /* film test 11's Shading check before the camera grain (1: on; rebooted on the camera) */
+ .set XB_H0, 0                    /* v0.28 halation probe h0 (camera-tested 2026-11-12): off */
+ .set XB_HL, 1                    /* v0.28: the Halation row (slot +30, 1..5) on our looks' stills (editor.s hl_run) */
 /* Caduceus for OM-3 v0.20 test 5: the Extras code block (appended to GUIDES.BIN, our own code).
  *
  * Runs from its heap buffer (uncached pool, as the camera's malloc returns), relocated in place by entry 0. Linked at
@@ -147,6 +149,12 @@ xb_cap:
  .endif
  cmp 0,d0
  bne 2f                           /* Glow / Clarity: the Soft Focus passes (+ CPU grain if Grain) */
+ .if XB_HL
+ movbu (30,a1),d0                 /* v0.28: the Halation row alone -> the Soft Focus passes too (xb_wt: w 1024, no glow) */
+ extb d0
+ cmp 0,d0
+ bgt 2f
+ .endif
  .if XB_FX
  ARTB d0
  .else
@@ -246,10 +254,7 @@ xb_wt:
  extb d1
  cmp 0,d1
  bne 1f
- movbu (53,a1),d1                 /* no Glow / Clarity: Grain alone -> w 1024, the sharp image unchanged */
- cmp 0,d1
- beq 8f
- mov 1024,d0
+ mov 1024,d0                      /* no Glow / Clarity (Grain or v0.28 Halation alone): w 1024, the sharp image unchanged */
  bra 8f
 1:
  blt 5f
@@ -486,24 +491,50 @@ xb_rec:                           /* `call xb_rec,[d2,d3],12`, a0 = job -> a1 = 
  .set P_LPTR, 708
 xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  movm [d2,d3,a2,a3],(sp)
- add -16,sp                       /* (0) call slot, (4) job, (8) level, (12) result */
+ add -20,sp                       /* (0) call slot, (4) job, (8) level, (12) result, (16) halation 0..5 */
  mov a0,(4,sp)
+ clr d0
+ mov d0,(16,sp)
  call xb_slot,[d2,d3],12
  cmp 0,a1
  beq 90f
+ .if XB_HL
+ movbu (30,a1),d0                 /* v0.28: the Halation row 1..5 (slot +30; 0 and below: none) */
+ extb d0
+ cmp 0,d0
+ ble 6f
+ cmp 5,d0
+ bls 7f
+ mov 5,d0
+7:
+ mov d0,(16,sp)
+6:
+ .endif
  movbu (53,a1),d0                 /* Grain 1..3 (older 4, 5 -> 3) */
  cmp 0,d0
- beq 90f
+ beq 91f
  movbu (xb_tx),d1                 /* ft7: this still has a texture (development or conversion pass): no CPU grain */
  cmp 0,d1
- bne 90f
+ bne 91f
  cmp 3,d0
  bls 10f
  mov 3,d0
  bra 10f
+91:                               /* no CPU grain on one of our looks */
+ .if XB_H0
+ clr d0                           /* h0: still the setup, then the probe (level 0 = no grain) */
+ bra 10f
+ .endif
+ .if XB_HL
+ mov (16,sp),d1                   /* h1: halation -> the setup, then the pass (level 0 = no CPU grain) */
+ cmp 0,d1
+ beq 90f
+ clr d0
+ bra 10f
+ .endif
 90:                               /* no grain: the stock setup, as if called directly */
  mov (4,sp),a0
- add 16,sp
+ add 20,sp
  movm (sp),[d2,d3,a2,a3]
  jmp SF_ENT
 10:
@@ -518,12 +549,128 @@ xb_gs:                            /* `calls` (0,sp) = return, a0 = job */
  call xb_rec,[d2,d3],12
  cmp 0,a1
  beq 20f
+ .if XB_HL
+ mov (16,sp),d0                   /* h1: halation first, so grain sits over the glow */
+ cmp 0,d0
+ beq 14f
+ mov a1,(12,sp)
  mov a1,a0
+ call HL_RUN,[d2,d3,a2,a3],124
+ mov (4,sp),a0
+ call xb_rec,[d2,d3],12
+ clr d0
+ mov d0,(12,sp)                   /* the setup's result was 0 to get here */
+ cmp 0,a1
+ beq 20f
+14:
+ .endif
  mov (8,sp),d0
+ cmp 0,d0
+ beq 15f
+ mov a1,a0
  call xb_grain,[d2,d3,a2,a3],128
+15:
+ .if XB_H0
+ mov (4,sp),a0
+ call xb_rec,[d2,d3],12
+ cmp 0,a1
+ beq 20f
+ mov a1,a0
+ call xb_h0,[d2,d3,a2,a3],48
+ .endif
 20:
  mov (12,sp),d0
- ret [d2,d3,a2,a3],32
+ ret [d2,d3,a2,a3],36
+
+ .if XB_H0
+/* xb_h0 (v0.28 halation probe h0, experiment): which odd byte of buffer 0x1000 is Cb and which Cr, and whether chroma
+ * is offset-binary. Rows 0..H0_ROWS-1: in the left half every pixel pair's byte 1 = H0_VAL, in the right half every
+ * pair's byte 3 = H0_VAL (pair = Y0 C0 Y1 C1; 128 = neutral if offset-binary). Expected if C0 = Cb, C1 = Cr (the E-P7's
+ * camera result): left band blue, right band red / magenta. Swapped: left red, right blue. Two's complement: strong
+ * opposite colours (yellow / green). Rows are written through the uncached view xb_open returns (no cache lines to
+ * write back); a row across the window's edge is left as it is.
+ * `call xb_h0,[d2,d3,a2,a3],48` (32 B of locals), a0 = record. Locals (0) call slot, (4) rec, (8) row, (12) pitch, (16) bus,
+ * (20) pairs, (24) rows, (28) token. */
+ .set H0_ROWS, 256
+ .set H0_VAL, 168
+xb_h0:
+ mov a0,(4,sp)
+ movhu (16,a0),d0                 /* format 0x0c02 only (as xb_grain) */
+ cmp 0x0c02,d0
+ bne 99f
+ mov (4,a0),d0
+ cmp 0,d0
+ bne 99f
+ movhu (20,a0),d0                 /* Hw: 8 .. 8192, a multiple of 4 */
+ cmp 8,d0
+ bcs 99f
+ cmp 8193,d0
+ bcc 99f
+ btst 3,d0
+ bne 99f
+ movhu (18,a0),d1                 /* memHw >= Hw */
+ cmp d0,d1
+ bcs 99f
+ add d1,d1
+ mov d1,(12,sp)                   /* pitch in bytes */
+ lsr 1,d0
+ mov d0,(20,sp)                   /* pairs per row */
+ movhu (22,a0),d1                 /* rows: min(Vw, H0_ROWS) */
+ cmp 0,d1
+ beq 99f
+ cmp H0_ROWS,d1
+ bls 1f
+ mov H0_ROWS,d1
+1:
+ mov d1,(24,sp)
+ mov (a0),d0
+ mov d0,(16,sp)
+ clr d0
+ mov d0,(8,sp)
+2:                                /* each row */
+ mov (8,sp),d0
+ mov (12,sp),d1
+ mul d1,d0
+ mov (16,sp),d1
+ add d1,d0                        /* its bus address */
+ mov (20,sp),d1
+ asl2 d1                          /* its length: 4 B a pair */
+ call xb_open,[d2,d3,a2,a3],28
+ mov d0,(28,sp)
+ cmp 0,a0
+ beq 5f
+ mov (20,sp),d2                   /* pairs */
+ mov d2,d3
+ lsr 1,d3                         /* left half: byte 1 */
+ sub d3,d2                        /* right half: byte 3 */
+ mov H0_VAL,d1
+ cmp 0,d3
+ beq 4f
+3:
+ movbu d1,(1,a0)
+ add 4,a0
+ add -1,d3
+ bne 3b
+4:
+ cmp 0,d2
+ beq 5f
+6:
+ movbu d1,(3,a0)
+ add 4,a0
+ add -1,d2
+ bne 6b
+5:
+ mov (28,sp),d0
+ call xb_close,[d2],8
+ mov (8,sp),d0
+ inc d0
+ mov d0,(8,sp)
+ mov (24,sp),d1
+ cmp d1,d0
+ bcs 2b
+99:
+ ret [d2,d3,a2,a3],48
+ .endif
 
 /* xb_dev (grain, camera route): s_cl jumps here in the frame of `call s_cl,[d2,a2],12` at 0x604955f1, a0 = context.
  * The development request of a plain COLOR still (kind 0, output 0x1000, key 11) with xb_gt = Grain 1..3 gets the
@@ -2361,28 +2508,51 @@ xb_wbc:
  add -4,sp                        /* (0,sp): our calls' return address slot */
  mov d0,(xb_wtv)
  mov d1,(xb_wtv + 4)
- mov (xb_wbp),d0                  /* the stream buffer, once (malloc: uncached, as the stock pictures') */
+ mov a0,d0
+ mov d0,(xb_wmd)
+ mov xb_wbp,a2                    /* this mode's stream buffer, once (malloc: uncached, as the stock pictures') */
+ asl2 d0
+ add d0,a2
+ mov (a2),d0
  cmp 0,d0
  bne 1f
  mov WB_MAX + 112,d0
  call malloc,[],4
  cmp 0,a0
  beq 90f
- mov a0,(xb_wbp)
+ mov a0,(a2)
 1:
- mov (xb_wbp),d0                  /* the row buffer after the stream's room; the room's end for wb_wem */
- add WB_MAX,d0
+ mov (a2),d0
+ mov d0,(xb_wcur)
+ add WB_MAX,d0                    /* the row buffer after the stream's room; the room's end for wb_wem */
  mov d0,(xb_wrw)
  mov d0,(WB_V + 32)
- /* the source picture: the word at (0x60379740) + 4 x 12545 -> its descriptor {14, 82, 30, ..., size, payload} */
- mov (0x60379740),a0
- add 50180,a0
- mov (a0),a0                      /* the descriptor */
+ mov (xb_lb),a0                   /* the glyphs: LABELS.BIN after its bitmaps, 'WBG1' | u16 offset[N] | u16 top
+                                   * offset, length | u8 width[N] */
  cmp 0,a0
  beq 90f
+ add 16 + XL_N * XL_BM,a0          /* 2-aligned only: halfword reads */
  movhu (a0),d0
- cmp 14,d0
+ cmp 0x4257,d0                    /* 'WB' */
  bne 90f
+ movhu (2,a0),d0
+ cmp 0x3147,d0                    /* 'G1' */
+ bne 90f
+ mov a0,(xb_wsec)
+ mov a0,(WB_V + 36)               /* for the firmware's Blacks / Whites symbols */
+ mov (xb_wmd),d0                  /* the picture on top: 1 our "Blk/Wht" (LABELS.BIN), 0 the camera's WB± */
+ cmp 0,d0
+ beq 2f
+ movhu (4 + 2 * WBC_N,a0),d0
+ mov a0,a1
+ add d0,a1
+ bra 3f
+2:
+ mov (0x60379740),a0              /* the word at (0x60379740) + 4 x 12545 -> its descriptor {14, 82, 30, ...} */
+ add 50180,a0
+ mov (a0),a0
+ cmp 0,a0
+ beq 90f
  movhu (2,a0),d0
  cmp 82,d0
  bne 90f
@@ -2392,9 +2562,11 @@ xb_wbc:
  mov (16,a0),a1
  cmp 0,a1
  beq 90f
+3:
  movbu (3,a1),d0
  cmp 11,d0
  bne 90f
+ mov a1,(xb_wsrc)
  add 4,a1
  mov a1,(WB_V + 0)
  mov 5,d0
@@ -2408,7 +2580,12 @@ xb_wbc:
  cmp 0,d0
  beq 20f
  mov xb_wtv,a1
+ mov (xb_wmd),d0
  mov xb_wtl,a3
+ cmp 0,d0
+ beq 1f
+ add 5,a3                         /* Blacks / Whites: '+' / '-' and '/' */
+1:
  clr d2
 1:
  mov (a1),d0
@@ -2436,7 +2613,7 @@ xb_wbc:
 4:
  cmp 0,d2
  bne 20f
- mov 12,d1                        /* '.' */
+ movbu (4,a3),d1                  /* '.' / '/' */
  movbu d1,(a2)
  inc a2
  inc d3
@@ -2447,17 +2624,6 @@ xb_wbc:
 20:
  mov d3,(xb_wn)
  /* glyph row pointers, widths, places: x0 = (100 - (sum (w - 2) + 2)) / 2 */
- mov (xb_lb),a0                   /* the glyphs: LABELS.BIN after its bitmaps, 'WBG1' | u16 offset[13] | u8 width[13] */
- cmp 0,a0
- beq 90f
- add 16 + XL_N * XL_BM,a0          /* 2-aligned only: halfword reads */
- movhu (a0),d0
- cmp 0x4257,d0                    /* 'WB' */
- bne 90f
- movhu (2,a0),d0
- cmp 0x3147,d0                    /* 'G1' */
- bne 90f
- mov a0,(xb_wsec)
  mov xb_wtx,a2
  mov xb_wgp,a3
  clr d2                           /* i */
@@ -2475,7 +2641,7 @@ xb_wbc:
  mov a0,a1
  add d1,a1
  mov a1,(a3)                      /* xb_wgp[i] */
- add 4 + 2 * 13,a0
+ add 4 + 2 * WBC_N + 16,a0
  movbu (d0,a0),d0
  mov d0,(20,a3)                   /* xb_wgw[i] */
  add d0,d3
@@ -2503,7 +2669,7 @@ xb_wbc:
  bra 7b
 8:
  /* the stream header (h - 1 | w - 1 << 12 | 11 << 24) and the token packer */
- mov (xb_wbp),a0
+ mov (xb_wcur),a0
  mov 0x0b06304b,d0                /* 100 x 76: 75 | 99 << 12 | 11 << 24 */
  mov d0,(a0)
  add 4,a0
@@ -2641,9 +2807,12 @@ xb_wbc:
  mov a0,(WB_V + 16)
 31:
  mov (WB_V + 16),d0
- mov (xb_wbp),a0
+ mov (xb_wcur),a0
  mov a0,d1
  sub d1,d0
+ mov (xb_wsrc),a1                 /* and the top picture (for the fine-tune screen's title) */
+ mov (xb_wsec),a2
+ movhu (4 + 2 * WBC_N + 2,a2),d1
  add 4,sp
  movm (sp),[d2,d3,a2,a3]
  rets
@@ -2657,13 +2826,20 @@ xb_wbc:
  .balign 4
 xb_wtv:                           /* A-B, G-M */
  .long 0, 0
-xb_wtl:                           /* the glyphs A, B (A-B) and G, M (G-M) */
- .byte 8, 9, 10, 11
-xb_wtx:                            /* the text's glyph indices */
+xb_wtl:                           /* WB: A, B, G, M, '.'; Blacks / Whites: '+', '-', '+', '-', '/' */
+ .byte 8, 9, 10, 11, 12, 13, 14, 13, 14, 15
+ .balign 4
+xb_wtx:                           /* the text's glyph indices */
  .byte 0, 0, 0, 0, 0, 0, 0, 0
 xb_wn:
  .long 0
-xb_wbp:                           /* the stream buffer (malloc) */
+xb_wbp:                           /* the stream buffers (malloc), WB and Blacks / Whites */
+ .long 0, 0
+xb_wcur:
+ .long 0
+xb_wmd:
+ .long 0
+xb_wsrc:
  .long 0
 xb_wsec:                          /* the glyphs in LABELS.BIN */
  .long 0

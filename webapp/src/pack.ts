@@ -44,13 +44,21 @@ export interface Advice {
   mono_filter?: { colour: MonoFilter; strength: number };
 }
 /** Per-look tone (LOOKS.BIN v0.19 tone block, colour looks only). H/S/M -7..7: the Film pick writes them to the profile's stock tone settings.
- *  Blacks/Whites -5..5: the two curve ends, placed into COLOR slots of BUNDLES.BIN (+47/+48). 0 = stock. */
+ *  Blacks/Whites -7..7 (v0.28; -5..5 before): the two curve ends, placed into COLOR slots of BUNDLES.BIN (+47/+48). 0 = stock. */
 export interface Tone { highlights: number; shadows: number; midtones: number; blacks: number; whites: number }
 export const TONE_KEYS = ['highlights', 'shadows', 'midtones', 'blacks', 'whites'] as const;
-export const TONE_HSM_MAX = 7, TONE_BW_MAX = 5;
+export const TONE_HSM_MAX = 7, TONE_BW_MAX = 7;   // OM-3 v0.28: Blacks / Whites -7..7 (the same step; -5..5 before)
 export const toneLimit = (k: keyof Tone) => (k === 'blacks' || k === 'whites' ? TONE_BW_MAX : TONE_HSM_MAX);
 export const zeroTone = (): Tone => ({ highlights: 0, shadows: 0, midtones: 0, blacks: 0, whites: 0 });
 export const toneIsZero = (t: Tone) => TONE_KEYS.every((k) => t[k] === 0);
+
+/** OM-3 v0.28 film WB: the camera's 13 WB modes in its own order (LOOKS.BIN +61 / +62 = the index; 0 Auto = none). */
+export const WB_MODES = ['auto', 'sunny', 'shade', 'cloudy', 'incandescent', 'fluorescent', 'underwater', 'flash',
+  'one_touch_1', 'one_touch_2', 'one_touch_3', 'one_touch_4', 'custom'] as const;
+export type WbMode = (typeof WB_MODES)[number];
+/** Custom WB Kelvin: the camera's own range and step. */
+export const KELVIN = { lo: 2000, hi: 14000, step: 100, dflt: 5400 } as const;
+export interface FilmWb { mode: Exclude<WbMode, 'auto'>; kelvin?: number }
 
 export interface Look {
   name: string;
@@ -68,7 +76,10 @@ export interface Look {
   advice: Advice;      // camera settings the look recommends (preview only; not in any card file)
   lens_correction?: boolean;   // Caduceus v0.25 / OM-3 v0.21: true = keep the camera's lens vignette correction (default: off)
   film_grain?: number;         // OM-3 v0.21: the camera's grain 1 Low, 2 Med, 3 High (absent = off); not the E-P7 grain field
-  split?: Split;               // OM-3 v0.26: split toning, Shadows / Highlights colour 0..11 and strength -5..5 (absent = off)
+  split?: Split;               // OM-3 v0.26: split toning, Shadows / Highlights colour 0..11 and strength 0..5 in half steps (v0.28; absent = off)
+  tone_balance?: number;       // OM-3 v0.28: Tone Balance -5..5 (- the shadow tint reaches further, + the highlight tint; absent = 0)
+  halation?: number;           // OM-3 v0.28: Halation 1..5 (absent = off)
+  film_wb?: FilmWb;            // OM-3 v0.28: the WB the camera switches to with this film (absent = Auto)
   origin?: string;     // app-only: the built-in library look this one came from (for Reset look); not exported
   lib?: string;        // app-only: fingerprint of the library values it was copied from (unmodified = still equal)
 }
@@ -169,9 +180,21 @@ export function parseLook(v: unknown, what = 'look'): Look {
     ...(v.lens_correction === true ? { lens_correction: true } : {}),
     ...(Number.isInteger(v.film_grain) && (v.film_grain as number) > 0 ? { film_grain: Math.min(3, v.film_grain as number) } : {}),
     ...(parseSplit(v.split) ? { split: parseSplit(v.split) } : {}),
+    ...(Number.isInteger(v.tone_balance) && v.tone_balance !== 0 ? { tone_balance: Math.max(-5, Math.min(5, v.tone_balance as number)) } : {}),
+    ...(Number.isInteger(v.halation) && (v.halation as number) > 0 ? { halation: Math.min(5, v.halation as number) } : {}),
+    ...(parseFilmWb(v.film_wb) ? { film_wb: parseFilmWb(v.film_wb) } : {}),
     ...(typeof v.origin === 'string' ? { origin: v.origin } : {}),
     ...(typeof v.lib === 'string' ? { lib: v.lib } : {}),
   };
+}
+
+/** A `film_wb` field, or undefined when missing, Auto or malformed (Kelvin kept to the camera's range and step). */
+export function parseFilmWb(v: unknown): FilmWb | undefined {
+  if (!isObj(v) || typeof v.mode !== 'string' || v.mode === 'auto' || !(WB_MODES as readonly string[]).includes(v.mode)) return undefined;
+  const mode = v.mode as FilmWb['mode'];
+  if (mode !== 'custom') return { mode };
+  const k = Number(v.kelvin);
+  return { mode, kelvin: Number.isFinite(k) ? Math.max(KELVIN.lo, Math.min(KELVIN.hi, Math.round(k / KELVIN.step) * KELVIN.step)) : KELVIN.dflt };
 }
 
 /** The pack without app-only bookkeeping (Look.origin / Look.lib), for files and share links. */

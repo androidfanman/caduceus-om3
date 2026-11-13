@@ -1,7 +1,8 @@
 # OM-3 photo code: developer kit
 
 From v0.27, [Caduceus for OM-3](../../README.md) writes the film a JPEG was taken with into the photo's EXIF, with a
-short code holding the film's full recipe. A website or app can read the code and rebuild the recipe: for example, a
+short code holding the film's full recipe (from v0.28: as it was set when the photo was taken, with the changes made
+on the camera and the camera's WB). A website or app can read the code and rebuild the recipe: for example, a
 user uploads a photo and the site shows (or imports) the settings that made it.
 
 This folder is everything needed to read it:
@@ -9,7 +10,7 @@ This folder is everything needed to read it:
 | File | What it is |
 |---|---|
 | `om3code.js` | A reader in plain JavaScript: no dependencies, runs in browsers and Node 18+ (ES module). |
-| `examples.json` | Test codes with the exact values they must decode to: the 20 default films, one written by the firmware, one from a "future" firmware. |
+| `examples.json` | Test codes with the exact values they must decode to: the 20 default films, one written by the firmware, one made up as "future" for v0.27 (byte 57, now Halation), two from v0.28. |
 | `test.mjs` | `node test.mjs` checks the reader against the examples. |
 | `sample-film19-astia-100f.jpg` | A real photo from an OM-3 on v0.27 (FILM 19 Astia 100F), with the camera's own EXIF. Resized to 1600 × 1200; the owner's name, email and the serial numbers blanked. |
 | `demo.html` | A one-page reader: open a JPEG or paste a comment. Serve the folder over http (ES modules don't load from `file://`). |
@@ -46,6 +47,8 @@ if (recipe) {
   recipe.name;          // "Velvia 50"
   recipe.contrast;      // 2
   recipe.saturation;    // { Yellow: 3, Orange: 0, ... }
+  recipe.splitToning;   // { shadows: { colour: 'Cyan', strength: 3 }, highlights: ... } (strength 0..10) or null
+  recipe.halation;      // 0..5 (v0.28); recipe.toneBalance -5..5; recipe.whiteBalanceMode { mode, kelvin } or null
   describe(recipe);     // ["Hue: Yellow +1, ...", "Contrast +2", ...]  (settings at 0 left out)
 }
 ```
@@ -73,8 +76,8 @@ table marks it unsigned.
 | 36 | White balance shift on | 0 / 1 (unsigned) | 0: the camera's white balance, ignore 37–38 |
 | 37 | WB Amber–Blue | −7…7 | |
 | 38 | WB Green–Magenta | −7…7 | |
-| 39 | Blacks | −5…5 | |
-| 40 | Whites | −5…5 | |
+| 39 | Blacks | −7…7 | −5…5 before v0.28 |
+| 40 | Whites | −7…7 | |
 | 41 | Contrast | −2…2 | |
 | 42 | Sharpness (firmware before v0.22) | −2…2 | 0 from v0.22 on: byte 52 holds it |
 | 43 | Shading (vignette) | −5…5 | |
@@ -88,19 +91,23 @@ table marks it unsigned.
 | 51 | Grain (unsigned) | 0 Off, 1 Low, 2 Medium, 3 High | |
 | 52 | Sharpness | −5…2 | −5 = Off |
 | 53 | Split toning: shadow colour (unsigned) | 0–11 | Colour wheel order |
-| 54 | Split toning: shadow strength | −5…5 | Negative = the opposite colour |
+| 54 | Split toning: shadow strength | 0…5 | In v0.26 steps; a v0.26 / v0.27 photo may have −5…−1 = the opposite colour. v0.28's 0–10 = 2 × this + byte 63 bit 0 |
 | 55 | Split toning: highlight colour (unsigned) | 0–11 | |
-| 56 | Split toning: highlight strength | −5…5 | |
-| 57–63 | Spare (unsigned) | 0 | Future settings; 0 = off |
+| 56 | Split toning: highlight strength | 0…5 | As 54, with byte 63 bit 1 |
+| 57 | Halation (unsigned) | 0–5 | v0.28 (0 in older photos) |
+| 58 | Tone Balance | −5…5 | v0.28: − the shadow colour reaches further, + the highlight colour |
+| 59–60 | Custom WB Kelvin | −5…5 each | v0.28: v = byte 59 + 11 × byte 60; Kelvin = 2000 + 100 × (v + 60) when the mode is Custom WB |
+| 61–62 | WB mode | −5…5 each | v0.28: the camera's WB when the photo was taken, byte 61 + 11 × byte 62: 0 Auto (or an older photo), 1 Sunny, 2 Shade, 3 Cloudy, 4 Incandescent, 5 Fluorescent, 6 Underwater, 7 Flash, 8–11 One-touch 1–4, 12 Custom WB |
+| 63 | Split toning half steps (unsigned) | 0–3 | v0.28: bit 0 Shadows, bit 1 Highlights (a half step on top of 54 / 56) |
 
 Colour wheel (clockwise from 12 o'clock, as on the camera): 0 Yellow, 1 Orange, 2 Orange-red, 3 Red, 4 Magenta,
 5 Violet, 6 Blue, 7 Blue-cyan, 8 Cyan, 9 Green-cyan, 10 Green, 11 Yellow-green.
 
 ### Compatibility
 
-- **Forward:** new settings go into the spare bytes 57–63, with 0 = off. A reader written today keeps working on photos
-  from later firmware: it reads everything it knows and can ignore (or show) the spare values. `examples.json`
-  includes such a code.
+- **Forward:** new settings go into spare bytes, with 0 = off. A reader written for v0.27 keeps working on v0.28
+  photos: it reads everything it knows (split toning rounded down by half a step where v0.28 has a half step) and can
+  ignore bytes 57–63. v0.28 used the last spare byte: the next new setting gets `om3.2.`.
 - **Backward:** a newer reader treats an older photo's spare bytes (all 0) as "off".
 - **Breaking changes** get a new version in the prefix (`om3.2.`). A reader should only accept the versions it knows.
 - The camera is in the prefix, so another body can have its own code with the same layout.

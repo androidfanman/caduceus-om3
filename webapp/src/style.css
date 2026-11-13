@@ -382,6 +382,18 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .wb-dot circle { fill: var(--accent); stroke: var(--cs-ink); stroke-width: 1.5; }
 .wb-cross { stroke: var(--cs-ink); stroke-width: 1.6; }
 .wb-read { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; }
+/* v0.28 Blacks / Whites grid (as the camera's: black boxes and edges for Blacks, white for Whites, on a grey square) */
+.bw-grid .wb-box { fill: #6a6a68; }
+.bw-grid .wb-tick { stroke: rgba(241, 239, 233, .35); }
+.wb-edge.bk { stroke: #000; } .wb-edge.wh { stroke: #f4f2ec; }
+.bw-tag.bk { fill: #000; stroke: #8d8a83; } .bw-tag.wh { fill: #f4f2ec; stroke: none; }
+.bw-lab { font-size: 15px; font-weight: 700; } .bw-lab.bk { fill: #f4f2ec; } .bw-lab.wh { fill: #111; }
+.bw-limit { fill: none; stroke: rgba(241, 239, 233, .55); stroke-dasharray: 3 3; pointer-events: none; }
+.tc-knob.ro { cursor: default; pointer-events: none; }
+/* v0.28 the film's WB mode */
+.wb-mode { display: grid; gap: 2px; margin-bottom: 6px; }
+.wb-mode .crow { grid-template-columns: 112px minmax(0, 1fr) 64px; }
+.wb-mode .crow select { grid-column: 2 / 4; width: 100%; }
 /* Picture Mode rows: name, the camera's − bar + slider, value */
 .crow { display: grid; grid-template-columns: 112px minmax(0, 1fr) 40px; align-items: center; gap: 8px; min-height: 30px; }
 .crow .cname { font-size: 14px; }
