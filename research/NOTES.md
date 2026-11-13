@@ -3496,3 +3496,27 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   likely more lookups. Space is not the limit (ext12 ~43 KB free, 662 KiB reserve). Credit cakelesscoder (and
   flickering-star for the AF site list idea) if their method is followed; the code would be ours.
 - **Owner, 2026-11-12: not worth it for now** (custom crop modes set aside; ROADMAP "Set aside").
+
+## Film Mode (a "roll" that locks the film): feasibility (2026-11-12; analysis only)
+- Owner idea, after Fujifilm's X half "Film Camera Mode" (pick a film simulation and a roll of 36 / 54 / 72 shots;
+  the film cannot be changed until the roll is done; it also hides review, which the owner does not want): a setting
+  **Film Mode**, off by default: pick a roll length, and the film picked is locked until the roll is shot.
+- **The lock: one place already sees every film / picture-mode change from the UI.** The facade SetValue's manager
+  call is hooked (.hook_set -> sl_set -> sx_set): 901 (COLOR 1-4 / FILM 1-20, fl_set) and 897 (the picture-mode
+  family: CRT 900, ART 899, COLOR 901, MONO 988; the Creative Dial and the Picture Mode list). While a roll runs, sx_set
+  can replace the value with the locked one (the v0.27 dial mapping already rewrites 897 / 901 this way, camera-
+  tested), so every attempt lands back on the locked film. Paths that do not use the facade (power-on sets 897
+  directly, NOTES "Creative Dial"; custom-mode recall and menu reset: not traced): re-check at each half-press
+  (ex_live's moment, HLS_EVENT) and set the locked film back through the manager.
+- **Counting shots:** ex_hook runs once per photo (pc1: 17 photos incl. a 12-shot burst, every one coded), in the
+  capture: an increment of a RAM counter there is safe (no settings calls). Open: whether it runs for RAW-only shots
+  (the ORF carries EXIF too; check on the camera). The camera's own file number is an alternative (not traced).
+- **Keeping the roll over power-off:** state (on, the locked selection, length, shots) in a small card file written
+  at the half-press save (as EDITS.BIN). A battery pull loses the shots since the last half-press (X half: removing
+  card / battery can abandon the roll).
+- **Setting it / showing the count:** a Picture Mode choice row "Film Mode" (Off / roll lengths), like Noise Filter /
+  Film Grain; its left cell drawn at run time with the shots left (as the WB / B/W cells, xb_wbc); the super control
+  panel's FILM N cell (fl_scp) could add the count too. Nicest: the shooting screen's own shots-remaining number
+  showing the roll's frames left (display path to be found; it must not change the card-full logic).
+- Effort guess: small-to-medium (two or three test rounds): the lock and the counter reuse proven pieces; the screen
+  counter is the unknown.
