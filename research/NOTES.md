@@ -3617,3 +3617,8 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   from FILM 4 to FILM 1) was written (event #2: edits waiting, save result 1) and the camera saved M at the menu exit (changed
   byte back to 0). LOOKS.BIN, EDITS.BIN and BUNDLES.BIN on the card unchanged (no card copies). Then, with the owner's OK,
   the six film files were taken off the card for round 2 (a card without films).
+- **Camera, round 2 (owner, 2026-11-13, f1): passed.** The card without LOOKS / EDITS / BUNDLES, a battery pull, power on:
+  CADLOG.TXT "a valid block at power-on: yes, generation 3 / Films from: the camera / Block written this power-on: 0 times /
+  changed byte 0", picture mode 54 = COLOR 1, FILM 1 (the owner's round-1 change kept). So the films, the selection and the
+  edits come from the camera's own memory over power-off and a battery pull, with no film files on the card.
+- To fix in step 2: the debug log's card check still calls a missing LOOKS.BIN a MISMATCH; with a valid block it is normal.
