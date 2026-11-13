@@ -15,7 +15,7 @@ function fakeJpeg(comment) {
   return new Uint8Array(body.buffer, body.byteOffset, body.length);
 }
 
-for (const f of [...ex.films, ex.fromFirmware, ex.future]) {
+for (const f of [...ex.films, ex.fromFirmware, ex.future, ex.v028, ex.v028wb]) {
   check(same(decodeBytes(f.code), f.bytes), `bytes ${f.name}`);
   const r = readPhoto(f.comment);
   check(r && r.film === f.film && r.name === f.name && r.code === f.code, `comment ${f.name}`);
@@ -23,9 +23,11 @@ for (const f of [...ex.films, ex.fromFirmware, ex.future]) {
   check(p && p.code === f.code && p.film === f.film && same(p.bytes, f.bytes), `photo ${f.name}`);
   check(Array.isArray(describe(decode(f.code))), `describe ${f.name}`);
 }
-check(decode(ex.future.code).spare[0] === 3, 'future spare byte kept');
-const { spare, ...rest } = decode(ex.future.code), { spare: s0, ...rest0 } = decode(ex.films[0].code);
+check(decode(ex.future.code).halation === 3, 'the v0.27 "future" byte 57 reads as Halation 3');
+const rest = decode(ex.future.code), rest0 = decode(ex.films[0].code);
 check(same(rest.hue, rest0.hue) && rest.contrast === rest0.contrast, 'future code reads like the film otherwise');
+for (const f of [ex.v028, ex.v028wb]) for (const [k, v] of Object.entries(f.expect)) check(same(decode(f.code)[k], v), `${f.note.slice(0, 30)}: ${k}`);
+check(same(decode(ex.films[4].code).splitToning.highlights, { colour: 'Green-cyan', strength: 2 }), 'a v0.27 film: whole steps on the 0..10 scale');
 for (const bad of ex.invalid) check(findCode(bad) === null, `invalid "${bad}" rejected`);
 check(readPhoto(new Uint8Array(1000)) === null, 'photo without a code -> null');
 // The real camera photo (OM-3, v0.27): FILM 19 Astia 100F, the default recipe.
@@ -33,6 +35,6 @@ const real = readPhoto(readFileSync(new URL('./sample-film19-astia-100f.jpg', im
 const astia = ex.films.find((f) => f.film === 19);
 check(real && real.film === 19 && real.name === 'Astia 100F' && real.code === astia.code, 'sample photo from the camera');
 
-console.log(fails ? `${fails} failed` : `all passed (${ex.films.length + 2} codes)`);
+console.log(fails ? `${fails} failed` : `all passed (${ex.films.length + 4} codes)`);
 console.log('\nExample:', ex.films[8].comment, '\n ' + describe(readPhoto(ex.films[8].comment)).join('\n '));
 process.exit(fails ? 1 : 0);

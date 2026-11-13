@@ -232,9 +232,11 @@ export function readProfiles(b: Uint8Array, v28 = false): Bank {
   }
   return bank;
 }
-/** One 64-byte LOOKS.BIN record (+ its name) -> a look. `v28` (or +57..+62 set): split toning codes are v0.28's. */
-export function lookFromRecord(rec: Uint8Array, name: string, v28 = false): Look {
-  v28 ||= isV28Record(rec);
+/** One 64-byte LOOKS.BIN record (+ its name) -> a look. `v28` (or +57..+62 set): split toning codes are v0.28's.
+ *  `photo`: an om3.1 photo code's record: split toning in v0.26 steps with byte 63's half steps (bit 0 Shadows,
+ *  bit 1 Highlights; firmware v0.28 pc1), never v0.28 codes. */
+export function lookFromRecord(rec: Uint8Array, name: string, v28 = false, photo = false): Look {
+  v28 = !photo && (v28 || isV28Record(rec));
   const d = new DataView(rec.buffer, rec.byteOffset, rec.byteLength), b = rec, o = 0;
   {
     const s = (i: number) => d.getInt8(o + i), a = (at: number) => Array.from({ length: 12 }, (_, i) => s(at + i));
@@ -251,7 +253,8 @@ export function lookFromRecord(rec: Uint8Array, name: string, v28 = false): Look
     if (b[o + 50] === 0) l.lens_correction = true;
     if (b[o + 51] >= 1) l.film_grain = Math.min(OM3.grain, b[o + 51]);
     const st = (c: number) => (v28 ? splitFromCode(c) : c);
-    const sp = parseSplit({ sh_color: b[o + 53], sh: st(s(54)), hl_color: b[o + 55], hl: st(s(56)) });
+    const half = (bit: number, c: number) => (photo && c >= 0 && (b[o + 63] >> bit) & 1 ? 0.5 : 0);
+    const sp = parseSplit({ sh_color: b[o + 53], sh: st(s(54)) + half(0, s(54)), hl_color: b[o + 55], hl: st(s(56)) + half(1, s(56)) });
     if (sp) l.split = sp;
     const hal = s(57), bal = s(58);                     // v0.28
     if (hal > 0) l.halation = Math.min(OM3.halation, hal);
@@ -266,8 +269,9 @@ export function lookFromRecord(rec: Uint8Array, name: string, v28 = false): Look
 }
 
 /** v0.27: the code the camera writes into a JPEG's UserComment ("Caduceus FILM n Name om3.1.<43>"; firmware ex_cd1,
- *  reference firmware/photocode.py): the whole 64-byte record, one nibble each, two to a byte, base64url. v0.28 fills
- *  bytes 57..62 (Halation 0..5, then -5..5 values: signed); 63 is spare (0). */
+ *  reference firmware/photocode.py, spec docs/PHOTO_CODE.md): a 64-byte record, one nibble each, two to a byte,
+ *  base64url. v0.28: the film as set when the photo was taken; bytes 57..62 Halation 0..5, Tone Balance, the WB
+ *  (signed -5..5 pairs); split toning still in v0.26 steps, its half steps in byte 63 (unsigned). */
 export const PHOTO_RE = /om3\.1\.([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
 const PHOTO_UNSIGNED = new Set([36, 48, 49, 50, 51, 53, 55, 57, 63]);
 export function recordFromPhotoCode(code: string): Uint8Array {
@@ -282,10 +286,10 @@ export function recordFromPhotoCode(code: string): Uint8Array {
   return rec;
 }
 /** A look from a photo's UserComment (or any text holding it): the name after "FILM n", else "From photo". */
-export function lookFromPhotoCode(text: string, v28 = false): Look {
+export function lookFromPhotoCode(text: string): Look {
   const rec = recordFromPhotoCode(text);
   const nm = /FILM \d+ (.*?) om3\.1\./.exec(text)?.[1]?.trim();
-  return lookFromRecord(rec, nm || 'From photo', v28);
+  return lookFromRecord(rec, nm || 'From photo', false, true);
 }
 export function encodePhotoCode(rec: Uint8Array): string {
   const nib = Array.from(rec.subarray(0, 64), (v) => v & 15);

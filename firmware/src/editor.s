@@ -785,7 +785,7 @@ sd_pub:
  movhu d0,(STATE)                 /* publish: the colour hook switches to the block */
  call gd_load,[d2,d3,a2,a3],28    /* editor guide pictures from C:\OM3MOD\GUIDES.BIN (optional) */
  call pf_load,[d2,d3,a2,a3],28    /* look bank from C:\OM3MOD\LOOKS.BIN (test 16; PROFILES.BIN before v0.19) */
- call nm_load,[d2,d3,a2,a3],36    /* profile name pictures from C:\OM3MOD\NAMES.BIN (test 17) */
+ call nm_ex,[d2,d3,a2,a3],36      /* profile name pictures from C:\OM3MOD\NAMES.BIN (test 17); v0.28 pc1: then ex_live */
  bra sd_out                       /* block kept for the rest of the power-on */
 sd_free:
  mov a2,a0
@@ -9404,6 +9404,7 @@ lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call e
  call lg_pre,[d2,d3,a2,a3],36
  call ed_trig,[d2,d3,a2,a3],36
  call lg_write,[d2,d3,a2,a3],40
+ call ex_live,[d2,d3,a2,a3],48    /* v0.28 pc1: the film's settings now, for the next photo's code */
  jmp trig_resume
 lg_pre:                           /* edits waiting before ed_trig (it saves them and clears DIRTY) */
  clr d0
@@ -10784,17 +10785,56 @@ ex_fill:
  bne 82b
  ret [d2,d3,a2,a3],20
 
-/* ex_cd1: `call ex_cd1,[d2,d3,a2,a3],20`, a2 = P, d3 = film j -> ex_code = "om3.1." + 43 characters: the film's
- * whole 64-byte LOOKS.BIN record (bytes 57..63 are spare: future settings go there, 0 = off, so older readers skip
- * them), one nibble each (value & 15), two to a byte (32 bytes), base64url (A-Z a-z 0-9 - _), no padding. The camera
- * is in the name so another body (E-P7) can have its own. The Control Panel turns it back into the film
- * (firmware/photocode.py is the reference). */
+/* ex_cd1: `call ex_cd1,[d2,d3,a2,a3],20`, a2 = P, d2 = COLOR k, d3 = film j -> ex_code = "om3.1." + 43 characters:
+ * a 64-byte LOOKS.BIN record of the film, one nibble each (value & 15), two to a byte (32 bytes), base64url
+ * (A-Z a-z 0-9 - _), no padding. The camera is in the name so another body (E-P7) can have its own. The Control Panel
+ * turns it back into the film (firmware/photocode.py is the reference).
+ * v0.28 pc1: the film as it is set when the photo is taken (ex_rec: COLOR k's settings and the camera's WB at the
+ * half-press before the shot, ex_live), else as built (its LOOKS.BIN record). Bytes 57..62 carry Halation, Tone
+ * Balance and the WB (spare until v0.28: older readers skip them). Split toning stays in v0.26 steps for older
+ * readers: the strength code v < 0 (an odd number of half steps, 2 |v| - 1) is written as |v| - 1 with its half step
+ * in byte 63 (bit 0 Shadows, bit 1 Highlights). */
 ex_cd1:
- mov (LPTR,a2),a0                 /* the record: 32 + 64 j */
+ mov (ex_rk),d0
+ cmp d2,d0
+ bne 1f
+ mov ex_rec,a0                    /* COLOR k now */
+ bra 2f
+1:
+ mov (LPTR,a2),a0                 /* the record as built: 32 + 64 j */
  mov d3,d0
  asl 6,d0
  add d0,a0
  add 32,a0
+2:
+ mov ex_out,a1
+ mov 63,d1
+3:
+ movbu (a0),d0
+ movbu d0,(a1)
+ inc a0
+ inc a1
+ add -1,d1
+ bne 3b
+ mov ex_out,a0
+ clr d1                           /* byte 63: the half steps */
+ movbu (54,a0),d0
+ extb d0
+ cmp 0,d0
+ bge 4f
+ not d0                           /* v -> -v - 1 */
+ movbu d0,(54,a0)
+ or 1,d1
+4:
+ movbu (56,a0),d0
+ extb d0
+ cmp 0,d0
+ bge 5f
+ not d0
+ movbu d0,(56,a0)
+ or 2,d1
+5:
+ movbu d1,(63,a0)
  mov ex_nb,a1
  clr d2
 1:
@@ -10895,9 +10935,115 @@ ex_txt:
  .space 48
 ex_nb:
  .space 36
-ex_code:
- .space 48
+ex_code:                          /* "om3.1." + 43 characters + NUL = 50 bytes (v0.28 pc1: was 48, 2 in the padding) */
+ .space 52
  .balign 4
+ex_rk:                            /* v0.28 pc1: ex_rec holds COLOR ex_rk (-1: none) */
+ .long -1
+ex_rec:                           /* COLOR k's settings at the last half-press (ex_live) */
+ .space 64
+ex_out:                           /* the record as coded (ex_cd1) */
+ .space 64
+
+/* nm_ex (v0.28 pc1): sd_load's last call (the first half-press of a power-on, ext1 is full): nm_load, then ex_live. */
+nm_ex:
+ call nm_load,[d2,d3,a2,a3],36
+ call ex_live,[d2,d3,a2,a3],48
+ ret [d2,d3,a2,a3],36
+
+/* ex_live: `call ex_live,[d2,d3,a2,a3],48` at each half-press (the first: sd_load via nm_ex; then lg_pr after the editor's save),
+ * in the HLS_EVENT task only (the gate of pr_gate / lg_write; the settings getter is safe there, not in the capture:
+ * v0.24): when the camera is on COLOR k, its settings now (pf_capto) and the camera's WB now (1578 mode -> its index in
+ * table 0x615d1944, Custom WB also 107 Kelvin -> v, as fw_keep) -> ex_rec +0..+62, ex_rk = k; else ex_rk = -1.
+ * Locals (12) tid, (16) P, (20) k, (24) mode index, (28) Kelvin v (below the 16 B of saved registers). */
+ex_live:
+ mov -1,d0
+ mov d0,(ex_rk)
+ mov (SECBITS),d0
+ and 0x3ff,d0
+ cmp 0x3ff,d0
+ bne 9f
+ mov sp,a0
+ add 12,a0
+ call get_tid,[a2],4
+ cmp 0,d0
+ bne 9f
+ movhu (HLS_TID),d1
+ cmp 0,d1
+ beq 9f
+ btst 0x8000,d1
+ bne 9f
+ movhu (12,sp),d0
+ cmp d1,d0
+ bne 9f
+ PVAL 9f
+ mov a2,(16,sp)
+ mov 111,d0
+ call sget,[],4                   /* the picture mode (sget does not keep a2) */
+ mov (16,sp),a2
+ mov fl_cvt,a0
+ clr d2
+1:
+ movbu (d2,a0),d1
+ cmp d1,d0
+ beq 2f
+ inc d2
+ cmp 4,d2
+ bne 1b
+ bra 9f                           /* not COLOR 1-4 */
+2:
+ mov d2,(20,sp)
+ mov ex_rec,a3
+ call pf_capto,[d2,d3,a2,a3],28   /* COLOR k now -> ex_rec (keeps d2, d3, a2, a3) */
+ mov 1578,d0
+ call sget,[],4                   /* the camera's WB mode */
+ mov 0x615d1944,a0
+ clr d3
+3:
+ mov (a0),d1
+ cmp d1,d0
+ beq 4f
+ add 12,a0
+ inc d3
+ cmp 13,d3
+ bne 3b
+ clr d3                           /* not in the table: none */
+4:
+ mov d3,(24,sp)
+ clr d1
+ mov d1,(28,sp)
+ cmp 9,d0                         /* Custom WB: its Kelvin too */
+ bne 6f
+ mov 107,d0
+ call sget,[],4
+ add -2000,d0
+ mov 100,d1
+ ext d0
+ div d1,d0
+ cmp 0,d0
+ bge 5f
+ clr d0
+5:
+ cmp 120,d0
+ ble 51f
+ mov 120,d0
+51:
+ add -60,d0
+ mov d0,(28,sp)
+6:
+ mov ex_rec,a1
+ mov (28,sp),d0
+ FWENC
+ movbu d0,(59,a1)
+ movbu d1,(60,a1)
+ mov (24,sp),d0
+ FWENC
+ movbu d0,(61,a1)
+ movbu d1,(62,a1)
+ mov (20,sp),d0
+ mov d0,(ex_rk)
+9:
+ ret [d2,d3,a2,a3],48
 
 /* ---------------------------------------------------------------- v0.27 polish 2: body diagrams (firmware/diagrams.py)
  * The Button Function list shows a 422 x 446 body picture per row with the control highlighted and a line to the

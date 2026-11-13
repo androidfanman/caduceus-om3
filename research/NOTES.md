@@ -3428,3 +3428,28 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (their split tones are whole steps).
 - Not done: `looklab/` (the live site) not rebuilt; docs/USING.md not updated. Both with the v0.28 release (or when
   the owner wants the live site updated).
+
+## Photo code for v0.28: the film as set, Halation / Tone Balance / WB, still om3.1 (2026-11-12; emulator only, pc1)
+- Owner asked whether the EXIF code reflects the v0.28 settings: it did not (it coded the film's LOOKS.BIN record as
+  built, never the on-camera changes; v0.28 records the new settings mostly on the camera). Owner: **keep om3.1**
+  (no new name): the new settings go into the spare bytes; split toning, whose LOOKS.BIN meaning changed in v0.28 (the
+  half-step code), stays in v0.26 steps in the code with the half steps in the last spare byte 63.
+- The settings getter is not safe during the capture (v0.24's AGET reboot), so **ex_live** reads them at each
+  half-press in the HLS_EVENT task (the gate of lg_write, whose sget calls are camera-tested in the debug log):
+  COLOR k's settings now (pf_capto) + the camera's WB now (1578 / 107 as fw_keep, FWENC into +59..+62) -> ex_rec,
+  ex_rk = k. Called from lg_pr (every half-press after the first) and, for the first half-press of a power-on, from
+  sd_load's last call (`nm_ex` = nm_load + ex_live: same size call in ext4; ext1 is full, 1744 / 1744 B).
+- ex_cd1 (at the shot, d2 = COLOR k): ex_rec when ex_rk == k, else the LOOKS.BIN record as built; copied to ex_out,
+  +54 / +56 v < 0 -> ~v with bit 0 / 1 in +63; then the nibble / base64 code as before.
+- Found: ex_code was 48 B for 50 written (om3.1. + 43 + NUL): the last 2 bytes went into alignment padding (harmless
+  since v0.27); now 52 B.
+- om-emu (scratchpad pc1test.mjs, `runp:` = call with a2 = P): ex_rk 0 after the first half-press (COLOR 1); with
+  slot pokes (Halation 3, Tone Balance -2, Highlights colour 9, code -2 = 3 half steps) and a second half-press,
+  ex_rec +55..+58 = 9, -2, 3, -2, WB Auto (+59..+62 0); ex_cd1 for k = 0 -> ex_out +55..+63 = 9, 1, 3, -2, 0, 0, 0, 0, 2
+  and the code `om3.1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRPgAAI` (= the expected encoding); k = 1..3 the record as
+  built. Menus and further half-presses afterwards: no crash.
+- Readers: Control Panel `lookFromPhotoCode` (photo codes: v0.26 steps + byte 63, never the LOOKS.BIN half-step code),
+  `firmware/photocode.py` (split_steps, film_wb), `devkit/photo-code` (om3code.js: halation, toneBalance,
+  whiteBalanceMode, split toning 0..10; examples v028 / v028wb; README table), docs/PHOTO_CODE.md (v0.28 used the last
+  spare byte: the next new setting needs om3.2). The release's photo code kit zip is rebuilt with v0.28.
+- Package pc1: E1479999.BIN 640cdafd…, GUIDES.BIN 572226a4… (LABELS / TONES as g5). VERSION "v0.28-dev (photo code pc1)".

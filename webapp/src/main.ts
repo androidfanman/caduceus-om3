@@ -1263,7 +1263,7 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
     }
     const fromPhoto = PHOTO_RE.test(t) && !isOm3Code(t, OP_PREFIX);
     if (!fromPhoto && !isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_) or a photo\'s om3.1. code.');
-    const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: fromPhoto ? lookFromPhotoCode(t, om3Fw28()) : parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
+    const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: fromPhoto ? lookFromPhotoCode(t) : parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
     if (!c.look) throw new Error('That link holds no look.');
     let k = O.k, v = O.v;
     if (O.bank[k][v]) {
