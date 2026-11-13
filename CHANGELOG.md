@@ -57,6 +57,13 @@ photo's code. Firmware camera-tested (2026-11-12, build pc1; only its name was c
   takes a `.cube` LUT or a Lightroom preset (`.xmp`, `.lrtemplate`), finds the camera settings that come closest on a
   set of test colours, and shows the grade and the film side by side with a Close / Fair / Rough match. Preset Grain,
   Vignette and Clarity carry over; Log-video LUTs are flagged. An approximation; the file stays in the browser.
+- **Control Panel, 2026-11-13: colour-matched films and a new standard 20.** 18 films graded against film scans of
+  a colour chart (the real film's colours, relative to the other films shot the same day), with the camera model:
+  Portra 160 / 400 / 800, Gold 200, ColorPlus 200, Ektar 100, Ektachrome E100, Velvia 50, Provia 100F, Pro 400H,
+  Superia 400, Fuji C200, Fujifilm 200, and five new films: Fujifilm 400, Natura 1600, NHG II 800, NPS 160, Pro 160S
+  (67 films). **Film sims** has **Colour matched** and **Hand-tuned** filters, and a tag on the matched films. The
+  standard 20 (first visit, **Reset looks to standard**) are now these 18 + CineStill 800T and Kodachrome 64. Not
+  camera-tested yet; the release's `LOOKS.BIN` keeps the earlier 20, and your own list in the Control Panel is kept.
 - Not planned after all (owner): custom crop modes (set aside), exposure and ISO per film.
 
 ## v0.28-alpha (test version)

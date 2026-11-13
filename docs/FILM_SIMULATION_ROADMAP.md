@@ -17,7 +17,7 @@ Efforts are estimates from what we know of the firmware today.
 - **20 film sims on the camera** as FILM 1–20 in the Picture Mode list, after COLOR 1–4, with their names on the
   title, quick menu, shooting screen and viewfinder. They load at the first half-press after switching on (until
   then the screen may show the plain COLOR look), and the super control panel's dials step COLOR 1–4, then
-  FILM 1–20. The Control Panel has 62 films to choose from.
+  FILM 1–20. The Control Panel has 67 films to choose from (18 colour matched).
 - **Per film:** colour (hue, saturation, luminance for 12 colours), Highlights / Midtones / Shadows, Blacks / Whites,
   Contrast, Sharp (−5 Off..+2), Noise Filter (Off / Low / Std / High), Vignette Correction on / off, Shading, WB shift
   A-B / G-M −7..+7 (the camera's own WB grid), split toning (Shadows and Highlights wheels, 12 colours, −5..+5).
@@ -86,6 +86,7 @@ probes the rest of section 6 (about 660 KB more, GX4); see `research/NOTES.md`, 
 | Photo-to-look instructions | Build a look from any photo, opened by a link. | Low | Done | [`docs/PHOTO_TO_LOOK.md`](PHOTO_TO_LOOK.md), tested end to end 2026-11-07. |
 | Preview matched to the camera | The Control Panel shows what the OM-3 will give: its colour engine fitted to the camera's measured slider response (WB, saturation and hue per colour, luminance, split). | Low | **Done (2026-11-11, live)** | Branch `feature/preview-camera-match`; `research/film-grading/preview-fit/`. Film shots left out of the fit: preview vs camera ΔE 4.4 → 3.8. |
 | Film looks graded on the camera | Every film look measured and fitted to the OM-3's own response, so the camera gives what was meant (the camera's sliders are stronger than the preview, and uneven). | Medium | **Camera testing (2026-11-11)** | The 20: v6, camera-tested on a colour chart. The other 42: fitted to their preview with the camera model, not yet shot. Branch `feature/camera-graded-films`; [`research/film-grading/`](../research/film-grading/README.md), `research/NOTES.md` "Film sims graded on the camera". |
+| Colour-matched films | 18 films graded against film scans of a colour chart (real film colours), 5 of them new; the standard 20 = these 18 + CineStill 800T and Kodachrome 64. | Medium | **In the Control Panel (2026-11-13); camera testing** | Analysis / camera model and the preview as a second check; next a camera chart shoot with the new 20 (`LOOKS_CP2.BIN`). `research/NOTES.md` "Colour-matched films". |
 
 ## Already done
 
@@ -97,6 +98,7 @@ probes the rest of section 6 (about 660 KB more, GX4); see `research/NOTES.md`, 
 | 2026-11-09 | v0.26.1 released | The 20 film sims tuned from colour-checker photos (draft 1) in the release's `LOOKS.BIN`; WB shift up to ±7 per film. |
 | 2026-11-09 | v0.26 released (split toning) | Shadows and Highlights wheel pages: tint by brightness toward any of the 12 colours, −5..+5, in photos and live view; ten of the 20 films carry a light split tone. Also fixes a restart after changing the drive mode. |
 | 2026-11-09 | The camera's 20 films (in v0.25) | 20 film sims rewritten in the owner's order, FILM 1–20 on the camera and in the Control Panel (one list). |
+| 2026-11-13 | Colour-matched films | 18 films graded against film chart scans (5 new: Fujifilm 400, Natura 1600, NHG II 800, NPS 160, Pro 160S; 67 films); Colour matched / Hand-tuned filters; new standard 20 in the Control Panel. |
 | 2026-11-11 | Cuban Negative | Film sim 62, our own design (warm, golden, sun-faded reds, turquoise blues); replaces the E-P7 starter look "Cuban Neg" in the Control Panel. |
 | 2026-11-09 | v0.25 released (fast colour grain) | Film grain from the image processor in colour, as fast as no grain, with Shading and Glow / Clarity; a Glow row (+ Glow, − Clarity), a WB grid row, no Art Effects; film choice and changes now kept over power off. |
 | 2026-11-08 | v0.24.1 films in the list | Films (FILM n) in the Picture Mode list with their names; changes kept per film; the Extras as Picture Mode rows. Glow / Clarity and Art Effects off and the Shading row hidden for now. (v0.24 was withdrawn the same day: Film Grain High rebooted the camera.) |

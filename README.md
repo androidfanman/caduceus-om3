@@ -80,7 +80,8 @@ it to the card's `OM3MOD` folder. Nothing is uploaded: your work stays in your b
 
 Our own looks, designed from what each film is known for and made only from the camera's own settings. None uses
 grain or Glow, so you can add those yourself. The names say what inspired each look; they aren't the film makers'
-products or presets. In camera order:
+products or presets. These are the Control Panel's standard 20 (since 2026-11-13: 18 colour-matched films + CineStill
+800T and Kodachrome 64; the v0.28 release's `LOOKS.BIN` still has the earlier 20). In camera order:
 
 | FILM | Name | The look |
 |---|---|---|

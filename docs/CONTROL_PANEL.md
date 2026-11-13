@@ -11,8 +11,9 @@ uploaded.
    them move up a number).
 2. **Start from the 20 film sims.** The first time you open it, the list holds the [20 film sims](../README.md#the-20-film-sims). Already used it
    before? **New › Reset looks to standard** puts the 20 back (Undo brings your old list back).
-3. **Film sims** opens all 62 film looks: **The 20** first, in FILM order, then more under "More" (other slide and
-   negative films, Fujifilm-style simulations, instant films and cinema print stocks). Click one to preview it on your
+3. **Film sims** opens all 67 film looks: **The 20** first, in FILM order, then more under "More" (other slide and
+   negative films, Fujifilm-style simulations, instant films and cinema print stocks). **Colour matched** shows the 18
+   films graded against film scans of a colour chart; **Hand-tuned** the others, designed from descriptions. Click one to preview it on your
    photo; **+ Add** puts it in an empty place (or offers to replace one when all 20 are used).
 4. **Edit** a film, laid out like the camera's Picture Mode screen: the HSL wheel with the camera's five pages (Color,
    Hue, Luminance, Shadows, Highlights; drag a colour on the wheel or use the slider), the Highlight & Shadow curve
