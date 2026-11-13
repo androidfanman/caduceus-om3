@@ -67,7 +67,7 @@ probes the rest of section 6 (about 660 KB more, GX4); see `research/NOTES.md`, 
 | Exposure compensation per film | Overexposed Portra, pushed Tri-X. Optional per film. | Low | Planned (owner, 2026-11-12) | Same route. Decide whether it adds to the user's exposure dial or sets it. |
 | ISO per film | "Load" Portra 400 and the camera shoots at ISO 400. Optional. | Low | Planned (owner, 2026-11-12) | Same route. Off by default. |
 | Film name in the photo's EXIF | Photos say which film and settings made them, for sharing and sorting ([#20](https://github.com/androidfanman/caduceus-om3/issues/20)). | Medium | **Done (v0.27)** | Image Description `FILM n Name`; User Comment with the name and the whole recipe as an `om3.1.` code. The Control Panel opens a film from a JPEG or a pasted code; [devkit/photo-code](../devkit/photo-code/) reads it for other sites. Spec: [PHOTO_CODE.md](PHOTO_CODE.md). Camera-tested 2026-11-11 (dr7). |
-| Frame shape per film | XPan 65:24, square 6×6, 4:5 for 6×7, half-frame. | Medium | Not started | Ties into custom crop modes on the main roadmap (Planned; Caduceus for the E-P7 has XPan and 21:9). |
+| Frame shape per film | XPan 65:24, square 6×6, 4:5 for 6×7, half-frame. | Medium | Not started | Ties into custom crop modes on the main roadmap (set aside 2026-11-12; Caduceus for the E-P7 has XPan and 21:9). |
 | Film borders | A black film edge or an instant-print border. | Medium | Not planned | Owner (2026-11-12): borders can be added in editing afterwards. |
 
 ## Bigger projects

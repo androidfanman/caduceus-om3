@@ -12,15 +12,15 @@ below are planned too; their place in that order isn't set yet.
 Feature parity with Caduceus for the E-P7 (what both have, what lines up, what to do): [docs/PARITY.md](docs/PARITY.md).
 ## Next: finishing the colour profiles
 
-The goal is for Color Profile mode to be the best JPEG maker of any camera. Halation and custom crop modes are the
-last two pieces: with them the colour profiles are complete.
+The goal is for Color Profile mode to be the best JPEG maker of any camera. Halation was the last big piece; custom
+crop modes are set aside for now (owner, 2026-11-12).
 
 | Feature | What it means | Status |
 |---|---|---|
 | **Halation** | The red glow around bright lights of cinema film (CineStill and others): its own Picture Mode row (0–5), with or without Glow. Method after Caduceus for the E-P7. Camera test builds 2026-11-12 (soft fade, works with grain and bursts); the Control Panel slider and preview are on the branch (live site not yet). | Building (v0.28) |
 | **Quick film switching and film order** ([#30](https://github.com/androidfanman/caduceus-om3/issues/30), [#32](https://github.com/androidfanman/caduceus-om3/issues/32)) | One button to get straight to COLOR 1–4 / FILM 1–20 (and MONO / ART) and pick with the front dial, as on the E-P7: a button function that opens the Picture Mode list directly, then, if possible, a toggle (button or Fn lever) that turns the front dial into a profile dial. Owner: a must. Also: the films in your own order on the camera ([#32](https://github.com/androidfanman/caduceus-om3/issues/32), low priority). The Creative Dial part ([#21](https://github.com/androidfanman/caduceus-om3/issues/21)) shipped in v0.27. | Tabled (owner, 2026-11-11) |
 | **Gentler Shading** ([#22](https://github.com/androidfanman/caduceus-om3/issues/22)) | Shading is much too strong in both directions; the wish was −5 / +5 like today's −2 / +2, with finer steps, and the camera's vignette like the Control Panel's. Two camera test builds (2026-11-12) showed the camera fades the corners toward black or white through a mask whose strength it sets out of reach (even −1 leaves the very corners nearly black); drawing our own vignette would cost the viewfinder preview and save speed. Difficult: parked until there is a new lead (owner, 2026-11-12). Notes: `research/NOTES.md`. | Difficult (parked) |
-| **Custom crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9 (as in Caduceus for the E-P7), and your own. | Planned for v0.28 |
+| **Custom crop modes** | Extra aspect ratios such as XPan 65:24 and 21:9 (as in Caduceus for the E-P7), and your own. Looked into 2026-11-12: the E-P7 took about 10 camera rounds (menus, sizes, live view, then AF, metering and overlays that look things up by aspect); not worth it for now (owner, 2026-11-12). Notes: `research/NOTES.md`. | Set aside |
 | **Our version in the camera's menu** | The firmware screen shows OM's version and, below it, the Caduceus version. More work than expected (the screen is built from layout data); moved to a later update (owner, 2026-11-12). Notes: `research/NOTES.md`. | Later |
 | **Colour chart with changeable light** (Control Panel) | A drawn colour chart to judge a film in sun at different times of day, shade, lamp light and at different camera WB / Kelvin. Built and tried on 2026-11-09, then taken out: it needs a clearer design first. Notes and the kept code: [docs/CHART_LIGHTBOX.md](docs/CHART_LIGHTBOX.md). | Parked |
 | **Our own grain texture** | The fast grain uses the camera's ready-made grain picture; ours could add colour speckle and grain size, still at no extra time. On hold: the owner first compares today's grain with Lightroom / DxO (2026-11-12). | On hold |

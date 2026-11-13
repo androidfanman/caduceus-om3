@@ -3495,3 +3495,4 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   overlays), then probe one ratio on the camera first. The OM-3 has more AF / computational modes than the E-P7, so
   likely more lookups. Space is not the limit (ext12 ~43 KB free, 662 KiB reserve). Credit cakelesscoder (and
   flickering-star for the AF site list idea) if their method is followed; the code would be ours.
+- **Owner, 2026-11-12: not worth it for now** (custom crop modes set aside; ROADMAP "Set aside").
