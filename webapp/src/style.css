@@ -412,3 +412,13 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
   .crow.seg-row { grid-template-columns: 96px minmax(0, 1fr); }
   .hw-ctl { grid-template-columns: auto 84px auto minmax(0, 1fr) 30px; }
 }
+
+/* film from a LUT / Lightroom preset */
+.grade { display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
+.grade-pv { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grade-pv figure { margin: 0; }
+.grade-pv figcaption { font-size: 13px; opacity: 0.8; margin-top: 4px; text-align: center; }
+.grade-score { margin: 0; }
+.grade-name { display: flex; gap: 8px; align-items: center; }
+.grade-name input { flex: 1; max-width: 220px; }
+@media (max-width: 600px) { .grade-pv { grid-template-columns: 1fr; } }

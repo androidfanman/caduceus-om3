@@ -51,10 +51,13 @@ COLOR) to put it back.
 
 ### Can I use my own presets or LUTs?
 
-Not directly. Films are made only from the camera's own settings (colours, tone, WB shift and so on), so a LUT or a
-Lightroom preset can't be loaded. You can rebuild a look in the [Control Panel](https://androidfanman.github.io/caduceus-om3/)
-with its preview, or have an AI assistant build one from a photo you like with
-[these instructions](PHOTO_TO_LOOK.md).
+Yes, as a starting point (Control Panel, coming with the next update). Choose **From LUT / preset…** and pick a `.cube`
+LUT or a Lightroom preset (`.xmp` or the older `.lrtemplate`). The Control Panel finds the camera settings that come
+closest, shows your grade and the film side by side, and says how close they are. It's an approximation: the camera
+has 12 colour sectors, a tone curve, a WB shift and split toning, while a LUT can do much more. LUTs made for Log
+video are flagged, since they're far too strong on a photo. Your file stays on your computer.
+
+You can also have an AI assistant build a look from a photo you like with [these instructions](PHOTO_TO_LOOK.md).
 
 ### Can I share films?
 

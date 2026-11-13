@@ -19,6 +19,7 @@ import { namesBin } from './om3names';
 import { SPLIT_COLOURS, SPLIT_STEPS, fromSteps, toSteps, type Split } from './split';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
+import { cubeApply, fitLook, lightroomExtras, lightroomTransform, looksLikeLog, parseCube, parseLightroom, type RGB, type Transform } from './convert';
 // ---------------------------------------------------------------- state
 const LIBRARY = parsePack(libraryJson);
 // The colour-frames test photo first, then public-domain (CC0) photos picked for skin, strong colour, greens, blues,
@@ -212,6 +213,7 @@ function shell() {
         ]),
         h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN, or a looks file saved from this tool' }, 'Open…'),
         h('button', { onclick: () => om3FilmPicker(), title: 'Add film simulations to your films' }, 'Film sims'),
+        h('button', { onclick: () => $<HTMLInputElement>('#grade').click(), title: 'Make a film from your own .cube LUT or Lightroom preset (.xmp, .lrtemplate)' }, 'From LUT / preset…'),
         h('button', { onclick: pasteDialog, title: 'Open a shared look or looks link' }, 'Paste link'),
         h('button', { onclick: om3Share }, 'Share looks'),
         h('button', { onclick: om3InstallDialog }, 'Install firmware'),
@@ -224,8 +226,9 @@ function shell() {
       h('span', {}, 'Caduceus for OM-3 is an unofficial, community firmware mod (COLOR looks only, not Monochrome). Files are made in your browser; nothing is uploaded.'),
       h('a', { href: './samples/CREDITS.md', target: '_blank', rel: 'noopener' }, 'Image credits')),
     h('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }),
-    h('input', { type: 'file', id: 'file', accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg', hidden: true, onchange: om3OnFile }),
-    h('input', { type: 'file', id: 'photo', accept: 'image/*', hidden: true, onchange: onPhoto }));
+    h('input', { type: 'file', id: 'file', accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),
+    h('input', { type: 'file', id: 'photo', accept: 'image/*', hidden: true, onchange: onPhoto }),
+    h('input', { type: 'file', id: 'grade', accept: '.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnGradeFile }));
   buildPreview();
 }
 
@@ -1257,6 +1260,7 @@ async function om3OnFile(e: Event) {
   const f = (e.target as HTMLInputElement).files?.[0];
   (e.target as HTMLInputElement).value = '';
   if (!f) return;
+  if (/\.(cube|xmp|lrtemplate)$/i.test(f.name)) { await gradeDialog(f); return; }
   const bytes = new Uint8Array(await f.arrayBuffer());
   const magic = bytes.length >= 4 ? String.fromCharCode(...bytes.subarray(0, 4)) : '';
   try {
@@ -1272,6 +1276,104 @@ async function om3OnFile(e: Event) {
     if (j && j.schema === BANK_SCHEMA) { const b = parseBank(j, parseLook); replaceBank(b.bank, `Opened "${b.name}"`, b.name); return; }
     throw new Error('not an OM-3 file');
   } catch (err) { toast(`Not an OM-3 LOOKS.BIN or looks file: ${(err as Error).message}`, 'err'); }
+}
+
+async function om3OnGradeFile(e: Event) {
+  const f = (e.target as HTMLInputElement).files?.[0];
+  (e.target as HTMLInputElement).value = '';
+  if (f) await gradeDialog(f);
+}
+
+/** The first free FILM (the selected one when empty), or null when all 20 are in use. */
+function freeFilm(): { k: number; v: number } | null {
+  if (!O.bank[O.k][O.v]) return { k: O.k, v: O.v };
+  const any = O.bank.flat().findIndex((x) => !x);
+  return any >= 0 ? { k: Math.floor(any / PER), v: any % PER } : null;
+}
+
+/** A film from the user's own .cube LUT or Lightroom preset: the camera settings that come closest (src/convert.ts),
+ *  previewed next to the grade itself on the current photo. The file stays in the browser. */
+async function gradeDialog(f: File) {
+  const text = await f.text();
+  let tf: Transform, kind: string, title: string;
+  const warn: Node[] = [];
+  let extras: ReturnType<typeof lightroomExtras> | null = null;
+  try {
+    if (/\.cube$/i.test(f.name)) {
+      const cube = parseCube(text);
+      tf = (c) => cubeApply(cube, c); kind = 'LUT'; title = cube.title || f.name.replace(/\.cube$/i, '');
+      if (looksLikeLog(`${cube.title} ${f.name}`, tf)) warn.push(h('p', { class: 'warn' }, h('b', {}, 'This LUT looks made for Log video. '),
+        'It expects flat Log footage, not a finished photo, so on a camera JPEG it is far too strong. The film below follows it anyway: use a LUT made for normal (Rec.709 / sRGB) pictures for a good result.'));
+    } else {
+      const p = parseLightroom(text, f.name);
+      tf = lightroomTransform(p); kind = 'Lightroom preset'; title = p.name;
+      extras = lightroomExtras(p);
+      if (Object.keys(p.s).length === 0 && Object.keys(p.curves).length === 0) throw new Error('This preset has no develop settings.');
+    }
+  } catch (err) { toast(`Can't read ${f.name}: ${(err as Error).message}`, 'err'); return; }
+  const full = title.replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const cut = full.length <= OM3_NAME_MAX ? full : (full.slice(0, OM3_NAME_MAX + 1).replace(/\s+\S*$/, '') || full.slice(0, OM3_NAME_MAX));
+  const name = cut.trim() || 'My grade';
+  const status = h('p', { class: 'help' }, 'Finding the camera settings that come closest… 0 %');
+  const body = h('div', { class: 'grade' }, status);
+  const dlg = modal(`Film from ${f.name}`, body);
+  const res = await fitLook(tf, name, (x) => new Promise<void>((r) => { status.textContent = `Finding the camera settings that come closest… ${Math.round(x * 100)} %`; setTimeout(r, 0); }));
+  if (!dlg.open) return;
+  const look = res.look;
+  look.notes = `Made from the ${kind} "${title}" (an approximation with the camera's own settings).`.slice(0, 200);
+  if (extras) {
+    const x = extras.look;
+    if (x.film_grain) look.film_grain = x.film_grain;
+    if (x.vignette) look.vignette = x.vignette;
+    if (x.effect) look.effect = x.effect;
+    if (x.advice?.sharpness) look.advice.sharpness = x.advice.sharpness;
+  }
+  // previews: the grade itself and the film, on the current photo
+  const pvs: Node[] = [];
+  if (srcData) {
+    const sc = Math.min(1, 480 / srcData.width), W = Math.max(1, Math.round(srcData.width * sc)), H = Math.max(1, Math.round(srcData.height * sc));
+    const small = document.createElement('canvas'); small.width = W; small.height = H;
+    const full = document.createElement('canvas'); full.width = srcData.width; full.height = srcData.height;
+    full.getContext('2d')!.putImageData(srcData, 0, 0);
+    small.getContext('2d')!.drawImage(full, 0, 0, W, H);
+    const base = small.getContext('2d')!.getImageData(0, 0, W, H);
+    const graded = new ImageData(W, H), film = new ImageData(W, H), memo = new Map<number, RGB>();
+    for (let i = 0; i < W * H * 4; i += 4) {
+      const key = (base.data[i] >> 2) << 12 | (base.data[i + 1] >> 2) << 6 | (base.data[i + 2] >> 2);
+      let o = memo.get(key);
+      if (!o) { o = tf([base.data[i] / 255, base.data[i + 1] / 255, base.data[i + 2] / 255]); memo.set(key, o); }
+      graded.data[i] = o[0] * 255 + 0.5; graded.data[i + 1] = o[1] * 255 + 0.5; graded.data[i + 2] = o[2] * 255 + 0.5; graded.data[i + 3] = 255;
+    }
+    renderLook(base, film, splitPv(look), { advice: true, camera: CAM });
+    const cv = (d: ImageData, label: string) => { const c = h('canvas', { class: 'film-pv', 'aria-label': label }); c.width = W; c.height = H; c.getContext('2d')!.putImageData(d, 0, 0); return h('figure', {}, c, h('figcaption', {}, label)); };
+    pvs.push(h('div', { class: 'grade-pv' }, cv(graded, `Your ${kind}`), cv(film, 'The OM-3 film (camera settings)')));
+  } else pvs.push(h('p', { class: 'help' }, 'Pick a photo in the preview to compare the two.'));
+  const words = { close: 'Close match', fair: 'Fair match', rough: 'Rough match' }[res.quality];
+  const more = { close: 'The camera gets very near this grade.', fair: 'The overall feel carries over; some colours differ.',
+    rough: 'This grade does things the camera\'s settings can\'t (for example moving one shade differently from its neighbours): the film keeps its general direction.' }[res.quality];
+  const nameIn = h('input', { type: 'text', id: 'grade-name', value: name, maxlength: String(OM3_NAME_MAX), 'aria-label': 'Film name' });
+  const notes: Node[] = [];
+  if (extras?.mapped.length) notes.push(h('p', { class: 'help' }, h('b', {}, 'Also carried over: '), extras.mapped.join(' · ')));
+  if (extras?.dropped.length) notes.push(h('p', { class: 'help' }, h('b', {}, 'Left out (no camera setting): '), extras.dropped.join(', ')));
+  const add = h('button', { class: 'primary', onclick: () => {
+    const t = freeFilm();
+    look.name = (nameIn.value.trim() || name).slice(0, OM3_NAME_MAX);
+    const np = om3NameProblem(look.name); if (np) { toast(np, 'err'); return; }
+    let k: number, v: number;
+    if (t) ({ k, v } = t);
+    else { if (!confirm(`All 20 looks are in use. Replace ${at(O.k, O.v)} ("${O.bank[O.k][O.v]!.name}") with "${look.name}"?`)) return; k = O.k; v = O.v; }
+    O.bank[k][v] = look; O.k = k; O.v = v;
+    save(); renderAll(); dlg.close();
+    toast(`Added "${look.name}" as ${at(k, v)}`);
+  } }, 'Add as a film');
+  body.replaceChildren(
+    ...warn,
+    ...pvs,
+    h('p', { class: 'grade-score' }, h('b', {}, words), ` · colour difference ${res.after.toFixed(1)} (the camera's normal look: ${res.before.toFixed(1)}; lower is closer). `, more),
+    ...notes,
+    h('label', { class: 'grade-name' }, 'Film name ', nameIn),
+    h('p', { class: 'help' }, `The film uses only the camera's own settings, so you can change it like any other. Your ${kind} stays on your computer: it isn't stored here or uploaded.`),
+    h('div', { class: 'modal-actions' }, h('button', { onclick: () => dlg.close() }, 'Cancel'), add));
 }
 
 async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
