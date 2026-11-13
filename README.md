@@ -1,5 +1,5 @@
 > [!WARNING]
-> **Feature branch `feature/films-in-camera`, step 1 (f1), not released.** The films, on-camera edits and Extras
+> **Feature branch `feature/films-in-camera`, steps 1 (f1) and 2 (f2), not released.** Step 2 builds GUIDES / LABELS / TONES into the firmware, so any card works. The films, on-camera edits and Extras
 > settings live in the camera's own settings memory (store M), so a card without films still has them; a card brings
 > in only films the camera never had; no copies on the card (owner, 2026-11-13). Issue #35, design by iancw (#36),
 > camera probe mp1. Emulator-tested; **camera-tested 2026-11-13** (rounds 1 and 2: first-time copy, then a card without films after a battery pull). Details in `research/NOTES.md`, "Films in camera memory, step 1".

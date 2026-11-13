@@ -3622,3 +3622,25 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   changed byte 0", picture mode 54 = COLOR 1, FILM 1 (the owner's round-1 change kept). So the films, the selection and the
   edits come from the camera's own memory over power-off and a battery pull, with no film files on the card.
 - To fix in step 2: the debug log's card check still calls a missing LOOKS.BIN a MISMATCH; with a valid block it is normal.
+
+## Films in camera memory, step 2 (f2): GUIDES / LABELS / TONES built into the firmware (2026-11-13; emulator only)
+- **Where:** build.py puts GUIDES.BIN (pictures + code block), LABELS.BIN and TONES.BIN, as built, in the GX4-proven reserve
+  after ext12 (0x60f99800..0x60fa26e0 in f2, 36,576 B, 16-aligned) and raises the loader's end word 0x60045e9c to 0x60fa3000
+  (GX4: proven to 0x6103f000, camera 2026-11-12). `bf_tab` (editor.s) gets each one's address and size.
+- **How:** the camera's file functions are renamed in editor.ld (OS_FOPEN / OS_FCLOSE / OS_FSEEK / OS_FTELL / OS_FREAD);
+  `fopen` / `fread` / `fseek` / `ftell` / `fclose` in editor.s are wrappers with the same frames (the stock ones: [],4;
+  [d2,d3,a2,a3],24; [d2,d3,a2,a3],20; [d2,a2,a3],16; [d2,a2,a3],16). A read open of "C:\OM3MOD\GUIDES.BIN", "LABELS.BIN"
+  or "TONES.BIN" gets a handle on the built-in copy (a pool of 4 {in use, address, size, position}, taken with dispatch
+  held); anything else goes to the camera. The code block links its fopen / fread / fclose to the wrappers (build.py
+  make_xblock), so its LABELS.BIN read is served too. No caller changed; the card's copies are never read.
+- **Debug log:** with a valid block, LOOKS / EDITS / BUNDLES read "not needed (kept in the camera's memory)", or "on the card
+  (the camera takes only films it never had)" / "on the card, not used"; they no longer count as a mismatch.
+- **Bug found and fixed (f1 code):** ub_chk, ub_bun, ub_put (and f2's vf_new) had frames of 16 with four registers saved,
+  so their own calls wrote the return address over a saved register ((0,sp), research/NOTES.md "Picture-mode sliders").
+  Harmless for their callers in f1; in f2 it broke lg_chk's row pointer (an fopen of address 0x12f80400, an om-emu trap).
+  Now 20. `session_ed1.mjs`: WLIVE=1 prints WATCH hits as they happen (a run that crashes writes no OUT).
+- **Emulator (out-f2: E1479999.BIN 1d55d524…):** f1's suite again (first time from the card; a card without films; an edit
+  kept; new films taken; an old card ignored; the cards' f1 GUIDES.BIN ignored, the code block still loads); a blank card and
+  a card with only DEBUG.TXT: GPTR / XPTR / tg_ptr set from the built-in copies, the three opened at the first half-press
+  (rows 0, 1, 2), the Picture Mode screen drawn in full, CADLOG "Card files: all match this firmware".
+- Package: `test-builds/2026-11-13-films-in-camera-f2` (only E1479999.BIN to copy). Camera test pending.
