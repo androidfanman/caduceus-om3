@@ -291,6 +291,21 @@ export function lookFromPhotoCode(text: string): Look {
   const nm = /FILM \d+ (.*?) om3\.1\./.exec(text)?.[1]?.trim();
   return lookFromRecord(rec, nm || 'From photo', false, true);
 }
+/** A look's recipe code, as the camera (v0.28) writes it into a photo: its v0.28 LOOKS.BIN record with split toning
+ *  in v0.26 steps and the half steps in byte 63 (firmware ex_cd1). lookFromPhotoCode reads it back. */
+export function photoCodeOf(l: Look): string {
+  const bank = emptyBank(); bank[0][0] = l;
+  const rec = profilesBin(bank, 28).slice(32, 96);
+  let half = 0;
+  for (const [at, bit] of [[54, 1], [56, 2]] as const) {
+    const v = (rec[at] << 24) >> 24;
+    if (v < 0) { rec[at] = ~v & 255; half |= bit; }
+  }
+  rec[63] = half;
+  return encodePhotoCode(rec);
+}
+/** The text the camera writes into a photo's UserComment, for sharing: "Caduceus FILM n Name om3.1.<43>". */
+export const recipeText = (l: Look, film: number) => `Caduceus FILM ${film} ${l.name.replace(/[^\x20-\x7e]/g, '?')} ${photoCodeOf(l)}`;
 export function encodePhotoCode(rec: Uint8Array): string {
   const nib = Array.from(rec.subarray(0, 64), (v) => v & 15);
   let bin = ''; for (let k = 0; k < 32; k++) bin += String.fromCharCode((nib[2 * k] << 4) | nib[2 * k + 1]);

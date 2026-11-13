@@ -7,13 +7,13 @@ import {
 } from './pack';
 import { History } from './history';
 import { fromLibrary, libraryOrigin, resetLook } from './reset';
-import { renderLook } from './preview';
+import { lastHalation, renderLook } from './preview';
 import { makeZip } from './zip';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
 import {
   BANK_SCHEMA, PHOTO_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromPhotoCode, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
-  SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw, v28Parts,
+  SHARP, sharpLabel, slowGrain, monoGrain, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw, v28Parts, recipeText,
 } from './om3';
 import { namesBin } from './om3names';
 import { SPLIT_COLOURS, SPLIT_STEPS, fromSteps, toSteps, type Split } from './split';
@@ -837,8 +837,11 @@ function schedulePreview() {
     const out = ctx.createImageData(srcData.width, srcData.height);
     renderLook(srcData, out, splitPv(l), { advice: true, camera: CAM });
     ctx.putImageData(out, 0, 0);
+    afterPreview?.();
   });
 }
+/** The open editor's notes that depend on the preview (Halation: shown or not on this photo). */
+let afterPreview: (() => void) | null = null;
 
 // ---------------------------------------------------------------- import / export / share
 function openFile() { $<HTMLInputElement>('#file').click(); }
@@ -1150,11 +1153,18 @@ function renderOm3Editor(l: Look) {
         h('button', { class: 'share-btn', onclick: () => om3ShareProfile(l), title: 'Share this look as a link' }, 'Share'))),
     hslPanel(l, changed),
     h('div', { class: 'group cam' },
-      (() => {
-        const { inp, out } = slider(-5, 5, l.tone_balance ?? 0, (x) => { if (x) l.tone_balance = x; else delete l.tone_balance; changed(); }, undefined, 'Tone Balance');
-        return h('div', { class: 'crow', title: 'Where the Shadows and Highlights tints meet: − the shadow colour reaches further up, + the highlight colour further down' }, h('span', { class: 'cname' }, 'Tone Balance'), steps(inp), out);
-      })(),
-      l.tone_balance ? needs28('Tone Balance') : null),
+      ...(() => {
+        const note = h('p', {});
+        const show = () => {
+          const v = l.tone_balance ?? 0;
+          note.hidden = !v || (om3Fw28() && !!l.split);
+          if (!om3Fw28()) { note.className = 'warn'; note.replaceChildren(h('b', {}, 'Needs firmware v0.28: '), 'the export is set to an older firmware, so Tone Balance is not previewed or saved. Choose "v0.28 or later" under Export › Firmware on the camera.'); }
+          else { note.className = 'help'; note.textContent = 'Tone Balance moves where the Shadows and Highlights tints meet: this film has no split tone yet (HSL › Shadows / Highlights).'; }
+        };
+        const { inp, out } = slider(-5, 5, l.tone_balance ?? 0, (x) => { if (x) l.tone_balance = x; else delete l.tone_balance; show(); changed(); }, undefined, 'Tone Balance');
+        show();
+        return [h('div', { class: 'crow', title: 'Where the Shadows and Highlights tints meet: − the shadow colour reaches further up, + the highlight colour further down' }, h('span', { class: 'cname' }, 'Tone Balance'), steps(inp), out), note];
+      })()),
     h('div', { class: 'group cam' }, crow('Contrast', OM3.contrast, () => l.advice.contrast ?? 0, (x) => { l.advice.contrast = x; }, 'The camera\'s Contrast for this look')),
     tonePanel(l, changed),
     bwPanel(l, changed),
@@ -1179,11 +1189,20 @@ function renderOm3Editor(l: Look) {
         }, (x) => (x === 0 ? '0' : x > 0 ? `+${x}` : String(x)), 'Glow');
         return h('div', { class: 'crow', title: '+ Glow (a soft glow), − Clarity (local contrast)' }, h('span', { class: 'cname' }, 'Glow'), steps(inp), out);
       })(),
-      (() => {
+      ...(() => {
+        const note = h('p', {});
+        const show = () => {                     // after each preview: is the glow on this photo?
+          const v = l.halation ?? 0, r = lastHalation;
+          note.hidden = !v || (om3Fw28() && r !== 'off' && r !== 'none');
+          if (!om3Fw28()) { note.className = 'warn'; note.replaceChildren(h('b', {}, 'Needs firmware v0.28: '), 'the export is set to an older firmware, so Halation is not previewed or saved. Choose "v0.28 or later" under Export › Firmware on the camera.'); }
+          else if (r === 'off') { note.className = 'help'; note.replaceChildren(h('b', {}, 'Not on this photo: '), 'like the camera, Halation fades out when much of the picture is bright (daylight, a well-lit street). Pick a darker photo with lights, such as Blue hour, to see it.'); }
+          else { note.className = 'help'; note.replaceChildren(h('b', {}, 'Not on this photo: '), 'it has no bright lights for the glow to form around.'); }
+        };
+        afterPreview = show;
         const { inp, out } = slider(0, OM3.halation, l.halation ?? 0, (x) => { if (x) l.halation = x; else delete l.halation; changed(); }, (x) => (x ? `+${x}` : '0'), 'Halation');
-        return h('div', { class: 'crow', title: 'A red-orange glow around bright lights, as on cinema film (fades out in bright daylight scenes); works with or without Glow' }, h('span', { class: 'cname' }, 'Halation'), steps(inp), out);
+        show();
+        return [h('div', { class: 'crow', title: 'A red-orange glow around bright lights in darker scenes, as on cinema film (it fades out in bright scenes, as on the camera); works with or without Glow' }, h('span', { class: 'cname' }, 'Halation'), steps(inp), out), note];
       })(),
-      l.halation ? needs28('Halation') : null,
       cseg('Film Grain', [['0', 'Off'], ['1', 'Low'], ['2', 'Med'], ['3', 'High']], String(l.film_grain ?? 0), (x) => {
         if (x === '0') delete l.film_grain; else l.film_grain = Number(x);
         renderEditor(); changed();
@@ -1292,7 +1311,22 @@ async function om3Share() {
     h('p', {}, `A link to all ${O.bank.flat().filter(Boolean).length} OM-3 looks (names, notes, Contrast / Sharp / Shading). Opening it loads them here. Everything is inside the link itself: nothing is stored on a server.`),
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
-    h('p', { class: 'help' }, `${link.length} characters. ${fwNote(bankMinFw(O.bank))} For one look, use the Share button next to its name.`)));
+    h('p', { class: 'help' }, `${link.length} characters. ${fwNote(bankMinFw(O.bank))} For one look, use the Share button next to its name.`),
+    ...recipeCodes()));
+}
+/** v0.28: the recipe codes (as the camera writes them into photos), one per film, to post anywhere. */
+function recipeCodes(only?: Look): HTMLElement[] {
+  const lines = O.bank.flat().map((l, i) => (l && (!only || l === only) ? recipeText(l, i + 1) : null)).filter((x): x is string => !!x);
+  if (!lines.length) return [];
+  const text = lines.join('\n');
+  const box = lines.length === 1
+    ? h('input', { type: 'text', readonly: true, value: text, onfocus: (e: Event) => (e.target as HTMLInputElement).select() })
+    : h('textarea', { readonly: true, rows: Math.min(8, lines.length), onfocus: (e: Event) => (e.target as HTMLTextAreaElement).select() }, text);
+  return [
+    h('h4', { class: 'share-sub' }, lines.length === 1 ? 'Recipe code' : 'Recipe codes'),
+    h('p', { class: 'help' }, `The short code the camera writes into each photo, ${lines.length === 1 ? 'for this film' : 'one line per film'}: post it anywhere. Paste it into the Control Panel (Paste link) to get the film back, with every camera setting (not the notes).`),
+    h('div', { class: 'code-box link' }, box, h('button', { onclick: () => copy(text, lines.length === 1 ? 'Code copied' : 'Codes copied') }, lines.length === 1 ? 'Copy code' : 'Copy all')),
+  ];
 }
 
 async function om3ShareProfile(l: Look) {
@@ -1303,6 +1337,7 @@ async function om3ShareProfile(l: Look) {
     fwNote(minFw(l)) ? h('p', { class: 'help' }, fwNote(minFw(l))) : null,
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
+    ...recipeCodes(l),
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'RapidRAW preset'), h('p', { class: 'help' }, 'This look as a .rrpreset for RapidRAW (Presets › Import), for ORF files. An approximation of the camera look.')),
       h('button', { onclick: () => download(`${rrName(l.name)}.rrpreset`, rrpreset(bankPack([l]), 0), 'application/json') }, 'Download'))));

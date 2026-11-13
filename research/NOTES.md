@@ -3521,3 +3521,16 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - Effort guess: small-to-medium (two or three test rounds): the lock and the counter reuse proven pieces; the screen
   counter is the unknown.
 - **Owner, 2026-11-12: tabled as a future idea** (ROADMAP "Film Mode (a roll of film)").
+
+## Control Panel after the v0.28 release: recipe codes in Share, Halation note (2026-11-12)
+- Owner: "halation doesn't show up" on the live site. Live check: the row is there; the preview changes on Blue hour
+  (R +2.5 mean) and Sunset (a little), **not on the default photo (frames) or Night street (paris)**: both are past the
+  bright-frame cut-off (>= 24 % of cells with u >= 32), as in the exact model and so on the camera. The preview now
+  says so under the row ("Not on this photo: ... try Blue hour") after each render (preview.ts `lastHalation`
+  'off' / 'none' / 'done'); the firmware notes for Halation / Tone Balance update live (they only appeared on a
+  re-render before), and Tone Balance says when the film has no split tone.
+- Owner: the recipe code under Share. `photoCodeOf(look)` = its v0.28 LOOKS.BIN record with split toning in v0.26
+  steps + byte 63 (as ex_cd1); `recipeText` = "Caduceus FILM n Name om3.1.<43>". Share (one film) and Share looks (all,
+  one line each) show it with Copy. Check: the as-built CineStill 800T code equals the camera's own (photo PB122390,
+  pc1); the owner's pc1 photo code pasted into Paste link gives Halation 3, Tone Balance -2, Custom WB 3200 K,
+  B/W -2 / +6. vitest 50 pass (round trip test).

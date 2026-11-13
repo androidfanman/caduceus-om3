@@ -220,7 +220,7 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
       }
     }
   }
-  if (om3 && look.halation) om3Halation(img, w, h, look.halation);   // OM-3 v0.28: after the Soft Focus blend, as the camera
+  lastHalation = om3 && look.halation ? om3Halation(img, w, h, look.halation) : null;   // OM-3 v0.28: after the Soft Focus blend, as the camera
   // 6. grain (Olympus xorshift32 luma grain with brightness mask; v0.4 colour gains / stock mono gains)
   if (om3) om3Settings(img, w, h, look.advice.sharpness ?? 0, look.vignette);
   if (om3 && look.film_grain) om3Grain(img, w, h, look.film_grain);
@@ -270,8 +270,11 @@ function planckRgb(T: number): [number, number, number] {
  *  Y 200, two blurs (3 and 10 passes) mixed 50 / 50, u = 255 v / (v + 900); none when 24 % or more of the cells are
  *  bright (full strength up to 8 %); each pixel gets a red-orange glow lerped from the cells (Y by the pixel, the colour
  *  less on bright cells). */
+/** What Halation did on the last preview: 'off' = the photo is too bright (the camera skips it too), 'none' = no bright
+ *  lights, 'done', or null (not set). */
+export let lastHalation: 'off' | 'none' | 'done' | null = null;
 const HL = { T: 200, K: 900, BLUR: 3, BLUR2: 10, MIX: 128, GMAX: [0, 43, 78, 113, 156, 208], KY: 44, KCB: -40, KCR: 60, WMUL: 2, COV_U: 32, COV_LO: 8, COV_HI: 24 };
-function om3Halation(img: Float32Array, w: number, h: number, level: number) {
+function om3Halation(img: Float32Array, w: number, h: number, level: number): 'off' | 'none' | 'done' {
   const sc = FULL_WIDTH / w, Wc = FULL_WIDTH, Hc = Math.round(h * sc);
   const GW = Math.ceil(Wc / 64), GH = Math.max(1, Math.ceil(Hc / 64));
   const E = new Float64Array(GW * GH), Bs = new Float64Array(GW * GH), N = new Float64Array(GW * GH);
@@ -310,9 +313,10 @@ function om3Halation(img: Float32Array, w: number, h: number, level: number) {
     if (u[g] >= HL.COV_U) bright++;
   }
   const lo = (u.length * HL.COV_LO) / 100, hi = (u.length * HL.COV_HI) / 100;
-  if (bright >= hi) return;                  // a bright frame (daylight): no halation
+  if (bright >= hi) return 'off';            // a bright frame (daylight): no halation
   const cov = bright <= lo ? 1 : (hi - bright) / (hi - lo);
   const G = u.map((x) => (x * HL.GMAX[Math.min(5, level)] / 256) * cov);
+  if (!G.some((x) => x >= 1)) return 'none';
   const Wt = Bs.map((b) => Math.min(255, HL.WMUL * (255 - b)));
   const lerp = (A: Float64Array, cx: number, cy: number) => {
     const fx = Math.max(0, Math.min(GW - 1, (cx - 32) / 64)), fy = Math.max(0, Math.min(GH - 1, (cy - 32) / 64));
@@ -329,6 +333,7 @@ function om3Halation(img: Float32Array, w: number, h: number, level: number) {
     Cb = Math.max(-128, Math.min(127, Cb + (c * HL.KCB) / 256)); Cr = Math.max(-128, Math.min(127, Cr + (c * HL.KCR) / 256));
     img[q] = clamp01((Y + 1.402 * Cr) / 255); img[q + 1] = clamp01((Y - 0.344136 * Cb - 0.714136 * Cr) / 255); img[q + 2] = clamp01((Y + 1.772 * Cb) / 255);
   }
+  return 'done';
 }
 
 /** OM-3 Sharpness (unsharp mask on luma; negative softens) and Shading (corner brightness; negative = darker

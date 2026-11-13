@@ -210,6 +210,8 @@ p.warn { background: #fff4d6; color: #5a4300; border-left: 3px solid #d39b00; pa
 }
 .code-box.link input { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
 .code-box button { white-space: nowrap; }
+.code-box.link textarea { flex: 1; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; resize: vertical; white-space: pre; overflow-x: auto; }
+.share-sub { margin: 16px 0 2px; font-size: 14px; }
 .look-code .code-box code { font-size: 14px; }
 .look-code .code-box input { flex: 1; min-width: 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
 @media (max-width: 520px) { .look-code .code-box { flex-wrap: wrap; } .look-code .code-box code { flex-basis: 100%; } }

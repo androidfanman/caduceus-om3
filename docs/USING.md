@@ -121,7 +121,7 @@ The [Control Panel](https://androidfanman.github.io/caduceus-om3/) is a web page
 computer, with a preview. It starts with the same 20 film sims.
 
 1. Make or change your films in the Control Panel.
-2. Save them as **`LOOKS.BIN`**, with *Firmware on the camera* set to **v0.26.1 or later**.
+2. Save them as **`LOOKS.BIN`**, with *Firmware on the camera* set to **v0.28 or later**.
 3. Copy `LOOKS.BIN` into the card's `OM3MOD` folder, replacing the old one.
 
 A film you changed in the Control Panel starts again as you built it there; the other films keep the changes you made

@@ -34,6 +34,19 @@ describe('om3.1 photo code', () => {
     expect(l.split).toEqual({ sh_color: 8, sh: 2, hl_color: 0, hl: 0 });
     expect(l.film_wb).toEqual({ mode: 'custom', kelvin: 3200 });
   });
+  it('a look\'s recipe code (Share) reads back to the same settings', async () => {
+    const { photoCodeOf, recipeText } = await import('../src/om3');
+    const { blankLook } = await import('../src/pack');
+    const l = { ...blankLook('colour', 'CineStill 800T'), halation: 3, tone_balance: -2, film_wb: { mode: 'custom' as const, kelvin: 3200 },
+      split: { sh_color: 8, sh: 1.5, hl_color: 1, hl: 5 }, tone: { highlights: 1, shadows: -2, midtones: 0, blacks: -7, whites: 6 }, wb: { a_b: -1, g_m: 2 } };
+    l.hue[3] = 2; l.sat[6] = -4;
+    const t = recipeText(l, 5);
+    expect(t.startsWith('Caduceus FILM 5 CineStill 800T om3.1.')).toBe(true);
+    const back = lookFromPhotoCode(t);
+    expect(back.name).toBe('CineStill 800T');
+    for (const k of ['halation', 'tone_balance', 'film_wb', 'split', 'tone', 'wb', 'hue', 'sat'] as const) expect(back[k]).toEqual(l[k]);
+    expect(photoCodeOf(l)).toBe(t.split(' ').pop());
+  });
   it('refuses text without a code', () => {
     expect(() => recordFromPhotoCode('Caduceus FILM 3 Kodachrome 64 cd1.EAAA')).toThrow();
   });
