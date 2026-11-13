@@ -3612,3 +3612,8 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
 - **Not yet:** GUIDES / LABELS / TONES still come from the card (step 2: into the firmware); without them films apply but
   Glow / Clarity, grain, guide and film pictures don't. The Control Panel's saved-at stamp (step 3) is not needed with the
   "never had" rule. Package: `test-builds/2026-11-13-films-in-camera-f1` (private).
+- **Camera, round 1 (owner, 2026-11-13, f1):** CADLOG.TXT: "a valid block at power-on: no / Films from: the card (first
+  time) / Block written this power-on: 2 times, generation now 2 / the camera's changed byte: 0". The owner's change (COLOR 1
+  from FILM 4 to FILM 1) was written (event #2: edits waiting, save result 1) and the camera saved M at the menu exit (changed
+  byte back to 0). LOOKS.BIN, EDITS.BIN and BUNDLES.BIN on the card unchanged (no card copies). Then, with the owner's OK,
+  the six film files were taken off the card for round 2 (a card without films).
