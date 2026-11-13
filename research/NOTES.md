@@ -3650,3 +3650,8 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   yes, generation 4 / Films from: the camera": the block written under f1 survived flashing f2 (our own firmware update keeps
   M's tail). Photos PB132423..25 (FILM 1 Portra 400, photo code: Glow -5, Grain 3 High, ISO 200..800): the grain is plain in a
   1:1 crop of a flat wall and the Glow blooms around a lamp, so the code block runs from the built-in GUIDES.BIN.
+- **Camera, round 2 (owner, 2026-11-13, f2): passed, with no OM3MOD folder on the card at all** (removed with the owner's
+  OK; backup kept privately). Photos PB132426..29 at ISO 1000: FILM 2 Gold 200 with Glow -5 (the soft bloom around a lamp and
+  a window) and FILM 3 Kodachrome 64 with Grain 3 High (flat-tile high-pass texture 10.1 against 1.2 for the Glow frames, the
+  grain plain at 1:1). So the films and Extras come from the camera's memory, and the code block, labels and tone pictures
+  from the firmware: **any card works.** (No debug log in this round: no DEBUG.TXT on the card.)
