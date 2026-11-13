@@ -3578,6 +3578,47 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   contrast, Whites +1, split Cyan 1.5 / Red 1 with Tone Balance -1. Measured vs the photos (relative to the 20 films'
   average): colourfulness 0.96 / 0.96, shadow cast -9 / -9 (green), midtone -5 / -4, highlights +4 / +1 (warm).
 
+## Camera memory probe mp1: does M's unused tail survive? (2026-11-13; code checked + emulator, camera test pending)
+Question (issue #35, research and design by iancw in PR #36, not merged): can films and edits live in the camera's own
+settings store M (256 KiB RAM image at 0x62920700, two alternating flash copies)? Everything rests on one assumption: a
+change in M's unused tail (the camera's items end at image offset 0x39465) is saved, survives a battery pull and loads
+back without the camera resetting its settings.
+- **Checked in the OM-3 1.1 code (analysis):** `0x60063d73` (from `0x6041b160`, the GUI's save on the return to shooting)
+  writes M through `0x60061183` only when the byte `0xa32bfb32` is 1, and clears it. For M (callback 0x60063db4 given)
+  the write does not compare with flash first: it adds 1 to the image's counter (+4, `0x6006144c`), puts the negated 16-bit
+  sum of the whole image at +2 (`0x60061422` / `0x6006142e`: size / 2 halfwords, the checksum word skipped), copies the
+  image to a buffer and programs the next slot. The load copies the whole image (`0x600610d2` -> `0x6006148f`, size / 4
+  words); a slot is valid when its first halfword is the store id and the 16-bit sum of the whole image is 0
+  (`0x600613d7`). So the tail is saved, sealed and checked like the camera's own items, as PR #36 says.
+- **om-emu can test persistence:** its S-NVRAM mode (`host/nvram.mjs` `fileNvram`) runs the stores' saves natively down to
+  the NAND write, keeps the images in a JSON file and restores M and E at the next session's start. `session_ed1.mjs` now
+  takes `NV_FILE=PATH` for it (and reports `nvram: {loaded, saves}`). Without it the emulator stubs the save (S-SETSAVE),
+  which is why trace 4 in #36 saw no save.
+- **Probe mp1** (branch `experiment/m-store-probe`, `firmware/src/editor.s` `mp_run` / `mp_txt`, ext12): only with the
+  debug log on, from `lg_write` (HLS_EVENT task, a shutter button event, never during capture). First logged event of a
+  power-on: read 16 bytes at image + 0x3A000 {magic "OMPB", counter, version 1, CRC-32 of 0..11}, write them back with
+  counter + 1 to the cached address and the uncached alias 0xa295a700, set `0xa32bfb32` to 1. Every event: M's header
+  counter and the changed byte. Report in `CADLOG.TXT` ("M store probe ..."). Never calls the save or writes flash.
+- **Emulator (S-NVRAM, out-mp1: E1479999.BIN a54a44ae…, GUIDES.BIN 1ff984ae…):** run 1 from a blank camera: half-press
+  (block written, changed byte 1), MENU, MENU (close), half-press: 3 native saves; the kept M image has the block at
+  0x3A000, header counter 2, 16-bit sum 0; the changed byte back to 0. Run 2 (a new process = a battery pull, no
+  power-off path): M and E loaded; the RAM image at start equals the saved image byte for byte (no reset); the probe
+  found counter 1 with a right CRC, wrote 2; one save, counter 3, sum 0. CADLOG.TXT: "Probe block found: yes, CRC right:
+  yes, counter 1".
+- Test package for the owner (kept outside the repo), with a way back to v0.28. Realistic worst case if the camera disagrees: it resets all its own settings (not the card's films).
+- Status: code checked + emulator only. The emulator models the flash, it is not the camera's NAND or its power loss.
+- **Camera (owner, 2026-11-13, mp1): the tail survives.** The owner ran the steps (half-press, MENU and back, battery out
+  30 s, power on, twice). CADLOG.TXT of the third power-on: "At power-on the tail held: 42504D4F 00000002 00000001
+  971777D7 / Probe block found: yes, CRC right: yes, counter 2 / Written this power-on: counter 3 / M header counter at
+  power-on 4672, now 4674 / Changed byte at power-on 1, now 0". So the marker written at power-on 1 and 2 was saved by the
+  camera at the menu exit, kept over two battery pulls and loaded back with a right CRC; the camera's own save ran twice in
+  that power-on (counter +2) and cleared the changed byte. M's header counter 4672 = the camera's long-standing store (no
+  rebuild). Card files all matched; LOOKS.BIN only had its selection byte changed by the camera (COLOR 1 -> FILM 4).
+  The changed byte was already 1 at the first half-press (the camera's own start-up changes, as in the emulator).
+- So the assumption #35 / #36 rests on holds on the camera: bytes in M's unused tail are saved with the camera's settings
+  and survive power loss. Owner (2026-11-13): the camera's own settings all looked the same after the battery pulls (no reset).
+  Still open: whether a menu "Reset" or an OM firmware update clears the tail (expected; the design's fallback covers it).
+
 ## Films in camera memory, step 1 (f1) (2026-11-13; emulator only, camera test pending)
 Milestone 1 of the design in PR #36 (iancw), after camera probe mp1 (branch `experiment/m-store-probe`: a marker in store
 M's unused tail survived two battery pulls on the owner's OM-3, the camera's own settings unchanged).
