@@ -3403,3 +3403,28 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **g5 camera (owner, 2026-11-12): "that looks great! and works well too"** (camera-tested: the 0 / 0 icons whole,
   the B/W icon, -7..+7, the values). The Blacks / Whites grid is done on the camera; the Control Panel part (one
   Blacks / Whites grid or two -7..+7 sliders, export gated to v0.28) comes with its v0.28 work.
+
+## Control Panel for v0.28 (2026-11-12; local dev server + vitest, not live)
+- Owner: update the Control Panel for everything in v0.28 (Halation, split toning 0..10 + Tone Balance, film WB,
+  Blacks / Whites ±7). Owner's choices: Blacks / Whites as a **grid like the camera's** (not the curve ends any more);
+  the film's WB mode **previewed as if the photo was taken in daylight**.
+- Look JSON (schema still caduceus-om3-look/1: new fields only): `halation` 1..5, `tone_balance` -5..5, `film_wb`
+  {mode: one of the camera's 13 (table 0x615d1944 order, checked in the decoded firmware: auto, sunny, shade, cloudy,
+  incandescent, fluorescent, underwater, flash, one_touch_1..4, custom), kelvin 2000..14000 / 100 for custom};
+  `split.sh` / `split.hl` stay in v0.26 steps, now in halves 0..5 (the editor shows the camera's 0..10). A v0.26
+  minus (opposite colour) is read as the wheel's opposite colour (+6) with a plus.
+- LOOKS.BIN: firmware choice "v0.28-alpha or later" (Fw 28): +39 / +40 -7..7, +54 / +56 the half-step code (n even ->
+  n / 2, odd -> -(n + 1) / 2), +57 Halation, +58 Tone Balance, +59..+62 film WB (balanced base-11 as FWENC: Kelvin v =
+  (K - 2000) / 100 - 60, then the mode index). Older choices leave all of it out (±5, whole v0.26 steps, rounded up);
+  the export dialog lists the looks that lose something. Reading: half-step codes when the choice is v0.28 or any
+  record has +57..+62 set (a v0.26 file's minus otherwise). Photo code: bytes 58..62 now read signed.
+- Preview: Tone Balance in `bendSplit` (bend28's u mapping); film WB = linear gains white(5300 K) / white(mode K)
+  (Planck locus, Kim et al.), Auto / Underwater / one-touch not shown; Halation = a float port of
+  research/halation/model.py on the camera's pixel scale (5184 px wide, 64 px cells). Check against the exact model
+  (photo upscaled to 5184, halate level 5, back down) on the sample photos: bluehour R corr 0.978, neon 0.986, mean
+  abs diff < 1 level per channel; paris and brasserie "off" (too bright) in both.
+- Default firmware choice stays v0.26.1 – v0.27.1 (the released versions): the new settings then show a "Needs
+  firmware v0.28" note and are left out of the preview, as split toning was before v0.26. Default film looks unchanged
+  (their split tones are whole steps).
+- Not done: `looklab/` (the live site) not rebuilt; docs/USING.md not updated. Both with the v0.28 release (or when
+  the owner wants the live site updated).

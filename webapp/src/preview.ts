@@ -6,7 +6,7 @@ import { bendSplit } from './split';
 // The look's tone (H/S/M/B/W, card data) is a luminance LUT in the display domain after the base curve (src/tone.ts);
 // the contrast advice bends the input to it first. The old recipe tone advice (advice.tone) is not previewed: on
 // v0.19 the Film pick sets the profile's H/S/M from the look's own tone.
-import { GRAINS, toneIsZero, type Look } from './pack';
+import { GRAINS, toneIsZero, type FilmWb, type Look } from './pack';
 import { previewToneLut } from './tone';
 
 // Firmware COLOR table (generated/color/ep7_color_table.json, UI order): sector centre / width (0..32767 = 360 deg)
@@ -154,11 +154,12 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
   // 1. WB fine-tune (linear light)
   const ab = look.wb?.a_b ?? 0, gm = look.wb?.g_m ?? 0;
   const om3 = opt.camera === 'om3';
-  const [gr, gg, gb] = om3 ? [0, 1, 2].map((c) => 1 + OM3_CAL.wbAB[c] * ab + OM3_CAL.wbGM[c] * gm)
-    : [1 + WB_STEP * ab, 1 + WB_STEP * gm, 1 - WB_STEP * ab];
+  const fwg = om3 ? filmWbGain(look.film_wb) : null;          // v0.28: the film's WB mode, as if shot in daylight
+  const [gr, gg, gb] = (om3 ? [0, 1, 2].map((c) => 1 + OM3_CAL.wbAB[c] * ab + OM3_CAL.wbGM[c] * gm)
+    : [1 + WB_STEP * ab, 1 + WB_STEP * gm, 1 - WB_STEP * ab]).map((v, c) => v * (fwg ? fwg[c] : 1));
   for (let i = 0; i < n; i++) {
     const p = i * 4, q = i * 3;
-    if (ab || gm) {
+    if (ab || gm || fwg) {
       img[q] = enc(DEC[s[p]] * gr); img[q + 1] = enc(DEC[s[p + 1]] * gg); img[q + 2] = enc(DEC[s[p + 2]] * gb);
     } else {
       img[q] = s[p] / 255; img[q + 1] = s[p + 1] / 255; img[q + 2] = s[p + 2] / 255;
@@ -198,7 +199,7 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
     if (mono) R = G = B = mw[0] * R + mw[1] * G + mw[2] * B;
     img[q] = R; img[q + 1] = G; img[q + 2] = B;
   }
-  if (om3 && look.split) bendSplit(img, n, look.split, OM3_CAL.split);   // OM-3 v0.26 split toning (the camera bends its gamma curves)
+  if (om3 && look.split) bendSplit(img, n, look.split, OM3_CAL.split, look.tone_balance ?? 0);   // OM-3 v0.26 split toning (the camera bends its gamma curves); v0.28 Tone Balance
   // 5. bloom / halation (Soft Focus blend of a 160-px-wide blurred copy) or clarity (large-radius local contrast)
   const e = look.effect;                     // OM-3 v0.20: glow (no colour) and clarity too
   if (e && e.strength >= 1) {
@@ -219,6 +220,7 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
       }
     }
   }
+  if (om3 && look.halation) om3Halation(img, w, h, look.halation);   // OM-3 v0.28: after the Soft Focus blend, as the camera
   // 6. grain (Olympus xorshift32 luma grain with brightness mask; v0.4 colour gains / stock mono gains)
   if (om3) om3Settings(img, w, h, look.advice.sharpness ?? 0, look.vignette);
   if (om3 && look.film_grain) om3Grain(img, w, h, look.film_grain);
@@ -238,6 +240,94 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
       r += noise; g += noise; b += noise;
     }
     d[p] = clamp01(r) * 255 + 0.5; d[p + 1] = clamp01(g) * 255 + 0.5; d[p + 2] = clamp01(b) * 255 + 0.5; d[p + 3] = 255;
+  }
+}
+
+/** OM-3 v0.28 film WB: the camera's WB mode (presets at their Kelvin, Custom WB at its own) on a photo taken in daylight
+ *  (5300 K, the camera's Sunny): linear-light gains = the white of 5300 K / the white of the mode's Kelvin (green 1).
+ *  Auto, Underwater and the one-touch modes: no change (they follow the light or a measurement). */
+const WB_KELVIN: Partial<Record<FilmWb['mode'], number>> = { sunny: 5300, shade: 7500, cloudy: 6000, incandescent: 3000, fluorescent: 4000, flash: 5500 };
+export function filmWbGain(w: FilmWb | undefined): [number, number, number] | null {
+  const k = !w ? undefined : w.mode === 'custom' ? w.kelvin ?? 5400 : WB_KELVIN[w.mode];
+  if (!k || k === 5300) return null;
+  const a = planckRgb(5300), b = planckRgb(k), m = [0, 1, 2].map((c) => a[c] / b[c]);
+  return [m[0] / m[1], 1, m[2] / m[1]];
+}
+/** Linear sRGB of a black body at T kelvin (CIE xy by Kim et al. 2002, Y = 1). */
+function planckRgb(T: number): [number, number, number] {
+  T = Math.max(1667, Math.min(25000, T));
+  const t = 1e3 / T, x = T <= 4000 ? -0.2661239 * t ** 3 - 0.2343589 * t ** 2 + 0.8776956 * t + 0.17991
+    : -3.0258469 * t ** 3 + 2.1070379 * t ** 2 + 0.2226347 * t + 0.24039;
+  const y = T <= 2222 ? -1.1063814 * x ** 3 - 1.3481102 * x ** 2 + 2.18555832 * x - 0.20219683
+    : T <= 4000 ? -0.9549476 * x ** 3 - 1.37418593 * x ** 2 + 2.09137015 * x - 0.16748867
+      : 3.081758 * x ** 3 - 5.8733867 * x ** 2 + 3.75112997 * x - 0.37001483;
+  const X = x / y, Z = (1 - x - y) / y;
+  return [3.2406 * X - 1.5372 - 0.4986 * Z, -0.9689 * X + 1.8758 + 0.0415 * Z, 0.0557 * X - 0.204 + 1.057 * Z];
+}
+
+/** OM-3 v0.28 Halation, after research/halation/model.py (the camera's pass, firmware hl_run; numbers firmware/halation.py),
+ *  on the preview in the camera's own pixel scale (a 5184-px-wide photo): 64-px cells sum how far bright pixels pass
+ *  Y 200, two blurs (3 and 10 passes) mixed 50 / 50, u = 255 v / (v + 900); none when 24 % or more of the cells are
+ *  bright (full strength up to 8 %); each pixel gets a red-orange glow lerped from the cells (Y by the pixel, the colour
+ *  less on bright cells). */
+const HL = { T: 200, K: 900, BLUR: 3, BLUR2: 10, MIX: 128, GMAX: [0, 43, 78, 113, 156, 208], KY: 44, KCB: -40, KCR: 60, WMUL: 2, COV_U: 32, COV_LO: 8, COV_HI: 24 };
+function om3Halation(img: Float32Array, w: number, h: number, level: number) {
+  const sc = FULL_WIDTH / w, Wc = FULL_WIDTH, Hc = Math.round(h * sc);
+  const GW = Math.ceil(Wc / 64), GH = Math.max(1, Math.ceil(Hc / 64));
+  const E = new Float64Array(GW * GH), Bs = new Float64Array(GW * GH), N = new Float64Array(GW * GH);
+  const Yof = (q: number) => 255 * (0.299 * img[q] + 0.587 * img[q + 1] + 0.114 * img[q + 2]);
+  for (let y = 0; y < h; y++) {
+    const gy = Math.min(GH - 1, ((y + 0.5) * sc / 64) | 0);
+    for (let x = 0; x < w; x++) {
+      const g = gy * GW + Math.min(GW - 1, ((x + 0.5) * sc / 64) | 0), Y = Yof((y * w + x) * 3);
+      if (Y > HL.T) E[g] += Y - HL.T;
+      Bs[g] += Y; N[g]++;
+    }
+  }
+  for (let g = 0; g < E.length; g++) {        // the camera's sums: a quarter of a cell's pixels (every 2nd row, one per pair)
+    const cnt = N[g] || 1;
+    E[g] = (E[g] / cnt) * (64 * 64 / 4) * Math.min(1, (cnt * sc * sc) / (64 * 64));
+    Bs[g] /= cnt;
+  }
+  const blur = (a: Float64Array, passes: number) => {
+    let cur = Float64Array.from(a);
+    for (const horiz of [true, false]) for (let p = 0; p < passes; p++) {
+      const nx = new Float64Array(cur.length);
+      for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+        const at = (xx: number, yy: number) => cur[Math.min(GH - 1, Math.max(0, yy)) * GW + Math.min(GW - 1, Math.max(0, xx))];
+        nx[y * GW + x] = horiz ? (at(x - 1, y) + 2 * at(x, y) + at(x + 1, y)) / 4 : (at(x, y - 1) + 2 * at(x, y) + at(x, y + 1)) / 4;
+      }
+      cur = nx;
+    }
+    return cur;
+  };
+  const t1 = blur(E, HL.BLUR), t2 = blur(E, HL.BLUR2);
+  const u = new Float64Array(E.length);
+  let bright = 0;
+  for (let g = 0; g < u.length; g++) {
+    const v = Math.min(65408, (t1[g] * (256 - HL.MIX) + t2[g] * HL.MIX) / 256);
+    u[g] = (255 * v) / (v + HL.K);
+    if (u[g] >= HL.COV_U) bright++;
+  }
+  const lo = (u.length * HL.COV_LO) / 100, hi = (u.length * HL.COV_HI) / 100;
+  if (bright >= hi) return;                  // a bright frame (daylight): no halation
+  const cov = bright <= lo ? 1 : (hi - bright) / (hi - lo);
+  const G = u.map((x) => (x * HL.GMAX[Math.min(5, level)] / 256) * cov);
+  const Wt = Bs.map((b) => Math.min(255, HL.WMUL * (255 - b)));
+  const lerp = (A: Float64Array, cx: number, cy: number) => {
+    const fx = Math.max(0, Math.min(GW - 1, (cx - 32) / 64)), fy = Math.max(0, Math.min(GH - 1, (cy - 32) / 64));
+    const x0 = fx | 0, y0 = fy | 0, x1 = Math.min(GW - 1, x0 + 1), y1 = Math.min(GH - 1, y0 + 1), tx = fx - x0, ty = fy - y0;
+    return (A[y0 * GW + x0] * (1 - tx) + A[y0 * GW + x1] * tx) * (1 - ty) + (A[y1 * GW + x0] * (1 - tx) + A[y1 * GW + x1] * tx) * ty;
+  };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const cx = (x + 0.5) * sc, cy = (y + 0.5) * sc, g = lerp(G, cx, cy);
+    if (g <= 0) continue;
+    const q = (y * w + x) * 3, r = img[q] * 255, gg = img[q + 1] * 255, b = img[q + 2] * 255;
+    let Y = 0.299 * r + 0.587 * gg + 0.114 * b, Cb = -0.168736 * r - 0.331264 * gg + 0.5 * b, Cr = 0.5 * r - 0.418688 * gg - 0.081312 * b;
+    const c = (g * lerp(Wt, cx, cy)) / 256;
+    Y += ((255 - Y) * g * HL.KY) / 65536;
+    Cb = Math.max(-128, Math.min(127, Cb + (c * HL.KCB) / 256)); Cr = Math.max(-128, Math.min(127, Cr + (c * HL.KCR) / 256));
+    img[q] = clamp01((Y + 1.402 * Cr) / 255); img[q + 1] = clamp01((Y - 0.344136 * Cb - 0.714136 * Cr) / 255); img[q + 2] = clamp01((Y + 1.772 * Cb) / 255);
   }
 }
 

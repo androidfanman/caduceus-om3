@@ -13,7 +13,9 @@ describe('om3.1 photo code', () => {
     const rec = new Uint8Array(64);
     for (let i = 0; i < 57; i++) rec[i] = (i % 15) - 7 & 255;
     rec[36] = 1; rec[48] = 5; rec[49] = 4; rec[50] = 1; rec[51] = 3; rec[53] = 11; rec[55] = 9;
-    for (let i = 57; i < 64; i++) rec[i] = i - 50;                 // future settings: 7..13, read back as they are
+    rec[57] = 5;                                                    // v0.28 Halation 0..5
+    [-3, 4, -5, 1, 1].forEach((v, k) => { rec[58 + k] = v & 255; });  // v0.28 Tone Balance, film WB: signed
+    rec[63] = 13;                                                   // spare: read back as it is
     expect(Array.from(recordFromPhotoCode(encodePhotoCode(rec)))).toEqual(Array.from(rec));
   });
   it('makes the look, with the name from the comment', () => {

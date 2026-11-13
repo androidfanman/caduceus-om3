@@ -28,11 +28,11 @@ function luts(): number[][] {
 
 describe('Blacks/Whites remap', () => {
   it('B = W = 0 (and out-of-range values) leave the LUT unchanged', () => {
-    for (const l of luts()) for (const [b, w] of [[0, 0], [6, 0], [0, -6], [1.5, 0]]) expect(remapBW(l, b, w)).toEqual(l);
+    for (const l of luts()) for (const [b, w] of [[0, 0], [8, 0], [0, -8], [1.5, 0]]) expect(remapBW(l, b, w)).toEqual(l);   // OM-3 v0.28: -7..7
   });
 
   it('moves the ends as specified and stays monotone', () => {
-    for (let B = -5; B <= 5; B++) for (let W = -5; W <= 5; W++) {
+    for (let B = -7; B <= 7; B++) for (let W = -7; W <= 7; W++) {
       const y = remapBW(IDENTITY_LUT, B, W);
       expect(y[0]).toBe(B > 0 ? 8 * B : 0);
       expect(y[255]).toBe(W < 0 ? 1023 + 10 * W : 1023);
@@ -42,7 +42,7 @@ describe('Blacks/Whites remap', () => {
 
   it.skipIf(!python || !existsSync(TONE_PY))('bit-exact with tools/ep7_tone.py remap() on every B, W and test LUT', () => {
     const cases: [number[], number, number][] = [];
-    for (const l of luts()) for (let B = -6; B <= 6; B++) for (let W = -6; W <= 6; W++) cases.push([l, B, W]);
+    for (const l of luts()) for (let B = -5; B <= 5; B++) for (let W = -5; W <= 5; W++) cases.push([l, B, W]);   // the E-P7 tool knows -5..5 (OM-3 v0.28: the same formula to 7)
     const code = 'import importlib.util,json,sys\n' +
       's=importlib.util.spec_from_file_location("t",sys.argv[1]);m=importlib.util.module_from_spec(s);s.loader.exec_module(m)\n' +
       'print(json.dumps([m.remap(l,b,w) for l,b,w in json.load(sys.stdin)]))';
