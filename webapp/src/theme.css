@@ -1,0 +1,67 @@
+/* The look of the tour (pages/showcase/) and the guide pages: their fonts, shapes and top bar. Colours are in
+   style.css's :root. Loaded after style.css (main.ts).
+   Fonts: Archivo, IBM Plex Sans and IBM Plex Mono (SIL Open Font License 1.1, fonts/LICENSE-*.txt), Latin subsets
+   from @fontsource 5.3.0, kept here so nothing is fetched from another site (the page's CSP allows 'self' only). */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 500; font-display: swap; src: url("./fonts/archivo-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 700; font-display: swap; src: url("./fonts/archivo-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 800; font-display: swap; src: url("./fonts/archivo-latin-800-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("./fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("./fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("./fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("./fonts/ibm-plex-sans-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("./fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("./fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2"); }
+
+:root {
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Roboto, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --bg2: #13161b;
+  --field: #11141a;
+}
+:root[data-theme="light"] { --bg2: #eceef2; --field: #ffffff; }
+
+body { font: 14px/1.5 var(--body); }
+h1, h2, h3, .modal-head h2, .empty-slot-panel h3 { font-family: var(--display); font-weight: 700; letter-spacing: -0.005em; }
+code, kbd, .nm, .ed-head input, .modal-body textarea, .code-box code, .code-box.link input, .code-box.link textarea,
+.look-code .code-box input, .recipe-card, .install code { font-family: var(--mono); }
+
+/* top bar: the tour's translucent bar, the brand in Archivo */
+.top { background: rgba(14, 16, 20, .82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+:root[data-theme="light"] .top { background: rgba(255, 255, 255, .85); }
+.brand .mark { font-size: 20px; }
+.brand .word { font: 800 18px var(--display); letter-spacing: -0.01em; }
+.brand .sub { font: 500 11.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.camera-bar { background: var(--bg2); }
+
+/* labels as the tour's small mono headings */
+.lbl, .cam-lbl, .film-group h3, .replace-col h3 { font-family: var(--mono); font-weight: 500; letter-spacing: .08em; }
+.badge { font-family: var(--mono); font-weight: 500; letter-spacing: .06em; }
+
+/* buttons: the tour's pills */
+button, a.btn, .menu > summary { border-radius: 999px; }
+button { padding: 6px 14px; }
+button.primary, a.btn.primary { font-weight: 600; }
+button.primary:hover:not(:disabled), a.btn.primary:hover { filter: brightness(1.08); border-color: var(--accent); }
+.seg { border-radius: 999px; }
+.pick, .replace-slot, .film-pick, .thumb { border-radius: 10px; }
+.menu-items button, .tabs button, .seg button { border-radius: 0; }
+.menu-items button { border-radius: 8px; }
+.menu-items { border-radius: 12px; padding: 6px; }
+
+/* fields */
+input[type="text"], input[type="search"], select, textarea { background: var(--field); border-radius: 10px; }
+
+/* panes and dialogs */
+.pane { border-radius: var(--radius); }
+.modal { border-radius: 16px; box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
+.modal::backdrop { background: rgba(0, 0, 0, .55); }
+.pv-wrap, canvas.film-pv, .thumb { border-radius: 10px; }
+.look { border-radius: 9px; }
+.look.sel { background: var(--sel); border-color: var(--accent); }
+.kind { font-family: var(--mono); }
+
+/* footer links */
+.foot { align-items: center; }
+.foot .links { display: flex; gap: 14px; flex-wrap: wrap; }
+.foot a:hover { color: var(--ink); }

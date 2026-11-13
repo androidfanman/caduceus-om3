@@ -68,6 +68,9 @@ photo's code. Firmware camera-tested (2026-11-12, build pc1; only its name was c
   every Picture Mode setting on the camera's own screens (the firmware in the om-emu emulator; the colour wheel drawn in,
   as the emulator can't draw it), each with a before / after photo from the Control Panel's preview, and what v0.29
   changes. Linked from the README and the guide pages. Pictures made by `research/showcase/make.sh`.
+- **Control Panel in the tour's look, 2026-11-13:** the same dark colours, fonts (Archivo, IBM Plex Sans / Mono, kept
+  with the Control Panel, so nothing is fetched from another site) and rounded buttons; links to the tour, install guide and
+  FAQ in its footer.
 - Not planned after all (owner): custom crop modes (set aside), exposure and ISO per film.
 
 ## v0.28-alpha (test version)

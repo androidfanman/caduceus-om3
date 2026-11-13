@@ -1,30 +1,24 @@
 :root {
-  --bg: #f6f4ef;
-  --panel: #ffffff;
-  --ink: #1c1b19;
-  --muted: #6c6a64;
-  --line: #e2ded5;
-  --soft: #efece5;
-  --accent: #a8822a;
-  --accent-ink: #ffffff;
-  --sel: #f3ead2;
-  --err: #b3261e;
-  --ok: #2e7d32;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 4px 16px rgba(0, 0, 0, .05);
-  --radius: 10px;
-  color-scheme: light;
+  /* The tour's (pages/showcase/) and the guide pages' dark palette; the light one below is kept for a theme switch. */
+  --bg: #0e1014;
+  --panel: #181c22;
+  --ink: #eceef2;
+  --muted: #9aa2b0;
+  --line: #262b33;
+  --soft: #20252d;
+  --accent: #f08a3c;
+  --accent-ink: #1a1006;
+  --sel: #2b2116;
+  --err: #ff8a80;
+  --ok: #6fd3a0;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 12px 32px rgba(0, 0, 0, .28);
+  --radius: 14px;
+  color-scheme: dark;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #121212; --panel: #1b1b1a; --ink: #ecebe7; --muted: #9c9a93; --line: #2e2d2a; --soft: #252422;
-    --accent: #d1ab55; --accent-ink: #141414; --sel: #2f2a1d; --err: #ff8a80; --ok: #81c784;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4); color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #121212; --panel: #1b1b1a; --ink: #ecebe7; --muted: #9c9a93; --line: #2e2d2a; --soft: #252422;
-  --accent: #d1ab55; --accent-ink: #141414; --sel: #2f2a1d; --err: #ff8a80; --ok: #81c784;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4); color-scheme: dark;
+:root[data-theme="light"] {
+  --bg: #f3f4f6; --panel: #ffffff; --ink: #16191f; --muted: #5d6573; --line: #dfe2e8; --soft: #eceef2;
+  --accent: #c8611a; --accent-ink: #ffffff; --sel: #fbe9dc; --err: #b3261e; --ok: #1f7a4d;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .05), 0 4px 16px rgba(0, 0, 0, .05); color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -160,9 +154,8 @@ canvas.pv { width: 100%; height: auto; display: block; max-height: 70vh; object-
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .thumb.on { border-color: var(--accent); }
 .thumb.own span { font-size: 12px; color: var(--muted); }
-p.warn { background: #fff4d6; color: #5a4300; border-left: 3px solid #d39b00; padding: 8px 12px; border-radius: 6px; margin: 8px 0 0; font-size: 13px; line-height: 1.45; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) p.warn { background: #3a3013; color: #f3dfa6; } }
-:root[data-theme="dark"] p.warn { background: #3a3013; color: #f3dfa6; }
+p.warn { background: #2e2510; color: #f1e3bf; border-left: 3px solid #f2c25c; padding: 8px 12px; border-radius: 8px; margin: 8px 0 0; font-size: 13px; line-height: 1.45; }
+:root[data-theme="light"] p.warn { background: #fff4d6; color: #5a4300; border-left-color: #d39b00; }
 .pv-opts { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .check { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; cursor: pointer; }
 .check .help { flex-basis: 100%; margin-left: 24px; }
