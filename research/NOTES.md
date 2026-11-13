@@ -3520,3 +3520,4 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   showing the roll's frames left (display path to be found; it must not change the card-full logic).
 - Effort guess: small-to-medium (two or three test rounds): the lock and the counter reuse proven pieces; the screen
   counter is the unknown.
+- **Owner, 2026-11-12: tabled as a future idea** (ROADMAP "Film Mode (a roll of film)").
