@@ -31,6 +31,23 @@ uploaded.
 6. On the camera: switch on and half-press the shutter once (that loads your films): they are FILM 1–20 in Picture Mode. A film you changed in the
    Control Panel starts as built on the camera; the others keep the changes you made on the camera.
 
+## A film from your own LUT or Lightroom preset
+
+1. Choose **From LUT / preset…** at the top and pick a `.cube` file (a 3D or 1D LUT for normal pictures) or a
+   Lightroom preset (`.xmp`, or `.lrtemplate` from older Lightroom). **Open…** takes these files too.
+2. The Control Panel tries the camera's own settings on a set of test colours (greys, skin, sky, foliage and every
+   hue) and keeps the ones that come closest: the 12 colours' saturation, hue and brightness, Contrast, Highlights /
+   Shadows / Midtones, Blacks / Whites, the WB shift, split toning and Tone Balance.
+3. It shows your grade and the film side by side on the preview photo, with a **Close / Fair / Rough match** and a
+   colour difference (lower is closer).
+4. From a Lightroom preset, Grain, Vignette and Clarity become Film Grain, Shading and Clarity / Glow; settings with no
+   camera match (such as Dehaze or Texture) are listed as left out.
+5. Name the film and choose **Add as a film**. It's a normal film from then on: change it as you like.
+
+Good to know: the result is an approximation. Warm, faded, soft-contrast and teal-and-orange grades usually carry over
+well; grades that move one shade of a colour differently from its neighbours don't. LUTs made for Log video (V-Log,
+S-Log, Log to Rec.709) expect flat footage and are flagged. Your file stays in your browser.
+
 ## More
 
 - **Lists** keep whole sets of 20 films under a name, like playlists: **Save as…** stores the current set, the **List**
