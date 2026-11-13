@@ -1,6 +1,6 @@
 // Editor test 1 in a full om-emu E147 play session (our script).
 //   OM_EMU_MODEL=E147 node session_ed1.mjs EMU_DIR IMAGE CARD.omsd OUT.json SAVE.omsd 'tokens...'
-// Tokens: s1 (half-press click), ok/down/info/... (key click), main+N / sub+N (dials), wait. After each token: STATE,
+// NV_FILE=PATH keeps the camera's settings between runs (S-NVRAM). Tokens: s1 (half-press click), ok/down/info/... (key click), main+N / sub+N (dials), wait. After each token: STATE,
 // the editor fields of P (marker, axis, dirty, status), slot 0..3 hue/light/flags, and the settings 928..975 + 2197.
 const [EMU, IMAGE, CARD, OUT, SAVE, SCRIPT] = process.argv.slice(2);
 const fs = await import('node:fs');
@@ -15,7 +15,9 @@ const STATE = 0x62b4dd16, POOL = 0xa2852000, HMAX = 0xae81;
 let c0 = cardFromImage(new Uint8Array(fs.readFileSync(CARD)));
 const card = { open: () => c0, save: (x) => { c0 = x; } };
 const rom = expandImage(new Uint8Array(fs.readFileSync(IMAGE)));
-const env = { rom, resBlock: loadBlock(), createHash, card,
+// NV_FILE=PATH: the camera's kept settings (om-emu S-NVRAM: the stores' saves run natively and the next run loads them)
+const nvram = process.env.NV_FILE ? (await import(EMU + '/host/nvram.mjs')).fileNvram(process.env.NV_FILE) : null;
+const env = { rom, resBlock: loadBlock(), createHash, card, ...(nvram ? { nvram } : {}),
   deflate: (b, l) => new Uint8Array(zlib.deflateSync(b, { level: l })), inflate: (b) => new Uint8Array(zlib.inflateSync(b)) };
 const pl = new Player({ ...PLAYER_PARSER, no_browser: true, idle: 'off', a15: 'on', out: '<out>', no_wait_on_error: true, device: 'tft' },
   { ...env, wallClock: () => performance.now() / 1000 });
@@ -203,11 +205,18 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     }
     dd.m.setRegs(saved); console.log('DFLT ' + JSON.stringify(out));
   }
+  else if (t.startsWith('pokep:')) {      // pokep:OFF=HEX,... writes bytes at P + OFF (decimal), e.g. pokep:685=01 sets the editor's dirty byte
+    const P = POOL + u16(STATE) - 1; for (const kv of t.slice(6).split(',')) { const [o, hex] = kv.split('='); lab.sim.write((P + parseInt(o, 10)) >>> 0, Uint8Array.from(Buffer.from(hex, 'hex'))); }
+  }
+  else if (t === 'poweroff') {           // the power lever off and the firmware's own power-off (om-emu H-POWER, S-SHUTDOWN); ends the run
+    s.switch_input('power', 1 - s.bit_of('power')); const off = s.power_down(); log.push({ step: t, power_off: off ? true : null }); break;
+  }
   else if (t.startsWith('hold:')) { const k = t.slice(5); s.key(k, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 2000e6); s.key(k, 'up'); s.camapp.pump(); }
   else if (t !== 'wait') { s.key(t, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(t, 'up'); s.camapp.pump(); }
   curStep = t; s.idle_slice(lab.lab_time() + 1200e6); snap(t);
   if (wdbg) { if (t === 'down') wdbg.watch(WRANGE.split(',').map((r, i) => { const [lo, n] = r.split(':'); return { id: i, lo: parseInt(lo, 16), len: parseInt(n, 16), kind: process.env.WKIND || 'r', action: 'log' }; })); for (const r of wdbg.watchLog()) wlog.push({ step: t, id: r.id, pc: r.pc.toString(16), addr: (r.addr >>> 0).toString(16) }); }
 }
 const st = s.storage;
-fs.writeFileSync(OUT, JSON.stringify({ wlog, hits, log, card: st ? { mounted: st.mounted, files: st.files.length } : null }, null, 1));
+const nv = lab.store_log?.nvram;
+fs.writeFileSync(OUT, JSON.stringify({ wlog, hits, log, card: st ? { mounted: st.mounted, files: st.files.length } : null, nvram: nv ? { loaded: [...nv.loaded], saves: nv.saves.length } : null }, null, 1));
 if (SAVE && st) fs.writeFileSync(SAVE, cardImage(st.card));

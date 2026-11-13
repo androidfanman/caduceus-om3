@@ -3577,3 +3577,38 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   highlights and dim whites. New SIGNATURE: olive greens, muted teal blues, orange-leaning reds, honeyed skin, firm
   contrast, Whites +1, split Cyan 1.5 / Red 1 with Tone Balance -1. Measured vs the photos (relative to the 20 films'
   average): colourfulness 0.96 / 0.96, shadow cast -9 / -9 (green), midtone -5 / -4, highlights +4 / +1 (warm).
+
+## Films in camera memory, step 1 (f1) (2026-11-13; emulator only, camera test pending)
+Milestone 1 of the design in PR #36 (iancw), after camera probe mp1 (branch `experiment/m-store-probe`: a marker in store
+M's unused tail survived two battery pulls on the owner's OM-3, the camera's own settings unchanged).
+- **Owner's choices (2026-11-13):** a card's films are taken only when the camera never had that set ("new films"); no
+  copies of the films, edits or Extras are written to the card any more.
+- **Block** at M image + 0x3A000 (RAM 0x6295a700 / uncached 0xa295a700), 3,912 B: 'OM3U', version 1, length, CRC-32 of
+  16.., generation, a ring of 16 film-set identities (CRC-32 of a LOOKS image's bytes 32..: records and names, so the
+  selection bytes don't count), then the LOOKS.BIN, EDITS.BIN and BUNDLES.BIN images in their own formats.
+- **Code** (`firmware/src/editor.s`, end, ext12): `ub_chk` (once per power-on), `ub_bun` (sd_load before P is published:
+  the Extras from the block), `ub_pfl` (sd_load in place of pf_load: the films from the block, or from the card when new or
+  when there is no block; after fl_mk2 the edits from the block; then `ub_put` when the films came from the card),
+  `ub_put` (the block from P / TORG / LPTR, as ed_save, fl_save and pf_save prepared their files: selection bytes and CRC,
+  EDITS header and CRC, BUNDLES slots through sd_san and its header CRC; the ring gets the films' identity; written to
+  both aliases with dispatch held (LOCK) and only when the camera's save of M is not running (busy byte 0xa32a9904, set
+  by 0x60063d73 before the checksum and cleared by its callback 0x60063db4 after the flash write), then the changed byte
+  0xa32bfb32 = 1; else `ub_pend` and `ub_try` again at the next gated shutter event), `ub_save` (ed_trig in place of
+  ed_save + fl_save; still calls the code block +72), `ub_txt` (CADLOG.TXT: "Films in camera memory: ..."). ed_save,
+  fl_save, pf_save and pf_load stay in the source, unused (step 2 can remove them).
+- **The camera also saves M at power-off** (om-emu S-NVRAM + S-SHUTDOWN, `session_ed1.mjs` token `poweroff`: a probe
+  write without any menu visit was in the kept image after the power-off). So a change is saved at the next return to
+  shooting after a menu / Picture Mode or at power-off; a battery pull before either loses only that last change.
+- **Emulator (out-f1: E1479999.BIN 9e49c360…, GUIDES.BIN 0ec0e4dc…; NV_FILE runs in sequence):** (1) blank camera, the
+  owner's card files: "Films from: the card (first time)", block generation 1 (the owner's 20 names, selection 4/5/5/4,
+  EDITS valid mask 0xffffff, BUNDLES 'OM3B'), M checksum valid after the power-off save; (2) a card without LOOKS / EDITS /
+  BUNDLES: the owner's films and selection from the block; an edit (`pokep:32=03,685=01`: slot 0 hue 3, dirty) written
+  (generation 2) and kept over the power-off; (3) the same card after a new start: hue 3 still there; (4) a card with the
+  films v7 LOOKS.BIN: "the card (films the camera never had)", the v7 names, the selection and Extras kept, generation 3,
+  saved at the menu exit; (5) the owner's old card again: "the camera" (already had them), films stay v7; (6) a blank card
+  (no OM3MOD): films, selection and Extras from the camera.
+- om-emu note: after a native power-off the kept state holds the sub-CPU's B store, and the next start fails om-emu's own
+  check ("BlR." where it expects "BlD."): drop `scpu` from the NV file between runs (only M / E matter here).
+- **Not yet:** GUIDES / LABELS / TONES still come from the card (step 2: into the firmware); without them films apply but
+  Glow / Clarity, grain, guide and film pictures don't. The Control Panel's saved-at stamp (step 3) is not needed with the
+  "never had" rule. Package: `test-builds/2026-11-13-films-in-camera-f1` (private).
