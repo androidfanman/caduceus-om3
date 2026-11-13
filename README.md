@@ -1,8 +1,5 @@
 <h1 align="center">Caduceus for OM-3</h1>
 
-> [!NOTE]
-> **Branch `feature/showcase`:** the tour as the site's front page and the Control Panel in the tour's look, to go out
-> with v0.29. Not on the live site yet; `looklab/` is not rebuilt on this branch (rebuild after merging).
 
 <p align="center"><strong>Film looks and a colour editor, built into the OM SYSTEM OM-3.</strong></p>
 
