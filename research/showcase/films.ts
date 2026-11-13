@@ -1,4 +1,4 @@
-// Render the 20 camera films (and a few extras) on sample photos with the Control Panel's own preview code.
+// Render the 20 camera films (and a few extras) on sample photos with LookLab's own preview code.
 // cd webapp && npx vite-node ../research/showcase/films.ts -- RAW_DIR   (make.sh runs it)
 import fs from 'node:fs';
 import { renderLook } from '../../webapp/src/preview';
@@ -15,7 +15,7 @@ const run = (n: string, out: string, look: Look) => {
   save(src, out, dst.data);
 };
 fs.mkdirSync(`${dir}/out`, { recursive: true });
-// the films exactly as the Control Panel has them (mklooks.ts: the standard 20)
+// the films exactly as LookLab has them (mklooks.ts: the standard 20)
 const LOOKS: Look[] = JSON.parse(fs.readFileSync(`${dir}/../looks-std.json`, 'utf8'));
 const names: string[] = [];
 for (const s of ['meadow', 'portrait', 'paris', 'taxi']) {

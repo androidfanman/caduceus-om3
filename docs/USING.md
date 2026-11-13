@@ -105,31 +105,31 @@ Both are in the camera's **Button Function** menu, with the other buttons.
 
 Each film and COLOR remembers the white balance you last used with it (any mode, Custom WB with its Kelvin), as it
 keeps its HSL. Picking the film brings that white balance back; one that never had its own gets Auto. Set a film's
-white balance in the Control Panel, or just change it on the camera while you're on that film.
+white balance in LookLab, or just change it on the camera while you're on that film.
 
 ## The film in your photos
 
 Every JPEG taken on a FILM keeps the film in its EXIF: the name (Image Description, for example `FILM 9 Velvia 50`) and
 the whole recipe as a short code in the User Comment: the film as it was set when you took the photo, with your
-changes on the camera and the white balance. Open the JPEG in the Control Panel (**Open...**), or paste the
+changes on the camera and the white balance. Open the JPEG in LookLab (**Open...**), or paste the
 comment with **Paste link**, and the film is added to your films. Photos on COLOR 1–4 with your own settings, CRT, ART
 and MONO don't get one.
 
-## New films from the Control Panel
+## New films from LookLab
 
-The [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/) is a web page for making and changing films on your
+The [LookLab](https://androidfanman.github.io/caduceus-om3/looklab/) is a web page for making and changing films on your
 computer, with a preview. It starts with the same 20 film sims.
 
-1. Make or change your films in the Control Panel.
+1. Make or change your films in LookLab.
 2. Save them as **`LOOKS.BIN`**, with *Firmware on the camera* set to **v0.28 or later**.
 3. Copy `LOOKS.BIN` into the card's `OM3MOD` folder, then switch on and half-press once.
 
 From v0.29 the camera takes the films into its own memory if it never had that set (an old `LOOKS.BIN` is ignored, so
-change anything to make a set new). A film you changed in the Control Panel starts again as you built it there; the
+change anything to make a set new). A film you changed in LookLab starts again as you built it there; the
 other films keep the changes you made on the camera, and your selection and Extras stay. To put one film back as built,
 hold OK on it in Picture Mode.
 
-More on the Control Panel: [how to use it](CONTROL_PANEL.md).
+More on LookLab: [how to use it](CONTROL_PANEL.md).
 
 ## Questions
 
@@ -142,7 +142,7 @@ labels and guides are part of the firmware. The card only brings films in, in th
 
 | File | What it is | Where it comes from |
 |---|---|---|
-| `LOOKS.BIN` | Films FILM 1–20, with their names: the camera takes them once, if it never had that set | The release or the Control Panel |
+| `LOOKS.BIN` | Films FILM 1–20, with their names: the camera takes them once, if it never had that set | The release or LookLab |
 | `EDITS.BIN`, `BUNDLES.BIN` | Your changes and Extras from versions before v0.29: copied into the camera at the first start | Written by the camera before v0.29 |
 | `GUIDES.BIN`, `LABELS.BIN`, `TONES.BIN` | Code, labels and guides of versions before v0.29 (ignored from v0.29) | The release, before v0.29 |
 

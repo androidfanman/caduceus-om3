@@ -1,6 +1,6 @@
-# Using the Control Panel
+# Using LookLab
 
-The **[Caduceus Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/)** is a web page where you make and change
+The **[Caduceus LookLab](https://androidfanman.github.io/caduceus-om3/looklab/)** is a web page where you make and change
 your films (FILM 1–20 on the camera) on your computer, with a preview. Your work stays in your browser: nothing is
 uploaded.
 
@@ -31,13 +31,13 @@ uploaded.
    of films only if it never had it (change anything to make it new). Keep **Firmware on the camera: v0.28 or later** (older choices leave Halation, Tone Balance, the WB mode and
    Blacks / Whites past ±5 out).
 6. On the camera: switch on and half-press the shutter once (that loads your films): they are FILM 1–20 in Picture Mode. A film you changed in the
-   Control Panel starts as built on the camera; the others keep the changes you made on the camera.
+   LookLab starts as built on the camera; the others keep the changes you made on the camera.
 
 ## A film from your own LUT or Lightroom preset
 
 1. Choose **From LUT / preset…** at the top and pick a `.cube` file (a 3D or 1D LUT for normal pictures) or a
    Lightroom preset (`.xmp`, or `.lrtemplate` from older Lightroom). **Open…** takes these files too.
-2. The Control Panel tries the camera's own settings on a set of test colours (greys, skin, sky, foliage and every
+2. LookLab tries the camera's own settings on a set of test colours (greys, skin, sky, foliage and every
    hue) and keeps the ones that come closest: the 12 colours' saturation, hue and brightness, Contrast, Highlights /
    Shadows / Midtones, Blacks / Whites, the WB shift, split toning and Tone Balance.
 3. It shows your grade and the film side by side on the preview photo, with a **Close / Fair / Rough match** and a

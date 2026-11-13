@@ -9,7 +9,7 @@
   <a href="https://androidfanman.github.io/caduceus-om3/pages/changelog/"><b>Changelog</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/install/"><b>Install</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/using/"><b>Using it</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/looklab/"><b>Control Panel</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/looklab/"><b>LookLab</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/faq/"><b>FAQ</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/roadmap/"><b>Roadmap</b></a> &nbsp;·&nbsp;
   <a href="https://github.com/androidfanman/caduceus-om3/tree/main/devkit/photo-code"><b>Developers</b></a>
@@ -26,12 +26,12 @@
 - **Your films in Picture Mode:** FILM 1–20 appear after COLOR 1–4, each with its own name. 20 film sims come with it.
 - **A colour editor on the camera:** hue, saturation and brightness for 12 colours, split toning, Blacks and Whites,
   WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
-- **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/), with a preview, then copy one file (`LOOKS.BIN`) to the card: the camera takes films it never had.
+- **Make films on your computer** in the [LookLab](https://androidfanman.github.io/caduceus-om3/looklab/), with a preview, then copy one file (`LOOKS.BIN`) to the card: the camera takes films it never had.
 - **Your films live in the camera:** the films, your changes to them and the Extras settings are kept in the camera's
   own memory (from v0.29), so any SD card works, even a blank one.
 - **Your buttons and Creative Dial:** all four arrow keys in Button Function, and each Creative Dial position set to
   CRT, ART, COLOR or MONO, with its own film.
-- **The film in every photo:** its name and recipe in the JPEG's EXIF, so the Control Panel (or a recipe site, with the
+- **The film in every photo:** its name and recipe in the JPEG's EXIF, so LookLab (or a recipe site, with the
   [developer kit](devkit/photo-code/)) can open the film from the photo.
 
 Open-source firmware patches for the OM-3 on firmware 1.1, part of the
@@ -75,18 +75,18 @@ until the problem happens, and attach the `OM3MOD/CADLOG.TXT` it writes. [How, s
 - Your changes stay with each film, also over power off. **Hold OK** on a film to put it back as built.
 - Caduceus works on COLOR 1–4 and the films. The Monochrome profiles keep the camera's own settings.
 
-## The Control Panel
+## LookLab
 
-The **[Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/)** is a web page for making and changing your films, with a preview on sample photos or
+The **[LookLab](https://androidfanman.github.io/caduceus-om3/looklab/)** is a web page for making and changing your films, with a preview on sample photos or
 your own. It starts with the 20 film sims and has 62 film looks to choose from. Save your films as `LOOKS.BIN` and copy
 it to the card's `OM3MOD` folder. Nothing is uploaded: your work stays in your browser.
-**[How to use the Control Panel](docs/CONTROL_PANEL.md)**.
+**[How to use LookLab](docs/CONTROL_PANEL.md)**.
 
 ## The 20 film sims
 
 Our own looks, designed from what each film is known for and made only from the camera's own settings. None uses
 grain or Glow, so you can add those yourself. The names say what inspired each look; they aren't the film makers'
-products or presets. These are the Control Panel's standard 20 (since 2026-11-13: 18 colour-matched films + CineStill
+products or presets. These are LookLab's standard 20 (since 2026-11-13: 18 colour-matched films + CineStill
 800T and Kodachrome 64; the v0.28 release's `LOOKS.BIN` still has the earlier 20). In camera order:
 
 | FILM | Name | The look |
@@ -128,7 +128,7 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | WB shift up to ±7 per film | v0.26.1 |
 | The super control panel's dials step through the films | v0.26.2 |
 | All four arrow keys in Button Function; Creative Dial positions set to CRT / ART / COLOR / MONO, each COLOR with its own film | v0.27 |
-| The film's name and recipe in each JPEG's EXIF; the Control Panel opens a film from a photo | v0.27 |
+| The film's name and recipe in each JPEG's EXIF; LookLab opens a film from a photo | v0.27 |
 | Optional [debug log](debug-log/) (`DEBUG.TXT` → `OM3MOD/CADLOG.TXT`) for bug reports | v0.27 |
 | Films load at the first half-press after switching on (the automatic load at power-on of v0.26.2 and v0.27 was taken out: it could rarely freeze the camera at start-up) | v0.27.1 |
 | Halation: a red glow around bright lights, its own Picture Mode row (0..5) | v0.28 |
@@ -161,7 +161,7 @@ Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/page
   the bytes this project writes).
 - `card/`: generators for `GUIDES.BIN` (page labels), `LABELS.BIN` (Extras labels) and `LOOKS.BIN`.
 - `tools/mkpatch.py`: makes a release's `patch.json` from a build.
-- `webapp/`: the Caduceus Control Panel source (TypeScript + Vite, started from cakelesscoder/caduceus-ep7's tool;
+- `webapp/`: the Caduceus LookLab source (TypeScript + Vite, started from cakelesscoder/caduceus-ep7's tool;
   OM-3 only since 2026-11-09; see [webapp/README.md](webapp/README.md)). `looklab/` is its build, served by GitHub Pages
   (`VITE_DEFAULT_CAMERA=om3 npm run build`, then copy `dist/` to `looklab/`).
 - `tools/emulator/`: test harness for [om-emu](https://github.com/flatpanda/om-emu) (E147 model).
@@ -175,7 +175,7 @@ Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/page
 ## Credits
 
 Built on **[Caduceus](https://github.com/cakelesscoder/caduceus-ep7)** by cakelesscoder (Apache-2.0), firmware patches
-for the Olympus PEN E-P7: the on-camera editor design, the bundle-table layout, the Caduceus Control Panel this tool started from, its tone
+for the Olympus PEN E-P7: the on-camera editor design, the bundle-table layout, the Caduceus LookLab this tool started from, its tone
 model and the starter film looks. The fix for bad bytes in `EDITS.BIN` (and, in v0.26.2–v0.27, loading the films at power-on) came from **[fernandezk26](https://github.com/fernandezk26/camera-stuff)**'s fork (v0.26.2). Sample photos are public domain (CC0), except the sunset by Joonas Lyytinen (CC BY 2.0); see [webapp/public/samples/CREDITS.md](webapp/public/samples/CREDITS.md). Camera emulation by
 [om-emu](https://github.com/flatpanda/om-emu).
 

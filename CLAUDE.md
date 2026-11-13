@@ -5,7 +5,7 @@ memory of earlier chats, and say so when something is not written down here.
 
 ## The project
 
-Open-source firmware patches for the OM SYSTEM OM-3 (firmware 1.1) plus a browser Control Panel. The owner
+Open-source firmware patches for the OM SYSTEM OM-3 (firmware 1.1) plus a browser app, LookLab. The owner
 (GitHub `androidfanman`) is not a programmer: explain results in plain words, never ask them to run terminal
 commands, and keep replies short.
 
@@ -13,14 +13,14 @@ commands, and keep replies short.
 |---|---|
 | `firmware/` | The patch: `src/editor.s` (flash hooks and code), `src/xblock.s` (the code block loaded from `OM3MOD/GUIDES.BIN`), `src/editor.ld`, `build.py`, `patch.py` (the user-facing patcher). |
 | `card/` | Makers for the card files (`GUIDES.BIN`, `LABELS.BIN`, `LOOKS.BIN`). |
-| `webapp/` | The Control Panel (Vite / TypeScript). The live site is `looklab/` on `main` (GitHub Pages). |
+| `webapp/` | LookLab, the web app (Vite / TypeScript; called the Control Panel until 2026-11-13, the name the E-P7 project uses). The live site is `looklab/` on `main` (GitHub Pages). |
 | `debug-log/` | `DEBUG.TXT` and how to send a debug log (users are linked here and to `releases/latest/download/DEBUG.TXT`, so every release folder carries `DEBUG.TXT`). |
 | `devkit/photo-code/` | The om3.1 photo code kit for other developers (reader, examples, demo). |
 | `releases/vX/` | Each release: `patch.json`, card files, `SHA256SUMS`, `NOTES.md`. Pushing a new folder to `main` publishes a GitHub release. |
 | `docs/` | User docs, `DEVELOPER_NOTES.md` (per-release technical summary), `FILM_SIMULATION_ROADMAP.md`, `PHOTO_TO_LOOK.md`. |
 | `research/` | `NOTES.md` = the lab notebook (every address, test and dead end), tools, emulator scripts, archived experiments. See `research/README.md`. |
 | `CHANGELOG.md`, `ROADMAP.md` | Released changes; planned features. |
-| `pages/` | The guide pages on GitHub Pages (install, using, faq, roadmap, changelog; style and renderer in `pages/site/`). They read `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md` when opened: edit those files, not the pages. The tour is the site's front page: `index.html` at the root, its pictures in `pages/showcase/img/` (made by `research/showcase/make.sh`); the Control Panel is `looklab/`. |
+| `pages/` | The guide pages on GitHub Pages (install, using, faq, roadmap, changelog; style and renderer in `pages/site/`). They read `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md` when opened: edit those files, not the pages. The tour is the site's front page: `index.html` at the root, its pictures in `pages/showcase/img/` (made by `research/showcase/make.sh`); LookLab is `looklab/`. |
 
 Branches: `main` = released and safe. `feature/...` = work meant to ship (README banner says its status).
 `experiment/...` = a test that answers a question, not for use.
@@ -38,7 +38,7 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
    official firmware file `OLY_E_147_1100_0000_0000.BIN` or the folder holding it; it is never in the repo and each
    person uses their own copy. **Ask the person where their copy is** (they can attach it to the chat, or link the
    session to their computer so you can copy it over) and pass that path; a workspace that already has it needs none.
-   Control Panel-only work needs just `cd webapp && npm install`.
+   LookLab-only work needs just `cd webapp && npm install`.
 
 ## Rules (from the owner; keep them)
 
@@ -57,7 +57,7 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 - **No OM firmware** (original or decoded), disassembly dumps or camera graphics in the repo. Exception (owner, 2026-11-13):
   emulator screenshots of the camera's menus running our firmware, for the tour (the front page `index.html`, pictures in `pages/showcase/img/`, made by
   `research/showcase/make.sh`). Graphics taken out of the firmware itself stay out.
-- **Images in the Control Panel:** send any new or changed image to the owner for approval before publishing.
+- **Images in LookLab:** send any new or changed image to the owner for approval before publishing.
 - **Film sims are our own designs:** no copied looks, LUTs or presets; no grain, Glow / Clarity or Art Effects in
   film sims (the user adds those).
 - **Do not touch** cakelesscoder's repositories (Caduceus for the E-P7); credit them where their work is used.
@@ -91,7 +91,7 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 
 `tools/mkpatch.py` makes `releases/vX/patch.json` from a build; `firmware/patch.py --release vX` must rebuild the
 camera-tested package byte for byte (`SHA256SUMS`). Update `CHANGELOG.md` (its section and a row in the "At a glance" table), `releases/README.md`, `README.md` (the
-"Latest" line) and the docs; rebuild the Control Panel into `looklab/` when `webapp/` changes
+"Latest" line) and the docs; rebuild LookLab into `looklab/` when `webapp/` changes
 (`VITE_DEFAULT_CAMERA=om3 npx vite build`, copy `dist/` to `looklab/`, remove the old asset JS).
 
 ## Keeping the record (master chat)

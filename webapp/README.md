@@ -1,4 +1,4 @@
-# Caduceus for OM-3 Control Panel (web app)
+# LookLab: the Caduceus for OM-3 web app
 
 A static web app for making, previewing and sharing the films of
 [Caduceus for OM-3](https://github.com/androidfanman/caduceus-om3) (the creative profiles the camera lists as FILM

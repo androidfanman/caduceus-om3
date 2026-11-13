@@ -1,7 +1,7 @@
 """Draw an approximate HSL wheel onto an emulator screenshot (om-emu does not draw the camera's wheel), plus our own
 guide picture ("Hue [INFO]" ...) from card/mkguides.py in the box the emulator leaves blank.
 
-The wheel follows the Control Panel's camera-style wheel (webapp/src/main.ts hslPanel): 12 colours as a ring, Yellow at
+The wheel follows LookLab's camera-style wheel (webapp/src/main.ts hslPanel): 12 colours as a ring, Yellow at
 12 o'clock, clockwise; an outline through one corner per colour, out for +, in for -, the dashed circle = 0. Split
 pages (Shadows / Highlights): strength 0..10 drawn at s - 5 on the -5..+5 scale, other colours at the inner edge.
 
@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFont
 COLS = ['#f2d600', '#f59a00', '#f05a00', '#e0102a', '#d4157a', '#7a33cc', '#1f5fe0', '#1d96e0', '#16c0d0', '#18b583',
         '#2fae3a', '#9cc414']
 INK, DIM, BG = (241, 239, 233), (141, 138, 131), (12, 12, 12)
-CX, CY, S = 430, 292, 1.434            # centre on the 900 x 600 screen; scale from the Control Panel's 290 px wheel
+CX, CY, S = 430, 292, 1.434            # centre on the 900 x 600 screen; scale from LookLab's 290 px wheel
 R0, R1, RZ, RB = 104 * S, 122 * S, 64 * S, 34 * S
 SS = 3                                   # supersampling
 

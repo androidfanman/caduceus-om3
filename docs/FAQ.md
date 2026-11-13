@@ -51,8 +51,8 @@ COLOR) to put it back.
 
 ### Can I use my own presets or LUTs?
 
-Yes, as a starting point, in the Control Panel. Choose **From LUT / preset…** and pick a `.cube`
-LUT or a Lightroom preset (`.xmp` or the older `.lrtemplate`). The Control Panel finds the camera settings that come
+Yes, as a starting point, in LookLab. Choose **From LUT / preset…** and pick a `.cube`
+LUT or a Lightroom preset (`.xmp` or the older `.lrtemplate`). LookLab finds the camera settings that come
 closest, shows your grade and the film side by side, and says how close they are. It's an approximation: the camera
 has 12 colour sectors, a tone curve, a WB shift and split toning, while a LUT can do much more. LUTs made for Log
 video are flagged, since they're far too strong on a photo. Your file stays on your computer.
@@ -61,10 +61,10 @@ You can also have an AI assistant build a look from a photo you like with [these
 
 ### Can I share films?
 
-Yes. Send a `LOOKS.BIN`, or use **Share** in the Control Panel to send a link. Copying a `LOOKS.BIN` onto a card
+Yes. Send a `LOOKS.BIN`, or use **Share** in LookLab to send a link. Copying a `LOOKS.BIN` onto a card
 replaces all the films on that camera (from v0.29 when the camera never had that set; it keeps the selection and Extras).
 
-From v0.27 a JPEG taken on a FILM carries the film too: whoever has the photo can open it in the Control Panel
+From v0.27 a JPEG taken on a FILM carries the film too: whoever has the photo can open it in LookLab
 (**Open...**) and get the film. Sites can read it with the [developer kit](../devkit/photo-code/).
 
 ### Does grain slow the camera down?
@@ -102,7 +102,7 @@ themselves, but that could rarely freeze the camera at start-up, so v0.27.1 went
 
 Half-press the shutter once after switching on: that's when the films load. The first time with v0.29 (or after a
 Reset in the camera's menu), check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
-and is exactly 1,632 bytes; if not, download it again, or save it again from the Control Panel. Then check the update
+and is exactly 1,632 bytes; if not, download it again, or save it again from LookLab. Then check the update
 really went on: v0.27 adds rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't
 there, flash again (install step 4). Still no films? Send us a [debug log](https://github.com/androidfanman/caduceus-om3/tree/main/debug-log).
 

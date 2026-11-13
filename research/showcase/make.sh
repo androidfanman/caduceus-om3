@@ -1,8 +1,8 @@
 #!/bin/bash
 # Every picture of the show-and-tell page (pages/showcase/img/), from scratch, in about three minutes:
-#   1. the standard 20 films (the Control Panel's, webapp/src/data/om3films.json) as LOOKS.BIN on a blank card;
+#   1. the standard 20 films (LookLab's, webapp/src/data/om3films.json) as LOOKS.BIN on a blank card;
 #   2. the camera screens: emulator runs on that card (shoot.sh), the HSL wheels drawn in (wheel.py), quantized;
-#   3. the photos: each film and each setting on CC0 / public-domain samples with the Control Panel's own preview
+#   3. the photos: each film and each setting on CC0 / public-domain samples with LookLab's own preview
 #      (films.ts, demos.ts); Noise Filter and Vignette Correction as illustrations (illus.py).
 # Needs the workspace (`. ~/om3-work/env.sh`) and `cd webapp && npm install`. The firmware is IMG (default: the
 # build research/setup.sh checks, i.e. the latest release; the page shows v0.29's behaviour, films kept in the camera

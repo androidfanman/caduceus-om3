@@ -233,7 +233,7 @@ footer a { color: var(--muted); }
   <a class="tab opt" href="#v029">New in v0.29</a>
   <a class="tab opt" href="#help">Help</a>
   <a class="tab" href="pages/install/">Install</a>
-  <a class="tab" href="looklab/">Control Panel</a>
+  <a class="tab" href="looklab/">LookLab</a>
   <a class="tab" href="https://github.com/androidfanman/caduceus-om3/releases/latest">Download</a>
   <a class="tab report" href="https://github.com/androidfanman/caduceus-om3/issues">Report a problem</a>
   <a class="tab gh" href="https://github.com/androidfanman/caduceus-om3" aria-label="Caduceus for OM-3 on GitHub">GitHub&nbsp;↗</a>
@@ -247,7 +247,7 @@ footer a { color: var(--muted); }
       <p class="sub">Caduceus adds 20 film looks and a full colour editor to the camera's own Picture Mode. Pick a film, shoot, and the JPEG comes out with that look.</p>
       <div class="ctas">
         <a class="btn primary" href="#films">See the films</a>
-        <a class="btn" href="looklab/">Open the Control Panel</a>
+        <a class="btn" href="looklab/">Open LookLab</a>
         <a class="btn" href="pages/install/">How to install</a>
       </div>
       <div class="facts"><span><b>20</b> film looks, 18 colour matched</span><span><b>13</b> settings per film</span><span><b>Any</b> SD card (v0.29)</span><span><b>Free</b> and open source</span></div>
@@ -298,7 +298,7 @@ footer a { color: var(--muted); }
         </div>
         <div class="photo-bar">
           <div class="chips" id="samples" role="group" aria-label="Sample photo"></div>
-          <span class="note">Control Panel preview: close to the camera, not exact.</span>
+          <span class="note">LookLab preview: close to the camera, not exact.</span>
         </div>
         <div class="film-grid" id="filmGrid" role="group" aria-label="Pick a film" style="margin-top:18px"></div>
       </div>
@@ -357,7 +357,7 @@ footer a { color: var(--muted); }
           <div class="bar"></div>
           <input type="range" min="0" max="100" value="50" aria-label="Compare Halation 0 and 5">
         </div>
-        <p class="note" style="margin-top:12px">CineStill 800T on a night photo, Control Panel preview.</p>
+        <p class="note" style="margin-top:12px">CineStill 800T on a night photo, LookLab preview.</p>
       </div>
       <div>
         <div class="lcd"><div class="screen"><img alt="Camera screen: the Halation row set to +3, under Shading and Glow" src="pages/showcase/img/screens/row-halation.png"></div></div>
@@ -405,7 +405,7 @@ footer a { color: var(--muted); }
     <ol class="flow">
       <li><div class="step-ico" aria-hidden="true">
         <svg viewBox="0 0 48 48"><rect x="6" y="9" width="36" height="24" rx="3"/><path d="M18 39h12M24 33v6"/><path d="M13 16h22M13 21h22M13 26h22"/><circle cx="19" cy="16" r="2"/><circle cx="29" cy="21" r="2"/><circle cx="23" cy="26" r="2"/></svg></div>
-        <h3>Make your films</h3><p>Start from the standard 20 or build your own in the Control Panel, and save them as <code>LOOKS.BIN</code>.</p></li>
+        <h3>Make your films</h3><p>Start from the standard 20 or build your own in LookLab, and save them as <code>LOOKS.BIN</code>.</p></li>
       <li><div class="step-ico" aria-hidden="true">
         <svg viewBox="0 0 48 48"><path d="M14 6h16l8 8v28H14z"/><path d="M19 6v7M24 6v7M29 6v7"/><path d="M20 28l4 4 8-9"/></svg></div>
         <h3>The camera takes them once</h3><p>Put the file on the card. At the next half-press the camera copies a set it has never had into its memory, and keeps your selection and edits.</p></li>
@@ -436,13 +436,13 @@ footer a { color: var(--muted); }
       <div class="card">
         <div class="ico">🖥️</div>
         <h3>Make films on your computer</h3>
-        <p>The Control Panel is a web page for making and changing films with a live preview, on sample photos or your own. It has 67 films to start from (18 colour matched), and can turn your own LUT or Lightroom preset into a film. Nothing is uploaded.</p>
-        <a class="more" href="looklab/">Open the Control Panel →</a>
+        <p>LookLab is a web page for making and changing films with a live preview, on sample photos or your own. It has 67 films to start from (18 colour matched), and can turn your own LUT or Lightroom preset into a film. Nothing is uploaded.</p>
+        <a class="more" href="looklab/">Open LookLab →</a>
       </div>
       <div class="card">
         <div class="ico">🏷️</div>
         <h3>The film in every photo</h3>
-        <p>Each JPEG carries the film's name and its full recipe, as it was set when you pressed the shutter. Open the photo in the Control Panel and the film is yours again, or share the recipe code.</p>
+        <p>Each JPEG carries the film's name and its full recipe, as it was set when you pressed the shutter. Open the photo in LookLab and the film is yours again, or share the recipe code.</p>
         <a class="more" href="https://github.com/androidfanman/caduceus-om3/tree/main/devkit/photo-code">For developers: the photo code kit →</a>
       </div>
       <div class="card">
@@ -508,13 +508,13 @@ footer a { color: var(--muted); }
 </main>
 
 <footer><div class="in">
-  <p><b>About these pictures.</b> The camera screens are the v0.29 firmware (the camera-tested build f2) running in <a href="https://github.com/flatpanda/om-emu">om-emu</a>, an emulator of the OM-3: the firmware's own drawing, not photos of a camera. The emulator can't draw the colour wheel, so the wheels are drawn by us in the Control Panel's style, from the values on each screen. The film and setting photos are previews from the Control Panel: close to what the camera makes, but not camera JPEGs. Noise Filter and Vignette Correction aren't in the preview, so their photos are illustrations.</p>
+  <p><b>About these pictures.</b> The camera screens are the v0.29 firmware (the camera-tested build f2) running in <a href="https://github.com/flatpanda/om-emu">om-emu</a>, an emulator of the OM-3: the firmware's own drawing, not photos of a camera. The emulator can't draw the colour wheel, so the wheels are drawn by us in LookLab's style, from the values on each screen. The film and setting photos are previews from LookLab: close to what the camera makes, but not camera JPEGs. Noise Filter and Vignette Correction aren't in the preview, so their photos are illustrations.</p>
   <p><b>Sample photos</b> (public domain): meadow, portrait, taxi and the canal at blue hour from Unsplash (CC0); Paris by Pierre Blaché, Bourtzi harbour by Jebulon (CC0) and Roy's Motel &amp; Cafe at dusk by Blervis (CC0), all on Wikimedia Commons. <a href="https://github.com/androidfanman/caduceus-om3/blob/main/webapp/public/samples/CREDITS.md">Credits</a>.</p>
   <p>Caduceus for OM-3 is an independent open-source project, part of the <a href="https://github.com/cakelesscoder/caduceus-ep7">Caduceus</a> family. It is not made or supported by OM Digital Solutions. <a href="https://github.com/androidfanman/caduceus-om3">Source on GitHub</a> · <a href="https://github.com/androidfanman/caduceus-om3/issues">Report a problem</a>.</p>
 </div></footer>
 
 <script>
-  // The front page used to forward to the Control Panel: a link with a look code after # still opens it there.
+  // The front page used to forward to LookLab: a link with a look code after # still opens it there.
   (() => { const h = location.hash.slice(1); if (h.length > 24 && !document.getElementById(h)) location.replace('looklab/' + location.hash); })();
 </script>
 <script src="pages/showcase/img/films/films.js"></script>
@@ -612,9 +612,9 @@ footer a { color: var(--muted); }
   if (FILMS.length) showFilm(0);
 
   // ---- editor rows: the camera screen, a before / after photo, and the HSL wheel's pages
-  const PV = '<b>Control Panel preview</b> on a neutral look: only this setting changes';
-  const ILL = '<b>Illustration</b>: the Control Panel preview doesn’t model this setting';
-  const CROP = '<b>Control Panel preview</b>, a 100% crop';
+  const PV = '<b>LookLab preview</b> on a neutral look: only this setting changes';
+  const ILL = '<b>Illustration</b>: LookLab preview doesn’t model this setting';
+  const CROP = '<b>LookLab preview</b>, a 100% crop';
   const WHEEL = 'On the camera (emulator screen; <b>wheel drawn by us</b>, the emulator can’t draw it)';
   const HSL_PAGES = [
     { id: 'color', name: 'Color', screen: 'hsl-color', demo: 'hsl-color', labs: ['Original', 'Blue −5'],

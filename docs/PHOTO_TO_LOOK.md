@@ -1,6 +1,6 @@
 # Instructions: turn a photo into a Caduceus for OM-3 look
 
-You are helping me build a colour look for my OM SYSTEM OM-3 running the Caduceus for OM-3 firmware mod. I will give you a photo (attached, or a link). Study how that photo looks, then build a look that brings my camera's colour photos as close to that look as the camera's settings allow. Then give me a link that opens the look in the Caduceus Control Panel.
+You are helping me build a colour look for my OM SYSTEM OM-3 running the Caduceus for OM-3 firmware mod. I will give you a photo (attached, or a link). Study how that photo looks, then build a look that brings my camera's colour photos as close to that look as the camera's settings allow. Then give me a link that opens the look in the Caduceus LookLab.
 
 ## What to do
 
@@ -17,15 +17,15 @@ You are helping me build a colour look for my OM SYSTEM OM-3 running the Caduceu
    - a short description of the look you saw (2–4 sentences)
    - a table of the settings you chose, each with a one-line reason
    - the look as JSON
-   - the **Control Panel link** (made with the script below), plus the bare `op1_…` code
-   - one or two honest notes on what the camera can't reproduce (for example, separate colour in shadows and highlights). The look is an approximation: tell me to check it in the Control Panel's preview on its sample photos or my own, and adjust.
+   - the **LookLab link** (made with the script below), plus the bare `op1_…` code
+   - one or two honest notes on what the camera can't reproduce (for example, separate colour in shadows and highlights). The look is an approximation: tell me to check it in LookLab's preview on its sample photos or my own, and adjust.
 
 ## How I load it
 
-- **Click the link.** It opens the Control Panel and adds the look to the first free number. If all 20 are in use, it asks which one to replace.
-- **Or paste the code:** in the Control Panel (OM-3 mode), choose **Paste a code…** and paste either the whole link or the `op1_…` code.
+- **Click the link.** It opens LookLab and adds the look to the first free number. If all 20 are in use, it asks which one to replace.
+- **Or paste the code:** in LookLab (OM-3 mode), choose **Paste a code…** and paste either the whole link or the `op1_…` code.
 
-Control Panel: https://androidfanman.github.io/caduceus-om3/looklab/
+LookLab: https://androidfanman.github.io/caduceus-om3/looklab/
 
 ## The look format (JSON)
 
@@ -139,11 +139,11 @@ print(code)
 print("https://androidfanman.github.io/caduceus-om3/looklab/?camera=om3#" + code)
 ```
 
-The look may start with `"schema": "caduceus-om3-look/1"` (optional; looks without it are read as that format). Any `"min_fw"` you add is ignored: the Control Panel works the minimum firmware out from the settings itself.
+The look may start with `"schema": "caduceus-om3-look/1"` (optional; looks without it are read as that format). Any `"min_fw"` you add is ignored: LookLab works the minimum firmware out from the settings itself.
 
 The code is the look's JSON compressed with zlib (deflate with the zlib header) and written as URL-safe base64 without `=` padding, after `op1_`. Always make it with code, never by hand.
 
-**If you can't run code:** give me the JSON. I can save it as a file in this format and open it with **Open…** in the Control Panel, which replaces my current looks (Undo brings them back):
+**If you can't run code:** give me the JSON. I can save it as a file in this format and open it with **Open…** in LookLab, which replaces my current looks (Undo brings them back):
 
 ```json
 {"schema": "caduceus-om3-bank/1", "name": "From a photo",

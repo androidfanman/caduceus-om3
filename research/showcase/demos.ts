@@ -1,4 +1,4 @@
-// One before / after pair per Picture Mode setting, rendered with the Control Panel's preview code on a neutral look
+// One before / after pair per Picture Mode setting, rendered with LookLab's preview code on a neutral look
 // (no film), so only that setting changes. make.sh runs it:
 //   cd webapp && npx vite-node ../research/showcase/demos.ts -- RAW_DIR   (writes RAW_DIR/demo/<id>-a / -b .rgba)
 import fs from 'node:fs';

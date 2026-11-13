@@ -77,7 +77,7 @@ If it says **Stopped** instead of Done, nothing was written: see [If something g
    inside it).
 3. **Get the films.** The 20 film sims are a separate file, `LOOKS.BIN`. Download it from the
    [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest) (under *Assets*), or make your own in
-   the [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/). Make a folder **`OM3MOD`** at the top of the card
+   the [LookLab](https://androidfanman.github.io/caduceus-om3/looklab/). Make a folder **`OM3MOD`** at the top of the card
    (it may be there already) and put `LOOKS.BIN` in it. The camera copies the films into its own memory at the first
    half-press; after that the card needs nothing of ours.
 4. Eject the card properly before you take it out.
@@ -161,7 +161,7 @@ inside another folder), that the battery is full, and that you hold OK *before* 
 
 **There are no films in Picture Mode.** Half-press the shutter once after switching on (that loads them). The first
 time with v0.29, or after a Reset in the camera's menu, the camera needs `OM3MOD/LOOKS.BIN` on the card (step 3): check it is there and exactly 1,632
-bytes; if not, download it again, or save it again from the Control Panel. Check the update really went on: v0.27 adds
+bytes; if not, download it again, or save it again from LookLab. Check the update really went on: v0.27 adds
 rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't there, do step 4 again.
 
 **Settings change on the camera but the photo doesn't.** Before v0.29: the card's `GUIDES.BIN` isn't the one made
@@ -171,8 +171,8 @@ with this firmware; copy it again from `SD card files/OM3MOD`. (From v0.29 it's 
 from a menu or Picture Mode and when you switch off, so pulling the battery right after a change can lose that change.
 Before v0.29 they were saved on the card at the next half-press (a locked or full card can't be written).
 
-**New films from the Control Panel don't appear (v0.29).** The camera takes a `LOOKS.BIN` only if it never had that set
-of films. Change anything in the Control Panel, export again, and half-press once with the card in.
+**New films from LookLab don't appear (v0.29).** The camera takes a `LOOKS.BIN` only if it never had that set
+of films. Change anything in LookLab, export again, and half-press once with the card in.
 
 **The launcher says "Stopped: this is not the official …".** The firmware file it found is damaged, renamed or for
 another camera. Delete it and run the launcher again, so it downloads a fresh copy.

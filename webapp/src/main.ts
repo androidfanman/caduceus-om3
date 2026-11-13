@@ -202,8 +202,8 @@ function shell() {
   const app = $('#app');
   app.replaceChildren(
     h('header', { class: 'top' },
-      h('div', { class: 'brand' }, h('span', { class: 'mark', 'aria-hidden': 'true' }, '☤'), h('span', { class: 'word' }, 'Caduceus'),
-        h('span', { class: 'sub' }, 'for OM-3 · control panel')),
+      h('div', { class: 'brand' }, h('span', { class: 'mark', 'aria-hidden': 'true' }, '☤'), h('span', { class: 'word' }, 'LookLab'),
+        h('span', { class: 'sub' }, 'Caduceus for OM-3')),
       h('nav', { class: 'actions' },
         h('span', { class: 'undo-btns' },
           h('button', { id: 'undo', class: 'icon', title: 'Undo (Ctrl+Z)', 'aria-label': 'Undo', disabled: true, onclick: () => step('undo') }, '↶'),
@@ -1436,7 +1436,7 @@ function recipeCodes(only?: Look): HTMLElement[] {
     : h('textarea', { readonly: true, rows: Math.min(8, lines.length), onfocus: (e: Event) => (e.target as HTMLTextAreaElement).select() }, text);
   return [
     h('h4', { class: 'share-sub' }, lines.length === 1 ? 'Recipe code' : 'Recipe codes'),
-    h('p', { class: 'help' }, `The short code the camera writes into each photo, ${lines.length === 1 ? 'for this film' : 'one line per film'}: post it anywhere. Paste it into the Control Panel (Paste link) to get the film back, with every camera setting (not the notes).`),
+    h('p', { class: 'help' }, `The short code the camera writes into each photo, ${lines.length === 1 ? 'for this film' : 'one line per film'}: post it anywhere. Paste it into LookLab (Paste link) to get the film back, with every camera setting (not the notes).`),
     h('div', { class: 'code-box link' }, box, h('button', { onclick: () => copy(text, lines.length === 1 ? 'Code copied' : 'Codes copied') }, lines.length === 1 ? 'Copy code' : 'Copy all')),
   ];
 }

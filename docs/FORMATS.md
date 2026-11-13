@@ -15,7 +15,7 @@ older files, which therefore load unchanged).
 | 8 | 4 | CRC-32 of bytes 12..1631 |
 | 12 | 2 | version 1 |
 | 14 | 2 | record count 20 |
-| 16 | 4 | selection per COLOR 1..4 (0..5; the camera writes what is selected, the Control Panel writes 0) |
+| 16 | 4 | selection per COLOR 1..4 (0..5; the camera writes what is selected, LookLab writes 0) |
 | 20 | 12 | zero |
 | 32 | 20 × 64 | records: COLOR k (0..3) look v (1..5) at index 5k + v − 1 |
 | 1312 | 20 × 16 | names, ASCII, zero-padded (up to 15 characters) |
@@ -26,7 +26,7 @@ Record (64 bytes): `+0` hue[12], `+12` light[12], `+24` saturation[12] (all −5
 v0.20: `+47` Glow (−5..−1) / Clarity (1..5), `+48` Art Effect (0 Off, 1 Star Light, 2 Pin Hole, 3 none, 4 White Edge,
 5 Frame: the Caduceus ids), `+49` NR (0 Camera, 1 Standard, 2 Low, 3 Off), v0.21: `+50` VigFix (0 Camera: the lens
 shading correction as set, 1 Off), `+51` Grain (0 Off, 1 Low, 2 Med, 3 High), v0.22: `+52` Sharp (−5..+2, the
-camera's own sharpness numbers, 0 its normal, −5 Off; the Control Panel's v0.22 export leaves `+42` at 0), v0.26: `+53` Shadows
+camera's own sharpness numbers, 0 its normal, −5 Off; LookLab's v0.22 export leaves `+42` at 0), v0.26: `+53` Shadows
 colour (0..11, the wheel's colours clockwise from Yellow), `+54` its strength, `+55` Highlights colour, `+56` its
 strength (−5..5; v0.26: minus = the opposite colour. From v0.28 a code for 0..10 in half the v0.26 step: v ≥ 0 means
 2v, so v0.26 values keep their strength, v < 0 means −2v − 1), `+63` zero.
@@ -34,16 +34,16 @@ v0.28: `+57` Halation (0 Off, 1..5; checked as −5..5, 0 and below = Off), `+58
 colour reaches further, + the highlight colour), `+59..+62` film WB (each pair a value v = lo + 11 hi, lo / hi −5..5:
 `+59` / `+60` the Custom WB Kelvin as (K − 2000) / 100 − 60 when the mode is Custom WB, else 0; `+61` / `+62` the WB
 mode as its index in the camera's 13-mode list, 0 = Auto / none). Firmware before v0.28 needs `+57..+62` to be 0 and
-ignores the whole file otherwise, so the Control Panel's older exports leave them out. Bytes `+47..+49` and `+51` are checked as −5..5 by the camera, `+50` as −1..1, `+52` as −5..2; the editor keeps
+ignores the whole file otherwise, so LookLab's older exports leave them out. Bytes `+47..+49` and `+51` are checked as −5..5 by the camera, `+50` as −1..1, `+52` as −5..2; the editor keeps
 them in the ranges above. v0.20 and older require `+50` and `+51` to be 0, and v0.21 and older `+52` (they ignore the
-whole file otherwise), so the Control Panel's older exports leave them out; its v0.21 export puts the look's sharpness
+whole file otherwise), so LookLab's older exports leave them out; its v0.21 export puts the look's sharpness
 in `+42` instead (−2..+2, softer values as −2).
 
 The camera checks size, magic, CRC, version, selection range and every record byte's range; a file that fails is
 ignored and left alone (the Looks page is then hidden). With no file, the camera starts a neutral bank and
 writes the file the first time a look is used. Writes go to `LOOKS.NEW`, are read back, then to `LOOKS.BIN`.
 
-Generators: `card/mkprofiles.py` (JSON → file) and the Control Panel (`webapp/src/om3.ts`: `profilesBin` / `readProfiles`), byte-identical
+Generators: `card/mkprofiles.py` (JSON → file) and LookLab (`webapp/src/om3.ts`: `profilesBin` / `readProfiles`), byte-identical
 (`webapp/tests/om3.test.ts`).
 
 ## Films in the camera's memory (v0.29)
@@ -84,7 +84,7 @@ COLOR 1–4's own settings while a film sits on that COLOR. The films as built s
 | 16 | 24 × 68 | record r: 64 bytes in the `LOOKS.BIN` record format, then a u32 check |
 
 Records 0..19 = film j (the `LOOKS.BIN` record of the same number; its check is the CRC-32 of that `LOOKS.BIN`
-record when the changes were saved, so a film rebuilt in the Control Panel starts again as built). Records 20..23 =
+record when the changes were saved, so a film rebuilt in LookLab starts again as built). Records 20..23 =
 COLOR 1–4's own settings (check 0). A file that fails the size, magic or CRC check is ignored. Deleting it puts every
 film back as built.
 
@@ -123,7 +123,7 @@ Pin Hole, Art Off, W. Edge, Frame · Blacks, Whites. See `card/mklabels.py`.
 
 ## NAMES.BIN v1
 
-Pictures of the look names, shown under the wheel on the Film page. Written by the Control Panel (`webapp/src/om3names.ts`: `namesBin`)
+Pictures of the look names, shown under the wheel on the Film page. Written by LookLab (`webapp/src/om3names.ts`: `namesBin`)
 together with `LOOKS.BIN`, in the camera's label style (`card/mkguides.py` metrics).
 
 | Offset | Size | Field |

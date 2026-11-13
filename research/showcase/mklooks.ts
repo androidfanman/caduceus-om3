@@ -1,4 +1,4 @@
-// The Control Panel's standard 20 (CAMERA_FILMS, as on a first visit or "Reset looks to standard"): LOOKS.BIN for the
+// LookLab's standard 20 (CAMERA_FILMS, as on a first visit or "Reset looks to standard"): LOOKS.BIN for the
 // emulator card (profilesBin, the v0.28+ format, as Export makes it), the looks as JSON for films.ts, and
 // films/films.js (names, descriptions, colour matched or not) for the page.
 //   cd webapp && npx vite-node ../research/showcase/mklooks.ts -- WORK_DIR IMG_DIR

@@ -9,7 +9,7 @@ official firmware file that each user downloads themselves; releases/*/patch.jso
 
 Based on Caduceus (cakelesscoder/caduceus-ep7, Apache-2.0, Copyright 2026 cakelesscoder), firmware patches for the
 Olympus PEN E-P7: the on-camera look editor design, the BUNDLES.BIN slot layout (firmware/vendor/
-caduceus-bundles-layout.json), the Caduceus Control Panel web app (webapp/, built into looklab/), to which this project adds the OM-3 mode
+caduceus-bundles-layout.json), the Caduceus Control Panel web app (webapp/, built into looklab/; this project calls it LookLab), to which this project adds the OM-3 mode
 (webapp/src/om3.ts, om3names.ts and the OM-3 parts of main.ts, preview.ts and pack.ts), and the official-firmware
 download request in patch.py.
 
@@ -22,8 +22,8 @@ Sample photos in webapp/public/samples are public domain (CC0 1.0); see webapp/p
 The Control Panel's OM-3 mode loads "OM3 Label Condensed", a renamed ASCII subset of DejaVu Sans Condensed (Bitstream
 Vera licence; DejaVu changes public domain), to draw profile-name pictures; see webapp/public/fonts/FONT-LICENSE.txt.
 
-The Control Panel, the tour and the guide pages use the fonts Archivo (Copyright 2020 The Archivo Project Authors) and
-IBM Plex Sans / IBM Plex Mono (Copyright 2019 IBM Corp.), SIL Open Font License 1.1. The Control Panel carries its own
+LookLab, the tour and the guide pages use the fonts Archivo (Copyright 2020 The Archivo Project Authors) and
+IBM Plex Sans / IBM Plex Mono (Copyright 2019 IBM Corp.), SIL Open Font License 1.1. LookLab carries its own
 copies (Latin subsets from @fontsource, webapp/src/fonts/, with their licences); the pages load them from Google Fonts.
 
 The tour's camera screens (pages/showcase/img/screens) are pictures of the OM-3's menus drawn by om-emu running this

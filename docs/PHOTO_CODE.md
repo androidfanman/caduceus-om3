@@ -1,7 +1,7 @@
 # Film in the photo (EXIF): text layout and the om3.1 code
 
 Caduceus for OM-3 v0.27 writes the film a JPEG was taken with into two EXIF text fields, so photos can be sorted by
-film and a shared photo can give its film back to the Control Panel.
+film and a shared photo can give its film back to LookLab.
 
 | Field | Text |
 |---|---|
@@ -28,13 +28,13 @@ Photos without a film (COLOR 1–4 with the user's own settings, CRT, ART, MONO,
   the half step is in **byte 63** (bit 0 Shadows, bit 1 Highlights), strength on the v0.28 scale = 2 x byte + bit. An
   older reader rounds it down by half a step. (In LOOKS.BIN v0.28 stores these strengths as a different code; the
   camera converts it for the photo code.)
-- **Compatibility rule:** new settings go into spare bytes with 0 = off. An older Control Panel then still opens a
+- **Compatibility rule:** new settings go into spare bytes with 0 = off. An older LookLab then still opens a
   newer code (it skips what it doesn't know), and a newer one reads an older code's spare bytes as "off". Only a change
   that cannot follow that rule gets a new version (`om3.2.`). **v0.28 used the last spare byte (63)**: the next new
   setting needs `om3.2.`.
 - The camera is in the name, so another body can have its own code (for example `ep7.1.` for Caduceus on the E-P7)
   with the same text layout.
-- Reference: `firmware/photocode.py`; firmware `ex_cd1` / `ex_fill` (`firmware/src/editor.s`); Control Panel
+- Reference: `firmware/photocode.py`; firmware `ex_cd1` / `ex_fill` (`firmware/src/editor.s`); LookLab
   `recordFromPhotoCode` / `lookFromPhotoCode` (paste the comment into the import box, or open the JPEG).
 - Developer kit for other sites and apps (field table, a standalone JavaScript reader, test examples, a demo page):
   `devkit/photo-code/`.

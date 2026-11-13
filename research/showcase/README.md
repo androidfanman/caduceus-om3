@@ -11,10 +11,10 @@ IMG=$OM3_WORK/out-NAME/main.bin research/showcase/make.sh     # IMG defaults to 
 | Folder | What | How it's made | Status |
 |---|---|---|---|
 | `img/screens/` | The camera's screens | om-emu runs the firmware (`shoot.sh`, driving `tools/emulator/session_ed1.mjs`) on a blank card with the standard 20 `LOOKS.BIN`; v0.29 needs nothing else on the card | Emulator, the firmware's own drawing |
-| `img/screens/hsl-*.png` | The five colour-wheel pages | As above, then `wheel.py` draws the wheel (om-emu doesn't) from the values on the screen, in the Control Panel's style (`webapp/src/main.ts` `hslPanel`), and puts our own guide picture (`card/mkguides.py`) in the box om-emu leaves blank | Approximation: the page says so |
-| `img/films/` | The standard 20 films on four samples (`-00` = original) | `mklooks.ts` (the Control Panel's standard 20, also the card's `LOOKS.BIN`), `films.ts` (`webapp/src/preview.ts`) | Control Panel preview |
-| `img/demos/` | A before / after photo per setting | `demos.ts`: a neutral look with only that setting changed, at the value the screen shows | Control Panel preview; Noise Filter and Vignette Correction are illustrations (`illus.py`), the preview doesn't model them |
-| `img/halation/` | CineStill 800T, Halation 0 and 5 | `films.ts` | Control Panel preview |
+| `img/screens/hsl-*.png` | The five colour-wheel pages | As above, then `wheel.py` draws the wheel (om-emu doesn't) from the values on the screen, in LookLab's style (`webapp/src/main.ts` `hslPanel`), and puts our own guide picture (`card/mkguides.py`) in the box om-emu leaves blank | Approximation: the page says so |
+| `img/films/` | The standard 20 films on four samples (`-00` = original) | `mklooks.ts` (LookLab's standard 20, also the card's `LOOKS.BIN`), `films.ts` (`webapp/src/preview.ts`) | LookLab preview |
+| `img/demos/` | A before / after photo per setting | `demos.ts`: a neutral look with only that setting changed, at the value the screen shows | LookLab preview; Noise Filter and Vignette Correction are illustrations (`illus.py`), the preview doesn't model them |
+| `img/halation/` | CineStill 800T, Halation 0 and 5 | `films.ts` | LookLab preview |
 
 Samples: `webapp/public/samples/` (public domain / CC0, credited on the page and in `CREDITS.md`).
 

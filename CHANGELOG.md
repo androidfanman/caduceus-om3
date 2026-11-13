@@ -47,12 +47,12 @@ version, with these differences:
   Details: [release notes](releases/v0.29/NOTES.md).
 - **Tour page (the same day, after the release):** [a tour](https://androidfanman.github.io/caduceus-om3/), now the site's front page, of the films and
   every Picture Mode setting on the camera's own screens (the firmware in the om-emu emulator; the colour wheel drawn in,
-  as the emulator can't draw it), each with a before / after photo from the Control Panel's preview, what v0.29
-  changes, and Help: how to send a debug log, with Report a problem and GitHub links in its top bar. Linked from the README and the guide pages. Pictures made by `research/showcase/make.sh`. The Control Panel is
-  at [/looklab/](https://androidfanman.github.io/caduceus-om3/looklab/) as before (the front page used to forward there).
-- **Control Panel in the tour's look (the same day):** the same dark colours, fonts (Archivo, IBM Plex Sans / Mono, kept
-  with the Control Panel, so nothing is fetched from another site) and rounded buttons; links to the tour, install guide and
-  FAQ in its footer.
+  as the emulator can't draw it), each with a before / after photo from LookLab's preview, what v0.29
+  changes, and Help: how to send a debug log, with Report a problem and GitHub links in its top bar. Linked from the README and the guide pages. Pictures made by `research/showcase/make.sh`. LookLab is at
+  [/looklab/](https://androidfanman.github.io/caduceus-om3/looklab/) as before (the front page used to forward there).
+- **LookLab (the same day):** the Control Panel is now called **LookLab** (its address, `/looklab/`, is unchanged), in the
+  tour's look: the same dark colours, fonts (Archivo, IBM Plex Sans / Mono, kept with LookLab, so nothing is fetched
+  from another site) and rounded buttons; links to the tour, install guide and FAQ in its footer.
 
 ## v0.29-beta (test version)
 A test version of v0.29 (a GitHub pre-release; v0.28 stays the current version). Firmware camera-tested (2026-11-13,

@@ -5,7 +5,7 @@
 // so every preset here sets every key it uses (a look switch leaves nothing of the previous look behind).
 //
 // It is an approximation. RapidRAW starts from its own raw rendering, not the camera's JPEG engine, so the looks keep
-// their character, not exact colour. The mapping follows the Control Panel preview (src/preview.ts):
+// their character, not exact colour. The mapping follows the LookLab preview (src/preview.ts):
 //   12-sector Hue / Light / Saturation -> the 8 HSL bands: the preview's colour engine is run on sample colours
 //     around the HSV hue circle and the 8 band values are least-squares fitted to RapidRAW's own HSL maths
 //     (shader.wgsl apply_hsl_panel: Gaussian bands, hue 0.6 deg per unit, sat and linear luma as 1 + v/100).
@@ -169,5 +169,5 @@ export function rrpreset(pack: Pack, only?: number): string {
   const presets = only !== undefined
     ? [{ preset: rrPreset(pack.looks[only], only) }]
     : [{ folder: { id: `caduceus-${slug(pack.name || 'caduceus')}`, name: pack.name || 'Caduceus', children: pack.looks.map(rrPreset) } }];
-  return JSON.stringify({ creator: 'Caduceus Control Panel', presets }, null, 1) + '\n';
+  return JSON.stringify({ creator: 'Caduceus LookLab', presets }, null, 1) + '\n';
 }
