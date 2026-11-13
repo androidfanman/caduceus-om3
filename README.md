@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  Latest: <b>v0.28</b> (2026-11-12)
+  Latest: <b>v0.29</b> (2026-11-13)
 </p>
 
 ## What it does
@@ -29,8 +29,9 @@
 - **Your films in Picture Mode:** FILM 1–20 appear after COLOR 1–4, each with its own name. 20 film sims come with it.
 - **A colour editor on the camera:** hue, saturation and brightness for 12 colours, split toning, Blacks and Whites,
   WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
-- **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/), with a preview, then copy them to the card.
-- **Your changes are kept** for each film, even when the camera is switched off.
+- **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/), with a preview, then copy one file (`LOOKS.BIN`) to the card: the camera takes films it never had.
+- **Your films live in the camera:** the films, your changes to them and the Extras settings are kept in the camera's
+  own memory (from v0.29), so any SD card works, even a blank one.
 - **Your buttons and Creative Dial:** all four arrow keys in Button Function, and each Creative Dial position set to
   CRT, ART, COLOR or MONO, with its own film.
 - **The film in every photo:** its name and recipe in the JPEG's EXIF, so the Control Panel (or a recipe site, with the
@@ -54,8 +55,9 @@ About 15 minutes. **[Step-by-step install guide](https://androidfanman.github.io
 2. **Download** this project (**Code › Download ZIP**) and unzip it.
 3. **Make the update file:** double-click `Make SD card files (Mac).command` or `Make SD card files (Windows).bat`.
    It gets OM's official firmware from OM's server and adds Caduceus to it.
-4. **Copy** the `DCOLYMP` and `OM3MOD` folders to the top of the SD card, and the film sims (`LOOKS.BIN`, from the
-   [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest)) into `OM3MOD`.
+4. **Copy** the `DCOLYMP` folder to the top of the SD card. For the film sims, put `LOOKS.BIN` (from the
+   [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest)) in a folder `OM3MOD` on the card;
+   updating from an earlier version, keep your `OM3MOD` files: the camera copies them into its memory once.
 5. **Update the camera:** camera off, **hold OK** and switch on. Steady light = writing (about two minutes, don't touch
    anything); blinking = done.
 
@@ -133,6 +135,7 @@ Everything here is camera-tested on a real OM-3 unless it says otherwise.
 | Optional [debug log](debug-log/) (`DEBUG.TXT` → `OM3MOD/CADLOG.TXT`) for bug reports | v0.27 |
 | Films load at the first half-press after switching on (the automatic load at power-on of v0.26.2 and v0.27 was taken out: it could rarely freeze the camera at start-up) | v0.27.1 |
 | Halation: a red glow around bright lights, its own Picture Mode row (0..5) | v0.28 |
+| Films, on-camera changes and Extras settings kept in the camera's own memory, so any card works; a card brings in only films the camera never had | v0.29 |
 | Each film and COLOR remembers its white balance (mode and Kelvin) | v0.28 |
 | The photo's code records the film as set when the photo is taken (on-camera changes, Halation, Tone Balance, WB) | v0.28 |
 
@@ -146,13 +149,14 @@ Coming next: see the [roadmap](https://androidfanman.github.io/caduceus-om3/page
   **OK** while switching on) is proven on the OM-3, for Caduceus and for going back to the official firmware.
 - Use a full battery and don't interrupt the update. A failed write can leave the camera unable to start.
 - Keep the restore file the launcher makes (`restore/E1479999.BIN`): flashing it puts the camera back to stock 1.1.
-- If something misbehaves, copy the card's `OM3MOD` folder to your computer (your films are in it), delete it from the
-  card and try again. If that doesn't help, flash the restore file.
+- If something misbehaves, copy the card's `OM3MOD` folder to your computer, delete it from the card and try again (from
+  v0.29 your films are in the camera, so this doesn't lose them). If that doesn't help, flash the restore file.
 
 ## For developers
 
 - `firmware/src/editor.s`, `editor.ld`: the patch source (MN10300 / AM33 assembly). `firmware/src/xblock.s`: the
-  Extras code block (relocatable, appended to `GUIDES.BIN` and loaded from the card at the first half-press after switching on).
+  Extras code block (relocatable, appended to `GUIDES.BIN`; from v0.29 `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` are built into
+  the firmware, and the films live in the camera's settings memory: `docs/FORMATS.md`).
 - `firmware/frames.py`: the white Frame layers (our own JPEGs, written into the resource component).
 - `firmware/build.py`: builds the update file from source (needs binutils built for `--target=mn10300-elf`):
   `python3 firmware/build.py --stock OLY_E_147_1100_0000_0000_3.BIN --toolchain BINUTILS_BUILD --out NEW_DIR`.

@@ -9,7 +9,8 @@ Without --release it makes the newest version, and when run from a terminal it o
 
 Output (in --out, default "SD card files" next to this script):
   DCOLYMP/E1479999.BIN   the modified firmware: copy the DCOLYMP folder to the top of the SD card
-  OM3MOD/GUIDES.BIN      page labels for the wheel editor (from v0.20 also the Extras code: keep it with its firmware)
+  OM3MOD/GUIDES.BIN      page labels for the wheel editor (from v0.20 also the Extras code: keep it with its firmware;
+                         up to v0.28: from v0.29 it, LABELS.BIN and TONES.BIN are built into the firmware)
   OM3MOD/LABELS.BIN      the Extras dial labels (v0.20)
   OM3MOD/TONES.BIN       the split toning pages' guides (v0.26)
   restore/E1479999.BIN   the official firmware under the SD-update name, to go back to stock
@@ -238,17 +239,19 @@ def main():
         print('Stopped:', e)
         return 1
     out = Path(a.out)
-    for sub in ('DCOLYMP', 'OM3MOD', 'restore'):
+    cards = [n for n in ('GUIDES.BIN', 'LABELS.BIN', 'TONES.BIN') if (rdir / n).is_file()]   # page labels + Extras code (v0.20), Extras dial labels (v0.20), split toning guides (v0.26); none from v0.29 (built into the firmware)
+    for sub in ('DCOLYMP', 'restore') + (('OM3MOD',) if cards else ()):
         (out / sub).mkdir(parents=True, exist_ok=True)
     (out / 'DCOLYMP' / 'E1479999.BIN').write_bytes(pkg)
     (out / 'restore' / 'E1479999.BIN').write_bytes(raw)
-    for name in ('GUIDES.BIN', 'LABELS.BIN', 'TONES.BIN'):   # page labels + Extras code (v0.20), Extras dial labels (v0.20), split toning guides (v0.26)
-        g = rdir / name
-        if g.is_file():
-            shutil.copyfile(g, out / 'OM3MOD' / name)
+    for name in cards:
+        shutil.copyfile(rdir / name, out / 'OM3MOD' / name)
     (out / 'VERSION.txt').write_text(f'{patch["name"]} {patch["version"]}\n')
     print(f'Done ({patch["version"]}): {out}')
-    print('  Copy DCOLYMP and OM3MOD to the top of the SD card, then hold OK while turning the camera on.')
+    if cards:
+        print('  Copy DCOLYMP and OM3MOD to the top of the SD card, then hold OK while turning the camera on.')
+    else:
+        print('  Copy DCOLYMP to the top of the SD card (this version needs no OM3MOD files), then hold OK while turning the camera on.')
     print('  restore/E1479999.BIN is the official firmware: put it in DCOLYMP instead to go back to stock.')
     return 0
 

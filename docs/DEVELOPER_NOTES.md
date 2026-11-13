@@ -394,6 +394,45 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.29 release (feature/films-in-camera merged into main; build f2, camera-tested 2026-11-13)
+
+v0.29-beta (below) plus:
+- `firmware/VERSION` "v0.29 (camera-tested f2 build)", the same length as f2's name: main.bin differs only in that
+  string, the code-block tag and the built-in GUIDES copy's CRC / tag (checked). E1479999.BIN cd99362c…; `patch.py`
+  makes it by default (v0.29 sorts after v0.29-beta) and only DCOLYMP.
+- Films: the colour-matched standard 20 from main (owner); the beta's signature recipes (v7) are only in the history.
+  Release LOOKS.BIN ee3f1bde… (defaultBank, selection 0).
+- Control Panel rebuilt from main + the branch (LUT import, the camera's wheel scale, v0.29 wording); webapp tests pass.
+
+## v0.29-beta (branch feature/films-in-camera; build f2, camera-tested 2026-11-13; GitHub pre-release)
+
+Films in camera memory (issue #35; research and design by iancw in #36; details: `research/NOTES.md`, "Camera memory
+probe mp1", "Films in camera memory, step 1 (f1)" and "step 2 (f2)").
+- Store M: the camera's settings image (RAM 0x62920700, 0x40000 B, two flash slots), written by `0x60063d73` when the
+  byte 0xa32bfb32 is 1 (the return to shooting after a menu / Picture Mode, and the power-off); its checksum and load
+  cover the whole image; the camera's items end at offset 0x39465. Probe mp1 (`experiment/m-store-probe`) proved a
+  tail write survives two battery pulls on the camera.
+- The user block (`ub_*`, end of `editor.s`, ext12) at M + 0x3A000, 3,912 B: 'OM3U', version 1, CRC-32, generation, a
+  ring of 16 film-set identities (CRC-32 of a LOOKS image's bytes 32..), then the LOOKS / EDITS / BUNDLES images.
+  `sd_load` calls `ub_bun` (Extras) and `ub_pfl` (in place of pf_load: films from the block, or from the card when new
+  or when there is no block; edits from the block after fl_mk2; then `ub_put`); `ed_trig` calls `ub_save` in place of
+  ed_save + fl_save; `lg_pr` calls `ub_try` (a write held back while the camera saves M: busy byte 0xa32a9904, LOCK).
+  ed_save, fl_save, pf_save and pf_load are unused now. Format: `docs/FORMATS.md`.
+- GUIDES / LABELS / TONES built in: build.py puts them after ext12 in the GX4-proven reserve (0x60f99800..0x60fa26e0)
+  and raises the loader's end word 0x60045e9c to 0x60fa3000; `bf_tab` holds their addresses and sizes. editor.ld names
+  the camera's file functions OS_FOPEN / OS_FCLOSE / OS_FSEEK / OS_FTELL / OS_FREAD; `fopen` .. `fclose` in editor.s
+  wrap them (same frames) and serve the three names from the firmware; the code block links to the wrappers.
+- Frames: a function that calls another keeps (0,sp) free (ub_chk / ub_bun / ub_put / vf_new: 20, not 16).
+- om-emu: `session_ed1.mjs` `NV_FILE=` (S-NVRAM: native saves, kept between runs), `poweroff`, `pokep:OFF=HEX`, `WLIVE=1`.
+- Space after f2: ext12 37,840 B free, ext11 12,128 B, the GX4 reserve 641,312 B after the built-in files; M's tail
+  23,623 B free besides the block; GUIDES.BIN (loaded into one malloc block) 3,032 B under 16,448.
+- `firmware/VERSION` "v0.29-beta (camera-tested, f2)", the same length as f2's "v0.29-dev (films in camera f2)": main.bin
+  differs only in that string, the code-block tag and the built-in GUIDES copy's CRC and tag (checked).
+  E1479999.BIN b75ae112…; `patch.py --release v0.29-beta` rebuilds it byte for byte and makes no OM3MOD files.
+- Films: the 20 redesigned as signature looks (`webapp/scripts/films.py` SIGNATURE, v7, compared with Wikimedia
+  Commons photos); the release's optional LOOKS.BIN b7b6dabb… (the films-v7 test file with the selection at 0).
+- Control Panel (on this branch, published with v0.29): the v7 films and v0.29 wording in Install and Export.
+
 ## v0.28 release (branch feature/v0.28-halation; build pc1, camera-tested 2026-11-12)
 
 v0.28-alpha (below) plus:

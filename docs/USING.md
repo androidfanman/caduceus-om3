@@ -122,10 +122,12 @@ computer, with a preview. It starts with the same 20 film sims.
 
 1. Make or change your films in the Control Panel.
 2. Save them as **`LOOKS.BIN`**, with *Firmware on the camera* set to **v0.28 or later**.
-3. Copy `LOOKS.BIN` into the card's `OM3MOD` folder, replacing the old one.
+3. Copy `LOOKS.BIN` into the card's `OM3MOD` folder, then switch on and half-press once.
 
-A film you changed in the Control Panel starts again as you built it there; the other films keep the changes you made
-on the camera. Deleting `OM3MOD/EDITS.BIN` puts every film back as built.
+From v0.29 the camera takes the films into its own memory if it never had that set (an old `LOOKS.BIN` is ignored, so
+change anything to make a set new). A film you changed in the Control Panel starts again as you built it there; the
+other films keep the changes you made on the camera, and your selection and Extras stay. To put one film back as built,
+hold OK on it in Picture Mode.
 
 More on the Control Panel: [how to use it](CONTROL_PANEL.md).
 
@@ -135,15 +137,14 @@ See the [questions and answers](FAQ.md): no films in the list, settings that don
 
 ## The files on the card
 
-All in the `OM3MOD` folder at the top of the card:
+From v0.29 the camera keeps your films, your changes and the Extras settings in its own memory, and Caduceus's code,
+labels and guides are part of the firmware. The card only brings films in, in the `OM3MOD` folder at its top:
 
 | File | What it is | Where it comes from |
 |---|---|---|
-| `LOOKS.BIN` | Your films FILM 1–20, with their names | The release or the Control Panel |
-| `EDITS.BIN` | The changes you made on the camera | Written by the camera |
-| `BUNDLES.BIN` | The camera's current values (`.NEW` and `.BAK` are its safety copies) | Written by the camera |
-| `GUIDES.BIN` | Caduceus's code and labels | The release: always with its own firmware |
-| `LABELS.BIN`, `TONES.BIN` | Labels, and the split toning guides | The release |
+| `LOOKS.BIN` | Films FILM 1–20, with their names: the camera takes them once, if it never had that set | The release or the Control Panel |
+| `EDITS.BIN`, `BUNDLES.BIN` | Your changes and Extras from versions before v0.29: copied into the camera at the first start | Written by the camera before v0.29 |
+| `GUIDES.BIN`, `LABELS.BIN`, `TONES.BIN` | Code, labels and guides of versions before v0.29 (ignored from v0.29) | The release, before v0.29 |
 
 [`DEBUG.TXT`](https://github.com/androidfanman/caduceus-om3/releases/latest/download/DEBUG.TXT) (optional) turns on a debug log: the camera then writes `CADLOG.TXT`. Only
 add it if you're asked for a log, and delete it afterwards. Older versions also used `NAMES.BIN`; it's harmless. Technical details: [FORMATS.md](FORMATS.md).

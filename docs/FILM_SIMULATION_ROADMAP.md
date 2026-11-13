@@ -92,6 +92,8 @@ probes the rest of section 6 (about 660 KB more, GX4); see `research/NOTES.md`, 
 
 | Date | Item | What it gives film looks |
 |---|---|---|
+| 2026-11-13 | v0.29 released | The films, edits and Extras kept in the camera's own memory, so any card works; the colour-matched standard 20 in the optional LOOKS.BIN and the Control Panel. |
+| 2026-11-13 | v0.29-beta (test version) | The 20 films redesigned as signature looks, each compared with real photos taken on the film (Wikimedia Commons; CineStill 800T with Custom WB 3200 K and Halation 3, 400D Halation 2; Cuban Negative reworked); the films, edits and Extras kept in the camera's own memory so any card works. |
 | 2026-11-12 | v0.28 released | Halation (its own row), split toning 0..10 with Tone Balance, WB remembered per film, Blacks / Whites as one grid (±7), the film as set in each photo's code; the Control Panel knows all of it. |
 | 2026-11-11 | v0.27 released | The film's name and recipe in every JPEG (opens in the Control Panel); Creative Dial positions with their own film; Gold 200 and CineStill 800T split tone on the Highlights wheel in `LOOKS.BIN`. |
 | 2026-11-09 | v0.26.2 released | Films load at power-on (no half-press); the super control panel dials step through COLOR 1–4 and FILM 1–20; fixes for Film Grain with RAW+JPEG, the FILM N label and `EDITS.BIN`. |
