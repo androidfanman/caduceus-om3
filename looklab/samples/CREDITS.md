@@ -33,7 +33,7 @@ re-encoded as JPEG; no other edits.
 
 ## E-P7 mode
 
-On Wikimedia Commons; downscaled to 1024 px wide. headwrap.jpg is also shown in OM-3 mode.
+On Wikimedia Commons; downscaled to 1024 px wide. headwrap.jpg, forest.jpg and neon.jpg are also shown in OM-3 mode.
 
 | File | Source | Author | Licence |
 |---|---|---|---|

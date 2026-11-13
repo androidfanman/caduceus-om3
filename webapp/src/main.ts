@@ -28,8 +28,8 @@ const LIBRARY = parsePack(libraryJson);
 const SAMPLE_REV = '2';
 const OM3_SAMPLES = [
   { id: 'frames', label: 'Colour frames' }, { id: 'portrait', label: 'Portrait' }, { id: 'headwrap', label: 'Portrait, headwrap' },
-  { id: 'taxi', label: 'Yellow taxi' }, { id: 'meadow', label: 'Mountain meadow' }, { id: 'ocean', label: 'Ocean' },
-  { id: 'bluehour', label: 'Blue hour' }, { id: 'paris', label: 'Night street' }, { id: 'paijanne', label: 'Sunset' },
+  { id: 'taxi', label: 'Yellow taxi' }, { id: 'meadow', label: 'Mountain meadow' }, { id: 'forest', label: 'Forest sunrise' }, { id: 'ocean', label: 'Ocean' },
+  { id: 'bluehour', label: 'Blue hour' }, { id: 'paris', label: 'Night street' }, { id: 'neon', label: 'Diner at dusk' }, { id: 'paijanne', label: 'Sunset' },
 ];
 /** The camera's HSL wheel pages, in its INFO order (v0.26): Color (saturation), Hue, Luminance, Shadows, Highlights. */
 type Tab = 'sat' | 'hue' | 'light' | 'sh' | 'hl';
