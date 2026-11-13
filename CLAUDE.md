@@ -20,7 +20,7 @@ commands, and keep replies short.
 | `docs/` | User docs, `DEVELOPER_NOTES.md` (per-release technical summary), `FILM_SIMULATION_ROADMAP.md`, `PHOTO_TO_LOOK.md`. |
 | `research/` | `NOTES.md` = the lab notebook (every address, test and dead end), tools, emulator scripts, archived experiments. See `research/README.md`. |
 | `CHANGELOG.md`, `ROADMAP.md` | Released changes; planned features. |
-| `pages/` | The guide pages on GitHub Pages (install, using, faq, roadmap, changelog; style and renderer in `pages/site/`). They read `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md` when opened: edit those files, not the pages. |
+| `pages/` | The guide pages on GitHub Pages (install, using, faq, roadmap, changelog; style and renderer in `pages/site/`). They read `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md` when opened: edit those files, not the pages. `pages/showcase/` is the tour: a static page with its own pictures (`research/showcase/`). |
 
 Branches: `main` = released and safe. `feature/...` = work meant to ship (README banner says its status).
 `experiment/...` = a test that answers a question, not for use.
@@ -54,7 +54,9 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 - **Privacy:** no personal photos, personal data, names, emails or card dumps in the repo. Sample photos must be
   public domain or properly licensed and credited (`webapp/public/samples/CREDITS.md`). Never publish the
   owner's LUT or preset files (read-only reference at most).
-- **No OM firmware** (original or decoded), disassembly dumps or camera graphics in the repo.
+- **No OM firmware** (original or decoded), disassembly dumps or camera graphics in the repo. Exception (owner, 2026-11-13):
+  emulator screenshots of the camera's menus running our firmware, for the tour page (`pages/showcase/`, made by
+  `research/showcase/make.sh`). Graphics taken out of the firmware itself stay out.
 - **Images in the Control Panel:** send any new or changed image to the owner for approval before publishing.
 - **Film sims are our own designs:** no copied looks, LUTs or presets; no grain, Glow / Clarity or Art Effects in
   film sims (the user adds those).

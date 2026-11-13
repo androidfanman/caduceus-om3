@@ -64,6 +64,10 @@ photo's code. Firmware camera-tested (2026-11-12, build pc1; only its name was c
   (67 films). **Film sims** has **Colour matched** and **Hand-tuned** filters, and a tag on the matched films. The
   standard 20 (first visit, **Reset looks to standard**) are now these 18 + CineStill 800T and Kodachrome 64. Not
   camera-tested yet; the release's `LOOKS.BIN` keeps the earlier 20, and your own list in the Control Panel is kept.
+- **Tour page, 2026-11-13:** [a tour](https://androidfanman.github.io/caduceus-om3/pages/showcase/) of the films and
+  every Picture Mode setting on the camera's own screens (the firmware in the om-emu emulator; the colour wheel drawn in,
+  as the emulator can't draw it), each with a before / after photo from the Control Panel's preview, and what v0.29
+  changes. Linked from the README and the guide pages. Pictures made by `research/showcase/make.sh`.
 - Not planned after all (owner): custom crop modes (set aside), exposure and ISO per film.
 
 ## v0.28-alpha (test version)

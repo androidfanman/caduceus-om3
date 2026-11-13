@@ -1,9 +1,13 @@
 <h1 align="center">Caduceus for OM-3</h1>
 
+> [!NOTE]
+> **Branch `feature/showcase`:** the tour page (`pages/showcase/`), to go out with v0.29. Not on the live site yet.
+
 <p align="center"><strong>Film looks and a colour editor, built into the OM SYSTEM OM-3.</strong></p>
 
 <p align="center">
   <a href="https://github.com/androidfanman/caduceus-om3/releases/latest"><b>Download</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/pages/showcase/"><b>Tour</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/changelog/"><b>Changelog</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/install/"><b>Install</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/using/"><b>Using it</b></a> &nbsp;·&nbsp;
@@ -18,6 +22,8 @@
 </p>
 
 ## What it does
+
+**[Take the tour](https://androidfanman.github.io/caduceus-om3/pages/showcase/)**: the films and every setting on the camera's own screens, with before / after photos.
 
 - **Your films in Picture Mode:** FILM 1–20 appear after COLOR 1–4, each with its own name. 20 film sims come with it.
 - **A colour editor on the camera:** hue, saturation and brightness for 12 colours, split toning, Blacks and Whites,
