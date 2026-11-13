@@ -1,0 +1,33 @@
+name: Report a problem
+description: Something isn't working on the camera or in LookLab.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! A debug log helps a lot: see [how to send one](https://github.com/androidfanman/caduceus-om3/tree/main/debug-log).
+  - type: input
+    id: version
+    attributes:
+      label: Caduceus version
+      description: The version you installed, for example v0.29 (the debug log also shows it).
+      placeholder: v0.29
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what the camera (or LookLab) did instead.
+    validations:
+      required: true
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings when it happened
+      description: The film, Glow / grain, drive mode (single or burst), RAW / JPEG, the lens and the SD card, if you know them.
+  - type: textarea
+    id: log
+    attributes:
+      label: Debug log
+      description: If you made one, drag OM3MOD/CADLOG.TXT from the card here (see the link at the top for how).

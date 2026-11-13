@@ -16,6 +16,13 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/androidfanman/caduceus-om3/issues/new?template=bug.yml">Report a problem</a> &nbsp;·&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/issues/new?template=suggestion.yml">Suggest a feature</a> &nbsp;·&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/issues?q=is%3Aissue%20is%3Aopen%20label%3Abug">Open problems</a> &nbsp;·&nbsp;
+  <a href="https://github.com/androidfanman/caduceus-om3/issues?q=is%3Aissue%20is%3Aopen%20label%3Asuggestion">Suggestions</a>
+</p>
+
+<p align="center">
   Latest: <b>v0.29</b> (2026-11-13)
 </p>
 
