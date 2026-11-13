@@ -1,4 +1,4 @@
-/* The look of the tour (pages/showcase/) and the guide pages: their fonts, shapes and top bar. Colours are in
+/* The look of the tour (the site's front page, index.html) and the guide pages: their fonts, shapes and top bar. Colours are in
    style.css's :root. Loaded after style.css (main.ts).
    Fonts: Archivo, IBM Plex Sans and IBM Plex Mono (SIL Open Font License 1.1, fonts/LICENSE-*.txt), Latin subsets
    from @fontsource 5.3.0, kept here so nothing is fetched from another site (the page's CSP allows 'self' only). */

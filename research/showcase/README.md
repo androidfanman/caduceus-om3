@@ -1,6 +1,6 @@
-# The tour page's pictures (`pages/showcase/`)
+# The tour's pictures (`pages/showcase/img/`)
 
-`make.sh` makes every picture of [the tour](../../pages/showcase/) from scratch (about three minutes) and writes them
+`make.sh` makes every picture of [the tour](../../index.html) (the site's front page) from scratch (about three minutes) and writes them
 to `pages/showcase/img/`. It needs the workspace (`research/setup.sh`, then `. ~/om3-work/env.sh`) and
 `cd webapp && npm install`. Run it again when the films, the firmware's screens or the preview change.
 

@@ -117,7 +117,7 @@ and MONO don't get one.
 
 ## New films from the Control Panel
 
-The [Control Panel](https://androidfanman.github.io/caduceus-om3/) is a web page for making and changing films on your
+The [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/) is a web page for making and changing films on your
 computer, with a preview. It starts with the same 20 film sims.
 
 1. Make or change your films in the Control Panel.

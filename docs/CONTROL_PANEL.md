@@ -1,6 +1,6 @@
 # Using the Control Panel
 
-The **[Caduceus Control Panel](https://androidfanman.github.io/caduceus-om3/)** is a web page where you make and change
+The **[Caduceus Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/)** is a web page where you make and change
 your films (FILM 1–20 on the camera) on your computer, with a preview. Your work stays in your browser: nothing is
 uploaded.
 

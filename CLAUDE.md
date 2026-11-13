@@ -20,7 +20,7 @@ commands, and keep replies short.
 | `docs/` | User docs, `DEVELOPER_NOTES.md` (per-release technical summary), `FILM_SIMULATION_ROADMAP.md`, `PHOTO_TO_LOOK.md`. |
 | `research/` | `NOTES.md` = the lab notebook (every address, test and dead end), tools, emulator scripts, archived experiments. See `research/README.md`. |
 | `CHANGELOG.md`, `ROADMAP.md` | Released changes; planned features. |
-| `pages/` | The guide pages on GitHub Pages (install, using, faq, roadmap, changelog; style and renderer in `pages/site/`). They read `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md` when opened: edit those files, not the pages. `pages/showcase/` is the tour: a static page with its own pictures (`research/showcase/`). |
+| `pages/` | The guide pages on GitHub Pages (install, using, faq, roadmap, changelog; style and renderer in `pages/site/`). They read `docs/INSTALL.md`, `docs/USING.md`, `docs/FAQ.md`, `ROADMAP.md` and `CHANGELOG.md` when opened: edit those files, not the pages. The tour is the site's front page: `index.html` at the root, its pictures in `pages/showcase/img/` (made by `research/showcase/make.sh`); the Control Panel is `looklab/`. |
 
 Branches: `main` = released and safe. `feature/...` = work meant to ship (README banner says its status).
 `experiment/...` = a test that answers a question, not for use.
@@ -55,7 +55,7 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
   public domain or properly licensed and credited (`webapp/public/samples/CREDITS.md`). Never publish the
   owner's LUT or preset files (read-only reference at most).
 - **No OM firmware** (original or decoded), disassembly dumps or camera graphics in the repo. Exception (owner, 2026-11-13):
-  emulator screenshots of the camera's menus running our firmware, for the tour page (`pages/showcase/`, made by
+  emulator screenshots of the camera's menus running our firmware, for the tour (the front page `index.html`, pictures in `pages/showcase/img/`, made by
   `research/showcase/make.sh`). Graphics taken out of the firmware itself stay out.
 - **Images in the Control Panel:** send any new or changed image to the owner for approval before publishing.
 - **Film sims are our own designs:** no copied looks, LUTs or presets; no grain, Glow / Clarity or Art Effects in

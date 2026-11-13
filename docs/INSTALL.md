@@ -75,7 +75,7 @@ If it says **Stopped** instead of Done, nothing was written: see [If something g
    `DCIM` folder (not inside it).
 3. **Get the films.** The 20 film sims are a separate file, `LOOKS.BIN`. Download it from the
    [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest) (under *Assets*), or make your own in
-   the [Control Panel](https://androidfanman.github.io/caduceus-om3/). Put it in the card's **`OM3MOD`** folder.
+   the [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/). Put it in the card's **`OM3MOD`** folder.
 4. Eject the card properly before you take it out.
 
 The card should now look like this:

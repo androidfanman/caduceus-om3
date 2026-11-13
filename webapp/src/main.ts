@@ -226,7 +226,7 @@ function shell() {
     h('footer', { class: 'foot' },
       h('span', {}, 'Caduceus for OM-3 is an unofficial, community firmware mod (COLOR looks only, not Monochrome). Files are made in your browser; nothing is uploaded.'),
       h('span', { class: 'links' },
-        h('a', { href: '../pages/showcase/' }, 'Tour'), h('a', { href: '../pages/install/' }, 'Install'), h('a', { href: '../pages/faq/' }, 'FAQ'),
+        h('a', { href: '../' }, 'Tour'), h('a', { href: '../pages/install/' }, 'Install'), h('a', { href: '../pages/faq/' }, 'FAQ'),
         h('a', { href: './samples/CREDITS.md', target: '_blank', rel: 'noopener' }, 'Image credits'))),
     h('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }),
     h('input', { type: 'file', id: 'file', accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),

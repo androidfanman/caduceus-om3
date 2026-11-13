@@ -1,18 +1,18 @@
 <h1 align="center">Caduceus for OM-3</h1>
 
 > [!NOTE]
-> **Branch `feature/showcase`:** the tour page (`pages/showcase/`) and the Control Panel in the tour's look, to go out
+> **Branch `feature/showcase`:** the tour as the site's front page and the Control Panel in the tour's look, to go out
 > with v0.29. Not on the live site yet; `looklab/` is not rebuilt on this branch (rebuild after merging).
 
 <p align="center"><strong>Film looks and a colour editor, built into the OM SYSTEM OM-3.</strong></p>
 
 <p align="center">
   <a href="https://github.com/androidfanman/caduceus-om3/releases/latest"><b>Download</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/pages/showcase/"><b>Tour</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/"><b>Tour</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/changelog/"><b>Changelog</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/install/"><b>Install</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/using/"><b>Using it</b></a> &nbsp;·&nbsp;
-  <a href="https://androidfanman.github.io/caduceus-om3/"><b>Control Panel</b></a> &nbsp;·&nbsp;
+  <a href="https://androidfanman.github.io/caduceus-om3/looklab/"><b>Control Panel</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/faq/"><b>FAQ</b></a> &nbsp;·&nbsp;
   <a href="https://androidfanman.github.io/caduceus-om3/pages/roadmap/"><b>Roadmap</b></a> &nbsp;·&nbsp;
   <a href="https://github.com/androidfanman/caduceus-om3/tree/main/devkit/photo-code"><b>Developers</b></a>
@@ -24,12 +24,12 @@
 
 ## What it does
 
-**[Take the tour](https://androidfanman.github.io/caduceus-om3/pages/showcase/)**: the films and every setting on the camera's own screens, with before / after photos.
+**[Take the tour](https://androidfanman.github.io/caduceus-om3/)**: the films and every setting on the camera's own screens, with before / after photos.
 
 - **Your films in Picture Mode:** FILM 1–20 appear after COLOR 1–4, each with its own name. 20 film sims come with it.
 - **A colour editor on the camera:** hue, saturation and brightness for 12 colours, split toning, Blacks and Whites,
   WB shift, Sharpness, Noise Filter, Shading, Glow / Clarity and Color Grain.
-- **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/), with a preview, then copy them to the card.
+- **Make films on your computer** in the [Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/), with a preview, then copy them to the card.
 - **Your changes are kept** for each film, even when the camera is switched off.
 - **Your buttons and Creative Dial:** all four arrow keys in Button Function, and each Creative Dial position set to
   CRT, ART, COLOR or MONO, with its own film.
@@ -78,7 +78,7 @@ until the problem happens, and attach the `OM3MOD/CADLOG.TXT` it writes. [How, s
 
 ## The Control Panel
 
-The **[Control Panel](https://androidfanman.github.io/caduceus-om3/)** is a web page for making and changing your films, with a preview on sample photos or
+The **[Control Panel](https://androidfanman.github.io/caduceus-om3/looklab/)** is a web page for making and changing your films, with a preview on sample photos or
 your own. It starts with the 20 film sims and has 62 film looks to choose from. Save your films as `LOOKS.BIN` and copy
 it to the card's `OM3MOD` folder. Nothing is uploaded: your work stays in your browser.
 **[How to use the Control Panel](docs/CONTROL_PANEL.md)**.

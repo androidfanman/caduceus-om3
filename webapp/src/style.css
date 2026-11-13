@@ -1,5 +1,5 @@
 :root {
-  /* The tour's (pages/showcase/) and the guide pages' dark palette; the light one below is kept for a theme switch. */
+  /* The tour's (the site's front page) and the guide pages' dark palette; the light one below is kept for a theme switch. */
   --bg: #0e1014;
   --panel: #181c22;
   --ink: #eceef2;
