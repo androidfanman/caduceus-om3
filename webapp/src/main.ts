@@ -1113,7 +1113,7 @@ function om3FilmPicker(into?: { k: number; v: number }) {
       } }, t)));
   const search = h('input', { type: 'search', placeholder: 'Search films…', 'aria-label': 'Search films', oninput: (e: Event) => { query = (e.target as HTMLInputElement).value; drawRows(); } });
   const body = h('div', { class: 'film-dlg' },
-    h('div', { class: 'film-side' }, pv, pvNote),
+    h('div', { class: 'film-side' }, pvNote, pv),
     h('div', { class: 'film-main' }, h('div', { class: 'film-filters' }, search, chips), list));
   drawRows(); drawPv();
   modal(into ? `Film sim for ${at(into.k, into.v)}` : 'Film sims', body);

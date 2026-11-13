@@ -293,6 +293,7 @@ a.btn.primary { background: var(--accent); color: var(--accent-ink); border-colo
 dialog.modal:has(.film-dlg) { width: min(1040px, calc(100vw - 32px)); }
 .film-dlg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
 .film-side { position: sticky; top: 0; display: grid; gap: 8px; }
+.film-desc { min-height: 4.6em; }
 .film-desc b { display: block; margin-bottom: 2px; }
 .film-desc p { margin: 0; font-size: 14px; line-height: 1.45; }
 canvas.film-pv { width: 100%; height: auto; border-radius: 8px; background: #000; display: block; }
