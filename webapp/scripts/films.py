@@ -332,6 +332,11 @@ SIGNATURE = {
  'Astia 100F': dict(sat=1, l_O=1, h_O=-1, s_b=1, ab=-1, hl=-1, sh=1, split=('B', 0.5, 'Y', 0.5)),
  # intensely saturated: strong reds and deep blues, a faint green cast, contrasty
  'Agfa Ultra 100': dict(sat=4, s_r=2, s_b=2, h_b=-1, s_g=1, ab=-1, gm=1, con=2, sh=-1, blk=-1, split=('B', 1, 'Y', 0.5)),
+ # (not a film stock) the popular Classic Neg-based "Cuban negative" look, our own design compared with photos made with
+ # it: honeyed skin, orange-leaning reds, olive greens, muted teal blues, cyan-green shadows, clean bright whites with a
+ # faint warm-pink in the highlights, firm contrast
+ 'Cuban Negative': dict(sat=1, s_r=1, h_r=-1, l_O=1, s_g=-2, h_g=1, s_b=-1, h_b=1, l_b=-1, con=1, hl=1, wht=1,
+                        split=('C', 1.5, 'R', 1), bal=-1),
 }
 
 def tuned(name, s):

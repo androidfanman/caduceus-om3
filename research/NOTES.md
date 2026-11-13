@@ -3570,3 +3570,10 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   1.09, Velvia 1.14 / 1.24, Superia 1.19 / 1.13, Vision3 0.67 / 0.75, Eterna 0.72 / 0.69. The near-neutral cast is a weak
   measure for strongly tinted films (their tinted pixels drop out) and CineStill 800T's references are night scenes
   under lamps while the preview assumes daylight: those two judged by eye. Reference numbers: private folder.
+- **Cuban Negative (not a film stock; 2026-11-12):** the popular Fujifilm recipe "Classic Cuban Negative" (by the
+  photographer Osan, built on Classic Neg). Ours stays our own design (no recipe settings copied); compared, as the films,
+  with the 14 community photos made with it in the Fuji Rumors roundup (measured in the browser, nothing kept): about
+  as colourful as the film average, bright whites, cyan-green shadows, slightly warm-pink highlights. v6 had yellow
+  highlights and dim whites. New SIGNATURE: olive greens, muted teal blues, orange-leaning reds, honeyed skin, firm
+  contrast, Whites +1, split Cyan 1.5 / Red 1 with Tone Balance -1. Measured vs the photos (relative to the 20 films'
+  average): colourfulness 0.96 / 0.96, shadow cast -9 / -9 (green), midtone -5 / -4, highlights +4 / +1 (warm).
