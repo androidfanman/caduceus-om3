@@ -3655,3 +3655,11 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   a window) and FILM 3 Kodachrome 64 with Grain 3 High (flat-tile high-pass texture 10.1 against 1.2 for the Glow frames, the
   grain plain at 1:1). So the films and Extras come from the camera's memory, and the code block, labels and tone pictures
   from the firmware: **any card works.** (No debug log in this round: no DEBUG.TXT on the card.)
+- **Camera, new films from a Control Panel export (owner, 2026-11-13, f2): works.** The camera's 20 films loaded into the
+  Control Panel (a bank link made from the card's LOOKS.BIN taken in at f1), FILM 15 Seaside Pastel Midtones +6 -> +7 with the
+  UI's + button, then Export › Single files › LOOKS.BIN ("v0.28 or later"); the file differs from the camera's films only in
+  that byte (record 15 +45), its CRC and the selection bytes. On the card (a new OM3MOD with LOOKS.BIN and DEBUG.TXT). Camera:
+  the photo PB132430 on FILM 15 Seaside Pastel has Midtones 7 in its photo code (Shadows 3, Highlights -1, Contrast -1,
+  Blacks 3, as exported); the last power-on's CADLOG: "LOOKS.BIN: on the card (the camera takes only films it never had) /
+  a valid block at power-on: yes, generation 8 / Films from: the camera" (the set was taken at an earlier power-on, then not
+  again). So the whole path works on the camera: Control Panel -> one LOOKS.BIN -> the camera's memory.
