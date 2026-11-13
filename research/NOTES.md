@@ -3644,3 +3644,9 @@ M's unused tail survived two battery pulls on the owner's OM-3, the camera's own
   a card with only DEBUG.TXT: GPTR / XPTR / tg_ptr set from the built-in copies, the three opened at the first half-press
   (rows 0, 1, 2), the Picture Mode screen drawn in full, CADLOG "Card files: all match this firmware".
 - Package: `test-builds/2026-11-13-films-in-camera-f2` (only E1479999.BIN to copy). Camera test pending.
+- **Camera, round 1 (owner, 2026-11-13, f2): passed.** (A first attempt still ran f1: the owner had not held OK at power-on;
+  f1 kept working, an edit -> generation 4.) After the flash: CADLOG build "v0.29-dev (films in camera f2)", "Card files:
+  all match this firmware", LOOKS / EDITS / BUNDLES "not needed (kept in the camera's memory)", "a valid block at power-on:
+  yes, generation 4 / Films from: the camera": the block written under f1 survived flashing f2 (our own firmware update keeps
+  M's tail). Photos PB132423..25 (FILM 1 Portra 400, photo code: Glow -5, Grain 3 High, ISO 200..800): the grain is plain in a
+  1:1 crop of a flat wall and the Glow blooms around a lamp, so the code block runs from the built-in GUIDES.BIN.
