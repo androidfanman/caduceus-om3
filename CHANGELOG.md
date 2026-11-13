@@ -48,7 +48,8 @@ version, with these differences:
 - **Tour page (the same day, after the release):** [a tour](https://androidfanman.github.io/caduceus-om3/), now the site's front page, of the films and
   every Picture Mode setting on the camera's own screens (the firmware in the om-emu emulator; the colour wheel drawn in,
   as the emulator can't draw it), each with a before / after photo from LookLab's preview, what v0.29
-  changes, and Help: how to send a debug log, with Report a problem and GitHub links in its top bar. Linked from the README and the guide pages. Pictures made by `research/showcase/make.sh`. LookLab is at
+  changes, the arrow keys and Creative Dial in Button Function, and Help: how to send a debug log, with Report a
+  problem and GitHub links in its top bar. Linked from the README and the guide pages. Pictures made by `research/showcase/make.sh`. LookLab is at
   [/looklab/](https://androidfanman.github.io/caduceus-om3/looklab/) as before (the front page used to forward there).
 - **LookLab (the same day):** the Control Panel is now called **LookLab** (its address, `/looklab/`, is unchanged), in the
   tour's look: the same dark colours, fonts (Archivo, IBM Plex Sans / Mono, kept with LookLab, so nothing is fetched

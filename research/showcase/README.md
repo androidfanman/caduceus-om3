@@ -26,4 +26,7 @@ wheel `info` steps Color → Color All → Hue → Luminance → Shadows → Hig
 clockwise from Yellow (`sub+1` from Yellow goes to ALL first). After leaving Picture Mode, `ok` opens the super
 control panel. om-emu's raw shots hold Y / Cb / Cr bytes: `ycc2rgb.py` converts them as om-emu's PNG writer does.
 
-Not on the page yet: the Button Function and Creative Dial menus (not tried in the emulator).
+**Button Function** (`btn-*.png`): `s1 menu` then `left` ×5 reaches the Custom menu's Operations page, `ok` opens Button
+Settings, `ok` Button Function with the cursor on Fn; rows Fn, REC, |o|, CP, AF-ON, ✥, ▲, ◀, ▶, ▼, L-Fn, CRT, ART, COLOR, MONO
+(▲ ◀ ▶ ▼ are grey until ✥ is Direct Function); `ok` opens a row's options, `right` moves through them,
+`ok` sets, `menu` goes back. `left` / `right` on the menu list itself change pages.
