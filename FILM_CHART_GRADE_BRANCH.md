@@ -24,5 +24,8 @@ ColorPlus 6.7 -> 5.0, Superia 400 6.3 -> 4.4, Portra 800 5.7 -> 4.9, Velvia 13.9
 Velvia: the two models disagree (skin and sky blue); the camera can't turn the cyan patch as far as Velvia does.
 The camera chart shoot decides. Portra 400's grey tint: preview says slightly warmer than the film (2.6 -> 3.0).
 
-- Test file: LOOKS_CP1.BIN (sha256 87c84364…), the standard 20 with the 11 camera films changed.
+- The camera's 20 changed (owner, 2026-11-13): the 18 colour-matched films + CineStill 800T and Kodachrome 64, in
+  `CAMERA` (`webapp/scripts/films.py`), the README table and the default-bank test. Dropped from the 20 (still in the
+  list): Ultramax 400, CineStill 400D, Reala 100, Vision3 250D, Fuji Eterna, Astia 100F, Agfa Ultra 100.
+- Test file: LOOKS_CP2.BIN (sha256 774b36bc…), the new 20 (LOOKS_CP1.BIN, 87c84364…, was the old 20 with 11 regraded).
 - Next: owner shoots the chart with it (as for v6); measure, then keep, adjust or drop per film.

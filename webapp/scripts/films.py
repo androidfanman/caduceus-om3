@@ -201,10 +201,14 @@ ALIASES = {
  'Kodak Dispo': 'Ultramax 400',
 }
 
-# The camera's FILM 1-20 (owner's order, 2026-11-08): COLOR k = (n - 1) / 5, look (n - 1) % 5 + 1. The tool lists them first.
-CAMERA = ['Portra 400', 'Gold 200', 'Kodachrome 64', 'Portra 800', 'CineStill 800T', 'Ektar 100', 'Ultramax 400', 'Pro 400H',
-          'Velvia 50', 'Superia 400', 'ColorPlus 200', 'CineStill 400D', 'Fuji C200', 'Ektachrome E100', 'Reala 100', 'Provia 100F',
-          'Vision3 250D', 'Fuji Eterna', 'Astia 100F', 'Agfa Ultra 100']
+# The camera's FILM 1-20 (owner 2026-11-13: the 18 colour-matched films + CineStill 800T and Kodachrome 64; was the
+# owner's order of 2026-11-08): COLOR k = (n - 1) / 5, look (n - 1) % 5 + 1. The tool lists them first.
+CAMERA = [
+          'Portra 400', 'Portra 160', 'Portra 800', 'Gold 200', 'ColorPlus 200',
+          'Ektar 100', 'Ektachrome E100', 'Kodachrome 64', 'CineStill 800T', 'Velvia 50',
+          'Provia 100F', 'Pro 400H', 'Pro 160S', 'NPS 160', 'NHG II 800',
+          'Superia 400', 'Fuji C200', 'Fujifilm 200', 'Fujifilm 400', 'Natura 1600',
+]
 
 # Camera grading (2026-11-11): every look's colours, WB and split tone are fitted with a model of the OM-3's own
 # response, measured from colour-checker photos taken on the camera with each slider on its own (research/NOTES.md,

@@ -85,25 +85,25 @@ products or presets. In camera order:
 | FILM | Name | The look |
 |---|---|---|
 | 1 | Portra 400 | Warm, soft contrast, natural skin, bright and airy |
-| 2 | Gold 200 | Warm and golden, rich yellows |
-| 3 | Kodachrome 64 | Deep reds, golden yellows, dark rich blues, dense shadows |
-| 4 | Portra 800 | Warmer and richer than Portra 400 |
-| 5 | CineStill 800T | Cool, teal-leaning night look with warm skin and strong reds |
+| 2 | Portra 160 | The finest Portra: gentle, natural colour and skin, low contrast |
+| 3 | Portra 800 | Warmer and richer than Portra 400 |
+| 4 | Gold 200 | Warm and golden, rich yellows |
+| 5 | ColorPlus 200 | Warm, yellow-golden, softer and more muted than Gold |
 | 6 | Ektar 100 | Saturated and punchy, bold reds, clean blues |
-| 7 | Ultramax 400 | Warm, saturated, punchy |
-| 8 | Pro 400H | Soft pastels, airy highlights, minty greens, cyan skies |
-| 9 | Velvia 50 | Very saturated landscape slide, deep blues, lush greens |
-| 10 | Superia 400 | Green-leaning, cyan skies, snappy |
-| 11 | ColorPlus 200 | Warm, yellow-golden, softer and more muted than Gold |
-| 12 | CineStill 400D | Soft, warm daylight, pastel colour |
-| 13 | Fuji C200 | Cool greens and blues, clear and airy |
-| 14 | Ektachrome E100 | Clean, neutral slide colour, crisp, clear blues |
-| 15 | Reala 100 | Natural, accurate colour |
-| 16 | Provia 100F | Accurate slide colour, clean skies, crisp |
-| 17 | Vision3 250D | Natural, very soft daylight cinema look, open shadows |
-| 18 | Fuji Eterna | Muted, understated cinema look, soft contrast |
-| 19 | Astia 100F | Soft slide film for people, gentle contrast |
-| 20 | Agfa Ultra 100 | Extremely saturated, bold reds and blues |
+| 7 | Ektachrome E100 | Clean, neutral slide colour, crisp, clear blues |
+| 8 | Kodachrome 64 | Deep reds, golden yellows, dark rich blues, dense shadows |
+| 9 | CineStill 800T | Cool, teal-leaning night look with warm skin and strong reds |
+| 10 | Velvia 50 | Very saturated landscape slide, deep blues, lush greens |
+| 11 | Provia 100F | Accurate slide colour, clean skies, crisp |
+| 12 | Pro 400H | Soft pastels, airy highlights, minty greens, cyan skies |
+| 13 | Pro 160S | Natural portrait colour, smooth skin, clean greens |
+| 14 | NPS 160 | Soft studio portrait film, gentle skin, cool greens |
+| 15 | NHG II 800 | Fast pro film, natural skin, clear greens, deep cool blues |
+| 16 | Superia 400 | Green-leaning, cyan skies, snappy |
+| 17 | Fuji C200 | Cool greens and blues, clear and airy |
+| 18 | Fujifilm 200 | Close to Gold but softer, slightly warm |
+| 19 | Fujifilm 400 | Warm and punchy, bright reds, golden yellows |
+| 20 | Natura 1600 | Fast, clean and slightly cool, lively reds, soft blacks |
 
 ## What's in it
 

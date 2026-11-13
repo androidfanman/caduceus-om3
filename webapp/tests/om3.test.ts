@@ -56,10 +56,10 @@ describe('OM-3 profile bank', () => {
     expect(b.flat().filter(Boolean)).toHaveLength(20);
     expect(validateBank(b)).toEqual([]);
     expect(b.map((r) => r.map((l) => l!.name))).toEqual([
-      ['Portra 400', 'Gold 200', 'Kodachrome 64', 'Portra 800', 'CineStill 800T'],
-      ['Ektar 100', 'Ultramax 400', 'Pro 400H', 'Velvia 50', 'Superia 400'],
-      ['ColorPlus 200', 'CineStill 400D', 'Fuji C200', 'Ektachrome E100', 'Reala 100'],
-      ['Provia 100F', 'Vision3 250D', 'Fuji Eterna', 'Astia 100F', 'Agfa Ultra 100'],
+      ['Portra 400', 'Portra 160', 'Portra 800', 'Gold 200', 'ColorPlus 200'],
+      ['Ektar 100', 'Ektachrome E100', 'Kodachrome 64', 'CineStill 800T', 'Velvia 50'],
+      ['Provia 100F', 'Pro 400H', 'Pro 160S', 'NPS 160', 'NHG II 800'],
+      ['Superia 400', 'Fuji C200', 'Fujifilm 200', 'Fujifilm 400', 'Natura 1600'],
     ]);
     expect(b[0][0]!.origin).toBe('film:Portra 400');
     expect(filmByName('Fuji 400H')!.name).toBe('Pro 400H');   // renamed films keep older looks' film
