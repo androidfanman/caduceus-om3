@@ -48,7 +48,7 @@ photo's code. Firmware camera-tested (2026-11-12, build pc1; only its name was c
 - **Fix:** the photo code's text was 2 bytes longer than its buffer (harmless padding took them since v0.27).
 - **Control Panel, the same day:** **Share** and **Share looks** also show the **recipe code** of a film (or of all 20,
   one per line), the same code the camera writes into photos, to copy and post anywhere; Halation explains when the
-  preview photo is too bright for it (as on the camera), and Tone Balance when the film has no split tone.
+  preview photo is too bright for it (as on the camera), and Tone Balance when the film has no split tone. The WB mode picker leaves out One-touch 1–4 (owner).
 - Not planned after all (owner): custom crop modes (set aside), exposure and ISO per film.
 
 ## v0.28-alpha (test version)

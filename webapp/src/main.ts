@@ -672,14 +672,17 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
  *  remembers changes made on it per film. Auto = none of its own. Previewed as if the photo was taken in daylight. */
 const WB_MODE_NAMES: [FilmWb['mode'] | 'auto', string][] = [['auto', 'Auto'], ['sunny', 'Sunny (5300 K)'], ['shade', 'Shade (7500 K)'],
   ['cloudy', 'Cloudy (6000 K)'], ['incandescent', 'Incandescent (3000 K)'], ['fluorescent', 'Fluorescent (4000 K)'], ['underwater', 'Underwater'],
-  ['flash', 'Flash (5500 K)'], ['custom', 'Custom WB (Kelvin)'], ['one_touch_1', 'One-touch 1'], ['one_touch_2', 'One-touch 2'], ['one_touch_3', 'One-touch 3'], ['one_touch_4', 'One-touch 4']];
+  ['flash', 'Flash (5500 K)'], ['custom', 'Custom WB (Kelvin)']];
+/** The camera's One-touch WB 1-4 (a measurement stored in the camera): not offered here (owner, 2026-11-12), shown only
+ *  for a film that already has one (from a photo's code), so it is not lost. */
+const WB_ONE_TOUCH: [FilmWb['mode'], string][] = [['one_touch_1', 'One-touch 1'], ['one_touch_2', 'One-touch 2'], ['one_touch_3', 'One-touch 3'], ['one_touch_4', 'One-touch 4']];
 function wbModeRow(l: Look, changed: () => void): HTMLElement {
   const mode = l.film_wb?.mode ?? 'auto';
   const sel = h('select', { 'aria-label': 'WB mode for this film', onchange: (e: Event) => {
     const m = (e.target as HTMLSelectElement).value as FilmWb['mode'] | 'auto';
     if (m === 'auto') delete l.film_wb; else l.film_wb = m === 'custom' ? { mode: m, kelvin: l.film_wb?.kelvin ?? KELVIN.dflt } : { mode: m };
     renderEditor(); changed(); checkpoint();
-  } }, ...WB_MODE_NAMES.map(([v, t]) => h('option', { value: v, selected: v === mode }, t)));
+  } }, ...[...WB_MODE_NAMES, ...WB_ONE_TOUCH.filter(([v]) => v === mode)].map(([v, t]) => h('option', { value: v, selected: v === mode }, t)));
   const kOut = h('output', {}, `${l.film_wb?.kelvin ?? KELVIN.dflt} K`);
   const kIn = l.film_wb?.mode === 'custom' ? h('input', {
     type: 'range', min: KELVIN.lo, max: KELVIN.hi, step: KELVIN.step, value: l.film_wb.kelvin ?? KELVIN.dflt, 'aria-label': 'Custom WB Kelvin',
