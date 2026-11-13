@@ -50,6 +50,9 @@ photo's code. Firmware camera-tested (2026-11-12, build pc1; only its name was c
   one per line), the same code the camera writes into photos, to copy and post anywhere; Halation explains when the
   preview photo is too bright for it (as on the camera), and Tone Balance when the film has no split tone. The WB mode picker leaves out One-touch 1–4 (owner). The preview shows Halation on night photos full of lights too
   (the sample night streets), toned down; the camera's own halation is unchanged.
+- **Control Panel, 2026-11-13: the Shadows / Highlights wheels as on the camera.** The strength 0–10 sits on the
+  wheel's −5…+5 scale as the camera draws it (0 at the inner edge, 5 on the dashed circle, 10 at the outer edge; the other
+  colours at the inner edge), and reads ±0, +1 … +9, 10 as the camera's readout. Before, 0 sat on the dashed circle.
 - **Control Panel, 2026-11-13: a film from your own LUT or Lightroom preset.** **From LUT / preset…** (or Open…)
   takes a `.cube` LUT or a Lightroom preset (`.xmp`, `.lrtemplate`), finds the camera settings that come closest on a
   set of test colours, and shows the grade and the film side by side with a Close / Fair / Rough match. Preset Grain,

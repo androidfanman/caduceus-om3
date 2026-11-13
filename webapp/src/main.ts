@@ -362,8 +362,12 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
 
   // The wheel as the camera draws it: the 12 colours as a ring (Yellow at 12 o'clock, clockwise), and inside it an
   // outline through one corner per colour that moves out (+) or in (−) with that colour's value; the dashed circle is 0.
-  // Shadows / Highlights look the same; there only one colour can be set (choosing another moves the strength to it).
+  // Shadows / Highlights as the camera's v0.28 wheel: the strength 0..10 on the same −5..+5 scale (0 at the inner
+  // edge, 5 on the dashed circle, 10 at the outer edge), the other colours at the inner edge; readout ±0, +1..+9, 10.
+  // Only one colour can be set (choosing another moves the strength to it).
   const SZ = 290, C = SZ / 2, R0 = 104, R1 = 122, RZ = 64, RB = 34;
+  const camTxt = (n: number) => (n <= 0 ? '±0' : n >= SPLIT_STEPS ? String(SPLIT_STEPS) : `+${n}`);   // the camera's split readout
+  const onScale = (v: number) => (split ? v - SPLIT_STEPS / 2 : v);                                 // the wheel's own −5..+5
   const svg = svgEl('svg', { viewBox: `0 0 ${SZ} ${SZ}`, class: 'hsl-wheel cam-screen', role: 'group', tabindex: 0,
     'aria-label': `${TAB_NAME[tab]} wheel: arrow keys left and right pick a colour, up and down change it` });
   const pt = (a: number, r: number) => [C + r * Math.sin(a), C - r * Math.cos(a)];
@@ -389,26 +393,26 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
   const hubVal = svgEl('text', { x: 14, y: 44, class: 'hw-hub-val' });
   svg.append(hubName, hubVal);
 
-  const { inp, out } = slider(split ? 0 : -lim, lim, valueOf(S.sector), (v) => { setValue(S.sector, v); draw(false); }, split ? String : undefined, `${TAB_NAME[tab]} value`);
+  const { inp, out } = slider(split ? 0 : -lim, lim, valueOf(S.sector), (v) => { setValue(S.sector, v); draw(false); }, split ? camTxt : undefined, `${TAB_NAME[tab]} value`);
   const selName = h('span', { class: 'hw-sel' });
   const move = (d: number) => { S.sector = (S.sector + d + 12) % 12; if (split) setValue(S.sector, cur()); draw(); };
   function draw(syncSlider = true) {
     let d = '';
     for (let i = 0; i < 12; i++) {
-      const v = valueOf(i), am = i * Math.PI / 6, [x, y] = pt(am, RZ + (v / lim) * RB);
+      const v = valueOf(i), am = i * Math.PI / 6, [x, y] = pt(am, RZ + (onScale(v) / 5) * RB);
       d += `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
       dots[i].setAttribute('cx', x.toFixed(1)); dots[i].setAttribute('cy', y.toFixed(1));
       dots[i].classList.toggle('sel', i === S.sector);
-      nums[i].textContent = v ? (split ? String(v) : signed(v)) : '';
+      nums[i].textContent = v ? (split ? camTxt(v) : signed(v)) : '';
       wedges[i].classList.toggle('sel', i === S.sector);
     }
     poly.setAttribute('d', d + 'Z');
     const v = valueOf(S.sector), nm = SPLIT_COLOURS[S.sector][0];
     hubName.textContent = split && !v ? TAB_NAME[tab] : nm;
-    hubVal.textContent = split ? (v ? String(v) : 'Off') : signed(v);
+    hubVal.textContent = split ? camTxt(v) : signed(v);
     selName.textContent = nm;
     selName.style.setProperty('--sw', SPLIT_COLOURS[S.sector][1]);
-    if (syncSlider) { inp.value = String(v); out.textContent = split ? String(v) : signed(v); }
+    if (syncSlider) { inp.value = String(v); out.textContent = split ? camTxt(v) : signed(v); }
   }
   svg.addEventListener('keydown', (e) => {
     const k = (e as KeyboardEvent).key;
@@ -441,7 +445,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
     drag.moved = true;
     const { i, rad } = polar(e);
     if (split && i !== S.sector) S.sector = i;
-    const v = Math.round(((rad - RZ) / RB) * lim);
+    const w = ((rad - RZ) / RB) * 5, v = Math.round(split ? w + SPLIT_STEPS / 2 : (w * lim) / 5);
     if (v !== valueOf(S.sector) || split) { setValue(S.sector, v); draw(); }
   });
   const endDrag = (e: PointerEvent) => { if (drag && e.pointerId === drag.id) { drag = null; checkpoint(); } };
