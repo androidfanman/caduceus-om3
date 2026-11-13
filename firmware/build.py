@@ -635,7 +635,7 @@ def build(defaults, testfile, out):
     g = bytearray((out / 'pictures.bin').read_bytes()); assert g[:4] == b'OM3G' and len(g) % 4 == 0
     g += xblock
     struct.pack_into('<I', g, 4, len(g)); struct.pack_into('<I', g, 8, zlib.crc32(bytes(g[12:])) & 0xffffffff)
-    assert len(g) <= 24576
+    assert len(g) <= 16448, ('GUIDES.BIN', len(g))   # the camera loads it in one malloc block: its pools end at 16448 B (research/NOTES.md); gd_load's own check (24 KB) is looser
     (out / 'GUIDES.BIN').write_bytes(bytes(g))
     hdr, trl = mc['hdr'], bytearray(mc['trl'])
     struct.pack_into('<I', trl, 28, 0)

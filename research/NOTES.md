@@ -3459,3 +3459,15 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   (byte 56 = 1, byte 63 bit 1), Glow 1, Grain Med, Custom WB 3200 K**; then WB Sunny for one photo and a 12-photo burst,
   every code the same and complete (camera-tested: the live record at the half-press, the WB at the shot's half-press,
   bursts).
+
+## Code space check (2026-11-12, after pc1; owner asked to double-check the numbers)
+- Two clean rebuilds of b72881b (a fresh worktree): the same section sizes and E1479999.BIN 640cdafd… (= pc1, camera-
+  tested). Sizes read twice (build.py's SIZE lines; the ELF's section headers, readelf): ext12 217664 of 262144 B
+  (**44480 free**), ext11 53408 of 65536 B (**12128 free**); the section tails ext1 1744 / 1744, ext10 1264 / 1264 (full),
+  ext4 1588 / 1776, the others a few bytes each (hooks only).
+- The free bytes are 0xFF in the build and in the stock main block; the loader end word 0x60045e9c is 0x60f99800 in the
+  build (stock 0x60f49800), so ext11 / ext12 load whole. Reserve (GX4 camera probe): 0x60f99800..0x6103f000 =
+  **677888 B (662 KiB)**, all 0xFF in stock, OM's code resumes at 0x6103f000; using it needs the end word raised.
+- **GUIDES.BIN: 13416 of 16448 B, 3032 free** (the whole file is one malloc block, pools end at 16448 B: pictures
+  6792 + code block 6624). build.py now asserts 16448 (it allowed 24576, gd_load's own limit). The earlier "about
+  10 KB" told to the owner counted the code block alone against 16448: wrong, corrected.
