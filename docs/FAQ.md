@@ -51,7 +51,7 @@ COLOR) to put it back.
 
 ### Can I use my own presets or LUTs?
 
-Yes, as a starting point (Control Panel, coming with the next update). Choose **From LUT / preset…** and pick a `.cube`
+Yes, as a starting point, in the Control Panel. Choose **From LUT / preset…** and pick a `.cube`
 LUT or a Lightroom preset (`.xmp` or the older `.lrtemplate`). The Control Panel finds the camera settings that come
 closest, shows your grade and the film side by side, and says how close they are. It's an approximation: the camera
 has 12 colour sectors, a tone curve, a WB shift and split toning, while a LUT can do much more. LUTs made for Log
