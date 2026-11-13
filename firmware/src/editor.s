@@ -378,9 +378,8 @@ ed_trig:
 t_go:
  clr d0
  movbu d0,(DIRTY,a2)              /* one attempt per batch of edits, whatever happens */
- call ed_save,[d2,d3,a2,a3],24
+ call ub_save,[d2,d3,a2,a3],24    /* films in camera memory: films, edits and Extras into store M (no card copies) */
  movbu d0,(STATUS,a2)
- call fl_save,[d2,d3,a2,a3],24    /* v0.24: EDITS.BIN (when changed), then pf_save */
 t_out:
  ret [d2,d3,a2,a3],36
 
@@ -772,6 +771,7 @@ sd_close:
 sd_redef:
  call sd_def,[d2],8
 sd_pub:
+ call ub_bun,[d2,d3,a2,a3],20     /* films in camera memory: the Extras settings from the camera when it has them */
  clr d1
  mov d1,(LPTR,a2)                 /* no looks / look numbers 0 until lk_load publishes */
  mov d1,(LIDX,a2)
@@ -784,7 +784,7 @@ sd_pub:
  inc d0
  movhu d0,(STATE)                 /* publish: the colour hook switches to the block */
  call gd_load,[d2,d3,a2,a3],28    /* editor guide pictures from C:\OM3MOD\GUIDES.BIN (optional) */
- call pf_load,[d2,d3,a2,a3],28    /* look bank from C:\OM3MOD\LOOKS.BIN (test 16; PROFILES.BIN before v0.19) */
+ call ub_pfl,[d2,d3,a2,a3],28     /* the films: the camera's, or new ones from C:\OM3MOD\LOOKS.BIN (films in camera memory) */
  call nm_ex,[d2,d3,a2,a3],36      /* profile name pictures from C:\OM3MOD\NAMES.BIN (test 17); v0.28 pc1: then ex_live */
  bra sd_out                       /* block kept for the rest of the power-on */
 sd_free:
@@ -9403,6 +9403,7 @@ fl_stw:
 lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call ed_trig; jmp trig_resume` there */
  call lg_pre,[d2,d3,a2,a3],36
  call ed_trig,[d2,d3,a2,a3],36
+ call ub_try,[d2,d3,a2,a3],36     /* films in camera memory: a block write held back by the camera's own save */
  call lg_write,[d2,d3,a2,a3],40
  call ex_live,[d2,d3,a2,a3],48    /* v0.28 pc1: the film's settings now, for the next photo's code */
  jmp trig_resume
@@ -9637,6 +9638,7 @@ lg_write:                         /* frame 40: (0) call slot, (4) handle, (12) t
  add -1,d3
  cmp 0,d3
  bne 20b
+ call ub_txt,[d2,d3,a2,a3],24     /* films in camera memory: the block's state */
  LGS lg_t7                        /* the last 32 events, oldest first */
  mov (lg_n),d2
  clr d3
@@ -9743,6 +9745,25 @@ lg_chk:                           /* `call lg_chk,[d2,d3,a2,a3],40`: each lg_ft 
  bne 1b
  ret [d2,d3,a2,a3],40
 lg_vd:                            /* `call lg_vd,[],0`: a3 = lg_ft row, a2 = P or 0 -> d0 verdict (lg_vt) */
+ mov (4,a3),d1                    /* films in camera memory: LOOKS / EDITS / BUNDLES when the camera has its block */
+ cmp 3,d1
+ bcs 20f
+ movbu (ub_ok),d0
+ cmp 0,d0
+ beq 20f
+ mov (12,a3),d0
+ cmp 2,d0
+ beq 21f
+ mov 9,d0                         /* not on the card: normal */
+ ret [],0
+21:
+ mov 10,d0                        /* LOOKS.BIN on the card */
+ cmp 3,d1
+ beq 22f
+ mov 11,d0                        /* EDITS / BUNDLES on the card: not used */
+22:
+ ret [],0
+20:
  mov (12,a3),d0
  mov (4,a3),d1
  cmp 2,d0
@@ -9939,7 +9960,7 @@ lg_ft:                            /* {path, kind, this build's header CRC (build
 lg_fmt:                           /* sid 897 family -> name */
  .long 901, lg_n1, 988, lg_n2, 899, lg_n3, 900, lg_n4, 898, lg_n5, 0
 lg_vt:
- .long lg_v0, lg_v1, lg_v2, lg_v3, lg_v4, lg_v5, lg_v6, lg_v7, lg_v8
+ .long lg_v0, lg_v1, lg_v2, lg_v3, lg_v4, lg_v5, lg_v6, lg_v7, lg_v8, lg_v9, lg_v10, lg_v11
 lg_hdr:
  .space 16
  .balign 16
@@ -10035,6 +10056,12 @@ lg_v7:
  .asciz "not made yet (normal: the camera makes it when you save edits)"
 lg_v8:
  .asciz "not checked (no settings block)"
+lg_v9:
+ .asciz "not needed (kept in the camera's memory)"
+lg_v10:
+ .asciz "on the card (the camera takes only films it never had)"
+lg_v11:
+ .asciz "on the card, not used (kept in the camera's memory)"
 lg_k1:
  .asciz "\r\nLOOKS.BIN looks loaded: "
 lg_k2:
@@ -12918,3 +12945,790 @@ hl_open:
  mov a2,d0
  mov d2,d1
  ret [d2,d3,a2,a3],28
+
+
+/* ---------------------------------------------------------------- films in camera memory, step 1 (2026-11-13)
+ * The user's films (LOOKS.BIN image), on-camera edits (EDITS.BIN image) and Extras settings (BUNDLES.BIN image) live in
+ * a block in the unused tail of the camera's settings store M, which the camera saves itself (issue #35, design by iancw
+ * in PR #36; camera probe mp1 2026-11-13: the tail is kept over battery pulls). Owner, 2026-11-13: the camera takes a
+ * card's films only when it never had that set before; no copies are written to the card.
+ * Block at M image + 0x3A000 (RAM 0x6295a700, uncached 0xa295a700), UB_LEN bytes:
+ *   +0 'OM3U' | +4 u16 version 1 | +6 u16 length | +8 CRC-32 of 16.. | +12 generation (+1 per write) | +16 seen-ring
+ *   index | +20 0 | +24 16 x u32 seen identities (CRC-32 of a LOOKS image's bytes 32..: records and names) |
+ *   +UB_LK LOOKS.BIN image | +UB_ED EDITS.BIN image | +UB_BN BUNDLES.BIN image.
+ * Load (first gated half-press, sd_load): block valid -> the Extras and edits from it; the films from it, unless the
+ * card's LOOKS.BIN is valid and its identity is not in the ring (new films: taken, with the camera's selection, the
+ * camera's edits kept: changes of a film whose record changed drop by their own check). No valid block -> the card's
+ * files as before, written into the block at once (migration). Save (ed_trig, a half-press after edits): the block
+ * instead of BUNDLES / EDITS / LOOKS on the card. A write builds the block in ub_stg, then, with dispatch held (LOCK),
+ * copies it into M (cached and uncached) and sets the changed byte 0xa32bfb32, only while the camera's save of M is not
+ * running (its busy byte 0xa32a9904, set by 0x60063d73 before the checksum, cleared when the flash write is done);
+ * else ub_pend and again at the next shutter event (ub_try). The camera saves M at the return to shooting after a menu
+ * and at power-off (om-emu S-NVRAM + S-SHUTDOWN, 2026-11-13). We never write flash.
+ * Frames: a function that calls another keeps (0,sp) free for the call's return address (f2: ub_chk / ub_bun / ub_put
+ * were 16 with four registers saved, so each call overwrote a saved register; harmless for their callers in f1). */
+.section .ext12,"ax"
+ .set UB_C, 0x6295a700             /* M image 0x62920700 + 0x3A000 */
+ .set UB_U, 0xa295a700
+ .set UB_DIRTY, 0xa32bfb32
+ .set UB_BUSY, 0xa32a9904
+ .set UB_MAGIC, 0x55334d4f         /* "OM3U" */
+ .set UB_PFL, 1632                 /* PF_LEN, FILE_LEN, HDR_LEN, CRC_TAIL (editor.ld) as numbers for .set / .space */
+ .set UB_FL, 544
+ .set UB_HDR, 32
+ .set UB_CT, 524
+ .set UB_LK, 88
+ .set UB_ED, UB_LK + UB_PFL
+ .set UB_BN, UB_ED + TW_LEN
+ .set UB_LEN, UB_BN + UB_FL
+
+ub_cpy:                           /* `call ub_cpy,[],0`: d1 bytes (a multiple of 4, > 0) from a1 to a0; uses d0, d1, a0, a1 */
+ mov (a1),d0
+ mov d0,(a0)
+ add 4,a1
+ add 4,a0
+ add -4,d1
+ bne ub_cpy
+ ret [],0
+
+ub_zero:                          /* `call ub_zero,[],0`: d1 bytes (a multiple of 4, > 0) at a0 <- 0; uses d0, d1, a0 */
+ clr d0
+1:
+ mov d0,(a0)
+ add 4,a0
+ add -4,d1
+ bne 1b
+ ret [],0
+
+ub_id:                            /* `call ub_id,[d2,d3],12`: a0 = a LOOKS image -> d0 = its films' identity (CRC-32 of 32..) */
+ add 32,a0
+ mov -1,d0
+ mov UB_PFL - 32,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ ret [d2,d3],12
+
+ub_chk:                           /* `call ub_chk,[d2,d3,a2,a3],20` -> d0 = ub_ok; the block is checked once per power-on */
+ movbu (ub_st),d0
+ cmp 0,d0
+ bne 9f
+ mov 1,d0
+ movbu d0,(ub_st)
+ mov UB_C,a3
+ mov (a3),d0
+ cmp UB_MAGIC,d0
+ bne 9f
+ movhu (4,a3),d0
+ cmp 1,d0
+ bne 9f
+ movhu (6,a3),d0
+ cmp UB_LEN,d0
+ bne 9f
+ mov -1,d0
+ mov a3,a0
+ add 16,a0
+ mov UB_LEN - 16,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov (8,a3),d1
+ cmp d1,d0
+ bne 9f
+ mov (12,a3),d0
+ mov d0,(ub_gen0)
+ mov d0,(ub_gen)
+ mov 1,d0
+ movbu d0,(ub_ok)
+ movbu d0,(ub_ok0)
+9:
+ movbu (ub_ok),d0
+ ret [d2,d3,a2,a3],20
+
+ub_bun:                           /* `call ub_bun,[d2,d3,a2,a3],20` from sd_load before P is published, a2 = P */
+ call ub_chk,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 9f
+ mov a2,a0
+ mov UB_C + UB_BN,a1
+ mov UB_FL,d1
+ call ub_cpy,[],0
+9:
+ ret [d2,d3,a2,a3],20
+
+ub_pfl:                           /* `call ub_pfl,[d2,d3,a2,a3],28` from sd_load in place of pf_load, a2 = P.
+                                   * Locals (4) handle, (8) buffer. As pf_load, with the block (above). */
+ clr d0
+ mov d0,(TTAB,a2)
+ mov d0,(TORG,a2)
+ mov d0,(STC,a2)
+ mov d0,(SATB,a2)
+ mov d0,(LVB,a2)
+ movbu d0,(ub_new)
+ movbu d0,(ub_cv)                 /* the card's LOOKS.BIN: 0 none, 1 valid, 2 there but not valid */
+ mov 3,d0
+ movbu d0,(ub_src)
+ mov UB_PFL + FL_SB,d0
+ call malloc,[],4
+ cmp 0,a0
+ bne 1f
+ jmp 99f
+1:
+ mov a0,(8,sp)
+ call pf_open,[],4
+ cmp 0,a0
+ beq 10f
+ mov a0,(4,sp)
+ mov 2,d0
+ movbu d0,(ub_cv)
+ mov (8,sp),a0
+ mov 1,d0
+ mov UB_PFL,d1
+ mov (4,sp),a1
+ call fread,[d2,d3,a2,a3],24
+ mov d0,d2
+ mov (4,sp),a0
+ call fclose,[d2,a2,a3],16
+ cmp UB_PFL,d2
+ bne 10f
+ mov (8,sp),a0
+ mov UB_PFL,d3
+ call pf_check,[d2,d3,a2,a3],20
+ cmp 0,d0
+ bne 10f
+ mov 1,d0
+ movbu d0,(ub_cv)
+10:
+ call ub_chk,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 30f
+ movbu (ub_cv),d0                 /* a valid block: the card's films only when the camera never had them */
+ cmp 1,d0
+ bne 20f
+ mov (8,sp),a0
+ call ub_id,[d2,d3],12
+ mov d0,(ub_cid)
+ mov UB_C + 24,a0
+ mov 16,d1
+11:
+ mov (a0),d2
+ cmp d2,d0
+ beq 20f                          /* had them: the camera's films */
+ add 4,a0
+ add -1,d1
+ bne 11b
+ mov 1,d0                         /* new films: taken, with the camera's selection */
+ movbu d0,(ub_src)
+ movbu d0,(ub_new)
+ mov (8,sp),a0
+ mov (UB_C + UB_LK + 16),d0
+ mov d0,(16,a0)
+ bra 40f
+20:
+ mov (8,sp),a0
+ mov UB_C + UB_LK,a1
+ mov UB_PFL,d1
+ call ub_cpy,[],0
+ clr d0
+ movbu d0,(ub_src)
+ bra 40f
+30:
+ movbu (ub_cv),d0                 /* no block: the card's films as before, then kept in the camera */
+ cmp 1,d0
+ bne 31f
+ mov 2,d0
+ movbu d0,(ub_src)
+ mov 1,d0
+ movbu d0,(ub_new)
+ bra 40f
+31:
+ cmp 2,d0
+ beq 98f                          /* a file that fails the check and no block: no bank (as pf_load) */
+ mov (8,sp),a0                    /* no file and no block: a neutral bank (not written into the block) */
+ mov UB_PFL,d1
+ call ub_zero,[],0
+ mov (8,sp),a0
+ mov PFMAGIC,d0
+ mov d0,(a0)
+ mov UB_PFL,d0
+ mov d0,(4,a0)
+ mov 1,d0
+ movhu d0,(12,a0)
+ mov 20,d0
+ movhu d0,(14,a0)
+40:
+ mov (8,sp),a0                    /* the selection -> P+LIDX */
+ clr d2
+41:
+ mov a0,a1
+ add d2,a1
+ movbu (16,a1),d0
+ mov a2,a1
+ add d2,a1
+ movbu d0,(LIDX,a1)
+ inc d2
+ cmp 4,d2
+ bne 41b
+ mov (8,sp),d0
+ mov d0,(LPTR,a2)                 /* published last */
+ call fl_mk2,[d2,d3,a2,a3],80     /* film pictures, TONES.BIN, the card's EDITS.BIN */
+ movbu (ub_ok),d0                 /* a valid block: the camera's edits instead */
+ cmp 0,d0
+ beq 42f
+ mov (TORG,a2),a0
+ cmp 0,a0
+ beq 42f
+ add TWO,a0
+ mov UB_C + UB_ED,a1
+ mov TW_LEN,d1
+ call ub_cpy,[],0
+42:
+ movbu (ub_new),d0                /* new or first films: into the block now */
+ cmp 0,d0
+ beq 99f
+ call ub_put,[d2,d3,a2,a3],20
+ bra 99f
+98:
+ mov (8,sp),a0
+ call free,[],4
+99:
+ ret [d2,d3,a2,a3],28
+
+ub_put:                           /* `call ub_put,[d2,d3,a2,a3],20`, a2 = P: films, edits and Extras now -> the block
+                                   * -> d0 1 written, 0 not (no films loaded; or the camera saving M: ub_pend) */
+ mov (LPTR,a2),a3
+ cmp 0,a3
+ bne 1f
+ clr d0
+ ret [d2,d3,a2,a3],20
+1:
+ clr d2                           /* LOOKS: the selection bytes and the CRC, as pf_save */
+2:
+ mov a2,a0
+ add d2,a0
+ movbu (LIDX,a0),d0
+ extb d0
+ cmp 1,d0
+ blt 3f
+ cmp 5,d0
+ ble 4f
+3:
+ clr d0
+4:
+ mov a3,a0
+ add d2,a0
+ movbu d0,(16,a0)
+ inc d2
+ cmp 4,d2
+ bne 2b
+ mov -1,d0
+ mov a3,a0
+ add 12,a0
+ mov UB_PFL - 12,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov d0,(8,a3)
+ mov ub_stg + UB_LK,a0
+ mov a3,a1
+ mov UB_PFL,d1
+ call ub_cpy,[],0
+ mov (TORG,a2),a3                 /* EDITS: header and CRC, as fl_save */
+ cmp 0,a3
+ beq 6f
+ add TWO,a3
+ clr d0
+ movbu d0,(TW_LEN,a3)
+ mov TWMAGIC,d0
+ mov d0,(a3)
+ mov TW_LEN,d0
+ mov d0,(4,a3)
+ mov -1,d0
+ mov a3,a0
+ add 12,a0
+ mov TW_LEN - 12,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov d0,(8,a3)
+ mov ub_stg + UB_ED,a0
+ mov a3,a1
+ mov TW_LEN,d1
+ call ub_cpy,[],0
+ bra 8f
+6:
+ mov ub_stg + UB_ED,a0            /* no film block: the camera's edits as they were, or none */
+ mov TW_LEN,d1
+ movbu (ub_ok),d0
+ cmp 0,d0
+ beq 7f
+ mov UB_C + UB_ED,a1
+ call ub_cpy,[],0
+ bra 8f
+7:
+ call ub_zero,[],0
+8:
+ mov ub_stg + UB_BN,a0            /* Extras: P[0..543], slots in range, header CRC, as ed_save */
+ mov a2,a1
+ mov UB_FL,d1
+ call ub_cpy,[],0
+ mov ub_stg + UB_BN + UB_HDR,a0
+ call sd_san,[d2,d3],12
+ mov -1,d0
+ mov ub_stg + UB_BN,a0
+ mov 16,d1
+ call sd_crc,[d2,d3],12
+ mov ub_stg + UB_BN + 20,a0
+ mov UB_CT,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov d0,(ub_stg + UB_BN + 16)
+ mov ub_stg + 16,a0               /* the seen ring and generation: the block's, or new */
+ mov 72,d1
+ movbu (ub_ok),d0
+ cmp 0,d0
+ beq 9f
+ mov UB_C + 16,a1
+ call ub_cpy,[],0
+ mov (UB_C + 12),d0
+ bra 10f
+9:
+ call ub_zero,[],0
+ clr d0
+10:
+ inc d0
+ mov d0,(ub_stg + 12)
+ mov ub_stg + UB_LK,a0            /* these films' identity into the ring (once) */
+ call ub_id,[d2,d3],12
+ mov d0,d2
+ mov ub_stg + 24,a0
+ mov 16,d1
+11:
+ mov (a0),d0
+ cmp d2,d0
+ beq 12f
+ add 4,a0
+ add -1,d1
+ bne 11b
+ mov (ub_stg + 16),d0
+ mov d0,d1
+ and 15,d1
+ asl2 d1
+ mov ub_stg + 24,a0
+ add d1,a0
+ mov d2,(a0)
+ inc d0
+ mov d0,(ub_stg + 16)
+12:
+ mov UB_MAGIC,d0                  /* header and CRC */
+ mov d0,(ub_stg)
+ mov 1,d0
+ movhu d0,(ub_stg + 4)
+ mov UB_LEN,d0
+ movhu d0,(ub_stg + 6)
+ clr d0
+ mov d0,(ub_stg + 20)
+ mov -1,d0
+ mov ub_stg + 16,a0
+ mov UB_LEN - 16,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov d0,(ub_stg + 8)
+ clr d0                           /* into M with dispatch held, only while the camera is not saving it */
+ call LOCK,[d2],8
+ mov d0,d3
+ movbu (UB_BUSY),d0
+ cmp 0,d0
+ bne 20f
+ mov UB_C,a0
+ mov ub_stg,a1
+ mov UB_LEN,d1
+ call ub_cpy,[],0
+ mov UB_U,a0
+ mov ub_stg,a1
+ mov UB_LEN,d1
+ call ub_cpy,[],0
+ mov 1,d0
+ movbu d0,(UB_DIRTY)              /* M changed: the camera saves it at the next return to shooting or power-off */
+ mov d3,d0
+ call UNLOCK,[d2],8
+ mov 1,d0
+ movbu d0,(ub_ok)
+ clr d0
+ movbu d0,(ub_pend)
+ mov (ub_stg + 12),d0
+ mov d0,(ub_gen)
+ mov (ub_nw),d0
+ inc d0
+ mov d0,(ub_nw)
+ mov 1,d0
+ ret [d2,d3,a2,a3],20
+20:
+ mov d3,d0
+ call UNLOCK,[d2],8
+ mov 1,d0
+ movbu d0,(ub_pend)
+ clr d0
+ ret [d2,d3,a2,a3],20
+
+ub_save:                          /* `call ub_save,[d2,d3,a2,a3],24` from ed_trig in place of ed_save + fl_save (owner,
+                                   * 2026-11-13: no card copies), a2 = P -> d0 status 1 */
+ call ub_put,[d2,d3,a2,a3],20
+ mov (XPTR,a2),a1                 /* code block +72 after each half-press save, as pf_save */
+ cmp 0,a1
+ beq 7f
+ add 72,a1
+ calls (a1)
+7:
+ mov 1,d0
+ ret [d2,d3,a2,a3],24
+
+ub_try:                           /* `call ub_try,[d2,d3,a2,a3],36` from lg_pr after ed_trig: a held-back write again,
+                                   * with ed_trig's gate (card mounted, HLS_EVENT task, shooting state) */
+ movbu (ub_pend),d0
+ cmp 0,d0
+ beq 9f
+ PVAL 9f
+ mov (SECBITS),d0
+ and 0x3ff,d0
+ cmp 0x3ff,d0
+ bne 9f
+ mov sp,a0
+ add 12,a0
+ call get_tid,[a2],4
+ cmp 0,d0
+ bne 9f
+ movhu (HLS_TID),d1
+ cmp 0,d1
+ beq 9f
+ btst 0x8000,d1
+ bne 9f
+ movhu (12,sp),d0
+ cmp d1,d0
+ bne 9f
+ mov 61440,d1
+ mov (MS_A),d0
+ cmp d1,d0
+ beq 1f
+ mov (MS_B),d0
+ cmp d1,d0
+ beq 1f
+ mov (MS_C),d0
+ cmp d1,d0
+ bne 9f
+1:
+ call ub_put,[d2,d3,a2,a3],20
+9:
+ ret [d2,d3,a2,a3],36
+
+ub_txt:                           /* `call ub_txt,[d2,d3,a2,a3],24`: CADLOG.TXT lines */
+ LGS ub_s1
+ movbu (ub_st),d0
+ cmp 0,d0
+ bne 1f
+ LGS ub_s0
+ bra 9f
+1:
+ movbu (ub_ok0),d0
+ LGY
+ movbu (ub_ok0),d0
+ cmp 0,d0
+ beq 2f
+ LGS ub_s2
+ mov (ub_gen0),d0
+ LGD
+2:
+ LGS ub_s3
+ movbu (ub_src),d0
+ asl2 d0
+ mov ub_srt,a0
+ add d0,a0
+ mov (a0),a0
+ call lg_s,[],0
+ LGS ub_s4
+ mov (ub_nw),d0
+ LGD
+ LGS ub_s5
+ mov (ub_gen),d0
+ LGD
+ LGS ub_s6
+ movbu (ub_pend),d0
+ LGY
+ LGS ub_s7
+ movbu (UB_DIRTY),d0
+ LGD
+9:
+ ret [d2,d3,a2,a3],24
+
+ .balign 4
+ub_cid:
+ .long 0
+ub_gen0:
+ .long 0
+ub_gen:
+ .long 0
+ub_nw:
+ .long 0
+ub_srt:
+ .long ub_r0, ub_r1, ub_r2, ub_r3
+ub_st:
+ .byte 0
+ub_ok:
+ .byte 0
+ub_ok0:
+ .byte 0
+ub_cv:
+ .byte 0
+ub_src:
+ .byte 3
+ub_new:
+ .byte 0
+ub_pend:
+ .byte 0
+ .balign 4
+ub_stg:
+ .space UB_LEN
+ub_s1:
+ .asciz "\r\n\r\nFilms in camera memory: a valid block at power-on: "
+ub_s0:
+ .asciz "not read yet (the first half-press loads it)"
+ub_s2:
+ .asciz ", generation "
+ub_s3:
+ .asciz "\r\nFilms from: "
+ub_r0:
+ .asciz "the camera"
+ub_r1:
+ .asciz "the card (films the camera never had)"
+ub_r2:
+ .asciz "the card (first time: nothing in the camera yet)"
+ub_r3:
+ .asciz "nowhere (no films on the card or in the camera)"
+ub_s4:
+ .asciz "\r\nBlock written this power-on: "
+ub_s5:
+ .asciz " times, generation now "
+ub_s6:
+ .asciz "\r\nA write waiting for the camera's own save: "
+ub_s7:
+ .asciz "; the camera's changed byte: "
+ .balign 4
+
+
+/* ---------------------------------------------------------------- films in camera memory, step 2 (2026-11-13)
+ * GUIDES.BIN (guide pictures and the code block), LABELS.BIN and TONES.BIN are built into the firmware: build.py puts
+ * them in the GX4-proven reserve after ext12 (0x60f99800.., camera-tested 2026-11-12) and raises the loader's end word
+ * to cover them; bf_tab holds their addresses and sizes. Every fopen / fread / fseek / ftell / fclose of ours (and of
+ * the code block: build.py links it to these) goes through the wrappers below: a read of one of the three names gets a
+ * handle on the built-in copy, anything else goes to the camera's own functions (OS_*, editor.ld). So a card without
+ * OM3MOD works in full, and the card's copies of these files are never read. Handles: a pool of VF_SLOTS
+ * {in use, address, size, position} in ext12 RAM (taken with dispatch held). */
+.section .ext12,"ax"
+ .set VF_N, 3
+ .set VF_SLOTS, 4
+ .macro VFCHK reg, notours        /* \reg not one of our handles -> \notours (flags only) */
+ cmp bf_pool,\reg
+ bcs \notours
+ cmp bf_pool + 16 * VF_SLOTS,\reg
+ bcc \notours
+ .endm
+
+fopen:                            /* `call fopen,[],4`: a0 path, a1 mode -> a0 handle or 0 */
+ call vf_find,[d2,d3,a2,a3],16
+ cmp 0,d0
+ blt 1f
+ call vf_new,[d2,d3,a2,a3],20
+ ret [],4
+1:
+ call OS_FOPEN,[],4
+ ret [],4
+
+vf_find:                          /* `call vf_find,[d2,d3,a2,a3],16`: a0 path, a1 mode -> d0 = the bf_tab row of a read
+                                   * of a built-in file, else -1; keeps a0, a1 */
+ mov a0,a2
+ mov a1,a3
+ mov -1,d3
+ movbu (a3),d0
+ cmp 114,d0                       /* 'r' */
+ bne 9f
+ clr d2
+1:
+ mov d2,d0
+ mov d0,d1
+ asl 3,d0
+ asl2 d1
+ add d1,d0
+ mov bf_tab,a0
+ add d0,a0
+ mov (8,a0),d0                    /* not built in (size 0): the card */
+ cmp 0,d0
+ beq 3f
+ mov (a0),a0
+ mov a2,a1
+2:
+ movbu (a0),d0
+ movbu (a1),d1
+ cmp d0,d1
+ bne 3f
+ cmp 0,d0
+ beq 8f
+ inc a0
+ inc a1
+ bra 2b
+3:
+ inc d2
+ cmp VF_N,d2
+ bne 1b
+ bra 9f
+8:
+ mov d2,d3
+9:
+ mov d3,d0
+ mov a2,a0
+ mov a3,a1
+ ret [d2,d3,a2,a3],16
+
+vf_new:                           /* `call vf_new,[d2,d3,a2,a3],20`: d0 = bf_tab row -> a0 = a handle on it, 0 if none free */
+ mov d0,d2
+ clr d0
+ call LOCK,[d2],8
+ mov d0,d3
+ mov bf_pool,a2
+ mov VF_SLOTS,d1
+1:
+ mov (a2),d0
+ cmp 0,d0
+ beq 2f
+ add 16,a2
+ add -1,d1
+ bne 1b
+ mov 0,a2
+ bra 3f
+2:
+ mov 1,d0
+ mov d0,(a2)
+3:
+ mov d3,d0
+ call UNLOCK,[d2],8
+ cmp 0,a2
+ beq 9f
+ mov d2,d0
+ mov d0,d1
+ asl 3,d0
+ asl2 d1
+ add d1,d0
+ mov bf_tab,a0
+ add d0,a0
+ mov (4,a0),d0
+ mov d0,(4,a2)
+ mov (8,a0),d0
+ mov d0,(8,a2)
+ clr d0
+ mov d0,(12,a2)
+9:
+ mov a2,a0
+ ret [d2,d3,a2,a3],20
+
+fread:                            /* `call fread,[d2,d3,a2,a3],24`: a0 buffer, d0 item size, d1 count, a1 handle -> d0 items */
+ VFCHK a1, 1f
+ mov d0,d2
+ mov d1,d3
+ clr d0
+ cmp 0,d2
+ beq 8f
+2:
+ cmp 0,d3                         /* bytes wanted = size x count */
+ beq 3f
+ add d2,d0
+ add -1,d3
+ bra 2b
+3:
+ mov (8,a1),d3                    /* bytes left = size - position */
+ mov (12,a1),d1
+ sub d1,d3
+ cmp d3,d0
+ bls 4f
+ mov d3,d0
+4:
+ mov d0,d3                        /* d3 = bytes to copy */
+ mov (4,a1),a2
+ add d1,a2
+ cmp 0,d0
+ beq 6f
+5:
+ movbu (a2),d1
+ movbu d1,(a0)
+ inc a2
+ inc a0
+ add -1,d0
+ bne 5b
+6:
+ mov (12,a1),d1
+ add d3,d1
+ mov d1,(12,a1)
+ mov d3,d0                        /* items = bytes / size */
+ cmp 1,d2
+ beq 8f
+ clr d1
+7:
+ cmp d2,d0
+ bcs 71f
+ sub d2,d0
+ inc d1
+ bra 7b
+71:
+ mov d1,d0
+8:
+ ret [d2,d3,a2,a3],24
+1:
+ call OS_FREAD,[d2,d3,a2,a3],24
+ ret [d2,d3,a2,a3],24
+
+fseek:                            /* `call fseek,[d2,d3,a2,a3],20`: a0 handle, d0 offset, d1 whence (0 here, 1 end, 2 start) -> d0 0 */
+ VFCHK a0, 1f
+ cmp 2,d1
+ beq 3f
+ cmp 1,d1
+ bne 2f
+ mov (8,a0),d1
+ add d1,d0
+ bra 3f
+2:
+ mov (12,a0),d1
+ add d1,d0
+3:
+ cmp 0,d0
+ blt 4f
+ mov (8,a0),d1
+ cmp d1,d0
+ bgt 4f
+ mov d0,(12,a0)
+ clr d0
+ ret [d2,d3,a2,a3],20
+4:
+ mov -1,d0
+ ret [d2,d3,a2,a3],20
+1:
+ call OS_FSEEK,[d2,d3,a2,a3],20
+ ret [d2,d3,a2,a3],20
+
+ftell:                            /* `call ftell,[d2,a2,a3],16`: a0 handle -> d0 position */
+ VFCHK a0, 1f
+ mov (12,a0),d0
+ ret [d2,a2,a3],16
+1:
+ call OS_FTELL,[d2,a2,a3],16
+ ret [d2,a2,a3],16
+
+fclose:                           /* `call fclose,[d2,a2,a3],16`: a0 handle */
+ VFCHK a0, 1f
+ clr d0
+ mov d0,(a0)
+ ret [d2,a2,a3],16
+1:
+ call OS_FCLOSE,[d2,a2,a3],16
+ ret [d2,a2,a3],16
+
+ .balign 4
+bf_tab:                           /* {name, address, size} x VF_N; address and size: build.py (0 = not built in) */
+ .long lg_f0, 0, 0                /* GUIDES.BIN */
+ .long lg_f1, 0, 0                /* LABELS.BIN */
+ .long lg_f2, 0, 0                /* TONES.BIN */
+bf_pool:
+ .space 16 * VF_SLOTS

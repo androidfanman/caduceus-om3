@@ -3542,6 +3542,185 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   photos (mean cell brightness < 72, full below 60), toned down by the lit share (16 % / lit share): Night street,
   Brasserie, Neon now glow; daylight samples stay off. The preview now differs from the camera on such photos.
 
+## The 20 films redesigned as signature looks (v7, 2026-11-12; Control Panel preview only so far)
+- Owner: "our film sims in the looklab tool just don't look like what they are simulating". In the preview the v6 films
+  (graded to reference-photo statistics, 2026-11-11) sat close to the original and to each other: matching averages of
+  many photos washed out each film's character (e.g. Portra 400 v6: Contrast +1, Highlights +2, no split, where the film
+  is soft). Owner's choices: signature looks; 5 first (Portra 400, Kodachrome 64, CineStill 800T, Velvia 50, Gold 200),
+  then all 20 ("Yes, do all 20"); a film may carry its WB mode and Halation where it is known for them.
+- `webapp/scripts/films.py` SIGNATURE: a trait recipe per camera film that replaces the recipe and GRADED; new keys
+  `bal` (Tone Balance), `halo` (Halation), `wbmode`; split toning in halves (v0.28); Blacks / Whites to ±7. Film / filmLook
+  carry tone_balance, halation, film_wb. CineStill 800T: Custom WB 3200 K, Halation 3, teal shadows / warm highlights
+  (blue in daylight, true under lamps); CineStill 400D: Halation 2. Our own designs from public descriptions (no LUTs).
+  First-pass fixes after the all-20 sheets: Superia's green and Eterna / Vision3's flatness toned down, CineStill 800T's
+  greens less cyan (the taxi went olive).
+- Sheets (private mockups/films-v7-*): original / v6 / v7 on portrait, meadow, taxi, night street. Not camera-tested;
+  not live. The released LOOKS.BIN (v0.27.1's films) is unchanged.
+- **Passes against internet references (2026-11-12, owner: "do a few more passes ... compare them to pictures found on
+  the internet"):** Wikimedia Commons media search per film (freely licensed photos naming the film; 28-40 per film,
+  only 2 for CineStill 400D and 9 for Agfa Ultra; Fuji C200's results are mostly black-and-white scans: not used),
+  measured in the browser at 256 px (no files kept): 2 / 50 / 98 % luminance, mean chroma, and the cast of near-neutral
+  pixels in shadows / midtones / highlights. The same numbers on our 20 in the preview over the 9 sample photos.
+  Different scenes, so each film is compared by how it stands out from the average of the 20 (references vs ours).
+  Pass 2: more colour for Portra 400, Gold, Pro 400H, ColorPlus, Superia, Ektachrome, Provia; less for CineStill 800T,
+  Ektar, Velvia; blacks less lifted (Portra, Pro 400H, Vision3, Eterna); ColorPlus warmer orange, Gold's midtones
+  redder (gm -1 / -2), Superia and Ultramax less green / warm as their references, Velvia cooler, CineStill 800T's teal
+  shadows halved. Pass 3: the remaining black / white points and casts. Result (colourfulness vs the average, refs /
+  ours): Portra 400 0.96 / 0.86, Gold 1.22 / 1.06, Kodachrome 1.14 / 1.11, CineStill 800T 0.70 / 0.75, Ektar 0.97 /
+  1.09, Velvia 1.14 / 1.24, Superia 1.19 / 1.13, Vision3 0.67 / 0.75, Eterna 0.72 / 0.69. The near-neutral cast is a weak
+  measure for strongly tinted films (their tinted pixels drop out) and CineStill 800T's references are night scenes
+  under lamps while the preview assumes daylight: those two judged by eye. Reference numbers: private folder.
+- **Cuban Negative (not a film stock; 2026-11-12):** the popular Fujifilm recipe "Classic Cuban Negative" (by the
+  photographer Osan, built on Classic Neg). Ours stays our own design (no recipe settings copied); compared, as the films,
+  with the 14 community photos made with it in the Fuji Rumors roundup (measured in the browser, nothing kept): about
+  as colourful as the film average, bright whites, cyan-green shadows, slightly warm-pink highlights. v6 had yellow
+  highlights and dim whites. New SIGNATURE: olive greens, muted teal blues, orange-leaning reds, honeyed skin, firm
+  contrast, Whites +1, split Cyan 1.5 / Red 1 with Tone Balance -1. Measured vs the photos (relative to the 20 films'
+  average): colourfulness 0.96 / 0.96, shadow cast -9 / -9 (green), midtone -5 / -4, highlights +4 / +1 (warm).
+
+## Camera memory probe mp1: does M's unused tail survive? (2026-11-13; code checked + emulator, camera test pending)
+Question (issue #35, research and design by iancw in PR #36, not merged): can films and edits live in the camera's own
+settings store M (256 KiB RAM image at 0x62920700, two alternating flash copies)? Everything rests on one assumption: a
+change in M's unused tail (the camera's items end at image offset 0x39465) is saved, survives a battery pull and loads
+back without the camera resetting its settings.
+- **Checked in the OM-3 1.1 code (analysis):** `0x60063d73` (from `0x6041b160`, the GUI's save on the return to shooting)
+  writes M through `0x60061183` only when the byte `0xa32bfb32` is 1, and clears it. For M (callback 0x60063db4 given)
+  the write does not compare with flash first: it adds 1 to the image's counter (+4, `0x6006144c`), puts the negated 16-bit
+  sum of the whole image at +2 (`0x60061422` / `0x6006142e`: size / 2 halfwords, the checksum word skipped), copies the
+  image to a buffer and programs the next slot. The load copies the whole image (`0x600610d2` -> `0x6006148f`, size / 4
+  words); a slot is valid when its first halfword is the store id and the 16-bit sum of the whole image is 0
+  (`0x600613d7`). So the tail is saved, sealed and checked like the camera's own items, as PR #36 says.
+- **om-emu can test persistence:** its S-NVRAM mode (`host/nvram.mjs` `fileNvram`) runs the stores' saves natively down to
+  the NAND write, keeps the images in a JSON file and restores M and E at the next session's start. `session_ed1.mjs` now
+  takes `NV_FILE=PATH` for it (and reports `nvram: {loaded, saves}`). Without it the emulator stubs the save (S-SETSAVE),
+  which is why trace 4 in #36 saw no save.
+- **Probe mp1** (branch `experiment/m-store-probe`, `firmware/src/editor.s` `mp_run` / `mp_txt`, ext12): only with the
+  debug log on, from `lg_write` (HLS_EVENT task, a shutter button event, never during capture). First logged event of a
+  power-on: read 16 bytes at image + 0x3A000 {magic "OMPB", counter, version 1, CRC-32 of 0..11}, write them back with
+  counter + 1 to the cached address and the uncached alias 0xa295a700, set `0xa32bfb32` to 1. Every event: M's header
+  counter and the changed byte. Report in `CADLOG.TXT` ("M store probe ..."). Never calls the save or writes flash.
+- **Emulator (S-NVRAM, out-mp1: E1479999.BIN a54a44ae…, GUIDES.BIN 1ff984ae…):** run 1 from a blank camera: half-press
+  (block written, changed byte 1), MENU, MENU (close), half-press: 3 native saves; the kept M image has the block at
+  0x3A000, header counter 2, 16-bit sum 0; the changed byte back to 0. Run 2 (a new process = a battery pull, no
+  power-off path): M and E loaded; the RAM image at start equals the saved image byte for byte (no reset); the probe
+  found counter 1 with a right CRC, wrote 2; one save, counter 3, sum 0. CADLOG.TXT: "Probe block found: yes, CRC right:
+  yes, counter 1".
+- Test package for the owner (kept outside the repo), with a way back to v0.28. Realistic worst case if the camera disagrees: it resets all its own settings (not the card's films).
+- Status: code checked + emulator only. The emulator models the flash, it is not the camera's NAND or its power loss.
+- **Camera (owner, 2026-11-13, mp1): the tail survives.** The owner ran the steps (half-press, MENU and back, battery out
+  30 s, power on, twice). CADLOG.TXT of the third power-on: "At power-on the tail held: 42504D4F 00000002 00000001
+  971777D7 / Probe block found: yes, CRC right: yes, counter 2 / Written this power-on: counter 3 / M header counter at
+  power-on 4672, now 4674 / Changed byte at power-on 1, now 0". So the marker written at power-on 1 and 2 was saved by the
+  camera at the menu exit, kept over two battery pulls and loaded back with a right CRC; the camera's own save ran twice in
+  that power-on (counter +2) and cleared the changed byte. M's header counter 4672 = the camera's long-standing store (no
+  rebuild). Card files all matched; LOOKS.BIN only had its selection byte changed by the camera (COLOR 1 -> FILM 4).
+  The changed byte was already 1 at the first half-press (the camera's own start-up changes, as in the emulator).
+- So the assumption #35 / #36 rests on holds on the camera: bytes in M's unused tail are saved with the camera's settings
+  and survive power loss. Owner (2026-11-13): the camera's own settings all looked the same after the battery pulls (no reset).
+  Still open: whether a menu "Reset" or an OM firmware update clears the tail (expected; the design's fallback covers it).
+
+## Films in camera memory, step 1 (f1) (2026-11-13; emulator only, camera test pending)
+Milestone 1 of the design in PR #36 (iancw), after camera probe mp1 (branch `experiment/m-store-probe`: a marker in store
+M's unused tail survived two battery pulls on the owner's OM-3, the camera's own settings unchanged).
+- **Owner's choices (2026-11-13):** a card's films are taken only when the camera never had that set ("new films"); no
+  copies of the films, edits or Extras are written to the card any more.
+- **Block** at M image + 0x3A000 (RAM 0x6295a700 / uncached 0xa295a700), 3,912 B: 'OM3U', version 1, length, CRC-32 of
+  16.., generation, a ring of 16 film-set identities (CRC-32 of a LOOKS image's bytes 32..: records and names, so the
+  selection bytes don't count), then the LOOKS.BIN, EDITS.BIN and BUNDLES.BIN images in their own formats.
+- **Code** (`firmware/src/editor.s`, end, ext12): `ub_chk` (once per power-on), `ub_bun` (sd_load before P is published:
+  the Extras from the block), `ub_pfl` (sd_load in place of pf_load: the films from the block, or from the card when new or
+  when there is no block; after fl_mk2 the edits from the block; then `ub_put` when the films came from the card),
+  `ub_put` (the block from P / TORG / LPTR, as ed_save, fl_save and pf_save prepared their files: selection bytes and CRC,
+  EDITS header and CRC, BUNDLES slots through sd_san and its header CRC; the ring gets the films' identity; written to
+  both aliases with dispatch held (LOCK) and only when the camera's save of M is not running (busy byte 0xa32a9904, set
+  by 0x60063d73 before the checksum and cleared by its callback 0x60063db4 after the flash write), then the changed byte
+  0xa32bfb32 = 1; else `ub_pend` and `ub_try` again at the next gated shutter event), `ub_save` (ed_trig in place of
+  ed_save + fl_save; still calls the code block +72), `ub_txt` (CADLOG.TXT: "Films in camera memory: ..."). ed_save,
+  fl_save, pf_save and pf_load stay in the source, unused (step 2 can remove them).
+- **The camera also saves M at power-off** (om-emu S-NVRAM + S-SHUTDOWN, `session_ed1.mjs` token `poweroff`: a probe
+  write without any menu visit was in the kept image after the power-off). So a change is saved at the next return to
+  shooting after a menu / Picture Mode or at power-off; a battery pull before either loses only that last change.
+- **Emulator (out-f1: E1479999.BIN 9e49c360…, GUIDES.BIN 0ec0e4dc…; NV_FILE runs in sequence):** (1) blank camera, the
+  owner's card files: "Films from: the card (first time)", block generation 1 (the owner's 20 names, selection 4/5/5/4,
+  EDITS valid mask 0xffffff, BUNDLES 'OM3B'), M checksum valid after the power-off save; (2) a card without LOOKS / EDITS /
+  BUNDLES: the owner's films and selection from the block; an edit (`pokep:32=03,685=01`: slot 0 hue 3, dirty) written
+  (generation 2) and kept over the power-off; (3) the same card after a new start: hue 3 still there; (4) a card with the
+  films v7 LOOKS.BIN: "the card (films the camera never had)", the v7 names, the selection and Extras kept, generation 3,
+  saved at the menu exit; (5) the owner's old card again: "the camera" (already had them), films stay v7; (6) a blank card
+  (no OM3MOD): films, selection and Extras from the camera.
+- om-emu note: after a native power-off the kept state holds the sub-CPU's B store, and the next start fails om-emu's own
+  check ("BlR." where it expects "BlD."): drop `scpu` from the NV file between runs (only M / E matter here).
+- **Not yet:** GUIDES / LABELS / TONES still come from the card (step 2: into the firmware); without them films apply but
+  Glow / Clarity, grain, guide and film pictures don't. The Control Panel's saved-at stamp (step 3) is not needed with the
+  "never had" rule. Test package for the owner (kept outside the repo).
+- **Camera, round 1 (owner, 2026-11-13, f1):** CADLOG.TXT: "a valid block at power-on: no / Films from: the card (first
+  time) / Block written this power-on: 2 times, generation now 2 / the camera's changed byte: 0". The owner's change (COLOR 1
+  from FILM 4 to FILM 1) was written (event #2: edits waiting, save result 1) and the camera saved M at the menu exit (changed
+  byte back to 0). LOOKS.BIN, EDITS.BIN and BUNDLES.BIN on the card unchanged (no card copies). Then, with the owner's OK,
+  the six film files were taken off the card for round 2 (a card without films).
+- **Camera, round 2 (owner, 2026-11-13, f1): passed.** The card without LOOKS / EDITS / BUNDLES, a battery pull, power on:
+  CADLOG.TXT "a valid block at power-on: yes, generation 3 / Films from: the camera / Block written this power-on: 0 times /
+  changed byte 0", picture mode 54 = COLOR 1, FILM 1 (the owner's round-1 change kept). So the films, the selection and the
+  edits come from the camera's own memory over power-off and a battery pull, with no film files on the card.
+- To fix in step 2: the debug log's card check still calls a missing LOOKS.BIN a MISMATCH; with a valid block it is normal.
+
+## Films in camera memory, step 2 (f2): GUIDES / LABELS / TONES built into the firmware (2026-11-13; emulator only)
+- **Where:** build.py puts GUIDES.BIN (pictures + code block), LABELS.BIN and TONES.BIN, as built, in the GX4-proven reserve
+  after ext12 (0x60f99800..0x60fa26e0 in f2, 36,576 B, 16-aligned) and raises the loader's end word 0x60045e9c to 0x60fa3000
+  (GX4: proven to 0x6103f000, camera 2026-11-12). `bf_tab` (editor.s) gets each one's address and size.
+- **How:** the camera's file functions are renamed in editor.ld (OS_FOPEN / OS_FCLOSE / OS_FSEEK / OS_FTELL / OS_FREAD);
+  `fopen` / `fread` / `fseek` / `ftell` / `fclose` in editor.s are wrappers with the same frames (the stock ones: [],4;
+  [d2,d3,a2,a3],24; [d2,d3,a2,a3],20; [d2,a2,a3],16; [d2,a2,a3],16). A read open of "C:\OM3MOD\GUIDES.BIN", "LABELS.BIN"
+  or "TONES.BIN" gets a handle on the built-in copy (a pool of 4 {in use, address, size, position}, taken with dispatch
+  held); anything else goes to the camera. The code block links its fopen / fread / fclose to the wrappers (build.py
+  make_xblock), so its LABELS.BIN read is served too. No caller changed; the card's copies are never read.
+- **Debug log:** with a valid block, LOOKS / EDITS / BUNDLES read "not needed (kept in the camera's memory)", or "on the card
+  (the camera takes only films it never had)" / "on the card, not used"; they no longer count as a mismatch.
+- **Bug found and fixed (f1 code):** ub_chk, ub_bun, ub_put (and f2's vf_new) had frames of 16 with four registers saved,
+  so their own calls wrote the return address over a saved register ((0,sp), research/NOTES.md "Picture-mode sliders").
+  Harmless for their callers in f1; in f2 it broke lg_chk's row pointer (an fopen of address 0x12f80400, an om-emu trap).
+  Now 20. `session_ed1.mjs`: WLIVE=1 prints WATCH hits as they happen (a run that crashes writes no OUT).
+- **Emulator (out-f2: E1479999.BIN 1d55d524…):** f1's suite again (first time from the card; a card without films; an edit
+  kept; new films taken; an old card ignored; the cards' f1 GUIDES.BIN ignored, the code block still loads); a blank card and
+  a card with only DEBUG.TXT: GPTR / XPTR / tg_ptr set from the built-in copies, the three opened at the first half-press
+  (rows 0, 1, 2), the Picture Mode screen drawn in full, CADLOG "Card files: all match this firmware".
+- Test package for the owner (kept outside the repo): only E1479999.BIN to copy. Camera test pending.
+- **Camera, round 1 (owner, 2026-11-13, f2): passed.** (A first attempt still ran f1: the owner had not held OK at power-on;
+  f1 kept working, an edit -> generation 4.) After the flash: CADLOG build "v0.29-dev (films in camera f2)", "Card files:
+  all match this firmware", LOOKS / EDITS / BUNDLES "not needed (kept in the camera's memory)", "a valid block at power-on:
+  yes, generation 4 / Films from: the camera": the block written under f1 survived flashing f2 (our own firmware update keeps
+  M's tail). Photos PB132423..25 (FILM 1 Portra 400, photo code: Glow -5, Grain 3 High, ISO 200..800): the grain is plain in a
+  1:1 crop of a flat wall and the Glow blooms around a lamp, so the code block runs from the built-in GUIDES.BIN.
+- **Camera, round 2 (owner, 2026-11-13, f2): passed, with no OM3MOD folder on the card at all** (removed with the owner's
+  OK; backup kept privately). Photos PB132426..29 at ISO 1000: FILM 2 Gold 200 with Glow -5 (the soft bloom around a lamp and
+  a window) and FILM 3 Kodachrome 64 with Grain 3 High (flat-tile high-pass texture 10.1 against 1.2 for the Glow frames, the
+  grain plain at 1:1). So the films and Extras come from the camera's memory, and the code block, labels and tone pictures
+  from the firmware: **any card works.** (No debug log in this round: no DEBUG.TXT on the card.)
+- **Camera, new films from a Control Panel export (owner, 2026-11-13, f2): works.** The camera's 20 films loaded into the
+  Control Panel (a bank link made from the card's LOOKS.BIN taken in at f1), FILM 15 (one of the owner's own films) Midtones +6 -> +7 with the
+  UI's + button, then Export › Single files › LOOKS.BIN ("v0.28 or later"); the file differs from the camera's films only in
+  that byte (record 15 +45), its CRC and the selection bytes. On the card (a new OM3MOD with LOOKS.BIN and DEBUG.TXT). Camera:
+  the photo PB132430 on FILM 15 has Midtones 7 in its photo code (Shadows 3, Highlights -1, Contrast -1,
+  Blacks 3, as exported); the last power-on's CADLOG: "LOOKS.BIN: on the card (the camera takes only films it never had) /
+  a valid block at power-on: yes, generation 8 / Films from: the camera" (the set was taken at an earlier power-on, then not
+  again). So the whole path works on the camera: Control Panel -> one LOOKS.BIN -> the camera's memory.
+
+## v0.29-beta (test version) prepared (2026-11-13)
+- Owner: a pre-release first (v0.28 stays the main release), with the 20 redesigned films (v7) in the optional LOOKS.BIN
+  and in the Control Panel (published with v0.29, as the live site is built from `main`).
+- Firmware: f2 renamed "v0.29-beta (camera-tested, f2)" (same length; only the name, the code-block tag and the built-in
+  GUIDES copy's CRC / tag differ, checked by a byte diff of main.bin). `releases/v0.29-beta`: patch.json (158 runs,
+  321,613 bytes changed), LOOKS.BIN b7b6dabb… (v7 films, selection 0), DEBUG.TXT and the photo code kit as v0.28, no card
+  files. `patch.py --release v0.29-beta` makes E1479999.BIN b75ae112… (= the build) and only DCOLYMP; v0.28 still makes
+  d7f13db0… with its card files.
+- Control Panel: rebuilt into `looklab/` on this branch (v7 films; v0.29 wording in Install and Export); webapp tests pass.
+
+## v0.29: which films (owner, 2026-11-13)
+- Two redesigns of the camera's 20 existed: the signature looks (v7, above; camera-tried on the owner's OM-3 since
+  2026-11-12, shipped as v0.29-beta's optional LOOKS.BIN) and the colour-matched films (below; live in the Control Panel
+  since 2026-11-13, not camera-tested). Owner: **v0.29 ships the colour-matched 20.** The v7 recipes stay in the history
+  (commits fcd1e05, dcb329e, 88042b1); `webapp/scripts/films.py` is the colour-matched one.
+
 ## Colour-matched films (2026-11-13; analysis / camera model, not shot)
 
 Every film on the colour-chart reference (18 films: 24-patch chart, daylight, +0 EV, one lab scanner, Kodak and Fuji

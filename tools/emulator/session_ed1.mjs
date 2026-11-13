@@ -1,6 +1,6 @@
 // Editor test 1 in a full om-emu E147 play session (our script).
 //   OM_EMU_MODEL=E147 node session_ed1.mjs EMU_DIR IMAGE CARD.omsd OUT.json SAVE.omsd 'tokens...'
-// Tokens: s1 (half-press click), ok/down/info/... (key click), main+N / sub+N (dials), wait. After each token: STATE,
+// NV_FILE=PATH keeps the camera's settings between runs (S-NVRAM). Tokens: s1 (half-press click), ok/down/info/... (key click), main+N / sub+N (dials), wait. After each token: STATE,
 // the editor fields of P (marker, axis, dirty, status), slot 0..3 hue/light/flags, and the settings 928..975 + 2197.
 const [EMU, IMAGE, CARD, OUT, SAVE, SCRIPT] = process.argv.slice(2);
 const fs = await import('node:fs');
@@ -15,7 +15,9 @@ const STATE = 0x62b4dd16, POOL = 0xa2852000, HMAX = 0xae81;
 let c0 = cardFromImage(new Uint8Array(fs.readFileSync(CARD)));
 const card = { open: () => c0, save: (x) => { c0 = x; } };
 const rom = expandImage(new Uint8Array(fs.readFileSync(IMAGE)));
-const env = { rom, resBlock: loadBlock(), createHash, card,
+// NV_FILE=PATH: the camera's kept settings (om-emu S-NVRAM: the stores' saves run natively and the next run loads them)
+const nvram = process.env.NV_FILE ? (await import(EMU + '/host/nvram.mjs')).fileNvram(process.env.NV_FILE) : null;
+const env = { rom, resBlock: loadBlock(), createHash, card, ...(nvram ? { nvram } : {}),
   deflate: (b, l) => new Uint8Array(zlib.deflateSync(b, { level: l })), inflate: (b) => new Uint8Array(zlib.inflateSync(b)) };
 const pl = new Player({ ...PLAYER_PARSER, no_browser: true, idle: 'off', a15: 'on', out: '<out>', no_wait_on_error: true, device: 'tft' },
   { ...env, wallClock: () => performance.now() / 1000 });
@@ -45,7 +47,7 @@ const WRANGE = process.env.WRANGE; let wdbg = null; const wlog = [];
 if (WRANGE) { wdbg = Debugger.attach(lab.sim, { lab }); }
 if (WATCH.size) {
   const dbg = Debugger.attach(lab.sim, { lab });
-  dbg.traceExec((r) => { const g = dbg.regs(); if (process.env.WIDS && !((g.d0 >>> 0) >= 928 && (g.d0 >>> 0) <= 975) && !(((g.d0 >>> 0) >> 4) >= 928 && ((g.d0 >>> 0) >> 4) <= 975 && (g.d0 >>> 0) < 0x10000)) return; if (process.env.WFROM && !globalThis.__armed) return; if (hits.length < 200000) { const h = { step: curStep, pc: r.pc.toString(16), mdr: (g.mdr >>> 0).toString(16), sp: (g.sp >>> 0), d0: g.d0 | 0, d1: g.d1 | 0, d2: g.d2 | 0, d3: g.d3 | 0, a0: (g.a0 >>> 0).toString(16) }; if (r.pc === 0x6051861a) { const out = u32((g.a2 >>> 0) + 12); h.rec = []; for (let i = 0; i < 12; i++) { const b = rd(out + 836 + 24 * i + 18, 6); const sh = (o) => ((b[o] | b[o + 1] << 8) << 16) >> 16; h.rec.push([sh(0), sh(2), sh(4)]); } } if (process.env.WTID) { const cpu = u32(0x8050), t1 = u32((0x97f00004 + 4 * cpu) >>> 0), t2 = u32((t1 + 96) >>> 0), t3 = u32(t2); h.tid = u16((t3 + 16) >>> 0); h.hls = u16(0x62b4dd14); } if (process.env.WSTACK) { h.stk = []; for (let k = 0; k < 160; k++) { const v = u32(((g.sp >>> 0) + 4 * k) >>> 0); if (v >= 0x60021020 && v < 0x62020fe0) h.stk.push(k * 4 + ':' + v.toString(16)); } } hits.push(h); } }, { pcs: [...WATCH] });
+  dbg.traceExec((r) => { const g = dbg.regs(); if (process.env.WIDS && !((g.d0 >>> 0) >= 928 && (g.d0 >>> 0) <= 975) && !(((g.d0 >>> 0) >> 4) >= 928 && ((g.d0 >>> 0) >> 4) <= 975 && (g.d0 >>> 0) < 0x10000)) return; if (process.env.WFROM && !globalThis.__armed) return; if (hits.length < 200000) { const h = { step: curStep, pc: r.pc.toString(16), mdr: (g.mdr >>> 0).toString(16), sp: (g.sp >>> 0), d0: g.d0 | 0, d1: g.d1 | 0, d2: g.d2 | 0, d3: g.d3 | 0, a0: (g.a0 >>> 0).toString(16) }; if (r.pc === 0x6051861a) { const out = u32((g.a2 >>> 0) + 12); h.rec = []; for (let i = 0; i < 12; i++) { const b = rd(out + 836 + 24 * i + 18, 6); const sh = (o) => ((b[o] | b[o + 1] << 8) << 16) >> 16; h.rec.push([sh(0), sh(2), sh(4)]); } } if (process.env.WTID) { const cpu = u32(0x8050), t1 = u32((0x97f00004 + 4 * cpu) >>> 0), t2 = u32((t1 + 96) >>> 0), t3 = u32(t2); h.tid = u16((t3 + 16) >>> 0); h.hls = u16(0x62b4dd14); } if (process.env.WSTACK) { h.stk = []; for (let k = 0; k < 160; k++) { const v = u32(((g.sp >>> 0) + 4 * k) >>> 0); if (v >= 0x60021020 && v < 0x62020fe0) h.stk.push(k * 4 + ':' + v.toString(16)); } } hits.push(h); if (process.env.WLIVE) console.log('HIT ' + JSON.stringify(h)); } }, { pcs: [...WATCH] });   // WLIVE=1: each hit printed at once (a run that crashes writes no OUT)
 }
 lab.sim.write(0xa32de590, new Uint8Array([0xff, 0x03, 0, 0])); lab.sim.write(0x60369308, new Uint8Array([0x00, 0xf0, 0, 0]));
 for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
@@ -203,11 +205,18 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     }
     dd.m.setRegs(saved); console.log('DFLT ' + JSON.stringify(out));
   }
+  else if (t.startsWith('pokep:')) {      // pokep:OFF=HEX,... writes bytes at P + OFF (decimal), e.g. pokep:685=01 sets the editor's dirty byte
+    const P = POOL + u16(STATE) - 1; for (const kv of t.slice(6).split(',')) { const [o, hex] = kv.split('='); lab.sim.write((P + parseInt(o, 10)) >>> 0, Uint8Array.from(Buffer.from(hex, 'hex'))); }
+  }
+  else if (t === 'poweroff') {           // the power lever off and the firmware's own power-off (om-emu H-POWER, S-SHUTDOWN); ends the run
+    s.switch_input('power', 1 - s.bit_of('power')); const off = s.power_down(); log.push({ step: t, power_off: off ? true : null }); break;
+  }
   else if (t.startsWith('hold:')) { const k = t.slice(5); s.key(k, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 2000e6); s.key(k, 'up'); s.camapp.pump(); }
   else if (t !== 'wait') { s.key(t, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(t, 'up'); s.camapp.pump(); }
   curStep = t; s.idle_slice(lab.lab_time() + 1200e6); snap(t);
   if (wdbg) { if (t === 'down') wdbg.watch(WRANGE.split(',').map((r, i) => { const [lo, n] = r.split(':'); return { id: i, lo: parseInt(lo, 16), len: parseInt(n, 16), kind: process.env.WKIND || 'r', action: 'log' }; })); for (const r of wdbg.watchLog()) wlog.push({ step: t, id: r.id, pc: r.pc.toString(16), addr: (r.addr >>> 0).toString(16) }); }
 }
 const st = s.storage;
-fs.writeFileSync(OUT, JSON.stringify({ wlog, hits, log, card: st ? { mounted: st.mounted, files: st.files.length } : null }, null, 1));
+const nv = lab.store_log?.nvram;
+fs.writeFileSync(OUT, JSON.stringify({ wlog, hits, log, card: st ? { mounted: st.mounted, files: st.files.length } : null, nvram: nv ? { loaded: [...nv.loaded], saves: nv.saves.length } : null }, null, 1));
 if (SAVE && st) fs.writeFileSync(SAVE, cardImage(st.card));

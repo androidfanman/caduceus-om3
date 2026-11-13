@@ -2,12 +2,13 @@
 
 What changed in each version of Caduceus for OM-3, newest first. To install or update, follow the
 [install guide](docs/INSTALL.md). When you update, always copy the new `GUIDES.BIN` with the firmware, and keep your
-`LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN`.
+`LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` (from v0.29 only the firmware: the rest is built in or kept in the camera).
 
 ## At a glance
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.29-beta](#v029-beta-test-version) | 2026-11-13 (test version) | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the 20 films redesigned |
 | [v0.28](#v028) | 2026-11-12 | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7); the film as set in each photo's code; the Control Panel knows all of it |
 | [v0.28-alpha](#v028-alpha-test-version) | 2026-11-12 (test version) | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7). The Control Panel isn't updated yet |
 | [v0.27.1](#v0271) | 2026-11-11 | Fixes a rare freeze at switch-on: the films load at the first half-press again |
@@ -29,6 +30,31 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.29-beta (test version)
+A test version of v0.29 (a GitHub pre-release; v0.28 stays the current version). Firmware camera-tested (2026-11-13,
+build f2; only its name was changed). Research and design by iancw ([#35](https://github.com/androidfanman/caduceus-om3/issues/35),
+[#36](https://github.com/androidfanman/caduceus-om3/pull/36)).
+
+- **Films in the camera's own memory:** the 20 films, the changes made on the camera and the Extras settings live in
+  a block in the camera's settings memory (store M, a part OM's firmware 1.1 doesn't use), saved by the camera when it
+  goes back to shooting from a menu or Picture Mode and at switch-off. The first start copies the card's `LOOKS.BIN`,
+  `EDITS.BIN` and `BUNDLES.BIN` in once; after that a card without them, or a blank card, still has the films.
+  Camera-tested: a probe first (a marker kept over two battery pulls, the camera's own settings unchanged), then the
+  films over battery pulls, a card without films and a card with no `OM3MOD` folder.
+- **GUIDES.BIN, LABELS.BIN and TONES.BIN built into the firmware:** card copies are ignored; a card with nothing of
+  ours works in full (Glow and grain camera-tested).
+- **New films from a card:** the camera takes a `LOOKS.BIN` only if it never had that set of films (any change in the
+  Control Panel makes it new), keeping the selection, the Extras and the changes to films that didn't change; an old
+  card is ignored. Camera-tested with a Control Panel export.
+- **No copies on the card:** the camera no longer writes `LOOKS.BIN`, `EDITS.BIN` or `BUNDLES.BIN` (owner's choice); the
+  Control Panel can't read on-camera changes from the card any more.
+- **Debug log:** where the films came from, and missing film files are normal now.
+- **The 20 films redesigned** (the optional `LOOKS.BIN`, and the Control Panel with v0.29): "signature" looks compared
+  with real photos taken on each film (Wikimedia Commons); CineStill 800T sets Custom WB 3200 K with Halation 3,
+  CineStill 400D Halation 2; Cuban Negative reworked. Camera-tried on the owner's OM-3 since 2026-11-12.
+- `firmware/patch.py`: a version without card files makes only `DCOLYMP` and says so. Details:
+  [release notes](releases/v0.29-beta/NOTES.md).
 
 ## v0.28
 Halation, finer split toning, a WB for every film, Blacks / Whites as one grid, and the film as you set it in each

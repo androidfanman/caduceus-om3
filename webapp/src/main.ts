@@ -1468,11 +1468,11 @@ function om3InstallDialog() {
       step('Download Caduceus for OM-3',
         h('p', {}, 'Open the ', link(`${OM3_GH}/releases/latest`, 'latest release'), ', download ', h('b', {}, 'Source code (zip)'), ' and unzip it. There is no firmware file to download: OM\'s licence means you build it yourself from the official firmware.')),
       step('Build',
-        h('p', {}, 'Run ', code('firmware/patch.py'), ' (the guide shows how). It gets OM\'s official firmware, applies the patch, checks every file and writes an ', code('SD card files'), ' folder: copy ', code('DCOLYMP'), ' and ', code('OM3MOD'), ' to the root of the card. Keep ', code('restore/'), ' on your computer.')),
+        h('p', {}, 'Run ', code('firmware/patch.py'), ' (the guide shows how). It gets OM\'s official firmware, applies the patch, checks every file and writes an ', code('SD card files'), ' folder: copy ', code('DCOLYMP'), ' and ', code('OM3MOD'), ' to the root of the card (from v0.29 only ', code('DCOLYMP'), ': the rest is built into the firmware). Keep ', code('restore/'), ' on your computer.')),
       step('Your looks: LOOKS.BIN + NAMES.BIN (optional)',
         h('p', {}, 'Looks can be made on the camera itself (Film page). To use the ones here instead:'),
         h('ol', { class: 'substeps' },
-          h('li', {}, 'To keep looks made on the camera, first ', h('b', {}, 'Open…'), ' the card\'s ', code('OM3MOD/LOOKS.BIN'), ' here (', code('PROFILES.BIN'), ' before v0.19).'),
+          h('li', {}, 'Up to v0.28: to keep looks made on the camera, first ', h('b', {}, 'Open…'), ' the card\'s ', code('OM3MOD/LOOKS.BIN'), ' here (', code('PROFILES.BIN'), ' before v0.19). From v0.29 the camera keeps its films and your changes in its own memory: it takes a ', code('LOOKS.BIN'), ' only when it never had that set, and keeps your changes to the films you didn\'t change here.'),
           h('li', {}, 'Edit, then ', h('b', {}, 'Export'), ' › Save to the SD card (or download the card folder zip).'),
           h('li', {}, 'Put the card back and half-press once.')),
         exportBtn),
@@ -1550,7 +1550,7 @@ function om3ExportDialog() {
       fwSel),
     wbBox,
     h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'Save to the SD card'), h('p', { class: 'help' }, 'Pick the card (or its OM3MOD folder): writes OM3MOD/LOOKS.BIN and NAMES.BIN. This replaces the looks on the card, including ones made on the camera: Open… the card\'s LOOKS.BIN first to keep those. Chrome / Edge.')),
+      h('div', {}, h('b', {}, 'Save to the SD card'), h('p', { class: 'help' }, 'Pick the card (or its OM3MOD folder): writes OM3MOD/LOOKS.BIN and NAMES.BIN. Up to v0.28 this replaces the looks on the card, including ones made on the camera: Open… the card\'s LOOKS.BIN first to keep those. From v0.29 the camera keeps its own films and changes in its memory and takes this file only if it never had these films. Chrome / Edge.')),
       toCard),
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'Card folder (.zip)'), h('p', { class: 'help' }, 'OM3MOD/LOOKS.BIN, OM3MOD/NAMES.BIN and the looks file. Unzip at the card root (never into DCOLYMP/).')),
@@ -1567,7 +1567,7 @@ function om3ExportDialog() {
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'RapidRAW presets (.rrpreset)'), h('p', { class: 'help' }, 'Every look as its own preset in a zip, for ORF files. Approximate.')),
       h('button', { disabled: !looks.length, onclick: () => download(`${fname}-rapidraw.zip`, rrAll(), 'application/zip') }, `All ${looks.length} (.zip)`)),
-    h('p', { class: 'help' }, 'The camera checks every file and ignores one that fails. A new LOOKS.BIN keeps the camera on its current setting until you pick a film.')));
+    h('p', { class: 'help' }, 'The camera checks every file and ignores one that fails. A new LOOKS.BIN keeps the camera on its current setting until you pick a film. From v0.29 only LOOKS.BIN matters (the rest is built into the firmware), and the camera ignores a set of films it already had: change anything here to make it new.')));
 }
 
 // ---------------------------------------------------------------- start

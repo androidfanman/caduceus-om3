@@ -46,6 +46,30 @@ writes the file the first time a look is used. Writes go to `LOOKS.NEW`, are rea
 Generators: `card/mkprofiles.py` (JSON → file) and the Control Panel (`webapp/src/om3.ts`: `profilesBin` / `readProfiles`), byte-identical
 (`webapp/tests/om3.test.ts`).
 
+## Films in the camera's memory (v0.29)
+
+From v0.29 the camera keeps the files below in a block in its own settings memory (store M, image offset 0x3A000 in
+the part OM's firmware 1.1 leaves unused) and no longer writes them to the card. A card's `LOOKS.BIN` is read at the
+first half-press and taken only when the camera never had that set of films; `EDITS.BIN` and `BUNDLES.BIN` on a card
+are read only when the camera's block is empty or invalid (the first start). Block (3,912 bytes):
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | magic `OM3U` |
+| 4 | 2 | version 1 |
+| 6 | 2 | length 3912 |
+| 8 | 4 | CRC-32 of bytes 16..3911 |
+| 12 | 4 | generation (+1 at every write) |
+| 16 | 4 | next ring slot |
+| 20 | 4 | zero |
+| 24 | 64 | 16 film-set identities (CRC-32 of a LOOKS image's bytes 32..1631: records and names) |
+| 88 | 1632 | the films, as `LOOKS.BIN` |
+| 1720 | 1648 | the changes made on the camera, as `EDITS.BIN` |
+| 3368 | 544 | the Extras settings, as `BUNDLES.BIN` |
+
+`GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` are built into the firmware from v0.29 (the formats below are unchanged;
+copies on a card are ignored).
+
 ## EDITS.BIN (1648 bytes, v0.24)
 
 Written by the camera only (at the half-press save, when something changed); the changes you make to each film and

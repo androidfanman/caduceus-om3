@@ -637,6 +637,20 @@ def build(defaults, testfile, out):
     struct.pack_into('<I', g, 4, len(g)); struct.pack_into('<I', g, 8, zlib.crc32(bytes(g[12:])) & 0xffffffff)
     assert len(g) <= 16448, ('GUIDES.BIN', len(g))   # the camera loads it in one malloc block: its pools end at 16448 B (research/NOTES.md); gd_load's own check (24 KB) is looser
     (out / 'GUIDES.BIN').write_bytes(bytes(g))
+    # films in camera memory, step 2: GUIDES.BIN, LABELS.BIN and TONES.BIN built into the firmware, in the GX4-proven
+    # reserve after ext12 (0x60f99800..0x6103f000, camera-tested 2026-11-12); the loader's end word raised to cover them;
+    # bf_tab (editor.s) gets each one's address and size, and the wrappers serve them for the card's names
+    at, vt = EXT12[1], sy['bf_tab']
+    for i, f in enumerate(('GUIDES.BIN', 'LABELS.BIN', 'TONES.BIN')):
+        b = (out / f).read_bytes()
+        assert struct.unpack_from('<II', m, o(vt) + 12 * i + 4) == (0, 0) and set(m[o(at):o(at) + len(b)]) <= {0xff}, f
+        m[o(at):o(at) + len(b)] = b
+        struct.pack_into('<II', m, o(vt) + 12 * i + 4, at, len(b))
+        at = (at + len(b) + 15) & ~15
+    vf_end = (at + 0xfff) & ~0xfff
+    assert vf_end <= 0x6103f000, hex(vf_end)
+    struct.pack_into('<I', m, o(0x60045e9c), vf_end)
+    print('BUILT IN: GUIDES, LABELS, TONES at 0x%x..0x%x, loader end word 0x%x' % (EXT12[1], at, vf_end))
     hdr, trl = mc['hdr'], bytearray(mc['trl'])
     struct.pack_into('<I', trl, 28, 0)
     struct.pack_into('<I', trl, 28, (-(wordsum(hdr) + wordsum(bytes(m)) + wordsum(bytes(trl)))) & 0xFFFFFFFF)
@@ -668,7 +682,7 @@ def build(defaults, testfile, out):
 def make_xblock(out, sy, xtag):
     """Assemble the code block, link it at two bases, find the 32-bit fields that move (+delta absolute, -delta
     PC-relative to the firmware), check that relocating the first link gives the second, and pack the block."""
-    ext = dict(getter=0x60063380, facade=0x60b8696a, fopen=0x608d4d22, fread=0x608d4eb7, fclose=0x608d4d2b, malloc=0x60024068, sd_crc=sy['sd_crc'], gd_mode=sy['gd_mode'], VDESC=0xa4cf688c, VSTOCK_P=0xa4cf6210, VSTOCK_S=1660, AXIS=684, EDK=687, fx_tail=sy['fx_tail'], fx_back=sy['fx_back'], lv_skip=sy['lv_skip'], c11_ret=0x60504edb,
+    ext = dict(getter=0x60063380, facade=0x60b8696a, fopen=sy['fopen'], fread=sy['fread'], fclose=sy['fclose'], malloc=0x60024068, sd_crc=sy['sd_crc'], gd_mode=sy['gd_mode'], VDESC=0xa4cf688c, VSTOCK_P=0xa4cf6210, VSTOCK_S=1660, AXIS=684, EDK=687, fx_tail=sy['fx_tail'], fx_back=sy['fx_back'], lv_skip=sy['lv_skip'], c11_ret=0x60504edb,
                STATE=sy['STATE'], HMAX=sy['HMAX'], POOL=sy['POOL'], MAGIC=sy['MAGIC'], BUFIDX=0x604afdf9, SF_ENT=0x604be2aa, LOCK=0x60075f73, UNLOCK=0x60075fbc, WINMAP=0x60071018, FLUSH=0x60070e69, free=0x6002409a,
                SEL=0x6052cf39, fwrite=0x608d4da9, PF_CAPTO=sy['pf_capto'], PF_CAP=sy['pf_cap'], E_LK=sy['e_lk'], E_RET=sy['e_ret'], E_RST=sy['e_rst'], REFRESH=0x611b20ea, XT_TAB=sy['xt_tab'], EMARK=680, EMAGIC=0x45334d4f,
                FL_HAS=sy['fl_has'], FACADE=0x60b8696a, AGET=0x603f039d, TXGET=0x604cd921, TXATT=0x604bc0cf, TXPF=0x604b77fb, TWO=sy['TWO'], TW_LEN=sy['TW_LEN'], FV0=sy['FV0'],
