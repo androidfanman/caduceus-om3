@@ -11,6 +11,7 @@ export interface Film {
   tone: Look['tone']; contrast: number; wb: { a_b: number; g_m: number } | null;
   sharp: number;   // firmware v0.22 Sharp, the camera's numbers (0 = its normal)
   split?: { sh_color: number; sh: number; hl_color: number; hl: number };   // v0.26 split toning
+  matched?: boolean;   // colour matched: graded against film scans of a colour chart (else hand-tuned from descriptions)
 }
 export type FilmGroup = 'fuji' | 'slide' | 'neg' | 'instant' | 'print';
 export const FILM_GROUPS: [FilmGroup, string][] = [

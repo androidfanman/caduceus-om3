@@ -2,20 +2,27 @@
 
 **Status (2026-11-13): analysis / camera model only. Not shot on the camera, not merged.** Delete this file when merged.
 
-- 11 of the camera's 20 films regraded in `webapp/scripts/films.py` `GRADED`: Portra 400, Portra 800, Gold 200,
-  Ektar 100, ColorPlus 200, Ektachrome E100, Pro 400H, Velvia 50, Superia 400, Fuji C200, Provia 100F.
-- Target: chart scans of the real films (24-patch chart, daylight, +0 EV, one lab scanner), each film taken relative to
-  the average of its scan session and applied to the camera's COLOR default from the v6 chart shoot. The reference
-  numbers are kept outside the repo (owner's private project notes), as for v6.
-- Solver: `research/film-grading/grade.py`'s camera model; colours, tone, WB and split per film; Contrast kept >= 0;
-  clipped patches in the scans barely count. Prediction = measured v6 + model change.
-- Predicted (model) chroma gap to the film charts, v6 -> this branch: Ektachrome 29.7 -> 9.6 %, Velvia 26.9 -> 13.5,
-  Provia 25.9 -> 9.5, Portra 400 16.1 -> 4.6, Gold 14.5 -> 4.2, Ektar 14.4 -> 5.7, ColorPlus 13.9 -> 5.8,
-  C200 13.6 -> 4.5, Superia 11.9 -> 4.1, Pro 400H 10.9 -> 4.7, Portra 800 9.9 -> 6.0.
-- Also regraded (2026-11-13), not in the camera's 20 so with no camera chart shoot behind them (model only, both
-  before and after): Portra 160 and Fujifilm 200 (same film on the chart), Superia 1600 (from Natura 1600, the
-  same-generation 1600 film) and Fuji 800Z (from NHG II 800, its successor). Model chroma gap: Portra 160
-  10.3 -> 8.4 %, Fujifilm 200 18.2 -> 6.3, Superia 1600 11.5 -> 7.6, Fuji 800Z 16.6 -> 7.3.
-- The other 43 films have no chart scan to grade against and are unchanged.
-- Test file for the owner: LOOKS_CP1.BIN (sha256 87c84364…), the Control Panel's standard 20 with these 11 changed (the 4 extras are not in the standard 20).
+Every film on the colour-chart reference (18 films: 24-patch chart, daylight, +0 EV, one lab scanner, Kodak and Fuji
+in two sessions) is now graded against it, and only those. The reference numbers stay outside the repo (owner's
+private project notes), as for v6. Target: each film relative to its session's average, applied to the camera's
+COLOR default from the v6 chart shoot. Solver: `research/film-grading/grade.py`'s camera model (colours, tone, WB,
+split; Contrast kept >= 0; clipped scan patches barely count).
+
+- The camera's 20 (base = the measured v6 chart shoot): Portra 400, Portra 800, Gold 200, Ektar 100, ColorPlus 200,
+  Ektachrome E100, Pro 400H, Velvia 50, Superia 400, Fuji C200, Provia 100F.
+- Other films already in the list (base = model only): Portra 160, Fujifilm 200.
+- New films (the reference has them, the list didn't): Fujifilm 400, Natura 1600, NHG II 800, NPS 160, Pro 160S
+  (67 films now). Descriptions are ours, partly from what their charts show.
+- New film-browser filters: "Colour matched" (these 18, also tagged in the list) and "Hand-tuned" (the other 49,
+  designed from public descriptions). `matched` flag from `MATCHED` in `webapp/scripts/films.py`.
+
+Double check (2026-11-13), two models: (1) grade.py, (2) the Control Panel's own camera-fitted preview run over the
+chart (an independent model). Both say all 13 existing films get closer to their film chart. Preview, mean colour
+error on unclipped patches, old -> new: Ektachrome 16.1 -> 8.3, Provia 15.1 -> 9.6, Gold 9.9 -> 4.8, Fujifilm 200
+10.9 -> 6.0, Portra 400 9.2 -> 6.2, Pro 400H 8.0 -> 3.9, C200 7.5 -> 5.0, Ektar 7.1 -> 4.8, Portra 160 7.1 -> 4.4,
+ColorPlus 6.7 -> 5.0, Superia 400 6.3 -> 4.4, Portra 800 5.7 -> 4.9, Velvia 13.9 -> 13.1. New films 4.3-6.4.
+Velvia: the two models disagree (skin and sky blue); the camera can't turn the cyan patch as far as Velvia does.
+The camera chart shoot decides. Portra 400's grey tint: preview says slightly warmer than the film (2.6 -> 3.0).
+
+- Test file: LOOKS_CP1.BIN (sha256 87c84364…), the standard 20 with the 11 camera films changed.
 - Next: owner shoots the chart with it (as for v6); measure, then keep, adjust or drop per film.

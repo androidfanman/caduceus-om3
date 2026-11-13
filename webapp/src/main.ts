@@ -1032,7 +1032,8 @@ function om3LibraryPicker() {
  *  film goes into that (empty) FILM; otherwise into the selected FILM when it is empty, else the first empty FILM (or, when all 20 are used, it asks to replace
  *  the selected look). Removing works as for any look (× in the list). */
 function om3FilmPicker(into?: { k: number; v: number }) {
-  let group: FilmGroup | 'all' | 'camera' = 'all', query = '', sel: Film | null = null;
+  type Pick = FilmGroup | 'all' | 'camera' | 'matched' | 'tuned';
+  let group: Pick = 'all' as Pick, query = '', sel: Film | null = null;
   const pv = h('canvas', { class: 'film-pv', 'aria-label': 'Preview of the selected film sim' });
   const pvNote = h('div', { class: 'film-desc' });
   const drawPv = () => {
@@ -1091,20 +1092,21 @@ function om3FilmPicker(into?: { k: number; v: number }) {
     const hit = (f: Film) => !q || `${f.name} ${f.film}`.toLowerCase().includes(q);
     // owner 2026-11-08: the camera's 20 first, in their FILM 1-20 order; under All the other films follow by type
     const cam = group === 'all' || group === 'camera' ? CAMERA_FILMS.filter(hit) : [];
-    const rows = group === 'camera' ? [] : FILMS.filter((f) => (group === 'all' ? !CAMERA_FILMS.includes(f) : f.group === group) && hit(f));
+    const rows = group === 'camera' ? [] : FILMS.filter((f) => (group === 'all' ? !CAMERA_FILMS.includes(f) : group === 'matched' ? !!f.matched : group === 'tuned' ? !f.matched : f.group === group) && hit(f));
     const parts: [string, Film[]][] = [...(cam.length ? [['The 20 (FILM 1–20 order)', cam] as [string, Film[]]] : []),
       ...FILM_GROUPS.filter(([g]) => rows.some((f) => f.group === g)).map(([g, label]) => [group === 'all' ? `More: ${label.toLowerCase()}` : label, rows.filter((f) => f.group === g)] as [string, Film[]])];
     const sections = parts.map(([label, fs]) =>
       h('div', { class: 'film-group' }, h('h3', {}, label), ...fs.map((f) =>
         h('div', { class: `film-row${sel === f ? ' on' : ''}${have.has(f.name) ? ' in-list' : ''}`, role: 'listitem' },
           h('button', { class: 'film-pick', onclick: () => { sel = f; drawPv(); drawRows(); }, 'aria-pressed': String(sel === f) },
-            h('b', {}, CAMERA_FILMS.includes(f) ? `${CAMERA_FILMS.indexOf(f) + 1}. ${f.name}` : f.name), h('small', {}, f.film)),
+            h('b', {}, CAMERA_FILMS.includes(f) ? `${CAMERA_FILMS.indexOf(f) + 1}. ${f.name}` : f.name),
+            h('small', {}, f.film, f.matched ? h('span', { class: 'matched-tag', title: 'Colour matched: graded against film scans of a colour chart' }, 'colour matched') : null)),
           have.has(f.name) ? h('span', { class: 'in-list-tag', title: `Already in "${LISTS.current}": ${have.get(f.name)!.join(', ')}` }, '✓ ', have.get(f.name)!.join(', ')) : null,
           h('button', { class: 'film-add', onclick: () => add(f), title: `Add ${f.name} to your looks` }, '+ Add')))));
     list.replaceChildren(...(sections.length ? sections : [h('p', { class: 'empty' }, 'No film matches.')]));
   };
   const chips = h('div', { class: 'seg film-groups', role: 'radiogroup', 'aria-label': 'Film type' },
-    ...([['all', 'All'], ['camera', 'The 20']] as [FilmGroup | 'all' | 'camera', string][]).concat(FILM_GROUPS.map(([g, l]) => [g, l.replace(' simulations', '')] as [FilmGroup, string])).map(([g, t]) =>
+    ...([['all', 'All'], ['camera', 'The 20'], ['matched', 'Colour matched'], ['tuned', 'Hand-tuned']] as [Pick, string][]).concat(FILM_GROUPS.map(([g, l]) => [g, l.replace(' simulations', '')] as [Pick, string])).map(([g, t]) =>
       h('button', { role: 'radio', 'aria-checked': String(g === group), class: g === group ? 'on' : '', onclick: (e: Event) => {
         group = g; (e.currentTarget as HTMLElement).parentElement!.querySelectorAll('button').forEach((b) => { const on = b === e.currentTarget; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
         drawRows();

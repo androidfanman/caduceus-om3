@@ -142,6 +142,18 @@ FILMS = [
   dict(sat=1, s_g=1, s_b=1, s_o=-1, con=1, sh=-1)),
  ('Fuji 800Z', 'neg', 'Fujicolor Pro 800Z', "Fujicolor Pro 800Z: fast portrait negative with flattering skin and natural, slightly cool colour in low light.",
   dict(h_g=-1, s_o=-1, ab=-1, sh=1)),
+
+ # --- added 2026-11-13: films on the colour-chart reference that the list lacked (colour matched, model only) ---
+ ('Fujifilm 400', 'neg', 'Fujifilm 400', "Fujifilm 400: Fuji's current fast consumer film, warm and punchy, with bright orange-reds, golden yellows and strong blues.",
+  dict(sat=1, ab=1, s_r=1, s_y=1, s_b=1, con=1)),
+ ('Natura 1600', 'neg', 'Fujicolor Natura 1600', "Fujicolor Natura 1600: Fuji's fast available-light film from Japan, clean and slightly cool, with lively reds, fresh greens and soft blacks.",
+  dict(gm=1, s_r=1, s_g=1, h_g=-1, blk=1)),
+ ('NHG II 800', 'neg', 'Fujicolor NHG II 800', "Fujicolor NHG II 800: Fuji's fast professional negative for weddings and events, natural skin, clear greens and cool, deep blues.",
+  dict(s_g=1, h_g=-1, s_b=-1, sh=1)),
+ ('NPS 160', 'neg', 'Fujicolor NPS 160', "Fujicolor NPS 160: Fuji's studio and portrait negative, soft contrast, gentle skin, cool greens and subdued blues.",
+  dict(sat=-1, h_g=-1, s_b=-1, sh=1, mid=1)),
+ ('Pro 160S', 'neg', 'Fujicolor Pro 160S', "Fujicolor Pro 160S: NPS 160's successor, a natural portrait film with smooth skin, clean greens and restrained colour.",
+  dict(sat=-1, h_g=-1, sh=1)),
  ('Agfa Vista 200', 'neg', 'Agfa Vista 200', "Agfa Vista 200: an inexpensive consumer negative with punchy reds, cool greens and a nostalgic feel.",
   dict(sat=2, s_r=2, s_o=-1, h_g=-1, ab=-1, con=1, sh=-1)),
  ('Lomo Color 400', 'neg', 'Lomography Color Negative 400', "Lomography Color Negative 400: punchy, warm everyday film with saturated colour and a fun, lo-fi feel.",
@@ -251,10 +263,10 @@ GRADED = {
  'Kodacolor 100': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], light=[0, 0, 0, 0, -1, 0, 0, 1, 0, -1, 0, -1], sat=[2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2], con=1, sh=-1, split=None),
  'Superia 200': dict(hue=[0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[2, 0, 1, 1, 1, 2, 0, 1, 1, 1, 2, 2], ab=-1, con=1, sh=-1, split=None),
  'Superia 800': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1], ab=-1, con=1, blk=1, split=None),
- 'Superia 1600': dict(hue=[0, 1, 0, 0, -1, -2, 1, 1, 0, 0, 0, 0], light=[0, -1, 1, 0, 0, -1, -1, 0, 2, 1, 1, 0], sat=[-1, 0, 1, -1, 1, -1, 0, -1, 0, 0, 0, -1], con=1, sh=1, mid=1, wht=-1, split=('OR', 1, 'BC', 1)),  # chart-graded 2026-11-13 (camera model, not shot)
+ 'Superia 1600': dict(hue=[-1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 0, 1, 1, 1, -1, 0, 0], sat=[0, -1, -1, -1, -1, -1, -1, -2, -1, -2, -1, -1], ab=-1, sh=1, blk=1, split=None),
  'Fujifilm 200': dict(hue=[0, -1, 0, 0, 0, -1, -1, -1, 0, 0, 1, 1], light=[0, 0, 2, 0, 1, 1, 0, 2, 1, 1, -1, -1], sat=[1, -1, -1, 0, -3, 5, 0, -3, -1, -1, -1, 1], ab=3, gm=1, sh=3, mid=1, split=('OR', 2, 'BC', 2)),  # chart-graded 2026-11-13 (camera model, not shot)
  'Fuji 160C': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, -1, 0, -1], sat=[3, 0, 1, 1, 1, 1, 1, 2, 1, 1, 3, 2], gm=-1, con=1, sh=-1, split=None),
- 'Fuji 800Z': dict(hue=[0, 1, 0, 0, 0, -1, 1, 0, 1, -1, 0, 0], light=[0, -1, 0, 0, -2, -2, -1, -1, 0, 0, -1, -1], sat=[0, -1, 0, 0, 0, 3, -1, -2, 1, 0, 1, 1], ab=1, gm=1, sh=2, mid=2, blk=1, split=('O', 1, 'Y', 0)),  # chart-graded 2026-11-13 (camera model, not shot)
+ 'Fuji 800Z': dict(hue=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1], light=[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0], sat=[0, -1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0], sh=1, split=None),
  'Agfa Vista 200': dict(hue=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1], light=[-1, 0, -1, 0, 0, 0, 0, 0, 0, 0, -1, 0], sat=[3, 0, 3, 4, 2, 2, 2, 2, 2, 1, 3, 2], ab=-1, gm=-1, con=1, sh=-1, split=None),
  'Lomo Color 400': dict(hue=[0, 1, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0], light=[-1, 0, 0, 0, -1, 0, 0, 1, -1, -1, 0, -1], sat=[4, 0, 3, 4, 3, 2, 3, 3, 2, 3, 3, 3], con=2, sh=-2, split=None),
  'LomoChrome 92': dict(hue=[0, 1, 0, 0, 0, 1, 0, -2, 0, 0, 1, 1], light=[0, 0, -1, 0, 0, -1, 0, 1, 0, -1, -1, 0], sat=[-1, -2, -2, -2, -2, -2, 0, -1, -1, -3, -3, -3], con=-1, sh=1, blk=2, wht=-1, split=None),
@@ -269,7 +281,17 @@ GRADED = {
  'Kodak 2383': dict(hue=[-1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0], light=[0, 0, 0, 0, -1, 1, 0, 0, -1, 0, 0, 0], sat=[0, 0, 1, 1, 1, 1, 1, 1, 1, -1, 0, 0], con=2, sh=-2, blk=-1, split=None),
  'Kodak 2393': dict(hue=[0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0], light=[0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[2, 0, 1, 1, 1, 2, 0, 1, 1, 1, 1, 1], con=2, sh=-2, blk=-1, split=None),
  'Fuji 3513': dict(hue=[-1, 1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1], light=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sat=[0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0], ab=-1, con=1, sh=-1, split=None),
+ 'Fujifilm 400': dict(hue=[-1, 0, 0, 0, 0, -1, -1, 0, 0, 1, 2, 1], light=[1, 0, 2, 0, -1, 1, 1, 2, 1, 1, -1, -1], sat=[4, 0, 0, 0, -2, 5, 1, -1, 1, -2, 1, 3], ab=2, con=1, sh=2, mid=1, blk=-1, wht=-1, split=('OR', 1, 'BC', 1)),  # chart-graded 2026-11-13 (camera model, not shot)
+ 'Natura 1600': dict(hue=[0, 1, 0, 0, -1, -2, 1, 1, 0, 0, 0, 0], light=[0, -1, 1, 0, 0, -1, -1, 0, 2, 1, 1, 0], sat=[-1, 0, 1, -1, 1, -1, 0, -1, 0, 0, 0, -1], con=1, sh=1, mid=1, wht=-1, split=('OR', 1, 'BC', 1)),  # chart-graded 2026-11-13 (camera model, not shot)
+ 'NHG II 800': dict(hue=[0, 1, 0, 0, 0, -1, 1, 0, 1, -1, 0, 0], light=[0, -1, 0, 0, -2, -2, -1, -1, 0, 0, -1, -1], sat=[0, -1, 0, 0, 0, 3, -1, -2, 1, 0, 1, 1], ab=1, gm=1, sh=2, mid=2, blk=1, split=('O', 1, 'Y', 0)),  # chart-graded 2026-11-13 (camera model, not shot)
+ 'NPS 160': dict(hue=[1, 1, 0, 0, -1, -1, 1, 1, 1, 0, 0, -1], light=[0, -1, 2, 0, 0, 1, 0, -1, -1, 0, 0, 0], sat=[-2, 0, 0, 0, 2, -1, 0, 1, 4, -1, -1, -2], ab=1, gm=1, hl=2, sh=2, blk=2, wht=-1, split=None),  # chart-graded 2026-11-13 (camera model, not shot)
+ 'Pro 160S': dict(hue=[0, 0, 0, 0, 1, -1, 0, 2, 0, 0, 0, 1], light=[0, -1, 0, 0, -1, 1, 0, 0, 1, 1, 0, 0], sat=[1, 0, 0, 0, 0, 3, 0, 0, 0, -1, 1, 0], ab=1, gm=2, hl=-1, sh=2, mid=1, split=('G', 1, 'M', 1)),  # chart-graded 2026-11-13 (camera model, not shot)
 }
+# Colour matched (2026-11-13): graded against film scans of a colour chart (camera model; the camera's 20 among them also
+# rest on the v6 chart shoot). The rest are hand-tuned from public descriptions of each film.
+MATCHED = {'Portra 400', 'Portra 800', 'Gold 200', 'Ektar 100', 'ColorPlus 200', 'Ektachrome E100', 'Pro 400H', 'Velvia 50',
+           'Superia 400', 'Fuji C200', 'Provia 100F', 'Portra 160', 'Fujifilm 200', 'Fujifilm 400', 'Natura 1600', 'NHG II 800',
+           'NPS 160', 'Pro 160S'}
 TUNED_SHARP = {'Gold 200': -1}
 
 def tuned(name, s):
@@ -292,6 +314,7 @@ SHARP = {
  'CineStill 800T': -1, 'CineStill 400D': -1, 'Vision3 250D': -1, 'Fuji Eterna': -1, 'Reala 100': 1, 'Candido 800': -2,
  'FP-100C': -2, 'Polaroid 600': -3, 'Polaroid SX-70': -3, 'Instax Mini': -1,
  'Fuji 3513': -1,
+ 'Natura 1600': -2, 'NHG II 800': -1, 'NPS 160': -1, 'Pro 160S': -1,
 }
 
 # --recipes PATH: write the recipes without GRADED (for research/film-grading) to PATH and stop.
@@ -301,7 +324,7 @@ out = []
 for name, grp, film, desc, recipe in FILMS:
     assert len(name) <= 15 and name.isascii() and name == name.strip(), name
     s = settings(recipe) if RECIPES else tuned(name, settings(recipe))
-    out.append({'name': name, 'group': grp, 'film': film, 'desc': desc, **s, 'sharp': TUNED_SHARP.get(name, SHARP.get(name, 0))})
+    out.append({'name': name, 'group': grp, 'film': film, 'desc': desc, **s, 'sharp': TUNED_SHARP.get(name, SHARP.get(name, 0)), **({'matched': True} if name in MATCHED else {})})
 if RECIPES:
     json.dump({'films': out, 'camera': CAMERA}, open(RECIPES, 'w'), separators=(',', ':')); print(len(out), 'recipes'); sys.exit()
 names = [f['name'] for f in out]
@@ -309,6 +332,7 @@ assert len(set(names)) == len(names), 'duplicate names'
 assert all(k in names and -4 <= v <= 2 for k, v in SHARP.items()), 'SHARP: unknown film or out of range'
 assert all(v in names and k not in names for k, v in ALIASES.items())
 assert set(GRADED) == set(names) and set(TUNED_SHARP) <= set(GRADED), 'GRADED: every film once'
+assert MATCHED <= set(names), 'MATCHED: known films'
 assert len(CAMERA) == 20 and len(set(CAMERA)) == 20 and all(n in names for n in CAMERA), 'CAMERA: 20 known films'
 json.dump({'note': 'Our own film looks (webapp/scripts/films.py); edit the recipes there, not this file.', 'films': out, 'aliases': ALIASES, 'camera': CAMERA},
           open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'data', 'om3films.json'), 'w'), separators=(',', ':'))

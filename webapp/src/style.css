@@ -307,6 +307,7 @@ canvas.film-pv { width: 100%; height: auto; border-radius: 8px; background: #000
 .film-row.on .film-pick b { color: var(--accent); }
 .film-pick { text-align: left; border: 0; background: none; padding: 6px 4px; display: grid; gap: 2px; }
 .film-pick small { color: var(--muted); }
+.matched-tag { margin-left: 6px; font-size: 11px; color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; white-space: nowrap; }
 .film-add { white-space: nowrap; }
 @media (max-width: 760px) { .film-dlg { grid-template-columns: 1fr; } .film-side { position: static; } .film-list { max-height: none; } }
 dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
