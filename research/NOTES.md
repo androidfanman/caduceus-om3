@@ -3556,3 +3556,17 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
   greens less cyan (the taxi went olive).
 - Sheets (private mockups/films-v7-*): original / v6 / v7 on portrait, meadow, taxi, night street. Not camera-tested;
   not live. The released LOOKS.BIN (v0.27.1's films) is unchanged.
+- **Passes against internet references (2026-11-12, owner: "do a few more passes ... compare them to pictures found on
+  the internet"):** Wikimedia Commons media search per film (freely licensed photos naming the film; 28-40 per film,
+  only 2 for CineStill 400D and 9 for Agfa Ultra; Fuji C200's results are mostly black-and-white scans: not used),
+  measured in the browser at 256 px (no files kept): 2 / 50 / 98 % luminance, mean chroma, and the cast of near-neutral
+  pixels in shadows / midtones / highlights. The same numbers on our 20 in the preview over the 9 sample photos.
+  Different scenes, so each film is compared by how it stands out from the average of the 20 (references vs ours).
+  Pass 2: more colour for Portra 400, Gold, Pro 400H, ColorPlus, Superia, Ektachrome, Provia; less for CineStill 800T,
+  Ektar, Velvia; blacks less lifted (Portra, Pro 400H, Vision3, Eterna); ColorPlus warmer orange, Gold's midtones
+  redder (gm -1 / -2), Superia and Ultramax less green / warm as their references, Velvia cooler, CineStill 800T's teal
+  shadows halved. Pass 3: the remaining black / white points and casts. Result (colourfulness vs the average, refs /
+  ours): Portra 400 0.96 / 0.86, Gold 1.22 / 1.06, Kodachrome 1.14 / 1.11, CineStill 800T 0.70 / 0.75, Ektar 0.97 /
+  1.09, Velvia 1.14 / 1.24, Superia 1.19 / 1.13, Vision3 0.67 / 0.75, Eterna 0.72 / 0.69. The near-neutral cast is a weak
+  measure for strongly tinted films (their tinted pixels drop out) and CineStill 800T's references are night scenes
+  under lamps while the preview assumes daylight: those two judged by eye. Reference numbers: private folder.
