@@ -3761,3 +3761,21 @@ The camera chart shoot decides. Portra 400's grey tint: preview says slightly wa
   GUIDES CRC / tag). `releases/v0.29`: patch.json (158 runs, 321,613 bytes), LOOKS.BIN ee3f1bde… (colour-matched 20),
   DEBUG.TXT and the kit as v0.28. `patch.py` (no --release) makes v0.29 = E1479999.BIN cd99362c… and only DCOLYMP.
 - Guides (INSTALL, USING, FAQ, CONTROL_PANEL), CHANGELOG, releases/README, DEVELOPER_NOTES, roadmaps updated.
+
+## The Highlight & Shadow curve on the camera's screen (2026-11-13; emulator + analysis, nothing on the camera)
+- Owner asked whether the camera's curve could show Blacks / Whites at its two ends, as the Control Panel's does.
+- The curve is not drawn line by line: Picture Mode's panel (ctor 0x61287fb4, vtable 0x615e6258) reads Sh / Mid / Hi
+  and maps each -7..7 to a code through table 0x615e61e0 (0 -> 1, +n -> n + 1, -n -> 8 + n; helper 0x611c776b), puts
+  the codes in a 7-byte block (property 281) and a 508-byte element block (property 175, picture ids 12309 / 12310,
+  12311 when the values differ from the defaults, 10329) and publishes both (0x610cd5c4), 0x61287c65 / 0x61287cec.
+- Stored pictures (format 14, RAM picture table *(0x60379740) + 4 id; om-emu, f2): 4145 312 x 312 (the frame and
+  grid), 4146 256 x 64, 4147..4161 and 4162..4176 (155 x 156, 15 each: the curve's halves), 4177..4191 and
+  4192..4206 (300 x 300, 15 each; not traced, likely Midtones). Trace of the picture lookup 0x610f5611 (om-emu):
+  Sh +1 -> 4148, Sh +2 -> 4149, Hi -1 -> 4155, so a half = 4146 + code. The ends are part of these pictures: they
+  can't follow Blacks / Whites with the camera's own pictures.
+- Route (not started): answer the curve's ids in ic_get with our own picture of the whole curve, composed at run
+  time as dg_build does (format 14), from Blacks / Sh / Mid / Hi / Whites through the camera's tone remap
+  (tools/ep7_tone.py remap(), bit-exact). Open: which ids show for Mid (the 300 x 300 sets?), whether the panel asks
+  again when only Blacks / Whites changed (they are set on their own row), the left cell's small curve (14534 /
+  14539, 82 x 62).
+- om-emu tokens for the row: `s1 ok ok down down down down` (COLOR 1, H&S row), then `main+N` Sh, `sub+N` Hi.
