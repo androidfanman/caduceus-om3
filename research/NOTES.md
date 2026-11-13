@@ -3471,3 +3471,27 @@ Fork: github.com/fernandezk26/camera-stuff (Apache-2.0), branches `sdload/v0.26.
 - **GUIDES.BIN: 13416 of 16448 B, 3032 free** (the whole file is one malloc block, pools end at 16448 B: pictures
   6792 + code block 6624). build.py now asserts 16448 (it allowed 24576, gd_load's own limit). The earlier "about
   10 KB" told to the owner counted the code block alone against 16448: wrong, corrected.
+
+## Custom crop modes: what Caduceus for the E-P7 did (2026-11-12; read only, their docs/ASPECT.md, issues #7 / #23)
+- Read only (nothing copied): cakelesscoder/caduceus-ep7 docs/ASPECT.md, patches/aspect*, README, issue #23. Their
+  addresses are E-P7 1.1 and none apply here; this is a map of what to look for in the OM-3 firmware.
+- Approach: the E-P7's aspect setting (sid 270, values 1..10) has hidden still values 5:4, 7:6, 6:5, 7:5 (in its
+  tables, absent from the menus). They turned 7:6 and 6:5 into **Panorama 65:24 (5184 x 1920)** and **Wide 21:9
+  (5184 x 2224)**: full sensor width, centred, the same width / centre as 16:9.
+- What had to change, each found by a camera round (8+ rounds, 145 edits / ~2 KB, then 13 stubs / 484 B):
+  1. the option lists (main menu, Super Control Panel strip, a third list for the SCP current-value cell);
+  2. the static setting validator (it filtered the new values out of every list);
+  3. capture sizes (split W / H tables per aspect id x size class: L, M, S, previews, thumbnail) and the RAW
+     AspectFrame crop tag (a jump table per id);
+  4. the live view / AF ratio pair (LV crop) and the hard-coded LV output-size switches (else the view was squished);
+     playback frame; rec-view size;
+  5. the pixel-size readout ("0x0" until patched; then "XPAN 5184x1920" / "UW ..."), new XP / 21:9 icons (OSD);
+  6. issue #23 (user flickering-star; their fork's site list was used with credit): AF point selector crash, wrong AF
+     grid, iAuto, face / eye frames, AF points, metering marks, grid lines missing, setting lost at power-off: every
+     other aspect-keyed lookup found nothing for the new ids. Fix: map the new ids to the 16:9 entry everywhere (AF,
+     tracking, AUTO, overlays, metering). Grid lines still not fixed there (need their own pictures).
+- For the OM-3: find its aspect setting, whether it has hidden spare aspect values (the E-P7's were the way in), every
+  table / switch keyed by aspect (menus, validator, sizes, RAW frame, LV, playback, AF / subject detection, metering,
+  overlays), then probe one ratio on the camera first. The OM-3 has more AF / computational modes than the E-P7, so
+  likely more lookups. Space is not the limit (ext12 ~43 KB free, 662 KiB reserve). Credit cakelesscoder (and
+  flickering-star for the AF site list idea) if their method is followed; the code would be ours.
