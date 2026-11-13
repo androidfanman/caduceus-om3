@@ -230,6 +230,9 @@ function shell() {
     h('input', { type: 'file', id: 'photo', accept: 'image/*', hidden: true, onchange: onPhoto }),
     h('input', { type: 'file', id: 'grade', accept: '.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnGradeFile }));
   buildPreview();
+  // owner 2026-11-13: the film list is as tall as the preview and scrolls on its own
+  const listPane = $<HTMLElement>('#list'), pvPane = $<HTMLElement>('#preview');
+  new ResizeObserver(() => listPane.style.setProperty('--pv-h', `${pvPane.offsetHeight}px`)).observe(pvPane);
 }
 
 function menu(label: string, items: [string, () => void][]): HTMLElement {
@@ -450,12 +453,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
   });
   const endDrag = (e: PointerEvent) => { if (drag && e.pointerId === drag.id) { drag = null; checkpoint(); } };
   svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
-  let wheelT = 0;
-  svg.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    setValue(S.sector, valueOf(S.sector) + ((e as WheelEvent).deltaY < 0 ? 1 : -1)); draw();
-    clearTimeout(wheelT); wheelT = window.setTimeout(checkpoint, 400);
-  }, { passive: false });
+  // owner 2026-11-13: the mouse wheel / trackpad never changes a value (it only scrolls the page)
   draw();
 
   const help = split
@@ -477,7 +475,7 @@ function hslPanel(l: Look, changed: () => void): HTMLElement {
       selName,
       h('button', { class: 'icon', title: 'Next colour (front dial)', 'aria-label': 'Next colour', onclick: () => move(1) }, '›'),
       steps(inp), out),
-    h('p', { class: 'help' }, help, ' Drag a colour\'s corner out (+) or in (−), or scroll / ↑ ↓ on the wheel; double-click a colour on the ring to zero it.'));
+    h('p', { class: 'help' }, help, ' Drag a colour\'s corner out (+) or in (−), or use ↑ ↓ on the wheel; double-click a colour on the ring to zero it.'));
 }
 
 /** Highlight & Shadow: the curve with its sliders. Drag the handles on the curve up or down: S, M and H (Shadows,

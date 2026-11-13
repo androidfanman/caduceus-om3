@@ -91,13 +91,16 @@ input[type="checkbox"] { accent-color: var(--accent); }
 }
 .pane { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; min-width: 0; }
 .preview-pane { position: sticky; top: 70px; }
+.list-pane { position: sticky; top: 70px; max-height: var(--pv-h, calc(100vh - 84px)); overflow-y: auto; overscroll-behavior: contain; }
 @media (max-width: 1180px) {
   .layout { grid-template-columns: 240px minmax(0, 1fr); }
   .editor-pane { grid-column: 1 / -1; }
   .preview-pane { position: static; }
+  .list-pane { position: static; }
 }
 @media (max-width: 760px) {
   .layout { grid-template-columns: minmax(0, 1fr); padding: 10px 16px; }
+  .list-pane { max-height: none; overflow: visible; }
   .top { padding: 10px 16px; }
 }
 
