@@ -394,6 +394,16 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.29 release (feature/films-in-camera merged into main; build f2, camera-tested 2026-11-13)
+
+v0.29-beta (below) plus:
+- `firmware/VERSION` "v0.29 (camera-tested f2 build)", the same length as f2's name: main.bin differs only in that
+  string, the code-block tag and the built-in GUIDES copy's CRC / tag (checked). E1479999.BIN cd99362c…; `patch.py`
+  makes it by default (v0.29 sorts after v0.29-beta) and only DCOLYMP.
+- Films: the colour-matched standard 20 from main (owner); the beta's signature recipes (v7) are only in the history.
+  Release LOOKS.BIN ee3f1bde… (defaultBank, selection 0).
+- Control Panel rebuilt from main + the branch (LUT import, the camera's wheel scale, v0.29 wording); webapp tests pass.
+
 ## v0.29-beta (branch feature/films-in-camera; build f2, camera-tested 2026-11-13; GitHub pre-release)
 
 Films in camera memory (issue #35; research and design by iancw in #36; details: `research/NOTES.md`, "Camera memory

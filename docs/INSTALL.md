@@ -59,10 +59,12 @@ The launcher makes a new folder, **`SD card files`**, next to it:
 ```
 SD card files/
   DCOLYMP/      the update for the camera        → copy to the card
-  OM3MOD/       Caduceus's files                 → copy to the card
   restore/      the camera's original firmware   → keep (to undo Caduceus)
   VERSION.txt   which version you made
 ```
+
+(Versions before v0.29 also make an `OM3MOD` folder with `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` to copy; from
+v0.29 they are built into the firmware.)
 
 If it says **Stopped** instead of Done, nothing was written: see [If something goes wrong](#if-something-goes-wrong).
 
@@ -71,11 +73,13 @@ If it says **Stopped** instead of Done, nothing was written: see [If something g
 ## Step 3. Copy the files to the SD card
 
 1. Put the camera's SD card in your computer.
-2. Copy the **`DCOLYMP`** and **`OM3MOD`** folders from `SD card files` to the **top of the card**, next to the
-   `DCIM` folder (not inside it).
+2. Copy the **`DCOLYMP`** folder from `SD card files` to the **top of the card**, next to the `DCIM` folder (not
+   inside it).
 3. **Get the films.** The 20 film sims are a separate file, `LOOKS.BIN`. Download it from the
    [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest) (under *Assets*), or make your own in
-   the [Control Panel](https://androidfanman.github.io/caduceus-om3/). Put it in the card's **`OM3MOD`** folder.
+   the [Control Panel](https://androidfanman.github.io/caduceus-om3/). Make a folder **`OM3MOD`** at the top of the card
+   (it may be there already) and put `LOOKS.BIN` in it. The camera copies the films into its own memory at the first
+   half-press; after that the card needs nothing of ours.
 4. Eject the card properly before you take it out.
 
 The card should now look like this:
@@ -83,9 +87,6 @@ The card should now look like this:
 ```
 DCIM/
 DCOLYMP/E1479999.BIN
-OM3MOD/GUIDES.BIN
-OM3MOD/LABELS.BIN
-OM3MOD/TONES.BIN
 OM3MOD/LOOKS.BIN
 ```
 
@@ -107,8 +108,10 @@ the files again (step 2), copy them again (step 3) and try once more.
 ## Step 5. Tidy the card and start shooting
 
 1. Put the card back in your computer and delete **`DCOLYMP/E1479999.BIN`**, so the camera isn't updated again by
-   accident. **Keep the `OM3MOD` folder**: your films and changes live there.
-2. Put the card in the camera, switch it on and **half-press the shutter once**: that loads your films.
+   accident.
+2. Put the card in the camera, switch it on and **half-press the shutter once**: that loads your films (the first
+   time, from the card into the camera's own memory). From then on your films and the changes you make on the camera
+   live in the camera: any card works, even a blank one.
 3. Turn the mode dial to the COLOR position and open **Picture Mode**. After COLOR 1–4 you'll find **FILM 1–20**.
 
 Next: [how to use it](USING.md).
@@ -117,16 +120,22 @@ Next: [how to use it](USING.md).
 
 Do steps 1–5 again with the new version. On the card:
 
-- **Replace** `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` in `OM3MOD` with the new ones. `GUIDES.BIN` is made for
-  each firmware version: always copy it together with the firmware.
-- **Keep** `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN`: they hold your films and your changes. Only copy a new
-  `LOOKS.BIN` if you want the new film sims: it replaces your films.
+- **From v0.28 or older to v0.29:** copy only `DCOLYMP`. **Keep** `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` in
+  `OM3MOD` for the first start: at the first half-press the camera copies your films and your changes into its own
+  memory (once). `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` aren't needed any more (the camera ignores them).
+- **New film sims (v0.29):** copy the new `LOOKS.BIN` into `OM3MOD`. The camera takes a set of films once, if it never
+  had it, and keeps your selection, your Extras and your changes to the films that didn't change. A `LOOKS.BIN` the
+  camera already had is ignored.
+- **Between versions before v0.29:** replace `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` with the new ones (always
+  with their firmware) and keep `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN`.
 
 ## Going back to an older version
 
 Run the launcher again and type the version you want instead of pressing Return (all versions are listed in
 [releases](../releases/README.md)). Copy `DCOLYMP` and the version's own `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN`
-to the card, and update the camera as in step 4. Your films keep working.
+to the card, and update the camera as in step 4. Versions before v0.29 read your films from the card again: the card's
+`LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` as they were when you installed v0.29 (v0.29 keeps its changes in the
+camera's memory, which older versions don't read).
 
 On every version except v0.26.2 and v0.27, half-press the shutter once after switching on: that's when your films
 load. (v0.26.2 and v0.27 loaded them by themselves at switch-on, which could rarely freeze the camera; v0.27.1 went
@@ -142,23 +151,28 @@ The camera is then exactly as it came from OM, on firmware 1.1.
 
 ## If something goes wrong
 
-**The camera freezes or switches off.** Take the battery out for a few seconds. Then check that the firmware and
-`OM3MOD/GUIDES.BIN` come from the same version (`VERSION.txt` in `SD card files` says which one you made). If it keeps
+**The camera freezes or switches off.** Take the battery out for a few seconds. Then (before v0.29) check that the
+firmware and `OM3MOD/GUIDES.BIN` come from the same version (`VERSION.txt` in `SD card files` says which one you made). If it keeps
 happening, turn Film Grain off on that film and [tell us](https://github.com/androidfanman/caduceus-om3/issues), with
 your `OM3MOD` files if you can.
 
 **Holding OK doesn't start the update.** Check that the file is at `DCOLYMP/E1479999.BIN` at the top of the card (not
 inside another folder), that the battery is full, and that you hold OK *before* switching on.
 
-**There are no films in Picture Mode.** Half-press the shutter once after switching on (that loads them). Check that `OM3MOD/LOOKS.BIN` is on the card (step 3) and is exactly 1,632
+**There are no films in Picture Mode.** Half-press the shutter once after switching on (that loads them). The first
+time with v0.29, or after a Reset in the camera's menu, the camera needs `OM3MOD/LOOKS.BIN` on the card (step 3): check it is there and exactly 1,632
 bytes; if not, download it again, or save it again from the Control Panel. Check the update really went on: v0.27 adds
 rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't there, do step 4 again.
 
-**Settings change on the camera but the photo doesn't.** The card's `GUIDES.BIN` isn't the one made with this
-firmware. Copy it again from `SD card files/OM3MOD`.
+**Settings change on the camera but the photo doesn't.** Before v0.29: the card's `GUIDES.BIN` isn't the one made
+with this firmware; copy it again from `SD card files/OM3MOD`. (From v0.29 it's built into the firmware.)
 
-**My changes don't stay.** They're saved at the next half-press, and only when the card has the `OM3MOD` folder at its
-top level. A locked or full card can't be written.
+**My changes don't stay.** From v0.29 the camera keeps them in its own memory: it saves when you go back to shooting
+from a menu or Picture Mode and when you switch off, so pulling the battery right after a change can lose that change.
+Before v0.29 they were saved on the card at the next half-press (a locked or full card can't be written).
+
+**New films from the Control Panel don't appear (v0.29).** The camera takes a `LOOKS.BIN` only if it never had that set
+of films. Change anything in the Control Panel, export again, and half-press once with the card in.
 
 **The launcher says "Stopped: this is not the official …".** The firmware file it found is damaged, renamed or for
 another camera. Delete it and run the launcher again, so it downloads a fresh copy.

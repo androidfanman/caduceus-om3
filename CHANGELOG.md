@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.29](#v029) | 2026-11-13 | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the colour-matched standard 20 |
 | [v0.29-beta](#v029-beta-test-version) | 2026-11-13 (test version) | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the 20 films redesigned |
 | [v0.28](#v028) | 2026-11-12 | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7); the film as set in each photo's code; the Control Panel knows all of it |
 | [v0.28-alpha](#v028-alpha-test-version) | 2026-11-12 (test version) | Halation; split toning 0–10 with Tone Balance; WB remembered per film; Blacks / Whites as one grid (±7). The Control Panel isn't updated yet |
@@ -30,6 +31,20 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.29
+Films in the camera's own memory, so any SD card works. Firmware camera-tested (2026-11-13, build f2, the same
+firmware as v0.29-beta; only its name was changed). Everything from the [v0.29-beta](#v029-beta-test-version) test
+version, with these differences:
+
+- **Films:** the optional `LOOKS.BIN` and the Control Panel's standard 20 are the **colour-matched films** (18 films
+  graded against film scans of a colour chart, plus CineStill 800T and Kodachrome 64; owner, 2026-11-13), not the
+  beta's signature redesign. The looks are new and not yet shot on a camera.
+- **Control Panel:** v0.29's card rules under Install and Export; the Shadows / Highlights wheels drawn and read as on
+  the camera; a film from your own LUT or Lightroom preset (both live since 2026-11-13).
+- **Guides:** the install guide, using guide, FAQ and Control Panel guide describe the v0.29 card (copy only
+  `DCOLYMP`; `LOOKS.BIN` brings films in once; nothing written back) and going back to older versions.
+  Details: [release notes](releases/v0.29/NOTES.md).
 
 ## v0.29-beta (test version)
 A test version of v0.29 (a GitHub pre-release; v0.28 stays the current version). Firmware camera-tested (2026-11-13,

@@ -62,7 +62,7 @@ You can also have an AI assistant build a look from a photo you like with [these
 ### Can I share films?
 
 Yes. Send a `LOOKS.BIN`, or use **Share** in the Control Panel to send a link. Copying a `LOOKS.BIN` onto a card
-replaces all the films on that camera.
+replaces all the films on that camera (from v0.29 when the camera never had that set; it keeps the selection and Extras).
 
 From v0.27 a JPEG taken on a FILM carries the film too: whoever has the photo can open it in the Control Panel
 (**Open...**) and get the film. Sites can read it with the [developer kit](../devkit/photo-code/).
@@ -76,8 +76,16 @@ wait.
 
 ### Will a new version lose my films?
 
-No. When you update, keep `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` on the card, and copy the new `GUIDES.BIN`,
-`LABELS.BIN` and `TONES.BIN` with the new firmware. See [updating](INSTALL.md#updating-from-an-earlier-version).
+No. From v0.29 your films and changes live in the camera, and an update of Caduceus keeps them. Updating to v0.29
+from an older version, keep `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` on the card for the first start: the camera copies
+them in once. See [updating](INSTALL.md#updating-from-an-earlier-version).
+
+### Can I use any SD card?
+
+From v0.29, yes: your films, your changes and the Extras are in the camera, and the rest is built into the firmware, so
+a card with nothing of ours works in full. A card only brings new films in (`OM3MOD/LOOKS.BIN`), and only films the
+camera never had. A Reset in the camera's menu or an OM firmware update probably clears the films from the camera:
+keep a `LOOKS.BIN` of your films to bring them back.
 
 ### I'm coming from v0.16–v0.18.
 
@@ -92,15 +100,16 @@ themselves, but that could rarely freeze the camera at start-up, so v0.27.1 went
 
 ### There are no films in the Picture Mode list.
 
-Half-press the shutter once after switching on: that's when the films load. Check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
+Half-press the shutter once after switching on: that's when the films load. The first time with v0.29 (or after a
+Reset in the camera's menu), check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
 and is exactly 1,632 bytes; if not, download it again, or save it again from the Control Panel. Then check the update
 really went on: v0.27 adds rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't
 there, flash again (install step 4). Still no films? Send us a [debug log](https://github.com/androidfanman/caduceus-om3/tree/main/debug-log).
 
 ### A setting changes on the camera but the photo doesn't.
 
-The card's `GUIDES.BIN` must come from the same version as the firmware. Copy it again from the `SD card files`
-folder the launcher made.
+Before v0.29: the card's `GUIDES.BIN` must come from the same version as the firmware; copy it again from the
+`SD card files` folder the launcher made. From v0.29 it's built into the firmware: send a [debug log](https://github.com/androidfanman/caduceus-om3/tree/main/debug-log).
 
 ### The camera froze or switched off after a photo.
 
@@ -111,8 +120,9 @@ looked into are listed under Bugs on the [roadmap](https://androidfanman.github.
 
 ### My changes were lost.
 
-They're saved at the next half-press, and only when the card has the `OM3MOD` folder at its top level. A locked or
-full card can't be written.
+From v0.29 they're kept in the camera: it saves when you go back to shooting from a menu or Picture Mode and when you
+switch off, so pulling the battery right after a change can lose that change. Before v0.29 they were saved on the card
+at the next half-press (a locked or full card can't be written).
 
 ### Can I send a log with a bug report?
 

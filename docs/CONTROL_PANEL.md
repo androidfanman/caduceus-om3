@@ -27,7 +27,8 @@ uploaded.
    preview too; the **WB mode** as if the photo was taken in daylight; **Halation** around bright lights in night
    photos (as on the camera, it fades out in bright daylight photos).
 5. **Export › Save to card…** (Chrome or Edge on a computer) writes `OM3MOD/LOOKS.BIN` (and `NAMES.BIN`) straight
-   onto the card; **Card folder (.zip)** downloads them. Keep **Firmware on the camera: v0.28 or later** (older choices leave Halation, Tone Balance, the WB mode and
+   onto the card; **Card folder (.zip)** downloads them. From v0.29 only `LOOKS.BIN` matters, and the camera takes a set
+   of films only if it never had it (change anything to make it new). Keep **Firmware on the camera: v0.28 or later** (older choices leave Halation, Tone Balance, the WB mode and
    Blacks / Whites past ±5 out).
 6. On the camera: switch on and half-press the shutter once (that loads your films): they are FILM 1–20 in Picture Mode. A film you changed in the
    Control Panel starts as built on the camera; the others keep the changes you made on the camera.
@@ -54,7 +55,9 @@ S-Log, Log to Rec.709) expect flat footage and are flagged. Your file stays in y
 - **Lists** keep whole sets of 20 films under a name, like playlists: **Save as…** stores the current set, the **List**
   menu switches between them, **Rename** / **Delete** manage them. Lists stay in this browser; export one to put it on
   the card.
-- **Open…** the card's `OM3MOD/LOOKS.BIN` to edit the films on your card, then save them back.
+- **Open…** a `LOOKS.BIN` to edit those films, then save them back. Before v0.29 the card's `OM3MOD/LOOKS.BIN` held the
+  camera's films; from v0.29 the camera keeps its films and your on-camera changes in its own memory and writes nothing
+  to the card, so work from your saved list here.
 - **Share looks** / **Share** make a link to all your films or to one; **Paste link** opens one. Both also show the
   **recipe code** (`Caduceus FILM 5 CineStill 800T om3.1.…`), the same short code the camera writes into each photo:
   copy it to post a film anywhere; **Paste link** (or opening a photo) turns it back into the film.

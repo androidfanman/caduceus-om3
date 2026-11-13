@@ -3752,3 +3752,12 @@ The camera chart shoot decides. Portra 400's grey tint: preview says slightly wa
 - Next: owner shoots the chart with it (as for v6); measure, then keep, adjust or drop per film.
 - Merged to main and published in the Control Panel (owner, 2026-11-13). The release `LOOKS.BIN` (v0.28) keeps the
   earlier 20 until a camera chart shoot confirms these.
+
+## v0.29 released (2026-11-13)
+- Owner: "lets push .29" after v0.29-beta; the films: the colour-matched 20 from main (not the beta's signature v7).
+- `release/v0.29` = origin/main (13a2256's wheel fix, the colour-matched films, LUT import) + `feature/films-in-camera`;
+  film files taken from main; README without the branch banner, Latest v0.29; Control Panel rebuilt (webapp tests pass).
+- Firmware: f2 renamed "v0.29 (camera-tested f2 build)" (same length; byte diff: only the name, the tag, the built-in
+  GUIDES CRC / tag). `releases/v0.29`: patch.json (158 runs, 321,613 bytes), LOOKS.BIN ee3f1bde… (colour-matched 20),
+  DEBUG.TXT and the kit as v0.28. `patch.py` (no --release) makes v0.29 = E1479999.BIN cd99362c… and only DCOLYMP.
+- Guides (INSTALL, USING, FAQ, CONTROL_PANEL), CHANGELOG, releases/README, DEVELOPER_NOTES, roadmaps updated.
