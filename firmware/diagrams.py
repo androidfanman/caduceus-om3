@@ -62,6 +62,15 @@ def dial_hi():
     return st
 
 
+def button_hi():
+    """a back-view button's highlight: a disc the size of the camera's AF-ON highlight (465 px, x 278..302)"""
+    n, r = 25, 12.2
+    st = np.zeros((n, n), np.uint8)
+    yy, xx = np.mgrid[0:n, 0:n] + 0.5
+    st[np.hypot(xx - n / 2, yy - n / 2) <= r] = HI
+    return st
+
+
 # --- programs ---------------------------------------------------------------------------------------------------------
 # op: ('ovl', src, x0, x1, y0, y1) | ('fill', val, x0, x1, y0, y1) | ('stamp', name, x, y) | ('bridge', x0, x1, y0, y1)
 #     bridge: on each row where the pixels left of x0 and at x1 are both drawn, fill [x0, x1) with the left one
@@ -107,6 +116,11 @@ def arrow(key, pos):
     return 3, ops
 
 
+def delete(pos):
+    """the Delete button, below and left of the pad (its ring x 287..309, y 299..318)"""
+    return 3, BACK_CLEAN + [('stamp', 'bh', 286, 296)] + leader(298, 296, 321, pos)
+
+
 def dial(pos):
     ops = TOP_CLEAN + [('stamp', 'dh', 275, 269)]
     cx = 296
@@ -124,14 +138,20 @@ def lfn(pos):
     # the stock line (up from the dot at x 224..227 to rows 93..96) cleared, outlines it crossed joined again
     ops = [('fill', BG, 222, 247, 91, 113), ('fill', BG, 247, XR, 91, 99), ('fill', BG, 222, 230, 113, 168),
            ('bridge', 222, 230, 113, 168)]
-    ops += vline(224, 196, slot(pos) + 4 - R) + [('stamp', 'cd', 222, slot(pos) + 4 - R - 2)] + hline(slot(pos), 224 + R)
+    s = slot(pos)
+    if s + 4 - R >= 196:
+        ops += vline(224, 196, s + 4 - R) + [('stamp', 'cd', 222, s + 4 - R - 2)] + hline(s, 224 + R)
+    else:                                                  # the row is level with the dot's top: corner off its right edge
+        ops += [('fill', LINE, 236, 240, s + R, 180), ('stamp', 'cu', 234, s - 2)] + hline(s, 236 + R)
     return 8, ops
 
 
-# rows -> (diagram key, position on its page). Rows: Fn REC |o| CP AF-ON ✥ ▲ | ◀ ▶ ▼ L-Fn CRT ART COLOR | MONO
+# rows -> (diagram key, position on its page). Rows: Fn REC |o| CP AF-ON ✥ ▲ | ◀ ▶ ▼ Delete L-Fn CRT ART | COLOR MONO
+#   Movie rows: Fn REC |o| CP AF-ON ✥ ▶ | ▼ Delete L-Fn
 DIAGRAMS = [('up', arrow('up', 6)), ('left', arrow('left', 0)), ('right', arrow('right', 1)), ('down', arrow('down', 2)),
-            ('lfn', lfn(3)), ('crt', dial(4)), ('art', dial(5)), ('color', dial(6)), ('mono', dial(0))]
-STAMPS = {'cu': corner_up(), 'cd': corner_down(), 'dh': dial_hi()}
+            ('lfn', lfn(4)), ('crt', dial(5)), ('art', dial(6)), ('color', dial(0)), ('mono', dial(1)),
+            ('delete', delete(3)), ('mdelete', delete(1)), ('mlfn', lfn(2))]
+STAMPS = {'cu': corner_up(), 'cd': corner_down(), 'dh': dial_hi(), 'bh': button_hi()}
 
 
 def pack():

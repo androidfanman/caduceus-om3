@@ -4071,3 +4071,147 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
 - **Released as v0.29.2** (owner, 2026-11-14: "I don't think this fix warrants a .30 release"): k6 renamed "v0.29.2
   (camera-tested k6 custom modes)" (same length; byte diff: only the name, the code-block tag, the built-in GUIDES CRC).
   `releases/v0.29.2`: patch.json (159 runs, 324,781 bytes), extras as v0.29.1. `patch.py` makes 00c64cbd….
+
+## Delete button remap (#37), step 1: the press path
+- 2026-11-13. Static analysis and emulator, no camera test.
+- Issue #37: in shooting mode the Delete (trash) button does nothing. Let it take the Fn button's functions.
+- **The key (static):** Delete is keycode 14. The debug string list at `0x60e2f763..` names `API_DEL_KEY 14` after
+  `API_INFO_KEY 12` and `API_EVFSW_KEY 13`. In the event -> keycode table `0x612f3100` keycode 14 has press
+  0x01000026, release ..27, long press ..28 and repeat ..29 (group mask 0x800). The event name table at `0x61345410`
+  pairs `OLY_PRESS_DEL_KEY` with 0x01000026.
+- **The drop point (emulator only):** om-emu has a wired `delete` control. In P live view, a press posts 0x01000026
+  and 0x01000027 to the dispatcher `0x61083022` (caller `0x61084dbf`). The key-table walker `0x610830c9` converts the
+  event to its keycode (`call 0x61084631`), finds no record for 14 in the key table `0x612f1ee8` (28 records) and
+  returns 3200, so the dispatcher returns 0. The function-table walk `0x610831e6` never runs.
+- **Only three readers of the key table (static):** `0x610830c9`, `0x61083148` and `0x610831c2` each load
+  `0x612f1ee8` as an imm32 (at `0x610830d4`, `0x6108314f`, `0x610831c6`) and stop at `cmp 28,d2`. No other code holds
+  the address. The 128 B after the table are another 8-record table, so the table cannot grow in place.
+- **A free button setting (static + emulator):** sid 570 (stills) and 1276 (movie) are Button Function settings of a
+  body with a button the OM-3 lacks. Both have validators (570: 38 codes at `0x606157fc`, 1276: 24 codes at
+  `0x60615d86`) and stored values (om-emu `get:` 3333 for both, a code the function table does not hold). Neither is in
+  the key table, either row list (modes 365 / 366) or the item-info trees. In om-emu nothing read either one through
+  the getter `0x61085dbb` during boot, live view, the arrows, menu, playback and Delete in playback. The `mov 570,d0`
+  run at `0x6088d857..` is trace logging (`0x6083a8ed(570, n)`), not a setting read. 570 is also in the u16 list at
+  `0x61540a14` next to the other button sids (still unresolved).
+- **Route:** copy the key table into our space with a 29th record `{14, 570, 1276, 1}` (`full` = 1, as Fn) and point
+  the three readers at the copy (imm32 and `cmp 29`). No new code. Then point the validators of 570 / 1276 at the Fn
+  lists (47: 50 codes at `0x60615432`, 1272: 32 codes at `0x60615b0e`) and add a Delete row to Button Function. The
+  default 3333 has no function, so Delete does nothing until a function is chosen, as stock.
+- **Build environment (macOS, 2026-11-13):** `research/setup.sh` needs `mcopy` (Homebrew `mtools`) and `nproc`
+  (missing on macOS). binutils 2.42's bundled zlib does not compile against the current macOS SDK (`fdopen` macro).
+  `--with-system-zlib` fixes it. `firmware/mkicons.py` reads DejaVu Sans Condensed from `/usr/share/fonts`. With the
+  Homebrew DejaVu fonts and Pillow 12 (FreeType 2.14.3) the build differs from v0.29.1 (`54dea9bc…`). In an
+  `ubuntu:24.04` container (`python3-pil` 10.2.0, `libfreetype6` 2.13.2, `fonts-dejavu-core` and `fonts-dejavu-extra`
+  2.37) it rebuilds v0.29.1 `8bb07ccc…` byte for byte.
+
+## Delete button remap (#37), step 2: the Button Function row
+- 2026-11-13. Emulator only, no camera test.
+- **Build:** `firmware/build.py` copies the key table into `.ext12` (`dl_keys`) with
+  the record `{14, 570, 1276, 1}`, points the three imm32 at the copy and the three `cmp 28` at 29. The validators of
+  570 and 1276 point at the Fn lists of 47 and 1272.
+- **The default reads as Off:** `dl_get` in `firmware/src/editor.s` (called from `sl_get` for sid 570) reports the
+  stored 3333 as 3200, so the row shows "Off" and the walk finds no function.
+- **The OK-entry table holds 15 rows:** menus 363 (def `0x6151085c`) and 365 (def `0x615108a4`) read
+  `{0x6150ce14, 15}`, 24 B entries `{1, sid, 0, 8, item, 0}`, walked at `0x611a2631` (loop `0x611a26c7`). A 16th row
+  needs a copy (`dl_oks`) with `{1, 570, 0, 8, 0x2d8, 0}` and both defs set to `(dl_oks, 16)`.
+  The movie menus 364 and 366 use `{0x6150cf7c, 15}` and need the same copy (`dl_moks`, see the movie row below).
+- **The picker:** descriptor table `0x615c540c` (416 x 24 B `{item, 0x44, sid, 0x60, picker key}`). Item 0x2d8 and
+  picker key 1 are unused. The build reuses 1967's descriptor (`0x615c762c`) as `(0x2d8, 0x44, 570, 0x60, 1)`. The
+  variant table `0x61571ba0` gives key 1 Fn's 55-entry lists. Title icon list `0x6139e26c` index 1 was blank and now
+  holds `DL_IC` (0x7fdf), which `ar_ic` maps to the trash picture `dl_d0`.
+- **Pitfall:** `dl_ent` needs `.balign 4`. Unaligned, om-emu stops with a misaligned read at `0x60f69f02`.
+- **Body diagram:** Delete is the AF-ON-sized button below and left of the ✥ pad (ring x 287..309, y 299..318).
+  `firmware/diagrams.py` adds `button_hi()` and `delete(pos)`. Delete follows ▼ in both menus, with the other back
+  buttons. The rows below it move one place, and a stock diagram keeps pointing at its old place, so every moved row
+  needs our own diagram (`DGK`). Photo: Delete page 2 place 3, L-Fn 4, CRT 5, ART 6, COLOR and MONO page 3 places
+  0 and 1. Movie: Delete page 2 place 1, L-Fn place 2. At place 2 the movie L-Fn row is level with the top of the
+  dot, so `lfn()` turns its corner off the dot's right edge.
+- **Emulator results:** the Delete row shows after ▼ with the trash icon and "Off". Its
+  diagram line meets the lower-left button. OK opens a picker titled with the trash icon that lists the Fn
+  functions. Choosing C1 stores 3348 in 570 and the row shows C1. The ▲ and CRT pickers match v0.29.1 (▲ is blocked
+  by "✥Function" in both).
+- **Movie row (emulator only):** the same steps for 1276 in the movie Button Function (menus 364 / 366 def
+  `0x61510880` / `0x615108c8`, OK entries `{0x6150cf7c, 15}`, rows mode 366 at `0x6152a114`, item tree `0x61569078`).
+  It uses 1285's descriptor (`0x615c7614`, 1285 is in no row list) as `(0x2e8, 0x44, 1276, 0x60, 17)`. Picker key 17
+  has the movie Fn lists. A variant word's high half is the title icon index + 1, and key 17's is 2, so it shares
+  key 1's trash title. `sl_get` sends 1276 to `dl_get` as well. In om-emu the row shows after ▼ with "Off", the
+  picker lists the movie Fn functions, and C1 stores 3457 in 1276. om-emu has no photo / video switch, so the movie
+  menu opens from Button Settings (`menu left left left left left ok down ok`) and a press in video is not tested.
+- **Not proven:** om-emu reads the movie sid for stills keys, so the stills press path needs the camera.
+- **Camera test needed:** each Fn function on Delete in P, A, S, M and in video. Magnify, Multi Function, HDR,
+  High Res and Live ND fail on the arrows and may fail on Delete. Remove any that fail from the list. Delete must
+  still delete in playback.
+
+## Delete button remap (#37), step 3: the press in live view
+- 2026-11-13. Camera result for d1, then static analysis and emulator for d2. d2 has no camera test.
+- **Camera (user, d1):** the Delete rows, the icon and the diagrams show. The chosen function is kept after a restart.
+  A Delete press in shooting does nothing, whatever the function. In playback Delete still deletes.
+- **The cause (static + emulator):** a key event runs the handler in the current state's block (`0x610b9fdb`,
+  called at `0x610bed29`). If the block has no entry, the global block `0x61339080` (156 entries) runs. Blocks hold
+  16 B entries `{event, UI code, 1, handler}`. The second word is the event's code from the event table
+  `0x612f3100` (Delete press 39, release 41), or 1 for none. In om-emu, stills live view is state 0x5100 (block
+  `0x6131bd50`, 173 entries, referrer `0x6131e7f0`). Movie live view is 0x5300 (`0x6131eecc`, 146, `0x61321b2c`).
+  - 0x5100: Delete press runs `0x610b8397`. It deletes a Multiple Exposure frame when `0x610865c5()` is non-zero
+    (strings `deleteMultiExposure`), else it does nothing. Nothing else points at `0x610b8397`.
+  - 0x5300: Delete press is `{1, 1, 0}`, no handler.
+  - AF-ON press in both states runs `0x610a2407`, which calls the dispatcher `0x61083022` and runs the action. Its
+    release runs `0x610a2dec`. Neither state lists a Delete release.
+- **d1's emulator run was misleading:** the dispatcher call seen on a Delete press came from `0x61084d48`, a
+  touch / key exclusivity check (strings `EXCLUSIVE_STATE_KEY_PRESS`), not from a handler that runs the function.
+- **Other finds (static):** the states 0x58xx / 0x59xx pass Delete on as UI code 39 / 41. om-emu reads none of
+  those entries in live view or movie. `0x612f45c8` lists 15 full-button press events (◉, AF-ON, Fn, |●|...), not
+  Delete. Its readers are `0x61084654` and `0x61084a70`, and a caller at `0x61090402` fills a 13-slot buffer from
+  it. The global block maps events 0x0100002a..2d to the Delete events (`0x61084ac9`).
+- **Fix (d2):** `dl_lv` in `firmware/src/editor.s` replaces 0x5100's handler. With a Multiple Exposure frame it
+  jumps to the stock `0x610b8397`. Otherwise it jumps to AF-ON's `0x610a2407`. 0x5300's entry gets `0x610a2407`.
+  Delete still has no release entry, so a hold-type function may not stop on release.
+- **Emulator (d2):** stills P, Delete = Magnify: `dl_lv`, then `0x610a2407`, then action 26. The screen drops its
+  side indicators. With d1 the screen stayed the same. Movie: `0x610a2407` runs and returns action 26, but nothing
+  shows, as with movie Magnify on ▲ in v0.27. Playback: the Erase dialog opens and `dl_lv` does not run.
+- d2: E1479999.BIN 1df0410a….
+- **d3 (review fixes, emulator only):** the three live-view blocks move to copies in `dl_blk`, each with one more
+  entry: Delete release `{0x01000027, 1, 1, 0x610a2dec}`, AF-ON's release handler. State 0x5400 (block
+  `0x61321b98`, 89 entries) also gets `0x610a2407` for the Delete press. It sends AF-ON and the arrows to
+  `0x610a2407` and has extra 0x02000xxx events, so it is probably video recording (analysis / guess: om-emu does not
+  record). om-emu: stills and movie Delete run `0x610a2407` (action 26) on press and `0x610a2dec` on release.
+  Playback still opens Erase. ▶ still dispatches action 15. d3: E1479999.BIN b42c2146….
+- **Camera (user, d3):** Digital Teleconverter on Delete works in photo mode. High Res and Start/Stop Recording do
+  nothing, and nothing works in video mode. After a Delete press, Menu and Info do nothing until playback is opened
+  and closed.
+- **Full-button list (static):** `0x612f45c8` holds 15 press events (◉, AF-ON, Fn, |●|...). `0x61084a70` tests an
+  event against it, and `0x610b4976`, `0x610b4a61`, `0x610b4b03` and `0x610b5b94` dispatch only for a listed event.
+  d4 copies the list into `dl_full` with 0x01000026 added and points its readers (`0x61084654` imm32 + `mov 15`,
+  `0x61084a77` imm32 + `cmp 15`) at it. om-emu never calls `0x61084a70` for Delete, so this needs the camera.
+- **Menu lock (emulator, reproduced on d3 / d4):** with Delete = Magnify, Menu (event 0x0100001e) after a Delete press
+  is looked up in state 0x5a02 (block `0x61332288`, 85 entries), not 0x5100. AF-ON's press enters 0x5a02 and AF-ON's
+  release `{0x01000033, 1, 1, 0x610b038a}` leaves it. 0x5a02 lists no Delete release and ignores Menu `{1, 1, 0}`.
+  67 shooting states have an AF-ON release handler and no Delete release. Copies of all of them need 57 KB, and ext12
+  has about 28 KB free.
+- **The state lookup (static):** `0x610bece0..` walks the current state's block (`call 0x610b9fdb` at `0x610becf5`),
+  then its parent's (`0x610bed29`), then the global block (`0x610bed63`). `0x610b9fdb` walks d1 entries from a1 for
+  d0. It returns a3 = found, and a2 = the handler, which it calls with a1 = the state machine. The state machine's
+  (188) is the current state.
+- **Fix (d5):** `.hook_dl` at `0x610ba015` (the walk's end) jumps to `dl_look`. If no entry matches a Delete press or
+  release and the current state is 0x5100..0x56ff or 0x5800..0x5bff, the walk runs again for AF-ON's event (+12). The
+  handler still gets the Delete event, so the dispatcher reads Delete's setting. Playback (0x57xx) is unchanged. d5
+  drops d3's block copies (`dl_blk`). 0x5100 keeps `dl_lv`, and 0x5300 / 0x5400 keep AF-ON's press handler in place.
+- **Emulator (d5):** Delete = Magnify in photo and video: press `0x610a2407` (action 26), release `0x610b038a`, then
+  Menu opens. Playback opens Erase. ▶ dispatches action 15. d5: E1479999.BIN 5172b3fe….
+- **Camera (d5, 2026-11-13):** Photo mode: Delete runs High Res, Magnify and Subject Detection on/off. Menu
+  opens after each Delete press. Video mode: Delete runs Subject Detection on/off, Digital Teleconverter, Magnify and
+  Start/Stop Recording. Info opens after a Delete press. Playback Delete still erases. With Delete at Off,
+  Multiple Exposure's frame delete works as stock.
+- **Bracketing states (static, then camera, 2026-11-13):** the 42 states 0x5900..0x593e (bracketing, trace strings
+  `...BktSubAppState...`) list an AF-ON release and no AF-ON press or Delete entry. A Delete press there falls to the
+  parent, where `dl_look` takes AF-ON's press. About 37 of their 41 release handlers pass the event to `0x61083022`,
+  directly or through `0x610a6ecc`, so Delete's own setting decides. Camera, AE bracketing: Delete = Magnify works
+  and Menu opens after it. Delete = Off does nothing.
+- **Camera (2026-11-14):** the Delete setting survives a power-off.
+- **Arrows next (analysis, 2026-11-13):** d5's route may fix the five functions that fail on the arrows (Magnify,
+  Multi Function, HDR, High Res, Live ND, `research/BUTTONS.md` "Up key, camera test 2"). On Delete, High Res and
+  Magnify failed until Delete got a full-button list entry and AF-ON's press and release entries, and now they work.
+  The arrows need a different hook, because their state blocks already have entries (navigation codes) and d5's
+  fallback runs only when nothing matches. Send only those five codes down AF-ON's entries and leave every other
+  arrow press on the stock path. HDR, High Res and Live ND are the likely wins. Magnify and Multi Function may still
+  fail, because inside them the arrows move the frame or select. The other arrow functions already work, so the route
+  is no faster or simpler for them. Try it on its own branch, after #37.

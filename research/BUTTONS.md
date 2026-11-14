@@ -453,3 +453,11 @@ points of that module, but did run the rule engine (above). Not traced further.
   no direct pointer found.
 - Physical control behind events 53–56 (second four-way set).
 - Free camera check first: the OM-3's own Button Function menu and its ▼ / ▶ options.
+
+### Delete button (2026-11-13, static and emulator, #37)
+
+- Keycode 14 (`API_DEL_KEY`), events 0x01000026 press, ..27 release, ..28 long press, ..29 repeat. No key-table
+  record, so the dispatcher drops it in shooting mode (om-emu, P live view).
+- Free setting for it: sid 570 (stills) / 1276 (movie). Both are another body's button, with validators and stored
+  values but no key, row or item-info record on the OM-3.
+- Details and the patch route: `research/NOTES.md`, "Delete button remap (#37)".

@@ -39,6 +39,7 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_lv': (0x6046b8bb, bytes.fromhex('f040a064c205cc8e00f8b808a001c905cc84005c04fa408402a001c879')),
          '.hook_wt': (0x605048c1, bytes.fromhex('f824302c5802')),
          '.hook_stw': (0x6128b1d3, bytes.fromhex('cdb3f90004ccee00')),   # sd3: a text widget's string id is set (call 0x6128ab86,[],4; jmp 0x6128b2c6): the panel's title
+         '.hook_dl': (0x610ba015, bytes.fromhex('ba00c83d3c')),   # #37 Delete: the state block walk's end (dl_look)
          '.hook_ag': (0x610833b3, bytes.fromhex('822d550d84')),   # v0.27 arrow keys: the key dispatcher's value read (PR #26's up_get)
          '.hook_dmg': (0x6109355f, bytes.fromhex('a8c816')),
          '.hook_ex': (0x60457578, bytes.fromhex('5c08fc6022930000')),   # v0.27: the per-shot EXIF fill, after Artist / Copyright (mov (8,sp),a0; movhu (37666,a0),d0)   # v0.27: the Creative Dial handler's "same family -> skip" (cmp d2,d0; beq +0x16) -> never skip
@@ -567,22 +568,21 @@ def build(defaults, testfile, out):
         recs.append(r)
     # v0.27 polish 2: body diagrams composed by the camera (editor.s dg_get, firmware/diagrams.py) for the rows whose
     #   control or place on the page differs from the stock pictures': ▲ ◀ ▶ ▼ L-Fn CRT ART COLOR MONO
+    #   Delete (stills and movie) and the movie L-Fn
     sys.path.insert(0, str(ROOT / 'firmware'))
     import diagrams
     progs, sb = diagrams.pack()
-    assert len(sb) <= 2048 and sum((len(p_) + 3) & ~3 for p_ in progs) <= 2048 and len(progs) == 9
+    assert len(sb) <= sy['dg_b0'] - sy['dg_sb'] and sum((len(p_) + 3) & ~3 for p_ in progs) <= sy['dg_sb'] - sy['dg_pgs']
+    assert len(progs) == sy['NDG']
     m[o(sy['dg_sb']):o(sy['dg_sb']) + len(sb)] = sb
     at = sy['dg_pgs']
     for k, p_ in enumerate(progs):
         m[o(at):o(at) + len(p_)] = p_
         struct.pack_into('<I', m, o(sy['dg_pt']) + 4 * k, at)
         at += (len(p_) + 3) & ~3
-    DGK = {50: 0, 52: 1, 53: 2, 51: 3, 56: 4, 571: 5, 54: 6, 55: 7, 1966: 8}   # diagrams.DIAGRAMS order
-    assert [n for n, _ in diagrams.DIAGRAMS] == ['up', 'left', 'right', 'down', 'lfn', 'crt', 'art', 'color', 'mono']
-    for r in recs:
-        sid = struct.unpack_from('<I', r)[0]
-        if sid in DGK:
-            struct.pack_into('<I', r, 20, ((diagrams.DG0 + DGK[sid]) << 16) | 3)
+    DGK = {50: 0, 52: 1, 53: 2, 51: 3, 56: 4, 571: 5, 54: 6, 55: 7, 1966: 8, sy['DL_SID']: 9, sy['DL_MSID']: 10, 1291: 11}   # diagrams.DIAGRAMS order
+    assert [n for n, _ in diagrams.DIAGRAMS] == ['up', 'left', 'right', 'down', 'lfn', 'crt', 'art', 'color', 'mono',
+                                                 'delete', 'mdelete', 'mlfn']
     assert sy['dg_bend'] <= EXT12[1], hex(sy['dg_bend'])
     items = b''.join(bytes(r) for r in recs)
     assert len(items) == 28 * 15 and sy['ar_blk'] - sy['ar_items'] >= len(items)
@@ -609,15 +609,93 @@ def build(defaults, testfile, out):
         m[o(dst):o(dst) + len(new)] = new
         struct.pack_into('<II', m, o(ref) + 8, dst, n + 2)
         dst += len(new)
+    # Delete button (#37, research/NOTES.md "Delete button remap"): keycode 14 -> sid 570 / movie 1276, which are
+    #   another body's button settings. The key table cannot grow in place, so its three readers move to a copy.
+    KEYS, NKEY, DEL_KEY, FULL = 0x612f1ee8, 28, 14, 1
+    DEL_SID, DEL_MSID, DEL_PRESS = sy['DL_SID'], sy['DL_MSID'], sy['DL_PRESS']
+    keys = bytes(m[o(KEYS):o(KEYS) + 16 * NKEY])
+    assert DEL_KEY not in [struct.unpack_from('<I', keys, 16 * k)[0] for k in range(NKEY)]
+    dk = keys + struct.pack('<4I', DEL_KEY, DEL_SID, DEL_MSID, FULL)
+    assert sy['dl_kend'] - sy['dl_keys'] == len(dk)
+    m[o(sy['dl_keys']):o(sy['dl_keys']) + len(dk)] = dk
+    for ld, cmp in ((0x610830d2, 0x61083141), (0x6108314d, 0x610831bc), (0x610831c4, 0x610831df)):
+        assert m[o(ld)] == 0xfc and m[o(ld) + 1] in (0xdc, 0xdf) and u32(ld + 2)[0] == KEYS, hex(ld)
+        assert m[o(cmp):o(cmp) + 2] == bytes([0xaa, NKEY]), hex(cmp)
+        struct.pack_into('<I', m, o(ld) + 2, sy['dl_keys'])
+        m[o(cmp) + 1] = NKEY + 1
+    # Some functions (High Res, REC...) start only from a key whose press is on the full-button list. The list cannot
+    #   grow in place, so its two readers move to a copy with Delete's press.
+    FULLS, NFULL = 0x612f45c8, 15
+    fulls = bytes(m[o(FULLS):o(FULLS) + 4 * NFULL]) + struct.pack('<I', DEL_PRESS)
+    assert u32(FULLS, 3) == (0x1000006, 0x1000032, 0x1000036) and sy['dl_fend'] - sy['dl_full'] == len(fulls)
+    m[o(sy['dl_full']):o(sy['dl_full']) + len(fulls)] = fulls
+    for ld, op, cnt in ((0x61084654, 0xcc, 0x6108465b), (0x61084a77, 0xdc, 0x61084a88)):
+        assert m[o(ld):o(ld) + 2] == bytes([0xfc, op]) and u32(ld + 2)[0] == FULLS, hex(ld)
+        assert m[o(cnt) + 1] == NFULL and m[o(cnt)] in (0x80, 0xaa), hex(cnt)
+        struct.pack_into('<I', m, o(ld) + 2, sy['dl_full'])
+        m[o(cnt) + 1] = NFULL + 1
+    # Live view hands a Delete press to the Multiple Exposure frame delete (stills, 0x5100) or to nothing (movie 0x5300,
+    #   0x5400). dl_lv / AF-ON's handler dl_fn add the button function.
+    for ref, st, ptr, n, ent, was, now in ((0x6131e7f0, 0x5100, 0x6131bd50, 173, 0x6131be50, sy['dl_mx'], sy['dl_lv']),
+                                          (0x61321b2c, 0x5300, 0x6131eecc, 146, 0x6131efac, 0, sy['dl_fn']),
+                                          (0x61322128, 0x5400, 0x61321b98, 89, 0x61321bf8, 0, sy['dl_fn'])):
+        assert u32(ref, 3) == (st, ptr, n) and u32(ent, 4) == (DEL_PRESS, 1, 1, was), hex(ref)
+        struct.pack_into('<I', m, o(ent) + 12, now)
+    # Delete's rows reuse descriptors 1967 (stills) and 1285 (movie), whose picker keys 1 and 17 hold Fn's lists.
+    #   The menus walk only 15 OK entries, so the entries move to a copy plus Delete's.
+    NOK, DEL_IC = 15, sy['DL_IC']
+    assert diagrams.DG0 + sy['NDG'] <= DEL_IC < sy['AR_IC0']
+    var = {u32(0x61571ba0 + 24 * i)[0] & 0xffff: u32(0x61571ba0 + 24 * i, 6) for i in range(32)}
+    def put(lo, hi, data):
+        assert sy[hi] - sy[lo] >= len(data), lo
+        m[o(sy[lo]):o(sy[lo]) + len(data)] = data
+    for sid, fn, down, oks, menus, desc, was, item, key, mr, hdr, bufs in (
+            (DEL_SID, 47, 51, 0x6150ce14, (0x6151085c, 0x615108a4), 0x615c762c, (0x2f3, 1967, 29), 0x2d8, 1, MR, HDR,
+             (('dl_oks', 'dl_moks'), ('ar_rows', 'ar_items'), ('ar_items', 'ar_blk'))),
+            (DEL_MSID, 1272, 1281, 0x6150cf7c, (0x61510880, 0x615108c8), 0x615c7614, (0x2f2, 1285, 28), 0x2e8, 17,
+             0x6152a114, 0x61569078, (('dl_moks', 'dl_mitems'), ('dl_mrows', 'dl_get'), ('dl_mitems', 'dl_mrows')))):
+        a, f = vrec[sid], struct.unpack_from('<HHIIHH', m, o(vrec[fn]))   # Fn's function lists
+        r = struct.unpack_from('<HHIIHH', m, o(a))
+        assert r[0] == sid and r[1] == 128 and r[3] == 0 and r[5] == 2, (sid, r)
+        struct.pack_into('<HHIIHH', m, o(a), sid, 128, f[2], 0, f[4], 2)
+        assert u32(desc, 5) == (was[0], 0x44, was[1], 0x60, was[2])
+        descs = [u32(0x615c540c + 24 * i, 5) for i in range(416)]   # after the stills pass changed one
+        assert not any(d[0] == item or (d[1] == 0x44 and d[4] == key) for d in descs)
+        assert var[key][1:] == var[key - 1][1:] and var[key][0] >> 16 == 2   # Fn's lists, title icon 1
+        assert u32(oks, 2) == (1, fn)
+        put(*bufs[0], bytes(m[o(oks):o(oks) + 24 * NOK]) + struct.pack('<6I', 1, sid, 0, 8, item, 0))
+        for d in menus:
+            assert u32(d, 2) == (oks, NOK), hex(d)
+            struct.pack_into('<2I', m, o(d), sy[bufs[0][0]], NOK + 1)
+        struct.pack_into('<3I', m, o(desc), item, 0x44, sid)
+        struct.pack_into('<I', m, o(desc) + 16, key)
+        rp, nr = u32(mr + 4, 2)
+        rows = list(struct.unpack_from(f'<{nr}H', m, o(rp)))
+        rows.insert(rows.index(down) + 1, sid)                      # after ▼
+        put(*bufs[1], struct.pack(f'<{nr + 1}H', *rows))
+        struct.pack_into('<II', m, o(mr) + 4, sy[bufs[1][0]], nr + 1)
+        ip, ni = u32(hdr + 4, 2)
+        recs_ = [bytearray(m[o(ip) + 28 * k:o(ip) + 28 * k + 28]) for k in range(ni)]
+        r = bytearray(next(x for x in recs_ if struct.unpack_from('<I', x)[0] == fn))
+        struct.pack_into('<2I', r, 0, sid, (DEL_IC << 16) | 0xc)
+        recs_.append(r)
+        for x in recs_:                                             # the rows below ▼ move, so their diagrams too
+            if (k := struct.unpack_from('<I', x)[0]) in DGK:
+                struct.pack_into('<I', x, 20, ((diagrams.DG0 + DGK[k]) << 16) | 3)
+        put(*bufs[2], b''.join(recs_))
+        struct.pack_into('<II', m, o(hdr) + 4, sy[bufs[2][0]], ni + 1)
+    a = 0x6139e26c + 16 * 1                                         # picker title icon 1
+    assert u32(a, 4) == (0xffff, 7, 7, 1), hex(a)
+    struct.pack_into('<I', m, o(a) + 12, DEL_IC)
     # the ▲ / ◀ pictures (our drawing, firmware/mkicons.py)
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons
     at = sy['ar_pay']
-    for k, (w, h, st_) in enumerate(mkicons.arrow_streams() + [mkicons.arrows4_stream()] + mkicons.dial_streams()):
+    pics = mkicons.arrow_streams() + [mkicons.arrows4_stream()] + mkicons.dial_streams() + [mkicons.trash_stream()]
+    for d, (w, h, st_) in zip(['ar_d%d' % k for k in range(len(pics) - 1)] + ['dl_d0'], pics):
         assert at + len(st_) <= sy['ar_pend']
         m[o(at):o(at) + len(st_)] = st_
-        d = sy['ar_d%d' % k]
-        struct.pack_into('<6H3I', m, o(d), 14, w, h, 8, 0, 0, len(st_), at + 0x40000000, 0)
+        struct.pack_into('<6H3I', m, o(sy[d]), 14, w, h, 8, 0, 0, len(st_), at + 0x40000000, 0)
         at = (at + len(st_) + 7) & ~7
     # v0.27 debug log: this build's LABELS.BIN / TONES.BIN header checksums, for the "card files match" check (lg_ft)
     subprocess.run([sys.executable, ROOT / 'card' / 'mkguides.py', out / 'pictures.bin', '--tones', out / 'TONES.BIN'], check=True)   # v0.26: TONES.BIN

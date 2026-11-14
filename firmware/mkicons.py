@@ -559,6 +559,23 @@ def wbc_cell(ab, gm, wbpm=None, bw=False):
 ARROW_W = ARROW_H = 40
 
 
+def _erode(a):
+    b = a.copy()
+    b[1:, :] &= a[:-1, :]; b[:-1, :] &= a[1:, :]; b[:, 1:] &= a[:, :-1]; b[:, :-1] &= a[:, 1:]
+    return b
+
+
+def _outline(m):
+    """Mask m in the arrows' palette: edge 9, outline 7, fill 13 two pixels in."""
+    import numpy as np
+    m1 = _erode(m); m2 = _erode(m1)
+    px = np.zeros(m.shape, dtype=np.uint8)
+    px[m] = 9
+    px[m1] = 7
+    px[m2] = 13
+    return px
+
+
 def arrow_picture(direction):
     """4-bit picture (numpy, ARROW_H x ARROW_W); direction 'up' or 'left'."""
     import numpy as np
@@ -571,22 +588,52 @@ def arrow_picture(direction):
     inside = (t >= 0) & (t <= 1) & (np.abs(xs - (x0 + x1) / 2) <= (x1 - x0) / 2 * t)
     cov = inside.reshape(ARROW_H, n, ARROW_W, n).mean(axis=(1, 3))
     m = cov >= 0.5
-
-    def erode(a):
-        b = a.copy()
-        b[1:, :] &= a[:-1, :]; b[:-1, :] &= a[1:, :]; b[:, 1:] &= a[:, :-1]; b[:, :-1] &= a[:, 1:]
-        return b
-    m1 = erode(m); m2 = erode(m1)
-    px = np.zeros((ARROW_H, ARROW_W), dtype=np.uint8)
-    px[m] = 9
-    px[m1] = 7
-    px[m2] = 13
-    return px
+    return _outline(m)
 
 
 def arrow_streams():
     """[(w, h, stream)] for ▲, ◀."""
     return [(ARROW_W, ARROW_H, encode11(bytes(arrow_picture(d).flatten().tolist()), ARROW_W, ARROW_H)) for d in ('up', 'left')]
+
+
+def trash_picture():
+    """The Delete button's picture (a trash can, its lid tilted open, as marked on the camera's Delete button),
+    40 x 40, in the arrows' palette. Our own drawing. The menu shows it at half size and only the fill reads there,
+    so the fill (13) is the whole outline drawing and the outline (7) and edge (9) sit round it."""
+    import numpy as np
+    n = 4
+    ys, xs = (np.mgrid[0:ARROW_H * n, 0:ARROW_W * n] + 0.5) / n
+
+    a = np.abs(xs - 21)
+    hw = 11 - 2 * (ys - 14) / 24                      # the can's half width narrows by two pixels from top to bottom
+
+    def can(grow):                                    # the can's outer shape, grown by `grow` px on every side
+        top, bot, r, w = 14 - grow, 38 + grow, 4 + grow, hw + grow
+        return (ys >= top) & (ys <= bot) & (a <= w) & (
+            ((ys >= top + r) & (ys <= bot - r)) | (a <= w - r)
+            | (np.hypot(a - w + r, ys - np.clip(ys, top + r, bot - r)) <= r))
+    bars = np.abs(a - 3 * hw / 11) <= 1.5             # the bars lean in with the sides
+    c0 = can(0)
+    body = c0 & ~(can(-3.5) & ~bars)
+    c, s = np.cos(np.radians(-16)), np.sin(np.radians(-16))
+    u, v = (xs - 19) * c + (ys - 8.5) * s, -(xs - 19) * s + (ys - 8.5) * c   # lid frame: u along the lid, v down from its middle
+    lid = (np.abs(u) <= 14) & (np.abs(v) <= 2)
+    knob = (np.abs(u + 2.5) <= 1.75) & (v >= -5) & (v <= 0)
+
+    def px_of(m):
+        return m.reshape(ARROW_H, n, ARROW_W, n).mean(axis=(1, 3)) >= 0.5
+    ink, sil = px_of(body | lid | knob), px_of(c0 | lid | knob)
+    d1 = ~_erode(~sil)                                # the outline goes round the can, never into its slots
+    px = np.zeros(ink.shape, dtype=np.uint8)
+    px[~_erode(~d1)] = 9
+    px[d1] = 7
+    px[sil & ~ink] = 0
+    px[ink] = 13
+    return px
+
+
+def trash_stream():
+    return (ARROW_W, ARROW_H, encode11(bytes(trash_picture().flatten().tolist()), ARROW_W, ARROW_H))
 
 
 def arrows4_picture():
@@ -608,17 +655,7 @@ def arrows4_picture():
         t = (v + half) / (2 * half)                       # 0 at the tip, 1 at the base
         inside = (t >= 0) & (t <= 1) & (np.abs(u) <= half * t)
         m |= inside.reshape(H, n, W, n).mean(axis=(1, 3)) >= 0.5
-
-    def erode(a):
-        b = a.copy()
-        b[1:, :] &= a[:-1, :]; b[:-1, :] &= a[1:, :]; b[:, 1:] &= a[:, :-1]; b[:, :-1] &= a[:, 1:]
-        return b
-    m1 = erode(m); m2 = erode(m1)
-    px = np.zeros((H, W), dtype=np.uint8)
-    px[m] = 9
-    px[m1] = 7
-    px[m2] = 13
-    return px
+    return _outline(m)
 
 
 def arrows4_stream():

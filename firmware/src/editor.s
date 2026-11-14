@@ -3817,6 +3817,13 @@ sl_slot:
 sl_get:
  cmp 0,a1
  beq 9f
+ cmp DL_SID,d0
+ beq 5f
+ cmp DL_MSID,d0
+ bne 6f
+5:
+ jmp dl_get
+6:
  cmp 571,d0                       /* v0.27 the Creative Dial rows (dm_get) */
  beq 7f
  cmp 54,d0
@@ -9338,6 +9345,8 @@ fl_scr:
 .section .hook_ag,"ax"
  jmp ar_get                       /* v0.27 stock 0x610833b3 (the key dispatcher's value read): mov d0,d2; mov 3413,d1;
                                    * mov d1,d0 (5 bytes) */
+.section .hook_dl,"ax"
+ jmp dl_look                      /* #37 stock 0x610ba015 (the state block walk's end): cmp 0,a2; beq; mov sp,a0 */
 .section .hook_ex,"ax"
  jmp ex_hook                      /* v0.27: the film's name in the photo's EXIF (ex_hook) */
  .byte 0xcb, 0xcb, 0xcb
@@ -10610,7 +10619,7 @@ ar_get:                           /* .hook_ag (the dispatcher's value read, fram
 8:
  jmp ar_vget                      /* mov d2,d0; call the getter; ret [d2],8: the assigned value */
  .set DG0, 0x7fd0                 /* v0.27 polish 2 body diagrams (dg_get) */
- .set NDG, 9
+ .set NDG, 12
  .set DGW, 422
  .set DGH, 446
  .set DGCAP, 65536
@@ -10624,19 +10633,22 @@ ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pict
  bcc 0f
  jmp dg_get
 0:
- cmp AR_IC0,d1
+ cmp DL_IC,d1
  bcs 1f
  cmp AR_IC0 + 32,d1
  bcc 1f
- add -AR_IC0,d1
+ add -DL_IC,d1
  asl2 d1
- mov ar_ent,a0
+ mov dl_ent,a0
  add d1,a0
  retf [],0
 1:
  jmp ic_get
  .set AR_IC0, 0x7fe0              /* clear of Caduceus' 0x7f80..0x7fc3 (PR #26's ▲ id) */
+ .set DL_IC, AR_IC0 - 1           /* the Delete row's picture, one below ours: dl_ent heads the table */
  .balign 4
+dl_ent:
+ .long dl_d0
 ar_ent:
  .long ar_d0, ar_d1, ar_d2, ar_d3, ar_d4, ar_d5, ar_d6, ar_d7, ar_d8, ar_d9, ar_d10, ar_d11, ar_d12, ar_d13, ar_d14
  .long ar_d15, ar_d16, ar_d17, ar_d18, ar_d19, ar_d20, ar_d21, ar_d22, ar_d23, ar_d24, ar_d25, ar_d26, ar_d27, ar_d28
@@ -10681,6 +10693,99 @@ ar_pay:                           /* the ▲ / ◀ / ▲◀▶▼ / dial-row pic
                                    * v0.28 space: was 81920, sized to fit, build.py asserts they still fit) */
  .space 20480
 ar_pend:
+ .balign 4
+dl_keys:                          /* the stock key table plus Delete's record (build.py fills it) */
+ .space 16 * 29
+dl_kend:
+dl_full:                          /* the stock full-button press list plus Delete's (build.py fills it) */
+ .space 4 * 16
+dl_fend:
+dl_oks:                           /* the stills Button Function's OK entries plus Delete's (build.py fills it) */
+ .space 24 * 16
+dl_moks:                          /* the movie Button Function's OK entries plus Delete's (build.py fills it) */
+ .space 24 * 16
+dl_mitems:                        /* the movie rows' item-info records plus Delete's, 28 B each (build.py) */
+ .space 28 * 10
+dl_mrows:                         /* the movie Button Function rows plus Delete's (build.py) */
+ .space 2 * 10
+ .balign 4
+ .set DL_SID, 570
+ .set DL_MSID, 1276
+ .set DL_PRESS, 0x1000026          /* Delete's press event (its release is + 1) */
+ .set DL_OTHER, 3333              /* the other body's default, no function and not in Fn's list */
+dl_get:                           /* from sl_get (d0 DL_SID / DL_MSID, a1 -> the value; `rets`): DL_OTHER reads
+                                   * None, so the picker finds the value in its list */
+ add -12,sp                       /* (0) call slot, (4) a1, (8) mdr */
+ mov a1,(4,sp)
+ mov mdr,d1
+ mov d1,(8,sp)
+ call sget,[],4
+ mov (8,sp),d1
+ mov d1,mdr
+ mov (4,sp),a1
+ add 12,sp
+ cmp DL_OTHER,d0
+ bne 1f
+ mov 3200,d0
+1:
+ mov d0,(a1)
+ clr d0
+ rets
+dl_lv:                            /* live view's Delete press handler (a0, a1 as the state machine passes them): a
+                                   * Multiple Exposure frame to delete -> stock; else the button function, as AF-ON */
+ add -16,sp                       /* (0) call slot, (4) a0, (8) a1, (12) mdr */
+ mov a0,(4,sp)
+ mov a1,(8,sp)
+ mov mdr,d0
+ mov d0,(12,sp)
+ call dl_mexp,[d2,d3,a2],28
+ mov (12,sp),d1
+ mov d1,mdr
+ mov (8,sp),a1
+ mov (4,sp),a0
+ add 16,sp
+ cmp 0,d0
+ beq 1f
+ jmp dl_mx
+1:
+ jmp dl_fn
+dl_look:                          /* .hook_dl (a3 = found, a2 = its handler, d0 = the event, a1 = the block's end,
+                                   * d1 = its length): a shooting state with no entry for a Delete press / release
+                                   * walks its block again for AF-ON's, so Delete leaves a function's state as AF-ON
+                                   * does. Playback (0x57xx) keeps its own. */
+ cmp 0,a3
+ bne 8f
+ cmp DL_PRESS,d0
+ beq 1f
+ cmp DL_PRESS + 1,d0
+ bne 9f
+1:
+ mov (40,sp),a0                   /* the state machine; (188) = the current state */
+ mov (188,a0),d2
+ add -0x5100,d2
+ cmp 0x600,d2                     /* 0x5100..0x56ff */
+ bcs 2f
+ add -0x700,d2
+ cmp 0x400,d2                     /* 0x5800..0x5bff */
+ bcc 9f
+2:
+ add 12,d0                        /* AF-ON's press / release */
+ mov d1,d2
+ asl2 d2
+ asl2 d2
+ sub d2,a1
+ jmp dl_walk
+8:
+ cmp 0,a2
+ beq 9f
+ mov sp,a0
+ jmp dl_hit
+9:
+ jmp dl_none
+ .balign 4
+dl_d0:                           /* <6H3I> descriptor, filled by build.py (firmware/mkicons.py trash_stream) */
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
 
 /* ---------------------------------------------------------------- v0.27: the film's name in the JPEG's EXIF
  * Owner (2026-11-09 / 11): the film in the photo's data, for sharing and sorting; JPEG is enough. The per-shot EXIF fill
@@ -12104,12 +12209,12 @@ dg_tq:                            /* a span's new tokens (<= 422 + 4) */
 dg_rix:                           /* per stock picture: 447 row starts {word offset | slot} */
  .space 9 * 894
  .balign 4
-dg_pt:                            /* the 9 programs (build.py, firmware/diagrams.py) */
+dg_pt:                            /* the programs (build.py, firmware/diagrams.py) */
  .space 4 * NDG
 dg_pgs:
- .space 2048
+ .space 2560
 dg_sb:                            /* the stamps */
- .space 2048
+ .space 2560
  .balign 8
 dg_b0:                            /* two output buffers */
  .space 2 * DGCAP

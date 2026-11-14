@@ -60,7 +60,7 @@ WB per film, the Blacks / Whites grid) the colour profiles are complete for now;
 | **ISO-Auto slowest shutter speed on a dial** | Change the ISO-Auto lowest shutter speed quickly with a dial, or a button that steps through presets ([#25](https://github.com/androidfanman/caduceus-om3/issues/25)). | Requested |
 | **Fn lever stores more settings** | Each Fn lever position can also keep its own subject detection and drive mode ([#31](https://github.com/androidfanman/caduceus-om3/issues/31)). | Requested |
 | **Electronic shutter sound** | An optional shutter click from the speaker when the electronic shutter is used ([#19](https://github.com/androidfanman/caduceus-om3/issues/19)). | Not planned (owner, 2026-11-13) |
-| **Remappable Delete button** | The Delete button, unused while shooting, gets the same choice of functions as the Fn button ([#37](https://github.com/androidfanman/caduceus-om3/issues/37)). | Requested |
+| **Remappable Delete button** | The Delete button, unused while shooting, gets the same choice of functions as the Fn button ([#37](https://github.com/androidfanman/caduceus-om3/issues/37)). | In progress (camera-tested, test builds) |
 | **Power lever as an Fn lever** | When the Fn lever is set to On / Off, the power lever takes over the Fn lever's job ([#34](https://github.com/androidfanman/caduceus-om3/issues/34)). | Requested |
 
 ## Video (after the photo side is finished)
