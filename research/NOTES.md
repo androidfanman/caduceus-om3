@@ -4206,6 +4206,12 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
   directly or through `0x610a6ecc`, so Delete's own setting decides. Camera, AE bracketing: Delete = Magnify works
   and Menu opens after it. Delete = Off does nothing.
 - **Camera (2026-11-14):** the Delete setting survives a power-off.
+- **Display off (static, then camera, 2026-11-14):** stock `0x610b8397` first returns if `0x610894f0()` is 1, which
+  it is when `getDisplayDeviceState` (`0x61087e84`) reads DISPLAY_OFF. The same guard blocks Menu. `dl_lv` skips it,
+  as AF-ON's `0x610a2407` does. Camera: Delete runs its function with the screen folded shut and with the EVF on.
+- **Fallback states (static, 2026-11-14):** the lookup checks the state's block, then the global block `0x61339080`,
+  which has no Delete or AF-ON entry. Of the 69 states `dl_look` sends to AF-ON's entries, every handler dispatches
+  through `0x61083022` with Delete's setting, or only consumes the press (`0x610b74f4`) as it does for AF-ON.
 - **Arrows next (analysis, 2026-11-13):** d5's route may fix the five functions that fail on the arrows (Magnify,
   Multi Function, HDR, High Res, Live ND, `research/BUTTONS.md` "Up key, camera test 2"). On Delete, High Res and
   Magnify failed until Delete got a full-button list entry and AF-ON's press and release entries, and now they work.
