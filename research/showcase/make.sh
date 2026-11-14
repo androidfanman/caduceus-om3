@@ -5,7 +5,7 @@
 #   3. the photos: each film and each setting on CC0 / public-domain samples with LookLab's own preview
 #      (films.ts, demos.ts); Noise Filter and Vignette Correction as illustrations (illus.py).
 # Needs the workspace (`. ~/om3-work/env.sh`) and `cd webapp && npm install`. The firmware is IMG (default: the
-# build research/setup.sh checks, i.e. the latest release; the page shows v0.29's behaviour, films kept in the camera
+# build research/setup.sh checks, i.e. the latest release (v0.29.3 for the Delete row); the page shows v0.29's behaviour, films kept in the camera
 # with nothing else on the card). Work files go to SHOWCASE_WORK (default $OM3_WORK/showcase).
 set -e
 H="$(cd "$(dirname "$0")" && pwd)"
@@ -37,6 +37,8 @@ L='s1 ok ok right right right right shot:f01.png'; for i in $(seq -w 2 20); do L
 # the cursor starts on Fn): the arrow pad to Direct Function, the ▲ row and its options; then the CRT dial row set to COLOR
 M='s1 menu left left left left left ok ok'
 "$H/shoot.sh" buttons "$M down down down down down ok right right ok down shot:up.png ok shot:uppick.png menu down down down down down ok right right right shot:dialpick.png ok shot:dial.png" > /dev/null
+# v0.29.3: the Delete row (trash icon, right after ▼) set to the Digital Tele-converter, and its options
+"$H/shoot.sh" delete "$M down down down down down ok right right ok down down down down down ok down down down down down down shot:delpick.png ok shot:del.png" > /dev/null
 rm -f "$D"/*.png
 for i in $(seq -w 1 20); do cp "$S/list/f$i.png" "$D/film-$i.png"; done
 cp "$S/rows/bal.png" "$D/row-tone-balance.png"; cp "$S/rows/con.png" "$D/row-contrast.png"; cp "$S/rows/curve.png" "$D/row-curve.png"
@@ -46,6 +48,7 @@ cp "$S/rows/grain.png" "$D/row-grain.png"; cp "$S/bwgrid/bw.png" "$D/row-blacks-
 cp "$S/kept/star.png" "$D/kept-star.png"; cp "$S/kept/lv.png" "$D/liveview.png"; cp "$S/kept/scp.png" "$D/scp.png"
 cp "$S/buttons/up.png" "$D/btn-up.png"; cp "$S/buttons/uppick.png" "$D/btn-up-options.png"
 cp "$S/buttons/dial.png" "$D/btn-dial.png"; cp "$S/buttons/dialpick.png" "$D/btn-dial-options.png"
+cp "$S/delete/del.png" "$D/btn-delete.png"; cp "$S/delete/delpick.png" "$D/btn-delete-options.png"
 python3 "$H/wheel.py" "$S/wheels/w1.png" "$D/hsl-color.png" sat 6 0,0,0,0,0,0,-5,-5,0,0,0,0 -
 python3 "$H/wheel.py" "$S/wheels/w2.png" "$D/hsl-hue.png" hue 0 5,0,0,0,0,0,0,0,0,0,0,0 Hue
 python3 "$H/wheel.py" "$S/wheels/w3.png" "$D/hsl-luminance.png" light 6 0,0,0,0,0,0,-5,-5,-5,0,0,0 Luminance
