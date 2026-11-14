@@ -10633,22 +10633,19 @@ ar_ic:                            /* .hook_ic: our ▲ / ◀ / ▲◀▶▼ pict
  bcc 0f
  jmp dg_get
 0:
- cmp DL_IC,d1
+ cmp AR_IC0,d1
  bcs 1f
  cmp AR_IC0 + 32,d1
  bcc 1f
- add -DL_IC,d1
+ add -AR_IC0,d1
  asl2 d1
- mov dl_ent,a0
+ mov ar_ent,a0
  add d1,a0
  retf [],0
 1:
  jmp ic_get
  .set AR_IC0, 0x7fe0              /* clear of Caduceus' 0x7f80..0x7fc3 (PR #26's ▲ id) */
- .set DL_IC, AR_IC0 - 1           /* the Delete row's picture, one below ours: dl_ent heads the table */
  .balign 4
-dl_ent:
- .long dl_d0
 ar_ent:
  .long ar_d0, ar_d1, ar_d2, ar_d3, ar_d4, ar_d5, ar_d6, ar_d7, ar_d8, ar_d9, ar_d10, ar_d11, ar_d12, ar_d13, ar_d14
  .long ar_d15, ar_d16, ar_d17, ar_d18, ar_d19, ar_d20, ar_d21, ar_d22, ar_d23, ar_d24, ar_d25, ar_d26, ar_d27, ar_d28
@@ -10712,6 +10709,7 @@ dl_mrows:                         /* the movie Button Function rows plus Delete'
  .set DL_SID, 570
  .set DL_MSID, 1276
  .set DL_PRESS, 0x1000026          /* Delete's press event (its release is + 1) */
+ .set DL_IC, 14135                /* the camera's trash picture, as on its name-entry screens */
  .set DL_OTHER, 3333              /* the other body's default, no function and not in Fn's list */
 dl_get:                           /* from sl_get (d0 DL_SID / DL_MSID, a1 -> the value; `rets`): DL_OTHER reads
                                    * None, so the picker finds the value in its list */
@@ -10782,10 +10780,6 @@ dl_look:                          /* .hook_dl (a3 = found, a2 = its handler, d0 
  jmp dl_hit
 9:
  jmp dl_none
- .balign 4
-dl_d0:                           /* <6H3I> descriptor, filled by build.py (firmware/mkicons.py trash_stream) */
- .short 14, 0, 0, 8, 0, 0
- .long 0, 0, 0
 
 /* ---------------------------------------------------------------- v0.27: the film's name in the JPEG's EXIF
  * Owner (2026-11-09 / 11): the film in the photo's data, for sharing and sorting; JPEG is enough. The per-shot EXIF fill

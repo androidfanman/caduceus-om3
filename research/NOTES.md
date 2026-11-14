@@ -4118,8 +4118,7 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
 - **The picker:** descriptor table `0x615c540c` (416 x 24 B `{item, 0x44, sid, 0x60, picker key}`). Item 0x2d8 and
   picker key 1 are unused. The build reuses 1967's descriptor (`0x615c762c`) as `(0x2d8, 0x44, 570, 0x60, 1)`. The
   variant table `0x61571ba0` gives key 1 Fn's 55-entry lists. Title icon list `0x6139e26c` index 1 was blank and now
-  holds `DL_IC` (0x7fdf), which `ar_ic` maps to the trash picture `dl_d0`.
-- **Pitfall:** `dl_ent` needs `.balign 4`. Unaligned, om-emu stops with a misaligned read at `0x60f69f02`.
+  holds `DL_IC`, the camera's trash picture 14135 (see step 4).
 - **Body diagram:** Delete is the AF-ON-sized button below and left of the ✥ pad (ring x 287..309, y 299..318).
   `firmware/diagrams.py` adds `button_hi()` and `delete(pos)`. Delete follows ▼ in both menus, with the other back
   buttons. The rows below it move one place, and a stock diagram keeps pointing at its old place, so every moved row
@@ -4215,3 +4214,14 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
   arrow press on the stock path. HDR, High Res and Live ND are the likely wins. Magnify and Multi Function may still
   fail, because inside them the arrows move the frame or select. The other arrow functions already work, so the route
   is no faster or simpler for them. Try it on its own branch, after #37.
+
+## Delete button remap (#37), step 4: the camera's trash picture
+- 2026-11-14. Emulator only.
+- The user asked to reuse the trash icon from the camera's custom-mode name screen. The picture table
+  (`*(0x60379740) + 4 id`, read from an om-emu memory dump) holds two copies of that drawing: 10343 (34 x 62, a
+  guide button next to the OK guides 10340 / 10344) and 14135 (34 x 50, trimmed). Both use the arrows' palette.
+- The Delete row and the picker title now use 14135 directly. Our drawing (`mkicons.trash_picture`), its descriptor
+  `dl_d0`, the `dl_ent` table and the `DL_IC` range in `ar_ic` are gone. 10343 would sit high in the row, because
+  of its empty lower part.
+- **Emulator:** the row and the picker title show the stock trash at the same size as our drawing, with a slightly
+  thinner stroke.

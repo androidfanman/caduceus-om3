@@ -644,7 +644,6 @@ def build(defaults, testfile, out):
     # Delete's rows reuse descriptors 1967 (stills) and 1285 (movie), whose picker keys 1 and 17 hold Fn's lists.
     #   The menus walk only 15 OK entries, so the entries move to a copy plus Delete's.
     NOK, DEL_IC = 15, sy['DL_IC']
-    assert diagrams.DG0 + sy['NDG'] <= DEL_IC < sy['AR_IC0']
     var = {u32(0x61571ba0 + 24 * i)[0] & 0xffff: u32(0x61571ba0 + 24 * i, 6) for i in range(32)}
     def put(lo, hi, data):
         assert sy[hi] - sy[lo] >= len(data), lo
@@ -691,11 +690,11 @@ def build(defaults, testfile, out):
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons
     at = sy['ar_pay']
-    pics = mkicons.arrow_streams() + [mkicons.arrows4_stream()] + mkicons.dial_streams() + [mkicons.trash_stream()]
-    for d, (w, h, st_) in zip(['ar_d%d' % k for k in range(len(pics) - 1)] + ['dl_d0'], pics):
+    for k, (w, h, st_) in enumerate(mkicons.arrow_streams() + [mkicons.arrows4_stream()] + mkicons.dial_streams()):
         assert at + len(st_) <= sy['ar_pend']
         m[o(at):o(at) + len(st_)] = st_
-        struct.pack_into('<6H3I', m, o(sy[d]), 14, w, h, 8, 0, 0, len(st_), at + 0x40000000, 0)
+        d = sy['ar_d%d' % k]
+        struct.pack_into('<6H3I', m, o(d), 14, w, h, 8, 0, 0, len(st_), at + 0x40000000, 0)
         at = (at + len(st_) + 7) & ~7
     # v0.27 debug log: this build's LABELS.BIN / TONES.BIN header checksums, for the "card files match" check (lg_ft)
     subprocess.run([sys.executable, ROOT / 'card' / 'mkguides.py', out / 'pictures.bin', '--tones', out / 'TONES.BIN'], check=True)   # v0.26: TONES.BIN
