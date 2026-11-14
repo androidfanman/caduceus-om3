@@ -3898,7 +3898,7 @@ ready-made LUTs (they are made with its Python tool, ART or the OFX plugin). A f
 **Recommendation (analysis):** A first: it is cheap, ships nothing of spektrafilm, keeps our films our own designs, and
 answers whether spektrafilm and our scan reference agree well enough to be worth more. B or C only after the owner
 decides the licence and own-design questions (and, for B, ideally after asking the author how a recipe tuned on
-spektrafilm renders should be licensed). D: no. Waiting for the owner's choice.
+spektrafilm renders should be licensed). D: no. **On hold (owner, 2026-11-14): nothing started.**
 
 **Credit, when something it informed ships** (NOTICE and docs; never the spektrafilm name or icon on our films,
 LookLab or the camera): "Film references checked against spektrafilm by Andrea Volpato

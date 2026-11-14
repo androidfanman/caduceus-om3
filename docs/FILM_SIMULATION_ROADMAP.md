@@ -117,7 +117,7 @@ Newest first. Full details in [`research/NOTES.md`](../research/NOTES.md).
 
 | Date | Topic | Finding |
 |---|---|---|
-| 2026-11-14 | spektrafilm (analysis) | A spectral film / print simulation (GPLv3 code, CC BY-SA 4.0 film data) could be a second reference for our films, mainly Kodachrome 64 and CineStill 800T; it cannot make the preview closer to the camera. Options and licence notes in the notebook; waiting for the owner's choice. |
+| 2026-11-14 | spektrafilm (analysis) | A spectral film / print simulation (GPLv3 code, CC BY-SA 4.0 film data) could be a second reference for our films, mainly Kodachrome 64 and CineStill 800T; it cannot make the preview closer to the camera. Options and licence notes in the notebook; on hold (owner). |
 | 2026-11-11 | Film in the photo (camera) | The `om3.1` code writes the whole 64-byte film record into the JPEG's User Comment, with spare bytes so newer settings stay readable by older readers (dr4 to dr7). |
 | 2026-11-10 | Owner decisions | Mono film looks parked. A preview calibrated to the camera dropped: not needed, the OM-3 already matches the preview well. |
 | 2026-11-10 | Firmware space (camera) | GX3 probe: section 6 loads 256 KiB more (0x60f59800..0x60f99800); 72 passes, 0 bad words, with RAW+JPEG bursts and a video. Room for halation and the next features. |
