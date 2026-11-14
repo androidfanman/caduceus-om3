@@ -3818,3 +3818,89 @@ The camera chart shoot decides. Portra 400's grey tint: preview says slightly wa
   and hung before. b2 held the mapping until the first half-press (emulator only, never on the camera).
 - **Dropped (owner, 2026-11-13):** the lag already showed, and the owner wants the camera's start-up left alone: rule in
   CLAUDE.md. The films keep loading at the first half-press (v0.29.1).
+
+## spektrafilm as a film reference for LookLab: licence, what it is, options (2026-11-14; analysis only, nothing run or built)
+Owner asked to bring spektrafilm (github.com/andreavolpato/spektrafilm, by Andrea Volpato) into LookLab to make it more
+accurate. Read its `LICENSE`, `SPEKTRAFILM_LICENSE.txt`, `README.md`, `CITATION.cff`, `pyproject.toml` and the runtime
+source (v0.3.4, main as pushed 2026-07-14). Nothing of it is in this repo; nothing was installed or run.
+
+**Licence, as written in their repo:**
+- **Code: GPLv3** (`GPL-3.0-or-later` in CITATION.cff). README and CITATION: derivative work must be open source under
+  the same licence, and "Derivative work includes any software, plugin, or tool that incorporates spektrafilm code or
+  is directly inspired by its methods" (the author's stated wish; they offer to talk if GPLv3 does not fit a project).
+- **Film / paper profiles (`src/spektrafilm/data/profiles`) and LUTs: CC BY-SA 4.0** with a preamble (v1.1,
+  2026-05-28). Free use, commercial too; graded pictures are the user's own. Every copy or derivative "in any format"
+  (LUTs and "any other format that encodes the same content" as a profile) must keep Andrea Volpato as author, the link
+  to the repo, the CC BY-SA 4.0 notice and a note of what was changed and by whom; modified profiles / LUTs stay CC BY-SA
+  4.0. Their suggested wording for modified files: "Derived from spektrafilm by Andrea Volpato /
+  https://github.com/andreavolpato/spektrafilm / Licensed CC BY-SA 4.0 / Modified by [name]."
+- **Name:** "Don't use 'spektrafilm' or my name in product branding without asking"; factual reference is welcome
+  ("graded with spektrafilm", "this app uses spektrafilm LUTs"). CC BY-SA licenses no trademark rights (2(b)(2)) and
+  allows no implied endorsement (2(a)(6)). The icon / banner is not mentioned anywhere; we treat it like the name and
+  never use it.
+- **Asked, not required:** credit in project docs and about pages; no paid LUT packs; no commercial AI training on the
+  LUTs or their output.
+- **Against what the owner understood** ("free to use with proper credit, not its name or icon"): the name part matches.
+  Two catches: (1) the code is copyleft GPLv3 and this repo is Apache-2.0: any of its code we ship, and in the author's
+  words any tool inspired by its methods, must be GPLv3 (in the browser that would be LookLab as a whole). Apache-2.0
+  code may go into a GPLv3 work, not the reverse. (2) The data is share-alike: what we make from the profiles (LUTs,
+  tables, very likely recipes fitted to its renders) must itself be CC BY-SA 4.0 with the credit, not only credited.
+
+**What it is:**
+- A physically based film / print / scan simulation: scene-linear RGB → spectral upsampling (81 bands, 380–780 nm;
+  hanatos 2025 or Mallett 2019 method) → the film layers' spectral sensitivities → density curves with DIR couplers
+  (layers holding each other back; diffused, they add local contrast), masking couplers in the dye spectra, grain,
+  halation and scattering → spectral dye density → enlarger light through dichroic filters (balanced so 18 % grey
+  prints neutral) → print paper sensitivity and curves → a scan of the print (or of the slide itself) → linear RGB.
+- Data from Kodak / Fujifilm datasheets (spectral sensitivity, density curves, dye absorption) plus public reflectance
+  sets (Munsell, Otsu, skin, foliage). 20 films: Kodak Portra 160 / 400 / 800 (+ push 1 / 2), Gold 200, Ultramax 400,
+  Ektar 100, Ektachrome 100, Kodachrome 64, Verita 200D, Vision3 50D / 200T / 250D / 500T; Fujifilm C200, Pro 400H,
+  Superia X-TRA 400, Provia 100F, Velvia 100. 8 papers / print films: Kodak Portra / Supra / Ultra Endura, Endura
+  Premier, Ektacolor Edge, 2383, 2393; Fujifilm Crystal Archive Type II. No black-and-white.
+- Python ~3.13 only; numpy, scipy, colour-science, opt-einsum, numba, scikit-image, matplotlib, pyfftw, OpenImageIO,
+  rawpy, exiv2, lensfunpy, and by default a Qt / napari desktop GUI (PySide6) and a LUT maker. About 35 MB of files: 28
+  profiles of ~205 KB, 10 MB of spectral-upsampling tables, ICC profiles.
+- Speed (author): about 10 s per 6 MP picture on a laptop; a colour chart or a few hundred test colours take seconds.
+  Faster ports by others: vkdt's filmsim module (GPU, vkdt is BSD-2), spektrafilm-rs (Rust, GPLv3), an OFX plugin, a
+  LUT bridge in ART.
+- In rapid development: the runtime is "a moving target by design"; results change between versions (any use pins one).
+
+**How it relates to LookLab:**
+- LookLab's preview shows what the **camera** does with a recipe (12 colour sectors, tone curve, WB shift, split toning;
+  `OM3_CAL` fitted to camera shots, about ΔE 4). The camera has no film model, so spektrafilm cannot bring the preview
+  closer to the camera. What it can give is a better **target**: what each film should look like.
+- Targets today: 18 films matched to real film scans of a colour chart (private reference, one lab scanner, 24 patches,
+  daylight, +0 EV); 49 hand-tuned from descriptions, two of them in the camera's 20 (Kodachrome 64, CineStill 800T).
+- spektrafilm has 10 of the 18 matched films (Portra 160 / 400 / 800, Gold 200, Ektar 100, Ektachrome E100, C200,
+  Pro 400H, Provia 100F, Superia 400 ≈ X-TRA 400): a second, independent check. And 8 hand-tuned ones: Kodachrome 64,
+  CineStill 800T (widely reported to be Vision3 500T without its anti-halation backing; whether spektrafilm can drop
+  the anti-halation layer is to check), Ultramax 400, Vision3 250D, CineStill 50D (≈ Vision3 50D), Velvia 100, Kodak
+  2383 / 2393 (as the print after a Vision3 negative).
+- What it can show and the scans cannot: colours beyond the 24 patches (skin, foliage, sky), exposure ramps (toe and
+  shoulder, −3..+3 EV), tungsten light (800T, 200T).
+- Its limits as a target: a model, not a measured result; a negative's look depends on the print / scan (its neutral
+  enlarger balance is not a lab scanner's look); the author finds the Fujifilm data "less self-consistent" than Kodak's.
+  When it and the scans disagree, the camera chart shoot decides, as before.
+
+**Options** (effort is a guess):
+
+| Option | What | Takes | Improves | Risks |
+|---|---|---|---|---|
+| A. Check against it | Run spektrafilm outside the repo on the chart, exposure ramps and LookLab's LUT-import test colours (greys, skin, sky, foliage, a hue ring), for every film it has. Score our recipes (grade.py's camera model and the preview) against it next to the scan reference; list where they disagree. Changes stay ours, by hand or from the scans. | A Python 3.13 set-up outside the repo (about 1 GB of packages); a small script (GPLv3 if it is ever published, since it imports spektrafilm); 1–2 sessions. | Finds wrong hand-tuned films (Kodachrome 64 and CineStill 800T first) and tone (toe / shoulder) for the 18 overlap films. | Small: nothing of it ships. Credit in NOTICE and the docs once a change it informed ships. |
+| B. Fit to it | As A, and grade.py's solver fits the hand-tuned films it covers to spektrafilm's renders, as it fits the scans now. | 2–3 sessions, then a camera chart shoot. | A measured-data target for 8 films that have none. | The recipes are made from its output: doubt with our rule "Film sims are our own designs: no copied looks, LUTs or presets" (owner's call); under its licence they are likely derivatives, so CC BY-SA 4.0 recipes with the credit, kept in their own data file apart from the Apache code. Best asked of the author first. The camera's reach limits the gain (Velvia). |
+| C. Reference view in LookLab | A "film reference" picture next to the preview: spektrafilm renders of the sample photos per film (10–20 MB, loaded on demand), or small baked 3D LUTs (17³, tens of KB each) run on the user's photo. | 2–4 sessions; new images to the owner first. | Users see the film itself next to what the camera can reach. | Ships its output inside LookLab (CC BY-SA files, credit on the page; LUTs copied into the app, against our rule's spirit); JPEG input is only an approximation for a scene-linear model; can confuse ("the camera doesn't look like that"); must follow its updates. |
+| D. Port its model into the preview | A spectral film pipeline in TypeScript / WebGL. | Weeks; about 10 MB of tables and profiles; a GPU path for a live preview. | Nothing for camera accuracy: the preview would stop showing what the camera does. | LookLab would have to become GPLv3 (repo Apache-2.0; the author counts re-implementations of its methods); heavy; moving target. Not recommended. |
+
+Small extra, no licence questions: LookLab's **From LUT / preset** already makes a camera film from a user's own
+`.cube` (sRGB in; Log LUTs are flagged), so a user's own spektrafilm LUT works there today. Its releases ship no
+ready-made LUTs (they are made with its Python tool, ART or the OFX plugin). A factual line in the docs is allowed.
+
+**Recommendation (analysis):** A first: it is cheap, ships nothing of spektrafilm, keeps our films our own designs, and
+answers whether spektrafilm and our scan reference agree well enough to be worth more. B or C only after the owner
+decides the licence and own-design questions (and, for B, ideally after asking the author how a recipe tuned on
+spektrafilm renders should be licensed). D: no. Waiting for the owner's choice.
+
+**Credit, when something it informed ships** (NOTICE and docs; never the spektrafilm name or icon on our films,
+LookLab or the camera): "Film references checked against spektrafilm by Andrea Volpato
+(https://github.com/andreavolpato/spektrafilm; code GPLv3, film profiles CC BY-SA 4.0). spektrafilm's code and
+profiles are not included. Not affiliated with or endorsed by spektrafilm; its name is used only to credit it."
