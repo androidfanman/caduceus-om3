@@ -4118,7 +4118,8 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
 - **The picker:** descriptor table `0x615c540c` (416 x 24 B `{item, 0x44, sid, 0x60, picker key}`). Item 0x2d8 and
   picker key 1 are unused. The build reuses 1967's descriptor (`0x615c762c`) as `(0x2d8, 0x44, 570, 0x60, 1)`. The
   variant table `0x61571ba0` gives key 1 Fn's 55-entry lists. Title icon list `0x6139e26c` index 1 was blank and now
-  holds `DL_IC`, the camera's trash picture 14135, as on its name-entry screens (2026-11-14, emulator only).
+  holds `DL_IC`, the camera's trash picture 14135, as on its name-entry screens (camera-tested
+  d6, 2026-11-14: photo and video rows, picker title).
 - **Body diagram:** Delete is the AF-ON-sized button below and left of the ✥ pad (ring x 287..309, y 299..318).
   `firmware/diagrams.py` adds `button_hi()` and `delete(pos)`. Delete follows ▼ in both menus, with the other back
   buttons. The rows below it move one place, and a stock diagram keeps pointing at its old place, so every moved row
