@@ -40,7 +40,7 @@ xb_base:
  .balign 8
  jmp xb_dev                       /* +64 grain, camera route: request configuration (s_cl) */
  .balign 8
- jmp xb_lw                        /* +72 after each half-press save (pf_save, `calls`): fg1 writes GLOG.BIN */
+ jmp xb_lw                        /* +72 after each half-press save (ub_save, `calls`): fg1 writes GLOG.BIN */
  .balign 8
  jmp xb_lkd                       /* +80 the '*' with a look selected (lk_pm, `calls`; calls the firmware: uncached) */
  .balign 8
@@ -1196,7 +1196,7 @@ xb_lg:                            /* jmp from xb_dev in the frame of `call s_cl,
  mov d2,d0
  ret [d2,a2],12
 
-xb_lw:                            /* `calls` from pf_save (the half-press save, HLS_EVENT task): (0,sp) = return */
+xb_lw:                            /* `calls` from ub_save (the half-press save, HLS_EVENT task): (0,sp) = return */
  .if XB_LOG
  add -16,sp                       /* (0) call slot, (4) handle */
  mov (xb_lbuf),a3
