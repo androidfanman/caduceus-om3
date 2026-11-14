@@ -73,7 +73,7 @@ XB_SRC = HERE / 'src' / 'xblock.s'
 XB_L1, XB_L2 = 0x10000000, 0x12345670          # the code block is linked at both; fields that move = relocations
 ROOT = HERE.parent                               # card files: card/mkguides.py (pictures), card/mklabels.py
 # data words (flash image, patched at build time): stock target -> our symbol
-WORDS = {0x60e57480: (0x60b86de7, 'sl_get'), 0x60e57490: (0x60b86e09, 'sl_cnt'), 0x60e57494: (0x60b87031, 'sl_vbi'), 0x60e57510: (0x60b86e44, 'ed_default'),
+WORDS = {0x60e57480: (0x60b86de7, 'sl_get'), 0x60e57490: (0x60b86e09, 'sl_cnt'), 0x60e57494: (0x60b87031, 'sl_vbi'), 0x60e57510: (0x60b86e44, 'ed_default'), 0x60e574bc: (0x60b8764c, 'cm_asg'), 0x60e574c4: (0x60b871f3, 'cm_rcl'),
          0x60e5749c: (0x60b86a01, 'sl_sel'),   # v0.23 sliders: the facade answers go through sl_* first (-> ed_get / pf_cnt / pf_vbi / stock)
          **{a + 4: (0x6122393a, 'ed_init') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},
          **{a + 44: (0x6122661b, 'ed_info') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},

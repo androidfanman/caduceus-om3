@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.29.2](#v0292) | 2026-11-14 | Fix: custom modes (C1–C5) keep their own films and no longer change yours |
 | [v0.29.1](#v0291) | 2026-11-13 | Fix: the films load with no card in the camera |
 | [v0.29](#v029) | 2026-11-13 | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the colour-matched standard 20 |
 | [v0.29-beta](#v029-beta-test-version) | 2026-11-13 (test version) | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the 20 films redesigned |
@@ -32,6 +33,19 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.29.2
+v0.29.1 with one fix. Firmware camera-tested (2026-11-14, build k6; only its name was changed).
+
+- **Fixed: custom modes changed films** ([#41](https://github.com/androidfanman/caduceus-om3/issues/41)). A custom mode
+  (C1–C5) swaps in its saved picture settings; the film stayed selected, so the camera shot the film mixed with them,
+  and the next film pick saved them into the film (a "*"). Now each film keeps its own settings in every mode.
+- **Custom modes keep their films:** Assign notes the films in use (and which COLOR); turning to that custom mode brings
+  them back at once, P / A / S / M keep theirs, also through power off / on. Save Settings: Hold keeps the films picked
+  in that mode; Recall brings a custom mode's films into the mode you're in. Assign your custom modes once after
+  updating.
+- The Creative Dial's film memory (v0.27) now acts only when the Creative Dial itself is turned.
+  Details: [release notes](releases/v0.29.2/NOTES.md).
 
 ## v0.29.1
 v0.29 with one fix. Firmware camera-tested (2026-11-13, build n1; only its name was changed).

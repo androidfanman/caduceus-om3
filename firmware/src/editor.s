@@ -5296,6 +5296,29 @@ pm_ev:
 /* gx_map <- jmp from 0x610f6016 (the state dispatcher, d0 = a handler's next state, (8,sp) -> the GUI state bytes
  * {parent, child}; a0 / a1 / d1 free here): a state change while in Picture Mode (0x0418) clears gr_flag. */
 gx_map:
+ movbu (rc_pend),d1               /* v0.30-dev k1 (#41): the shooting mode changed with the films in: put each */
+ cmp 0,d1                         /* COLOR's film back into the camera's settings (GUI task, between events) */
+ bne 01f
+ movbu (cm_pend),d1               /* k2: a custom-mode record write held back by the camera's own save */
+ cmp 0,d1
+ bne 01f
+ movbu (cm_init),d1               /* k2: once after the films are in (never before: STATE 0 until the first */
+ cmp 0,d1                         /* half-press), so a dial moved while the camera was off is handled */
+ bne 0f
+ movhu (STATE),d1
+ cmp 0,d1
+ beq 0f
+01:
+ mov mdr,d2                       /* d2, d3 are free here (the stock code sets both right after gx_back) */
+ mov a1,d3
+ mov d0,(rc_d0)
+ add -4,sp
+ call rc_go,[d2,d3,a2,a3],24
+ add 4,sp
+ mov d2,mdr
+ mov d3,a1
+ mov (rc_d0),d0
+0:
  mov d0,d1
  exthu d1
  cmp 0,d1
@@ -9405,6 +9428,7 @@ lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call e
  call lg_pre,[d2,d3,a2,a3],36
  call ed_trig,[d2,d3,a2,a3],36
  call ub_try,[d2,d3,a2,a3],36     /* films in camera memory: a block write held back by the camera's own save */
+ call cm_hp,[d2,d3,a2,a3],24      /* k4: in P / A / S / M, their films and choice now (kept in M) */
  call lg_write,[d2,d3,a2,a3],40
  call ex_live,[d2,d3,a2,a3],48    /* v0.28 pc1: the film's settings now, for the next photo's code */
  jmp trig_resume
@@ -10116,8 +10140,35 @@ lg_s4:
  * Not yet: power-on (the start-up path sets 897 without the facade), MONO targets, the Control Panel setting. */
 .section .ext12,"ax"
 sx_set:                           /* from sl_set (entered as the manager: d0 id, d1 value, a0, a1; frame 68) */
+ mov a0,(rc_in)                   /* v0.30-dev k1 (#41): the manager's own handle (one per power-on), for rc_put */
+ cmp 1440,d0                      /* k2: 1440 closes every mode-dial change (om-emu: ... 682, [162], 2188, 1440, */
+ bne 0f                           /* 2136 / 2137), after the camera swapped COLOR 1..4's settings for the mode's own
+                                   * (a photo C mode assigned in P keeps 162 at P's 76: k1's 162 missed it); with the
+                                   * films in, rc_go re-applies them */
+ mov d1,d2                        /* the value (d2 / d3 are free here, as below) */
+ mov a1,d3                        /* the mode */
+ call dm_ok,[],0                  /* films loaded? (d1; d0, a0, a1 kept) */
+ cmp 0,d1
+ beq 01f
+ call rc_go,[d2,d3,a2,a3],24      /* k4: now, in the camera's own mode-change step (task 165, where dm_turn already
+                                   * switches films at 897), not at a later GUI event: on the camera the GUI got no
+                                   * event until a half-press (k3: "it switches after a half-press") */
+01:
+ mov 1440,d0
+ mov d2,d1
+ mov (rc_in),a0
+ mov d3,a1
+ mov (68,sp),d2                   /* MDR = the setter's return address again, as fl_set leaves it */
+ mov d2,mdr
+ jmp sl_set0                      /* 1440 itself: stock */
+0:
  cmp 901,d0
  bne 1f
+ movbu (cm_ram + CM_LAST),d2      /* k3 / k6: the group's choice now (the picture mode the camera sets is not the */
+ cmp 0xff,d2                      /* mode's own after a dial change: noted here, as it is set, not afterwards) */
+ beq 02f
+ movbu d1,(cm_gpm)
+02:
  add -16,sp                       /* dr5: the dial position on COLOR keeps this choice (dm_rec); */
  mov a0,(4,sp)                    /* dr6: all on the stack (the camera's dial handler and the power-on */
  mov a1,(8,sp)                    /* mapping may run here at the same time) */
@@ -10155,13 +10206,16 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  jmp sl_set0
 41:                               /* v0.27 dr3 (owner): each position -> a mode (its own / CRT / ART / COLOR / MONO);
                                    * a position on COLOR keeps its own COLOR choice (dm_turn) */
- add -12,sp                       /* (0) call slot, (4) a0, (8) a1 */
+ add -16,sp                       /* (0) call slot, (4) a0, (8) a1, (12) the position before (k5) */
  mov a0,(4,sp)
  mov a1,(8,sp)
+ movbu (dm_pos),d0
+ mov d0,(12,sp)
  call dm_turn,[d2,d3,a2,a3],24    /* -> d0 = the mode 0..3 (CRT, ART, COLOR, MONO), d1 = its COLOR choice or 0 */
  mov (4,sp),a0
  mov (8,sp),a1
- add 12,sp
+ mov (12,sp),d3
+ add 16,sp
  cmp 2,d0
  beq 43f
  mov dm_fam,a3                    /* not COLOR: that mode's family, the stock way */
@@ -10171,10 +10225,29 @@ sx_set:                           /* from sl_set (entered as the manager: d0 id,
  mov (a3),d1
  jmp sl_set0
 43:
+ cmp 0,d1
+ beq 44f                          /* COLOR, nothing remembered yet: as it is */
+ cmp d2,d3                        /* k5 (#41): its choice comes back only when the Creative Dial really moved: 897 is */
+ beq 44f                          /* also written at every half-press and mode-dial change, where it put its old film */
+ cmp 0xff,d3                      /* back over the custom mode's; the first 897 after a power-on: as before, unless */
+ bne 45f                          /* the custom modes keep films (theirs decide then) */
+ add -12,sp
+ mov a0,(4,sp)
+ mov a1,(8,sp)
  mov d1,d3
- cmp 0,d3
- bne 55f
- mov 897,d0                       /* COLOR, nothing remembered yet: as it is */
+ call cm_ld,[d2,d3,a2,a3],20
+ mov (4,sp),a0
+ mov (8,sp),a1
+ add 12,sp
+ mov d3,d1
+ movbu (cm_ram + CM_FL),d0
+ cmp 0,d0
+ bne 44f
+45:
+ mov d1,d3
+ bra 55f
+44:
+ mov 897,d0
  mov 901,d1
  jmp sl_set0
 55:
@@ -13454,6 +13527,14 @@ ub_txt:                           /* `call ub_txt,[d2,d3,a2,a3],24`: CADLOG.TXT 
  LGS ub_s7
  movbu (UB_DIRTY),d0
  LGD
+ LGS rc_s1                        /* v0.30-dev k1 (#41) */
+ mov (rc_n),d0
+ LGD
+ LGS rc_s2
+ mov (rc_w),d0
+ LGD
+ LGS rc_s3
+ call cm_txt,[d2,d3,a2,a3],24     /* k2 */
 9:
  ret [d2,d3,a2,a3],24
 
@@ -13745,3 +13826,907 @@ pr_nmd:                           /* v0.29.1 (#38): jmp from pr_gate (its frame)
  jmp pr_go
 1:
  jmp pr_gout
+
+/* ---- Films and the shooting mode (v0.30-dev k1, #41). Turning the mode dial (P / A / S / M / B / C1..C5) makes the
+ * camera swap COLOR 1..4's own settings (saturation, contrast, tone and the rest of a film's 18 camera settings) for
+ * that mode's saved ones in one block, past the settings manager (om-emu: P -> C2 gave COLOR 3 +4 saturation on every
+ * colour, C2's own; back to P restored P's). Our film choice (P+LIDX) does not change, so the camera then shot the film
+ * mixed with those settings, and the next film switch captured them into the film being left (its '*'). sx_set notes a
+ * shooting-mode write (id 162) while the films are in; at the next GUI event rc_go puts each COLOR's film (its saved
+ * changes when valid, else as built: fl_sw's own choice) back with pf_put1, through the manager with its own handle,
+ * as a film pick does. Nothing is captured and nothing is marked to save. COLOR k on its own settings: left as the
+ * mode has them (stock). */
+rc_go:                            /* `call rc_go,[d2,d3,a2,a3],24` from sx_set's 1440 (k4) or gx_map (GUI task) */
+ clr d0
+ movbu d0,(rc_pend)
+ clr d0                           /* k4: one at a time (two tasks may get here); a busy one is retried by gx_map */
+ call LOCK,[d2],8
+ mov d0,d3
+ movbu (rc_busy),d0
+ cmp 0,d0
+ beq 02f
+ mov d3,d0
+ call UNLOCK,[d2],8
+ mov 1,d0
+ movbu d0,(rc_pend)
+ ret [d2,d3,a2,a3],24
+02:
+ mov 1,d0
+ movbu d0,(rc_busy)
+ mov d3,d0
+ call UNLOCK,[d2],8
+ mov (rc_in),d0
+ cmp 0,d0
+ beq 9f                           /* no manager handle seen yet */
+ PVAL 9f
+ mov (LPTR,a2),d0
+ cmp 0,d0
+ beq 9f
+ mov (TORG,a2),d0
+ cmp 0,d0
+ beq 9f
+ movbu (cm_pend),d0
+ cmp 0,d0
+ beq 01f
+ call cm_wr,[d2,d3,a2,a3],20      /* k2: a held-back record write */
+01:
+ call cm_go,[d2,d3,a2,a3],24      /* k2: the custom mode's films (film saved with Assign), a2 = P */
+ clr d2
+1:
+ mov a2,a0
+ add d2,a0
+ movbu (LIDX,a0),d3
+ extb d3
+ cmp 1,d3
+ blt 2f
+ cmp 5,d3
+ bgt 2f                           /* COLOR k on its own settings: as the mode has them */
+ call rc_put,[d2,d3,a2,a3],40
+ mov (rc_n),d0
+ inc d0
+ mov d0,(rc_n)
+2:
+ inc d2
+ cmp 4,d2
+ bcs 1b
+9:
+ clr d0
+ movbu d0,(rc_busy)
+ ret [d2,d3,a2,a3],24
+
+rc_put:                           /* `call rc_put,[d2,d3,a2,a3],40`, a2 = P, d2 = k, d3 = look 1..5: COLOR k's 18
+                                   * camera settings (pf_ids) <- that film (its saved changes when valid, else as built:
+                                   * fl_sw's choice), each only when the camera's value differs (a P <-> A turn writes
+                                   * nothing). Our slot is not touched (the camera's swap leaves it alone). Locals
+                                   * (4) k, (8) the record, (12) i, (16) id, (20) the film's value (frame 40: the four
+                                   * saved registers sit above them, at (24..39)). */
+ mov d2,(4,sp)
+ mov d2,d0                        /* r = 5k + look - 1 */
+ asl2 d0
+ add d2,d0
+ add d3,d0
+ add -1,d0
+ mov d0,d1
+ asl 6,d1
+ add 32,d1
+ mov (LPTR,a2),a3
+ add d1,a3                        /* the film as built */
+ mov (TORG,a2),a1
+ add TWO,a1
+ mov 1,d1
+ asl d0,d1
+ mov (12,a1),d3
+ and d1,d3
+ beq 8f                           /* no saved changes: as built */
+ mov d0,d1                        /* the saved record: TWO + 16 + 68 r, its check at +64 */
+ asl 6,d1
+ asl2 d0
+ add d0,d1
+ add 16,d1
+ add d1,a1
+ mov a1,(8,sp)
+ mov a3,a0                        /* only changes made from this build of the film (fl_sw's test) */
+ mov -1,d0
+ mov 64,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov (8,sp),a1
+ mov (64,a1),d1
+ cmp d0,d1
+ bne 8f
+ mov a1,a3
+8:
+ mov a3,(8,sp)
+ clr d0
+ mov d0,(12,sp)
+1:
+ mov (12,sp),d3
+ mov pf_ids,a0
+ mov d3,d0
+ asl2 d0
+ add d0,a0
+ movbu (2,a0),d1
+ mov (4,sp),d2
+ mul d2,d1
+ movhu (a0),d0
+ add d1,d0                        /* id */
+ mov d0,(16,sp)
+ movbu (3,a0),d2                  /* record offset */
+ mov (8,sp),a1
+ movbu (d2,a1),d1
+ extb d1
+ mov d1,(20,sp)
+ call sget,[],4                   /* d0 = the camera's value now (keeps d2, d3, a2, a3) */
+ mov (20,sp),d1
+ cmp d1,d0
+ beq 2f
+ mov (16,sp),d0
+ mov (rc_in),a0                   /* the manager's handle and mode 0, as every write the camera makes (om-emu) */
+ mov 0,a1
+ call manager,[d2,d3,a2,a3],68
+ mov (rc_w),d0
+ inc d0
+ mov d0,(rc_w)
+2:
+ mov (12,sp),d3
+ inc d3
+ mov d3,(12,sp)
+ cmp 18,d3
+ bcs 1b
+ ret [d2,d3,a2,a3],40
+
+ .balign 4
+rc_in:
+ .long 0
+rc_d0:
+ .long 0
+rc_n:
+ .long 0
+rc_w:
+ .long 0
+rc_pend:
+ .byte 0
+rc_s1:
+ .asciz "\r\nFilms put back after a shooting-mode change: "
+rc_s2:
+ .asciz " (camera settings written: "
+rc_s3:
+ .asciz ")"
+
+/* ---- Custom modes keep their own films (v0.30-dev k2, #41, owner 2026-11-14: "film saved with Assign"). Assign
+ * (Shooting menu 1 > Custom Mode > Cn > Assign > Set) calls the facade's entry 18 (vtable word 0x60e574bc, stock
+ * 0x60b8764c) with d0 = n - 1 (C1..C5 = 0..4), d1 = 0 (om-emu, menu 0x611a93be); cm_asg notes the films in use then
+ * (P+LIDX, one look per COLOR) for that custom mode. At each mode-dial change (rc_go, after the camera's own swap) the
+ * mode's code (the settings object's byte +24, behind the manager's handle: P 1, A 2, C1..C5 53..57) picks the group;
+ * on a group change P / A / S / M / B's films are kept when leaving them, and the new group's come back: a custom mode
+ * its Assign films, P / A / S / M / B theirs (a custom mode's changes are forgotten, the camera's "Save Settings:
+ * Reset"; "Keep" is not followed yet). A film switch here is fl_sw's own (its no-capture reset flag: the camera's
+ * settings already hold the new mode's, so nothing is captured into the film being left). Kept in M's free tail at
+ * +0x3B000 ('OM3C', CRC), written as ub_put writes its block. The first GUI event after the films are in looks once,
+ * so a dial moved while the camera was off is handled then (not at start-up: STATE is 0 until the first half-press). */
+ .set CM_C, 0x6295b700            /* M image + 0x3B000 */
+ .set CM_U, 0xa295b700
+ .set CM_MAGIC, 0x43334d4f        /* "OM3C" */
+ .set CM_LEN, 48                  /* +0 magic, +4 u16 2, +6 u16 len, +8 crc(12..), +12 flags (bit n: Cn+1 set, bit 7: P
+                                   * group's films kept), +13 last group (0..4 C1..C5, 5 P group, 0xff none), +14 the P
+                                   * group's choice, +16 the P group's 4 looks, +20 C1..C5's 4 looks each, +40 C1..C5's
+                                   * choice. A choice (k3) = the picture mode's 901 value: FV0 + j for film j, else
+                                   * COLOR k's own picture mode (54, 55, 56, 64); 0 = not COLOR 1..4 (left alone) */
+ .set CM_VER, 2                   /* k3: v1 records (k2, no choice) are not read */
+ .set CM_FL, 12
+ .set CM_LAST, 13
+ .set CM_PM, 14
+ .set CM_P, 16
+ .set CM_S, 20
+ .set CM_SPM, 40
+
+cm_asg:                           /* facade entry 18 (Assign), entered by `calls`: d0 slot, d1 0 Set, a0 the facade */
+ movm [d2,d3,a2,a3],(sp)
+ add -16,sp                       /* (0) call slot, (4) d0, (8) d1, (12) a0 */
+ mov d0,(4,sp)
+ mov d1,(8,sp)
+ mov a0,(12,sp)
+ call cm_rec,[d2,d3,a2,a3],20     /* d0, d1 as entered */
+ mov (4,sp),d0
+ mov (8,sp),d1
+ mov (12,sp),a0
+ add 16,sp
+ movm (sp),[d2,d3,a2,a3]
+ jmp cm_stock                     /* the camera's own Assign (0x60b8764c, editor.ld) */
+
+cm_rec:                           /* `call cm_rec,[d2,d3,a2,a3],20`: d0 = slot 0..4, d1 = 0 (Set) or other (clear) */
+ mov d0,d2
+ mov d1,d3
+ cmp 5,d2
+ bcc 9f
+ call cm_ld,[d2,d3,a2,a3],20
+ movbu (cm_ram + CM_FL),d0
+ mov 1,d1
+ asl d2,d1
+ cmp 0,d3
+ beq 1f
+ not d1                           /* not Set: no films for that custom mode */
+ and d1,d0
+ movbu d0,(cm_ram + CM_FL)
+ bra 8f
+1:
+ PVAL 9f
+ mov (LPTR,a2),a0
+ cmp 0,a0
+ beq 9f                           /* no films loaded: nothing to keep */
+ movbu (cm_ram + CM_FL),d0
+ mov 1,d1
+ asl d2,d1
+ or d1,d0
+ movbu d0,(cm_ram + CM_FL)
+ mov d2,d0
+ asl2 d0
+ mov cm_ram + CM_S,a0
+ add d0,a0
+ mov a2,a1
+ add LIDX,a1
+ mov 4,d1
+ call ub_cpy,[],0
+ call cm_val,[d2,d3,a2,a3],20     /* k3: the picture mode chosen, too */
+ mov cm_ram + CM_SPM,a0
+ movbu d0,(d2,a0)
+ mov (cm_na),d0
+ inc d0
+ mov d0,(cm_na)
+8:
+ call cm_wr,[d2,d3,a2,a3],20
+9:
+ ret [d2,d3,a2,a3],20
+
+cm_go:                            /* `call cm_go,[d2,d3,a2,a3],24` from rc_go, a2 = P (films in). The group now
+                                   * (cm_gnow); the first look after the films are in enters it whatever came before; a
+                                   * change saves the group being left when it keeps its changes (P / A / S / M always,
+                                   * a custom mode set to Save Settings: Hold, k6) and enters the new one (its kept
+                                   * films and choice, cm_load). A Recall (cm_force, k6) loads that custom mode's films
+                                   * into the group now and keeps them there when the group keeps its changes. */
+ call cm_ld,[d2,d3,a2,a3],20
+ movbu (cm_init),d0
+ movbu d0,(cm_first)              /* 0: the first look */
+ mov 1,d0
+ movbu d0,(cm_init)
+ mov (cm_sw),d0
+ mov d0,(cm_sw0)
+ clr d0
+ movbu d0,(cm_pmw)
+ call cm_gnow,[],0
+ movbu d0,(cm_grp)
+ movbu (cm_ram + CM_LAST),d1
+ movbu d1,(cm_lst)
+ movbu d0,(cm_ram + CM_LAST)
+ movbu (cm_force),d1
+ cmp 0,d1
+ beq 1f
+ clr d0                           /* a Recall of C(d1): its films into the group now */
+ movbu d0,(cm_force)
+ add -1,d1
+ mov d1,d0
+ call cm_src,[d2,d3,a2],16
+ cmp 0,a3
+ beq 8f
+ call cm_load,[d2,d3,a2,a3],24
+ movbu (cm_grp),d0
+ call cm_hold,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 8f
+ movbu (cm_grp),d0
+ call cm_save,[d2,d3,a2,a3],20
+ bra 8f
+1:
+ movbu (cm_first),d1
+ cmp 0,d1
+ beq 3f                           /* the first look: enter the group now */
+ movbu (cm_lst),d1
+ movbu (cm_grp),d0
+ cmp d0,d1
+ bne 2f
+ jmp 90f                          /* the same group: nothing */
+2:
+ mov d1,d0                        /* leaving cm_lst: kept when that group keeps its changes */
+ call cm_hold,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 3f
+ movbu (cm_lst),d0
+ call cm_save,[d2,d3,a2,a3],20
+3:
+ movbu (cm_grp),d0                /* entering cm_grp */
+ call cm_src,[d2,d3,a2],16
+ cmp 0,a3
+ bne 4f
+ call cm_val,[d2,d3,a2,a3],20     /* nothing kept for it: as it is (P keeps this from now) */
+ movbu d0,(cm_gpm)
+ movbu (cm_grp),d0
+ cmp 5,d0
+ bne 8f
+ call cm_save,[d2,d3,a2,a3],20
+ bra 8f
+4:
+ call cm_load,[d2,d3,a2,a3],24
+8:
+ call cm_wr,[d2,d3,a2,a3],20
+90:
+ movbu (rc_ti),d0                 /* the trace: shutter events, code, group | first, switched | picture mode */
+ and 7,d0
+ asl2 d0
+ mov rc_tr,a0
+ add d0,a0
+ mov (lg_n),d0
+ movbu d0,(a0)
+ movbu (cm_code),d0
+ movbu d0,(1,a0)
+ movbu (cm_grp),d0
+ movbu (cm_first),d1
+ cmp 0,d1
+ bne 98f
+ or 0x80,d0
+98:
+ movbu d0,(2,a0)
+ mov (cm_sw),d0
+ mov (cm_sw0),d1
+ sub d1,d0
+ movbu (cm_pmw),d1
+ or d1,d0
+ movbu d0,(3,a0)
+ movbu (rc_ti),d0
+ inc d0
+ movbu d0,(rc_ti)
+ ret [d2,d3,a2,a3],24
+
+/* cm_src (k6): `call cm_src,[d2,d3,a2],16`, d0 = a group -> a3 = its kept 4 looks (0: none), d1 = its choice. */
+cm_src:
+ movbu (cm_ram + CM_FL),d1
+ mov 0,a3
+ cmp 5,d0
+ bne 1f
+ btst 0x80,d1
+ beq 9f
+ mov cm_ram + CM_P,a3
+ movbu (cm_ram + CM_PM),d1
+ ret [d2,d3,a2],16
+1:
+ cmp 5,d0
+ bcc 9f
+ mov 1,d2
+ asl d0,d2
+ and d2,d1
+ beq 9f
+ mov d0,d2
+ asl2 d0
+ mov cm_ram + CM_S,a3
+ add d0,a3
+ mov cm_ram + CM_SPM,a0
+ movbu (d2,a0),d1
+ ret [d2,d3,a2],16
+9:
+ clr d1
+ ret [d2,d3,a2],16
+
+/* cm_hold (k6): `call cm_hold,[d2,d3,a2,a3],20`, d0 = a group -> d0 = 1 when it keeps its changes: P / A / S / M /
+ * B always, a custom mode when its Save Settings is Hold (settings 1880..1884 for C1..C5: 0 Reset, 1 Hold; om-emu). */
+cm_hold:
+ cmp 5,d0
+ beq 1f
+ bcc 8f
+ add 1880,d0
+ call sget,[],4
+ cmp 1,d0
+ beq 1f
+8:
+ clr d0
+ ret [d2,d3,a2,a3],20
+1:
+ mov 1,d0
+ ret [d2,d3,a2,a3],20
+
+/* cm_save (k6): `call cm_save,[d2,d3,a2,a3],20`, d0 = a group, a2 = P: its kept looks <- P+LIDX, its choice <- cm_gpm,
+ * its flag set -> d0 = 1 when anything changed. */
+cm_save:
+ clr d3
+ cmp 5,d0
+ bne 1f
+ mov cm_ram + CM_P,a3
+ mov cm_ram + CM_PM,a1
+ mov 0x80,d2
+ bra 2f
+1:
+ mov d0,d2
+ asl2 d0
+ mov cm_ram + CM_S,a3
+ add d0,a3
+ mov cm_ram + CM_SPM,a1
+ add d2,a1
+ mov 1,d0
+ asl d2,d0
+ mov d0,d2
+2:
+ movbu (cm_ram + CM_FL),d0
+ mov d0,d1
+ or d2,d1
+ cmp d0,d1
+ beq 3f
+ movbu d1,(cm_ram + CM_FL)
+ mov 1,d3
+3:
+ movbu (cm_gpm),d0
+ movbu (a1),d1
+ cmp d0,d1
+ beq 4f
+ movbu d0,(a1)
+ mov 1,d3
+4:
+ clr d2
+5:
+ mov a2,a0
+ add d2,a0
+ movbu (LIDX,a0),d0
+ movbu (d2,a3),d1
+ cmp d0,d1
+ beq 6f
+ movbu d0,(d2,a3)
+ mov 1,d3
+6:
+ inc d2
+ cmp 4,d2
+ bcs 5b
+ mov d3,d0
+ ret [d2,d3,a2,a3],20
+
+/* cm_load (k6, k3..k5's switch): `call cm_load,[d2,d3,a2,a3],24`, a2 = P, a3 = 4 looks, d1 = their choice: each
+ * COLOR whose look differs switches with fl_sw's no-capture flag; then the choice's picture mode through the manager
+ * when it differs or a film switched (the camera redraws), then the Creative Dial position's memory (dm_rec). cm_gpm =
+ * the choice after. Local (4) the choice. */
+cm_load:
+ mov d1,(4,sp)
+ clr d2
+7:
+ movbu (d2,a3),d3
+ extb d3
+ cmp 0,d3
+ blt 8f
+ cmp 5,d3
+ bgt 8f
+ mov a2,a0
+ add d2,a0
+ movbu (LIDX,a0),d0
+ extb d0
+ cmp d3,d0
+ beq 8f
+ movbu d3,(LIDX,a0)               /* what the wheel and readout show */
+ mov (TORG,a2),a0
+ add TWO,a0
+ mov 1,d0
+ movbu d0,(TW_LEN + 1,a0)         /* fl_sw: no capture (the camera's settings now are the new mode's) */
+ clr d0
+ mov (rc_in),a0
+ mov 0,a1
+ call fl_sw,[d2,d3,a2,a3],40
+ mov 1,d0
+ movbu d0,(DIRTY,a2)              /* the selection saved at the next half-press */
+ mov (cm_sw),d0
+ inc d0
+ mov d0,(cm_sw)
+8:
+ inc d2
+ cmp 4,d2
+ bcs 7b
+ mov (4,sp),d1
+ cmp 0,d1
+ bne 91f
+ call cm_val,[d2,d3,a2,a3],20     /* no choice kept: the one now */
+ movbu d0,(cm_gpm)
+ ret [d2,d3,a2,a3],24
+91:
+ movbu d1,(cm_gpm)
+ mov d1,d0                        /* -> COLOR k's own picture mode */
+ cmp FV0,d0
+ blt 93f
+ add -FV0,d0
+ clr d2
+94:
+ cmp 5,d0
+ bcs 95f
+ add -5,d0
+ inc d2
+ bra 94b
+95:
+ mov fl_cvt,a0
+ add d2,a0
+ movbu (a0),d0
+93:
+ mov d0,d3
+ mov 111,d0
+ call sget,[],4
+ cmp d3,d0
+ bne 96f
+ mov (cm_sw),d0
+ mov (cm_sw0),d1
+ cmp d1,d0
+ beq 97f
+96:
+ mov 901,d0
+ mov d3,d1
+ mov (rc_in),a0
+ mov 0,a1
+ call manager,[d2,d3,a2,a3],68
+ mov (cm_pms),d0
+ inc d0
+ mov d0,(cm_pms)
+ mov 0x80,d0
+ movbu d0,(cm_pmw)
+97:
+ movbu (dm_pos),d0                /* the Creative Dial position if the dial code doesn't know it yet (k5) */
+ cmp 4,d0
+ bcs 971f
+ mov 897,d0
+ call sget,[],4
+ mov dm_fam,a0
+ clr d1
+972:
+ mov (a0),d2
+ cmp d2,d0
+ beq 973f
+ inc4 a0
+ inc d1
+ cmp 4,d1
+ bcs 972b
+ bra 971f
+973:
+ movbu d1,(dm_pos)
+971:
+ mov (4,sp),d1
+ mov (rc_in),a0
+ mov 0,a1
+ call dm_rec,[d2,d3,a2,a3],28
+ ret [d2,d3,a2,a3],24
+
+/* cm_val: `call cm_val,[d2,d3,a2,a3],20`, a2 = P -> d0 = the choice now (FV0 + j for a film on the picture mode's
+ * COLOR k, else COLOR k's picture mode; 0 when the picture mode is not COLOR 1..4). */
+cm_val:
+ mov 111,d0
+ call sget,[],4
+ mov d0,d3
+ call fl_k,[],0
+ cmp 0,d0
+ blt 8f
+ mov d0,d2
+ mov a2,a0
+ add d2,a0
+ movbu (LIDX,a0),d1
+ extb d1
+ cmp 1,d1
+ blt 7f
+ cmp 5,d1
+ bgt 7f
+ mov d2,d0
+ asl2 d0
+ add d2,d0
+ add d1,d0
+ add FV0 - 1,d0
+ ret [d2,d3,a2,a3],20
+7:
+ mov d3,d0
+ ret [d2,d3,a2,a3],20
+8:
+ clr d0
+ ret [d2,d3,a2,a3],20
+
+cm_ld:                            /* `call cm_ld,[d2,d3,a2,a3],20`: the record into cm_ram, once per power-on */
+ movbu (cm_ok),d0
+ cmp 0,d0
+ bne 9f
+ mov 1,d0
+ movbu d0,(cm_ok)
+ mov CM_C,a3
+ mov (a3),d0
+ cmp CM_MAGIC,d0
+ bne 8f
+ movhu (4,a3),d0
+ cmp CM_VER,d0
+ bne 8f
+ movhu (6,a3),d0
+ cmp CM_LEN,d0
+ bne 8f
+ mov -1,d0
+ mov a3,a0
+ add 12,a0
+ mov CM_LEN - 12,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov (8,a3),d1
+ cmp d1,d0
+ bne 8f
+ mov cm_ram,a0
+ mov a3,a1
+ mov CM_LEN,d1
+ call ub_cpy,[],0
+ mov 1,d0
+ movbu d0,(cm_v0)
+ bra 9f
+8:
+ mov cm_ram,a0
+ mov CM_LEN,d1
+ call ub_zero,[],0
+ mov 0xff,d0
+ movbu d0,(cm_ram + CM_LAST)
+9:
+ ret [d2,d3,a2,a3],20
+
+cm_wr:                            /* `call cm_wr,[d2,d3,a2,a3],20`: cm_ram -> M (both aliases), as ub_put writes */
+ mov CM_MAGIC,d0
+ mov d0,(cm_ram)
+ mov CM_VER,d0
+ movhu d0,(cm_ram + 4)
+ mov CM_LEN,d0
+ movhu d0,(cm_ram + 6)
+ mov -1,d0
+ mov cm_ram + 12,a0
+ mov CM_LEN - 12,d1
+ call sd_crc,[d2,d3],12
+ not d0
+ mov d0,(cm_ram + 8)
+ clr d0
+ call LOCK,[d2],8
+ mov d0,d3
+ movbu (UB_BUSY),d0
+ cmp 0,d0
+ bne 8f                           /* the camera is saving M: again at the next GUI event */
+ mov CM_C,a0
+ mov cm_ram,a1
+ mov CM_LEN,d1
+ call ub_cpy,[],0
+ mov CM_U,a0
+ mov cm_ram,a1
+ mov CM_LEN,d1
+ call ub_cpy,[],0
+ mov 1,d0
+ movbu d0,(UB_DIRTY)              /* M changed: the camera saves it at the next return to shooting or power-off */
+ clr d0
+ movbu d0,(cm_pend)
+ mov (cm_nw),d0
+ inc d0
+ mov d0,(cm_nw)
+ mov d3,d0
+ call UNLOCK,[d2],8
+ bra 9f
+8:
+ mov 1,d0
+ movbu d0,(cm_pend)
+ mov d3,d0
+ call UNLOCK,[d2],8
+9:
+ ret [d2,d3,a2,a3],20
+
+cm_txt:                           /* `call cm_txt,[d2,d3,a2,a3],24`: CADLOG.TXT lines */
+ LGS cm_s1
+ movbu (cm_v0),d0
+ LGY
+ LGS cm_s2
+ movbu (cm_ram + CM_FL),d0
+ and 0x1f,d0
+ LGD
+ LGS cm_s3
+ movbu (cm_ram + CM_LAST),d0
+ LGD
+ LGS cm_s4
+ movbu (cm_code),d0
+ LGD
+ LGS cm_s5
+ mov (cm_na),d0
+ LGD
+ LGS cm_s6
+ mov (cm_sw),d0
+ LGD
+ LGS cm_s7
+ mov (cm_nw),d0
+ LGD
+ LGS cm_s8
+ mov (cm_pms),d0
+ LGD
+ LGS cm_s9
+ clr d2
+1:
+ mov d2,d0
+ asl2 d0
+ mov rc_tr,a0
+ add d0,a0
+ mov (a0),d0
+ call lg_h,[],0
+ LGS bt_sp
+ inc d2
+ cmp 8,d2
+ bcs 1b
+ ret [d2,d3,a2,a3],24
+
+ .balign 4
+cm_na:
+ .long 0
+cm_sw:
+ .long 0
+cm_nw:
+ .long 0
+cm_ram:
+ .space CM_LEN
+cm_ok:
+ .byte 0
+cm_v0:
+ .byte 0
+cm_init:
+ .byte 0
+cm_pend:
+ .byte 0
+cm_code:
+ .byte 0
+cm_pm:
+ .byte 0
+cm_gpm:
+ .byte 0
+cm_grp:
+ .byte 0
+rc_busy:
+ .byte 0
+rc_ti:
+ .byte 0
+ .balign 4
+cm_sw0:
+ .long 0
+rc_tr:                            /* k4: the last 8 cm_go runs {shutter events & 255, code, group | 0x80 first look,
+                                   * films switched | 0x80 picture mode written} */
+ .space 32
+ .balign 4
+cm_pms:
+ .long 0
+cm_s1:
+ .asciz "\r\nCustom modes: a valid record at the first look: "
+cm_s2:
+ .asciz "; films assigned (C1 = 1, C2 = 2, C3 = 4, C4 = 8, C5 = 16): "
+cm_s3:
+ .asciz "\r\nCustom modes: group now (C1..C5 = 0..4, P / A / S / M = 5): "
+cm_s4:
+ .asciz ", mode code "
+cm_s5:
+ .asciz "; Assigns this power-on: "
+cm_s6:
+ .asciz ", films switched: "
+cm_s7:
+ .asciz ", record writes: "
+cm_s8:
+ .asciz ", picture modes set: "
+cm_s9:
+ .asciz "\r\nCustom modes, last switches (switched | 0x80 picture mode, group | 0x80 first, code, shutter events): "
+bt_sp:
+ .asciz " "
+
+cm_hp:                            /* k4..k6: `call cm_hp,[d2,d3,a2,a3],24` from lg_pr (every shutter event with the
+                                   * films in, HLS_EVENT task): the group now keeps its films and choice when it keeps its
+                                   * changes (P / A / S / M / B; a custom mode set to Hold, k6), so they are right when
+                                   * the camera next leaves it, also over a power-off. Not before the first look, not
+                                   * while rc_go runs, only when the last look was this group. */
+ movbu (cm_init),d0
+ cmp 0,d0
+ beq 9f
+ call cm_gnow,[],0
+ mov d0,d2
+ movbu (cm_ram + CM_LAST),d1
+ cmp d2,d1
+ bne 9f
+ PVAL 9f                          /* (d2 kept) */
+ mov (LPTR,a2),d0
+ cmp 0,d0
+ beq 9f
+ mov d2,d0
+ call cm_hold,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 9f
+ clr d0                           /* rc_go's busy flag: not while it runs */
+ call LOCK,[d2],8
+ mov d0,d3
+ movbu (rc_busy),d0
+ cmp 0,d0
+ beq 2f
+ mov d3,d0
+ call UNLOCK,[d2],8
+ bra 9f
+2:
+ mov 1,d0
+ movbu d0,(rc_busy)
+ mov d3,d0
+ call UNLOCK,[d2],8
+ call cm_val,[d2,d3,a2,a3],20
+ movbu d0,(cm_gpm)
+ mov d2,d0
+ call cm_save,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 7f
+ call cm_wr,[d2,d3,a2,a3],20
+ mov (cm_nhp),d0
+ inc d0
+ mov d0,(cm_nhp)
+7:
+ clr d0
+ movbu d0,(rc_busy)
+9:
+ ret [d2,d3,a2,a3],24
+
+/* cm_rcl (k6): the facade's entry 18 + 2 = 20 (Recall; vtable word 0x60e574c4, stock 0x60b871f3, om-emu: the menu's
+ * Recall > Yes calls it with d0 = the custom mode 0..4), entered by `calls`: the camera's own Recall first, then that
+ * custom mode's films into the mode now (cm_force, rc_go), and once more at the next GUI event (rc_pend, compare only)
+ * in case the camera applies its part later. */
+cm_rcl:
+ movm [d2,d3,a2,a3],(sp)
+ add -16,sp                       /* (0) call slot, (4) d0, (8) the result */
+ mov d0,(4,sp)
+ call cm_rstock,[],0              /* d0, d1, a0 as entered */
+ mov d0,(8,sp)
+ mov (4,sp),d0
+ cmp 5,d0
+ bcc 1f
+ call dm_ok,[],0                  /* films loaded? (d1; d0 kept) */
+ cmp 0,d1
+ beq 1f
+ inc d0
+ movbu d0,(cm_force)
+ call rc_go,[d2,d3,a2,a3],24
+ mov 1,d0
+ movbu d0,(rc_pend)
+1:
+ mov (8,sp),d0
+ add 16,sp
+ movm (sp),[d2,d3,a2,a3]
+ rets
+
+ .balign 4
+cm_nhp:
+ .long 0
+cm_first:
+ .byte 0
+cm_pmw:
+ .byte 0
+cm_lst:
+ .byte 0
+cm_force:
+ .byte 0
+
+/* cm_gnow (k5): `call cm_gnow,[],0` -> d0 = the group now: C1..C5 0..4, P / A / S / M / B 5. The mode's code (the
+ * settings object's byte +24: 1..5 P A S M B, 53..57 C1..C5) when it is one of those; else the mode dial's position
+ * (UI_IN's index at 0xa32d9d0c, om-emu E147: 0 S, 1 A, 2 P, 3..7 C5..C1, 8 B, 9 M), since on the camera the code
+ * read 0 at the first look after a power-on (k4's CADLOG: "code 0", so P's films went onto a custom mode). Notes the
+ * code in cm_code, or 0xc0 | the position when the position decided. Uses d0, d1, a0. */
+cm_gnow:
+ mov (rc_in),a0
+ cmp 0,a0
+ beq 2f
+ movbu (24,a0),d0
+ movbu d0,(cm_code)
+ cmp 53,d0
+ bcs 1f
+ cmp 58,d0
+ bcc 2f
+ add -53,d0
+ ret [],0
+1:
+ cmp 1,d0
+ bcs 2f
+ cmp 6,d0
+ bcc 2f
+ mov 5,d0
+ ret [],0
+2:
+ movbu (0xa32d9d0c),d0
+ mov d0,d1
+ or 0xc0,d1
+ movbu d1,(cm_code)
+ cmp 3,d0
+ bcs 3f
+ cmp 8,d0
+ bcc 3f
+ mov 7,d1
+ sub d0,d1
+ mov d1,d0
+ ret [],0
+3:
+ mov 5,d0
+ ret [],0

@@ -3790,3 +3790,170 @@ The camera chart shoot decides. Portra 400's grey tint: preview says slightly wa
 - **Released as v0.29.1** (owner, 2026-11-13): n1 renamed "v0.29.1 (tested on camera, n1)" (same length; byte diff: only the
   name, the code-block tag, the built-in GUIDES CRC / tag). `releases/v0.29.1`: patch.json (158 runs, 321,631 bytes),
   extras as v0.29. `patch.py` (no --release) makes v0.29.1 = E1479999.BIN 8bb07ccc…; `--release v0.29` still cd99362c….
+
+## Custom modes and films (#41) (2026-11-14; emulator + analysis, camera test pending)
+- Report (#41, v0.29.1, with CADLOG): a custom mode (C2) does not keep the film (turning to C2 keeps the film last
+  picked, the picture mode never goes back to C2's COLOR), and switching between custom modes gave films a "*" with
+  Saturation / Contrast / Shadows / Highlights replaced by a COLOR's own settings or the custom mode's (EDITS.BIN read by
+  the reporter; Hue / Light untouched). CADLOG: "edits waiting yes" right after mode switches.
+- om-emu can turn the mode dial (`switch_input('mode_dial', k)`; E147 positions 0 S, 1 A, 2 P, 3 C5, 4 C4, 5 C3, 6 C2,
+  7 C1, 8 B, 9 M) but cannot register a custom mode: the menu greys "Custom Mode" out for the stills / movie / S&Q
+  switch, which om-emu does not model on E147. A turn to C2 still recalls C2's bank (registered on the camera this NV
+  file came from), which is enough.
+- **What a mode turn does (om-emu, v0.29.1):** the manager sees only 897 (Creative Dial family, = COLOR), 679, 680, 682,
+  **162 (the shooting mode: P 76, A 77, C2 224)**, 2188, 1440, 2137. COLOR 1..4's 18 film settings (pf_ids: saturation
+  928.., Contrast 908.., Sharpness 904.., Shading 912.., Shadows / Mid / Highlights 978 / 977 / 976 + 3k) are swapped in
+  one block past the manager: P -> C2 gave COLOR 3 saturation 4,4,4,4,4,3,4,4,4,4,4,4 and tone 0/0/0 (C2's), back to P
+  restored P's. 901 is not taken from the bank: the 897 write runs dm_turn -> fl_set(901, the current film), so the
+  Creative Dial's current choice wins (and fl_set marks DIRTY: the "edits waiting yes").
+- So P+LIDX still says "COLOR 3 = FILM 13" while the camera's COLOR 3 holds C2's settings: the camera shoots the film
+  mixed with them, and the next fl_sw (a film pick) pf_capto's them into the film being left. That is the "*".
+- Every manager call (both tasks, 165 and 168) has a0 = the same handle (0x6242c3d0 in om-emu) and a1 = 0.
+- **Build k1** (branch `fix/custom-modes-films`, VERSION "v0.30-dev (custom modes keep films, k1)"): `sx_set` keeps the
+  manager's a0 (`rc_in`) and, on id 162 with the films in (dm_ok), sets `rc_pend`; `gx_map` (GUI task, after a screen
+  handler) runs `rc_go` when it is set: for each COLOR k on a film (LIDX 1..5), `rc_put` takes fl_sw's record (the saved
+  EDITS record when valid and made from this build of the film, else the film as built) and writes each of the 18
+  settings through the manager (rc_in, mode 0) only when sget's value differs. Our slot is not touched; nothing is
+  captured or marked to save; COLOR k on its own settings is left as the mode has it. CADLOG: "Films put back after a
+  shooting-mode change: N (camera settings written: M)". Bug on the way: rc_put's first frame (32) put its locals on
+  the four saved registers (with [d2,d3,a2,a3] they sit at the frame's top 16 bytes): 40, as pf_put.
+- **Emulator (k1):** P -> C2 -> P with films on COLOR 1..4: each COLOR keeps its film's settings in C2 and back in P;
+  "put back 8 (written 52)". P -> A -> P -> A: "12 (14)", all 14 on the first turn (this NV file's COLOR 4 held other
+  values than its film), none after. Menu and half-press fine. E1479999.BIN faf5bae2….
+- Not done: part 2 (a film per custom mode); COLOR k on its own settings in a custom mode still gets fl_sw's capture
+  into its own record when a film is picked there (the custom mode's own COLOR values would then follow it back to P).
+- **Camera (owner, 2026-11-14, k1): the "*" no longer carries over** (camera-tested, part 1). But a custom mode does not
+  keep its film: in C2 the Color Profile showed FILM 1. Owner's choice for part 2: **a custom mode brings back the film
+  it was saved with by Assign** (its changes forgotten on leaving, as the camera's "Save Settings: Reset").
+
+### Custom modes keep their own films, k2 (2026-11-14; emulator only, camera test pending)
+- **k1's camera log (owner's card, copy kept privately):** "Films put back after a shooting-mode change: 0 (camera
+  settings written: 0)": on the camera k1's trigger (162) never fired either, as om-emu then showed for photo custom
+  modes, so the owner's "no *" with k1 was not k1's doing. k2's trigger (1440) is checked by the same log line.
+- **om-emu can do photo custom modes after all:** the OM-3's photo / movie / S&Q switch is om-emu's position switch
+  0x1909 (group 4, bits 0..2), which om-emu starts at its idle position 1 = **movie** (so every C mode was a movie mode,
+  OM-Cinema, and Custom Mode was greyed out "for the following reason: photo / movie / S&Q"). Position 0 = S&Q,
+  **2 = photo**. Scratch token `pset:1909:2` (uiin_layout entries, set_bit, push_group) -> the camera icon, and Shooting
+  menu 1 > Custom Mode lists C1..C5 ("--" = never assigned) with Recall, Assign (Set / Reset), **Save Settings
+  (Reset / Keep)**, Custom Mode Name.
+- **Assign:** Set calls the facade's entry 18 (vtable word 0x60e574bc, stock 0x60b8764c) from the menu (0x611a93be:
+  d0 = item - 9) with **d0 = the custom mode 0..4 (C1..C5), d1 = 0**; nothing goes through the settings manager. It
+  flips a per-mode byte in M (M+0x31fd8 + 1 + n: 2 never assigned -> 1 set; analysis) and changes ~45 B of M at
+  M+0xab58.. (the bank holds mostly the same values, so the diff is small).
+- **Which mode:** the settings object behind the manager's handle (a0 of every manager call, 0x6242c3d0 in om-emu)
+  holds the mode's code at +24 (byte): **P 1, A 2, C2 54, C3 55** (C1..C5 = 53..57; om-emu memory search). The dial's
+  position index is at 0xa32d9d0c (P 2, A 1, C3 5, C2 6), om-emu's MODE_DIAL_INDEX (0xa32daba8) reads 0 on E147.
+- **k1's trigger missed photo C modes:** a C mode assigned in P keeps 162 at P's 76, so no 162 write. A photo mode
+  change writes (om-emu): 1909 (GUI task), 897, 679, 680, 682, 2188, **1440**, 2136 (movie: ..., 162, 2188, 1440,
+  2137). **1440** closes every change and is not written at a half-press (897 / 2136 are): k2 triggers on it.
+- **The Creative Dial's own memory** (dm_rec: the dial position's last COLOR choice in settings 1958 / 1277 / 1275 /
+  1284, not saved per custom mode: same values in P, C2, C3) is put back by dm_turn at every 897 write, i.e. every
+  half-press: after a custom-mode switch the next half-press brought the last menu pick back (om-emu, first k2). So a
+  k2 switch also records the new choice with dm_rec (as a menu pick does).
+- **Build k2** (branch `fix/custom-modes-films`, VERSION "v0.30-dev (custom modes keep films, k2)"): `cm_asg` (facade
+  word 0x60e574bc, build.py WORDS) notes P+LIDX (one look per COLOR) for C(d0+1) when d1 = 0, then `jmp cm_stock`
+  (0x60b8764c, editor.ld; a bare `jmp 0x60b8764c` assembled as a displacement and jumped to 0xc1b17caa: trap in om-emu).
+  `sx_set` sets rc_pend on 1440 (with the films in); `gx_map` also runs rc_go once at the first GUI event after the
+  films are in (STATE != 0: never at start-up) and for a held-back record write. `cm_go` (from rc_go, before the
+  re-apply): group = C(code - 53) or P / A / S / M / B; on a group change P's looks are kept when leaving P, and the new
+  group's come back (C: its Assign looks if assigned, else as it is; P: its kept looks); each changed COLOR switches
+  with fl_sw's no-capture flag (TW_LEN + 1), DIRTY for the selection, then dm_rec with the picture mode's value
+  (sget 111 -> fl_k; film FV0 + 5k + look - 1, own: the value itself). Record 'OM3C' at M+0x3B000 (48 B: flags, last
+  group, P's looks, C1..C5's looks, CRC), written as ub_put (LOCK, UB_BUSY: held back, both aliases, UB_DIRTY).
+  CADLOG: "Custom modes: ...". "Save Settings: Keep" is not followed yet (treated as Reset). E1479999.BIN d7a1a979….
+- **Emulator (k2, photo mode):** P: FILM 1 (Portra 400), Assign C2, FILM 6 (Ektar 100) -> C2: Portra 400 (looks
+  1,5,5,4 back) -> FILM 3 in C2 (Kodachrome 64) -> P: Ektar 100 (5,1,5,4) -> C2: Portra 400 again; half-presses after
+  each switch keep the films; no new "*" in the film list (only the NV file's own FILM 4* / 5*). CADLOG: Assigns 1,
+  films switched 8, put back 24.
+- **Camera (owner, 2026-11-14, k2): "film still changes by itself"** (CADLOG, copy kept privately): the 1440 trigger
+  fires on the camera (put back 52, written 77; C1 and C2 assigned), but back in A the picture mode was COLOR 1 with
+  FILM 2 where it had been COLOR 2, FILM 6: k2 kept each COLOR's look per group, not which COLOR the picture mode was on.
+
+### k3: the picture mode too (2026-11-14; emulator only, camera test pending)
+- om-emu, k2, photo mode: P FILM 6 -> Assign C1, P FILM 1 -> Assign C2, P FILM 7 (COLOR 2), then C2 FILM 1, C1 FILM 6,
+  **A: COLOR 1, FILM 5** (wrong). Leaving P, k3's first try noted P's choice with sget(111) inside cm_go, which runs
+  after the camera's swap: that is already the new mode's picture mode.
+- **k3:** each group keeps a choice too (the 901 value: FV0 + j for a film, else COLOR k's own 54 / 55 / 56 / 64;
+  record 'OM3C' version 2: +14 P's, +40 C1..C5's; v1 records are not read). Assign notes it with cm_val (no swap then).
+  P's choice is noted as it is set: sx_set's 901 path, while the last group is P / A / S / M (cm_ppm; first look:
+  cm_val), so leaving P uses it. Entering a group: its looks (as k2), then its choice's picture mode through the
+  manager when the camera's differs (fl_set's end without its film-WB steps, so the custom mode's WB is not captured
+  into a film), then dm_rec with the choice. CADLOG adds "picture modes set: N".
+- **Emulator (k3, photo mode):** the same sequence then C2 / C1 / A / C2 / P / C1 / P: FILM 1, 6, **7**, 1, 7, 6, 7,
+  each steady over half-presses. Power-off in C2, the next start in P (NV file kept, om-emu's S-SHUTDOWN): the record
+  read back ("a valid record: yes"), P's FILM 7 at the first half-press, then C2 FILM 1, P FILM 7.
+  E1479999.BIN 195b087e….
+- **Camera (owner, 2026-11-14, k3):** (1) "when you switch to a C mode it still has the other film loaded, but then you
+  half press and it switches"; (2) after a power-off in a custom mode and a switch to P while off, P's film was wrong.
+  CADLOG (copy kept privately): after the power-on in P, FILM 6 (C1's) for 8 half-presses; at the end in P, FILM 1
+  (C2's); assigned C1 + C2, switched 3, picture modes set 0. Reading (analysis): (1) rc_pend waits for a GUI event,
+  and the camera's GUI got none until the half-press (om-emu's GUI gets events all the time); with the picture mode
+  unchanged nothing redrew either. (2) P's memory was only written when leaving P; the first look after the power-on
+  compared against a "last group" that may not have been saved, then leaving P kept a custom mode's looks as P's.
+
+### k4: switch at the dial turn; P's memory kept at every half-press (2026-11-14; emulator only, camera test pending)
+- `sx_set` 1440 calls rc_go itself (task 165, inside the camera's own mode-change step, as dm_turn switches films at
+  897; d2 / d3 keep the value and mode, MDR back from (68,sp) before sl_set0). rc_go is one at a time (rc_busy under
+  LOCK; a busy call leaves rc_pend for gx_map).
+- `cm_go`: the first look after the films are in enters the group now whatever came before (no "last group" test);
+  a change leaves P's looks + noted choice; entering puts the group's looks and choice back and writes the picture
+  mode through the manager when it differs **or a film switched** (the write is what makes the camera redraw).
+- `cm_hp` (from lg_pr, every shutter event with the films in, HLS_EVENT): while the mode's code and the last look say
+  P / A / S / M / B, their looks and choice go into the record when they changed (not before the first look, not while
+  rc_go runs).
+- CADLOG: "Custom modes, last switches": the last 8 cm_go runs {switched | 0x80 picture mode written, group | 0x80
+  first look, code, shutter events}.
+- **Emulator (k4, photo mode):** cm_go runs in task 165 during each dial turn (the first look in the GUI task after the
+  load); the looks are right before any half-press. P FILM 6 -> C1, FILM 1 -> C2, P FILM 7: C2 1, C1 6, A 7, C2 1, P 7.
+  Power-off in C1 -> on in P: FILM 7; a new pick in P (FILM 6) + half-press, power-off in C2 -> on in P: FILM 6. After
+  a long switching run, no new "*" in the film list. E1479999.BIN b940705a….
+- **Camera (owner, 2026-11-14, k4): "still isn't working right through power off and on"** (CADLOG, copy kept
+  privately): the first look after the power-on ran with **mode code 0** (the settings object's byte +24 not set yet on
+  the camera; om-emu had 1 there), so it took P's films onto whatever mode the dial was on; the dial turns after it
+  were right (A, S, a code 62 position (B or M), C1 FILM 6, C2 FILM 1), each at the turn (same shutter count).
+
+### k5: the dial's position when the code is 0; the Creative Dial memory only on its own turns (2026-11-14; emulator only)
+- `cm_gnow`: the group from the mode's code when it is 1..5 / 53..57, else from the mode dial's position (UI_IN index
+  0xa32d9d0c: 3..7 = C5..C1, others P / A / S / M / B). CADLOG's code shows 0xc0 | position when the position decided.
+  om-emu with the code forced to 0 at a power-on in C2 (`pokeb:6242c3e8=0`): k4 P's FILM 6, k5 C2's FILM 1.
+- om-emu then found a second power-off case: off in C1, on in P (FILM 7), C2 (FILM 1), **back in P: FILM 6** (C1's).
+  sx_set's 897 path put the Creative Dial position's remembered choice (dm_psid; dm_turn) back at every 897 write, which
+  is every half-press and mode-dial change too; after the power-on dm_rec had not recorded P's choice (dm_pos unknown
+  until the dial code's first 897), so at the P -> C2 change the 897 write put C1's FILM 6 on P a moment before cm_go
+  kept P's looks.
+- **k5:** the remembered choice comes back only when the Creative Dial's position really changed (dm_pos before !=
+  now); at the first 897 after a power-on (dm_pos unknown) as before, unless the custom-mode record keeps films (then
+  theirs decide). cm_go sets dm_pos from 897's family when it is unknown, so dm_rec records from the first look on.
+- **Emulator (k5, photo mode):** the full run (C2 1, P 7, C2 1, C1 6, A 7, C2 1, P 7, C1 6), off in C1; on in P: P 7,
+  C2 1, **P 7**, C1 6, P 7; on at C2 with the code forced to 0: C2 1, P 7, C2 1. No new "*". E1479999.BIN e27be900….
+- **Camera (owner, 2026-11-14, k5): "it is looking good and seems to work"** (camera-tested): each custom mode brings
+  back the films and picture mode it was assigned with, P / A / S / M theirs, at the dial turn and through power off /
+  on. Known gaps: "Save Settings: Keep" is treated as Reset; the Custom Mode menu's Recall item is not followed.
+
+### k6: Recall and "Save Settings: Hold" (2026-11-14; emulator only, camera test pending)
+- Owner: look at Recall first, then follow Hold (the menu's word; I had called it "Keep").
+- **Recall** (Shooting menu 1 > Custom Mode > Cn > Recall > "Apply C2 settings? Current camera settings will be
+  overwritten." Yes): the menu calls the facade's entry 20 (vtable word 0x60e574c4, stock 0x60b871f3, store op
+  0x60bb4b53) with d0 = the custom mode 0..4, d1 = 0 (om-emu trace of every facade entry during the OK). In om-emu the
+  camera's settings did not change after it (not after leaving the menu either), so what it copies on the camera is not
+  known; nothing went through the manager.
+- **Save Settings** per custom mode = settings **1880..1884 (C1..C5): 0 Reset, 1 Hold** (om-emu: the OK writes it
+  through the manager, GUI task). The menu's choice is a side-by-side Hold | Reset with "While shooting in custom mode,
+  changed settings are not saved" under Reset.
+- **Build k6:** the custom-mode code reorganised around cm_src (a group's kept looks and choice), cm_save (a group <-
+  P+LIDX and the noted choice cm_gpm, now noted for every group in sx_set's 901 path), cm_hold (P / A / S / M / B
+  always, Cn when 1880 + n is 1) and cm_load (k3..k5's switch). cm_go saves the group being left when it holds, then
+  loads the new one; cm_hp saves the group now at every shutter event when it holds (so a Hold mode keeps its films over
+  a power-off). `cm_rcl` (word 0x60e574c4, `cm_rstock` in editor.ld) calls the camera's Recall, then (films in) sets
+  cm_force = n + 1 and runs rc_go: that custom mode's looks and choice into the group now, kept there when it holds;
+  rc_pend re-checks the films at the next GUI event in case the camera applies its part later.
+- **Emulator (k6, photo mode):** k5's runs unchanged (Reset modes and the power-off cases). Hold: C2 assigned with FILM 1
+  and set to Hold, FILM 3 picked in C2 -> P FILM 7 -> C2 **FILM 3** -> P FILM 7; off in C2, on in C2: FILM 3, P 7, C2 3.
+  Recall: P FILM 7, Recall C2 (FILM 1): P FILM 1, C2 FILM 1, P FILM 1. No new "*". E1479999.BIN 42a2627a….
+- **Camera (owner, 2026-11-14, k6): "everything with custom modes work as intended"** (camera-tested: films and picture
+  mode per custom mode at the dial turn and through power off / on, Save Settings: Hold, Recall). CADLOG (copy kept
+  privately): the first look after the power-on again read code 0 and took the dial's position (0xc1 = A), then S, M, C1
+  (3 films switched + the picture mode written), all right.
+- **Released as v0.29.2** (owner, 2026-11-14: "I don't think this fix warrants a .30 release"): k6 renamed "v0.29.2
+  (camera-tested k6 custom modes)" (same length; byte diff: only the name, the code-block tag, the built-in GUIDES CRC).
+  `releases/v0.29.2`: patch.json (159 runs, 324,781 bytes), extras as v0.29.1. `patch.py` makes 00c64cbd….
