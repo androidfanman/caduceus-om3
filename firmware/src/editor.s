@@ -334,7 +334,7 @@ pr_gout:
  ret [d2,d3,a2,a3],36
 
 /* ed_trig (frame 36, (12,sp) = tid out): P valid + marker + dirty == 1 + the same context gate as pr_gate
- * -> dirty = 0, one ed_save, status byte = its result. */
+ * -> dirty = 0, one ub_save, status byte = its result. */
 ed_trig:
  PVAL t_out                       /* v0.21: no automatic capture into the selected looks (pf_wb gone): a look
                                      changes only when OK is held on the Looks page (lk_hold) */
@@ -901,144 +901,6 @@ sd_b2:
  bne sd_crc
  ret [d2,d3],12
 
-/* ---------------------------------------------------------------- editor save (HLS_EVENT, from ed_trig)
- * a2 = P (validated) -> d0 status: 1 saved, 2 no memory, 3 .NEW failed, 4 .BIN failed (.NEW is good).
- * S = malloc(1664): image S+0 (544 B, header CRC-32 recomputed), old .BIN S+OLD, read-back S+RBD.
- * Order (Caduceus): BUNDLES.NEW (read back) -> old BUNDLES.BIN copied to BUNDLES.BAK -> BUNDLES.BIN (read back). */
-ed_save:
- mov 1664,d0
- call malloc,[],4
- mov a0,a3
- mov 2,d0
- cmp 0,a3
- beq v_ret
- clr d2                           /* copy P[0..543] -> S */
-1:
- movbu (d2,a2),d0
- movbu d0,(d2,a3)
- inc d2
- cmp FILE_LEN,d2
- bne 1b
- mov a3,a0                        /* v0.26.2: the image's slots: a byte outside sd_check's ranges <- 0, so a refused BUNDLES.BIN is never written */
- add HDR_LEN,a0
- call sd_san,[d2,d3],12
- mov -1,d0                        /* header CRC-32 of S[0..15] + S[20..543] at S+16 */
- mov a3,a0
- mov 16,d1
- call sd_crc,[d2,d3],12
- mov a3,a0
- add 20,a0
- mov CRC_TAIL,d1
- call sd_crc,[d2,d3],12
- not d0
- mov d0,(16,a3)
- mov ed_p_new,a0                  /* 1. BUNDLES.NEW, verified by read-back */
- mov a3,a1
- call ed_wfile,[d2,d3,a2,a3],28
- mov d0,d3
- mov 3,d0
- cmp 0,d3
- bne v_free
- mov sd_path,a0                   /* 2. old BUNDLES.BIN -> BUNDLES.BAK (only a 544-byte file) */
- mov sd_mode,a1
- call fopen,[],4
- cmp 0,a0
- beq 3f
- mov a0,a2                        /* a2 = handle (P no longer needed) */
- mov a3,a0
- add OLD,a0
- mov 1,d0
- mov FILE_LEN,d1
- mov a2,a1
- call fread,[d2,d3,a2,a3],24
- mov d0,d3
- mov a2,a0
- call fclose,[d2,a2,a3],16
- cmp FILE_LEN,d3
- bne 3f
- mov ed_p_bak,a0
- mov a3,a1
- add OLD,a1
- call ed_wfile,[d2,d3,a2,a3],28   /* a .BAK failure does not stop the save */
-3:
- mov sd_path,a0                   /* 3. BUNDLES.BIN, verified by read-back */
- mov a3,a1
- call ed_wfile,[d2,d3,a2,a3],28
- mov d0,d3
- mov 4,d0
- cmp 0,d3
- bne v_free
- mov 1,d0
-v_free:
- mov d0,d2
- mov a3,a0
- call free,[],4
- mov d2,d0
-v_ret:
- ret [d2,d3,a2,a3],24
-
-/* ed_wfile: a0 path, a1 buf (FILE_LEN bytes), a3 = S -> d0 0 ok / 1 fail. Read-back into S+RBD.
- * Locals: (4,sp) buf, (8,sp) handle. */
-ed_wfile:
- mov a0,a2
- mov a1,(4,sp)
- mov ed_m_w,a1
- call fopen,[],4
- cmp 0,a0
- beq w_fail
- mov a0,(8,sp)
- mov a0,a1                        /* fwrite(buf, 1, n, h) */
- mov FILE_LEN,d1
- mov 1,d0
- mov (4,sp),a0
- call fwrite,[d2,d3,a2,a3],24
- mov d0,d3
- mov (8,sp),a0
- call fclose,[d2,a2,a3],16
- cmp FILE_LEN,d3
- bne w_fail
- mov a2,a0                        /* read back */
- mov sd_mode,a1
- call fopen,[],4
- cmp 0,a0
- beq w_fail
- mov a0,(8,sp)
- mov a0,a1
- mov a3,a0
- add RBD,a0
- mov 1,d0
- mov FILE_LEN,d1
- call fread,[d2,d3,a2,a3],24
- mov d0,d3
- mov (8,sp),a0
- call fclose,[d2,a2,a3],16
- cmp FILE_LEN,d3
- bne w_fail
- mov (4,sp),a0
- mov a3,a1
- add RBD,a1
- mov FILE_LEN,d2
-5:
- movbu (a0),d0
- movbu (a1),d1
- cmp d0,d1
- bne w_fail
- inc a0
- inc a1
- add -1,d2
- bne 5b
- clr d0
- ret [d2,d3,a2,a3],28
-w_fail:
- mov 1,d0
- ret [d2,d3,a2,a3],28
-
-ed_p_new:
- .asciz "C:\\OM3MOD\\BUNDLES.NEW"
-ed_p_bak:
- .asciz "C:\\OM3MOD\\BUNDLES.BAK"
-ed_m_w:
- .asciz "w"
 sd_path:
  .asciz "C:\\OM3MOD\\BUNDLES.BIN"
 sd_mode:
@@ -2102,83 +1964,7 @@ pf_capto:                         /* v0.21: the same into a3 (code block xb_lkd:
  bne 2b
  ret [d2,d3,a2,a3],28
 
-/* pf_load: `call pf_load,[d2,d3,a2,a3],28` from sd_load after gd_load, a2 = P. Locals (4) handle, (8) buffer.
- * LOOKS.BIN (PF_LEN B; v0.19, before: PROFILES.BIN, read when there is no LOOKS.BIN) checked -> bank; no file -> a neutral bank (saved on the first half-press save);
- * a file that fails the check -> no bank (the file is left alone). P+LIDX+k = the saved selection. Stores: P+LPTR,
- * P+LIDX, the heap buffer, own frame. */
 .section .ext8,"ax"
-pf_load:
- clr d0
- mov d0,(TTAB,a2)                 /* v0.24: no film cell pictures until fl_mk publishes them */
- mov d0,(TORG,a2)
- mov d0,(STC,a2)
- mov d0,(SATB,a2)
- mov d0,(LVB,a2)
- mov PF_LEN + FL_SB,d0            /* v0.24: the file, then the film-name strings (fl_str) */
- call malloc,[],4
- cmp 0,a0
- beq 9f
- mov a0,(8,sp)
- call pf_open,[],4                /* LOOKS.BIN, else PROFILES.BIN (v0.19) */
- cmp 0,a0
- beq 5f                           /* no file: neutral bank */
- mov a0,(4,sp)
- mov (8,sp),a0
- mov 1,d0
- mov PF_LEN,d1
- mov (4,sp),a1
- call fread,[d2,d3,a2,a3],24
- mov d0,d2
- mov (4,sp),a0
- call fclose,[d2,a2,a3],16
- cmp PF_LEN,d2
- bne 7f
- mov (8,sp),a0
- mov PF_LEN,d3
- call pf_check,[d2,d3,a2,a3],20
- cmp 0,d0
- bne 7f
- mov (8,sp),a0
- clr d2
-1:
- mov a0,a1
- add d2,a1
- movbu (16,a1),d0                 /* saved selection */
- mov a2,a1
- add d2,a1
- movbu d0,(LIDX,a1)
- inc d2
- cmp 4,d2
- bne 1b
- bra 6f
-5:
- mov (8,sp),a0
- mov PF_LEN,d1
- clr d0
-2:
- movbu d0,(a0)
- inc a0
- add -1,d1
- bne 2b
- mov (8,sp),a0
- mov PFMAGIC,d0
- mov d0,(a0)
- mov PF_LEN,d0
- mov d0,(4,a0)
- mov 1,d0
- movhu d0,(12,a0)
- mov 20,d0
- movhu d0,(14,a0)
-6:
- mov (8,sp),d0
- mov d0,(LPTR,a2)                 /* published last */
- call fl_mk2,[d2,d3,a2,a3],80     /* v0.24: the film list's cell pictures (v0.26: TONES.BIN first) */
- bra 9f
-7:
- mov (8,sp),a0
- call free,[],4
-9:
- ret [d2,d3,a2,a3],28
 
 /* pf_check: `call pf_check,[d2,d3,a2,a3],20`, a0 = buffer, d3 = size -> d0 0 ok / 1 bad. Reads only.
  * PROFILES.BIN v1: 'OM3P' | u32 1632 | crc32(12..) | u16 1 | u16 20 | sel[4] 0..5 | 12 zero | 20 x 64-B records
@@ -2384,120 +2170,8 @@ lk_hold:
  jmp e_rst
 
 
-.section .ext9,"ax"
-/* pf_save: `call pf_save,[d2,d3,a2,a3],24` from ed_trig after ed_save, a2 = P: selection bytes, CRC, then
- * LOOKS.NEW and LOOKS.BIN (v0.19; PROFILES.* before), each read back. Locals (0) scratch, (4) read-back buffer. */
-pf_save:
- mov (LPTR,a2),a3
- cmp 0,a3
- beq 9f
- clr d2
-1:
- mov a2,a0
- add d2,a0
- movbu (LIDX,a0),d0
- extb d0
- cmp 1,d0
- blt 2f
- cmp 5,d0
- ble 3f
-2:
- clr d0
-3:
- mov a3,a0
- add d2,a0
- movbu d0,(16,a0)
- inc d2
- cmp 4,d2
- bne 1b
- mov -1,d0
- mov a3,a0
- add 12,a0
- mov PF_LEN-12,d1
- call sd_crc,[d2,d3],12
- not d0
- mov d0,(8,a3)
- mov PF_LEN,d0
- call malloc,[],4
- cmp 0,a0
- beq 9f
- mov a0,(4,sp)
- mov a0,d2
- mov pf_pnew,a0
- call pf_w,[d2,d3,a2,a3],28
- cmp 0,d0
- bne 8f
- mov (4,sp),d2
- mov pf_pbin,a0
- call pf_w,[d2,d3,a2,a3],28
-8:
- mov (4,sp),a0
- call free,[],4
-9:
- mov (XPTR,a2),a1                 /* v0.21: code block +72 after each half-press save (HLS_EVENT task) */
- cmp 0,a1
- beq 7f
- add 72,a1
- calls (a1)
-7:
- ret [d2,d3,a2,a3],24
-
 .section .ext6,"ax"
-/* pf_w: `call pf_w,[d2,d3,a2,a3],28`, a0 path, a3 bank (PF_LEN B), d2 read-back buffer -> d0 0 ok / 1 fail.
- * Locals (4) handle, (8) path. */
-pf_w:
- mov a0,(8,sp)
- mov ed_m_w,a1
- call fopen,[],4
- cmp 0,a0
- beq 9f
- mov a0,(4,sp)
- mov a0,a1
- mov PF_LEN,d1
- mov 1,d0
- mov a3,a0
- call fwrite,[d2,d3,a2,a3],24
- mov d0,d3
- mov (4,sp),a0
- call fclose,[d2,a2,a3],16
- cmp PF_LEN,d3
- bne 9f
- mov (8,sp),a0
- mov sd_mode,a1
- call fopen,[],4
- cmp 0,a0
- beq 9f
- mov a0,(4,sp)
- mov a0,a1
- mov d2,a0
- mov 1,d0
- mov PF_LEN,d1
- call fread,[d2,d3,a2,a3],24
- mov d0,d3
- mov (4,sp),a0
- call fclose,[d2,a2,a3],16
- cmp PF_LEN,d3
- bne 9f
- mov a3,a0
- mov d2,a1
- mov PF_LEN,d3
-5:
- movbu (a0),d0
- movbu (a1),d1
- cmp d0,d1
- bne 9f
- inc a0
- inc a1
- add -1,d3
- bne 5b
- clr d0
- ret [d2,d3,a2,a3],28
-9:
- mov 1,d0
- ret [d2,d3,a2,a3],28
-
- .section .ext5,"ax"
- .balign 2
+.balign 4
 pf_ids:                           /* u16 id for COLOR1, u8 step per COLOR, u8 record offset */
  .irp s,0,1,2,3,4,5,6,7,8,9,10,11
  .hword 928+\s
@@ -2526,8 +2200,6 @@ pf_lo:                            /* record byte i: lo; span = -2 lo for lo < 0,
                                      (test 18: the span half of this table is computed, to make room) */
  .byte -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5, -5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5,-5
  .byte 0, -7,-7,-7,-7, -2,-2,-5, -7,-7,-7, -5,-5,-5, -1, -5, -5, -12,-5,-12,-5, -5,-5,-5,-5,-5,-5,0   /* v0.26 +53..+56 split toning; v0.26.1 +37 / +38 WB -7..7; v0.28 +57 halation, +58 balance, +59..+62 film WB */
-pf_pnew:
- .asciz "C:\\OM3MOD\\LOOKS.NEW"
 pf_pbin:
  .asciz "C:\\OM3MOD\\LOOKS.BIN"
 
@@ -6318,7 +5990,7 @@ fl_lbl:
 /* ------------------------------------------------------------------ v0.24 film cells (film test 2)
  * The list cell of film j is "FILM" over its number among the films there (1 = the first after COLOR 4), in the stock
  * "COLOR / 1" cell's size and style (firmware/mkicons.py, our own font). fl_mk draws the 20 pictures once, when the
- * films load (pf_load, HLS task): each row from fl_top (the "FILM" line, rows 0..39) or from the digit pictures fl_dig
+ * films load (ub_pfl, HLS task): each row from fl_top (the "FILM" line, rows 0..39) or from the digit pictures fl_dig
  * (rows 40..75; one digit centred at x 40, two at x 31 and 49), then runs of up to 16 pixels (not past the row's end)
  * as OSD type-11 tokens, five to a 64-bit word. Heap: up to 3 blocks of FL_BLK; block 0 starts with 20 slot words
  * and 20 descriptors <6H3I>. P+TTAB = the slot words (0 = none). ic_get answers IC_FM0 + j through fl_ic. */
@@ -6598,7 +6270,7 @@ fl_desc:
  mov d0,(20,a1)
  ret [],0
 
-/* fl_mk: `call fl_mk,[d2,d3,a2,a3],80` from pf_load, a2 = P: the 20 list cells (fl_rc, layout fl_L0) into heap blocks
+/* fl_mk: `call fl_mk,[d2,d3,a2,a3],80` from fl_mk2, a2 = P: the 20 list cells (fl_rc, layout fl_L0) into heap blocks
  * of FL_BLK (block 0 starts with 20 slot words and 20 descriptors), P+TTAB; the cell cache (fl_cget) block, P+STC; the
  * quick menu block with the EDITS.BIN image, P+TORG. Frame: (0) call slot, (4) block cursor, (8) block end, (12)
  * blocks, (16) n, (20) block 0, (52) P, (56) / (60) / (64) EDITS.BIN load. Stores: the heap blocks, P+TTAB / STC /
@@ -7121,44 +6793,6 @@ fl_sw:
  mov (8,sp),a1
  jmp pf_put
 
-/* fl_save: `call fl_save,[d2,d3,a2,a3],24` in place of pf_save's call (ed_trig, a2 = P): EDITS.BIN when changed
- * (header, CRC, written whole), then pf_save. Locals (4) the handle. */
-fl_save:
- mov (TORG,a2),a3
- cmp 0,a3
- beq 9f
- add TWO,a3
- movbu (TW_LEN,a3),d0
- cmp 0,d0
- beq 9f
- clr d0
- movbu d0,(TW_LEN,a3)
- mov TWMAGIC,d0
- mov d0,(a3)
- mov TW_LEN,d0
- mov d0,(4,a3)
- mov -1,d0
- mov a3,a0
- add 12,a0
- mov TW_LEN - 12,d1
- call sd_crc,[d2,d3],12
- not d0
- mov d0,(8,a3)
- mov tw_path,a0
- mov ed_m_w,a1
- call fopen,[],4
- cmp 0,a0
- beq 9f
- mov a0,(4,sp)
- mov a0,a1
- mov TW_LEN,d1
- mov 1,d0
- mov a3,a0
- call fwrite,[d2,d3,a2,a3],24
- mov (4,sp),a0
- call fclose,[d2,a2,a3],16
-9:
- jmp pf_save
 tw_path:
  .asciz "C:\\OM3MOD\\EDITS.BIN"
  .balign 2
@@ -8894,7 +8528,7 @@ tg_ptr:                           /* TONES.BIN heap copy (checked), 0 = none */
 tg_path:
  .asciz "C:\\OM3MOD\\TONES.BIN"
 .balign 2
-/* fl_mk2: pf_load's `call fl_mk2,[d2,d3,a2,a3],80` (a2 = P): TONES.BIN, then fl_mk in the same frame. */
+/* fl_mk2: ub_pfl's `call fl_mk2,[d2,d3,a2,a3],80` (a2 = P): TONES.BIN, then fl_mk in the same frame. */
 fl_mk2:
  call tg_load,[d2,d3,a2,a3],28
  jmp fl_mk
@@ -13227,8 +12861,8 @@ ub_bun:                           /* `call ub_bun,[d2,d3,a2,a3],20` from sd_load
 9:
  ret [d2,d3,a2,a3],20
 
-ub_pfl:                           /* `call ub_pfl,[d2,d3,a2,a3],28` from sd_load in place of pf_load, a2 = P.
-                                   * Locals (4) handle, (8) buffer. As pf_load, with the block (above). */
+ub_pfl:                           /* `call ub_pfl,[d2,d3,a2,a3],28` from sd_load, a2 = P.
+                                   * Locals (4) handle, (8) buffer. With the block (above). */
  clr d0
  mov d0,(TTAB,a2)
  mov d0,(TORG,a2)
@@ -13314,7 +12948,7 @@ ub_pfl:                           /* `call ub_pfl,[d2,d3,a2,a3],28` from sd_load
  bra 40f
 31:
  cmp 2,d0
- beq 98f                          /* a file that fails the check and no block: no bank (as pf_load) */
+ beq 98f                          /* a file that fails the check and no block: no bank */
  mov (8,sp),a0                    /* no file and no block: a neutral bank (not written into the block) */
  mov UB_PFL,d1
  call ub_zero,[],0
@@ -13373,7 +13007,7 @@ ub_put:                           /* `call ub_put,[d2,d3,a2,a3],20`, a2 = P: fil
  clr d0
  ret [d2,d3,a2,a3],20
 1:
- clr d2                           /* LOOKS: the selection bytes and the CRC, as pf_save */
+ clr d2                           /* LOOKS: the selection bytes and the CRC */
 2:
  mov a2,a0
  add d2,a0
@@ -13403,7 +13037,7 @@ ub_put:                           /* `call ub_put,[d2,d3,a2,a3],20`, a2 = P: fil
  mov a3,a1
  mov UB_PFL,d1
  call ub_cpy,[],0
- mov (TORG,a2),a3                 /* EDITS: header and CRC, as fl_save */
+ mov (TORG,a2),a3                 /* EDITS: header and CRC */
  cmp 0,a3
  beq 6f
  add TWO,a3
@@ -13437,7 +13071,7 @@ ub_put:                           /* `call ub_put,[d2,d3,a2,a3],20`, a2 = P: fil
 7:
  call ub_zero,[],0
 8:
- mov ub_stg + UB_BN,a0            /* Extras: P[0..543], slots in range, header CRC, as ed_save */
+ mov ub_stg + UB_BN,a0            /* Extras: P[0..543], slots in range, header CRC */
  mov a2,a1
  mov UB_FL,d1
  call ub_cpy,[],0
@@ -13540,10 +13174,10 @@ ub_put:                           /* `call ub_put,[d2,d3,a2,a3],20`, a2 = P: fil
  clr d0
  ret [d2,d3,a2,a3],20
 
-ub_save:                          /* `call ub_save,[d2,d3,a2,a3],24` from ed_trig in place of ed_save + fl_save (owner,
+ub_save:                          /* `call ub_save,[d2,d3,a2,a3],24` from ed_trig (owner,
                                    * 2026-11-13: no card copies), a2 = P -> d0 status 1 */
  call ub_put,[d2,d3,a2,a3],20
- mov (XPTR,a2),a1                 /* code block +72 after each half-press save, as pf_save */
+ mov (XPTR,a2),a1                 /* code block +72 after each half-press save */
  cmp 0,a1
  beq 7f
  add 72,a1
