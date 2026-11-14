@@ -2170,8 +2170,8 @@ lk_hold:
  jmp e_rst
 
 
-.section .ext6,"ax"
-.balign 4
+ .section .ext5,"ax"
+ .balign 2
 pf_ids:                           /* u16 id for COLOR1, u8 step per COLOR, u8 record offset */
  .irp s,0,1,2,3,4,5,6,7,8,9,10,11
  .hword 928+\s
