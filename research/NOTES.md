@@ -4220,3 +4220,16 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
   arrow press on the stock path. HDR, High Res and Live ND are the likely wins. Magnify and Multi Function may still
   fail, because inside them the arrows move the frame or select. The other arrow functions already work, so the route
   is no faster or simpler for them. Try it on its own branch, after #37.
+
+### Delete button (#37, PR #40 by crombach) on top of v0.29.2, and v0.29.3 (2026-11-14; camera-tested)
+- PR #40 merged into a local branch at v0.29.2: the firmware merged without conflicts; builds (ext12 230240 of 262144 B);
+  its hook 0x610ba015 and the key / full-button table copies are apart from the custom-mode hooks; its sids 570 / 1276
+  are free (the Creative Dial memory uses 1275 / 1277 / 1284 / 1958). om-emu: the custom modes as in v0.29.2; the
+  Delete row (the camera's trash picture) in Button Function after ▼, its picker opens. Test build d1 (VERSION
+  "v0.29.3-dev (Delete button, d1)"): E1479999.BIN 7cab0a88….
+- **Camera (owner, 2026-11-14, d1): "it all works"**: Delete takes a function in shooting, playback erase and text entry
+  as stock, custom modes as v0.29.2.
+- The contributor then rebased the PR onto v0.29.2 (head e406258): its firmware equals d1's but for VERSION.
+  **Released as v0.29.3** (owner): the PR's commits as they are, then the release commit; VERSION "v0.29.3 (Delete
+  button, tested)" (same length as d1's; byte diff: only the name, the code-block tag, the built-in GUIDES CRC).
+  `releases/v0.29.3`: patch.json (175 runs, 327,667 bytes), extras as v0.29.2. `patch.py` makes 1eeb8976….

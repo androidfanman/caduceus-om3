@@ -94,6 +94,8 @@ Both are in the camera's **Button Function** menu, with the other buttons.
 
 - **Arrow keys:** set the arrow pad (✥) to **Direct Function**. Then ▲ ◀ ▶ ▼ each have their own row: pick any function
   for each.
+- **Delete button** (v0.29.3): its row (the trash can, after ▼) takes any function Fn can, in photo and video mode.
+  Playback still erases with it; Off keeps it as before.
 - **Creative Dial:** the rows **CRT, ART, COLOR and MONO** are the four positions of the front dial. Set each to
   **Normal** (its usual mode), **CRT**, **ART**, **COLOR** or **MONO**.
 - **A film per position:** every position set to COLOR remembers the COLOR 1–4 or FILM 1–20 you pick while the dial is

@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  Latest: <b>v0.29.2</b> (2026-11-14)
+  Latest: <b>v0.29.3</b> (2026-11-14)
 </p>
 
 ## What it does

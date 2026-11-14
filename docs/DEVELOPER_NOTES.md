@@ -394,6 +394,16 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.29.3 release (PR #40 by crombach, merged; build d1, camera-tested 2026-11-14)
+
+v0.29.2 plus the remappable Delete button (#37): keycode 14 -> sids 570 (stills) / 1276 (movie), another body's button
+settings; the key table and the full-button list move to copies one entry longer (dl_keys / dl_full, ext12); live view's
+Delete press goes to dl_lv / dl_fn; hook 0x610ba015 (dl_look, the state block walk's end); the Button Function rows reuse
+descriptors 1967 / 1285 with the camera's own trash picture. Details: `research/NOTES.md` ("Delete button remap (#37)").
+- `firmware/VERSION` "v0.29.3 (Delete button, tested)", the same length as d1's: main.bin differs only in that string,
+  the code-block tag and the built-in GUIDES copy's CRC / tag (checked). E1479999.BIN 1eeb8976…; `patch.py` makes it by
+  default; `--release v0.29.2` still makes 00c64cbd….
+
 ## v0.29.2 release (fix/custom-modes-films; build k6, camera-tested 2026-11-14)
 
 v0.29.1 plus #41 (custom modes). The camera swaps COLOR 1..4's 18 film settings per shooting mode past the manager;

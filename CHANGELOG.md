@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.29.3](#v0293) | 2026-11-14 | The Delete button takes a function while shooting (photo and video) |
 | [v0.29.2](#v0292) | 2026-11-14 | Fix: custom modes (C1–C5) keep their own films and no longer change yours |
 | [v0.29.1](#v0291) | 2026-11-13 | Fix: the films load with no card in the camera |
 | [v0.29](#v029) | 2026-11-13 | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware; a card brings in only films the camera never had; the colour-matched standard 20 |
@@ -33,6 +34,15 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.29.3
+v0.29.2 plus one feature. Firmware camera-tested (2026-11-14, build d1; only its name was changed).
+
+- **Remappable Delete button** ([#37](https://github.com/androidfanman/caduceus-om3/issues/37),
+  [#40](https://github.com/androidfanman/caduceus-om3/pull/40), by [crombach](https://github.com/crombach)): in photo
+  and video mode, Button Function has a Delete row (the trash can, after ▼) with the same choices as Fn. Playback erase
+  and text entry are unchanged; set to Off, Delete works as before (for example Multiple Exposure's frame delete).
+  Details: [release notes](releases/v0.29.3/NOTES.md).
 
 ## v0.29.2
 v0.29.1 with one fix. Firmware camera-tested (2026-11-14, build k6; only its name was changed).

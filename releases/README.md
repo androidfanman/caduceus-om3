@@ -5,6 +5,7 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.29.3](v0.29.3/NOTES.md) | v0.29.2 plus a remappable Delete button: in photo and video mode Delete takes any Fn function (by crombach) | Camera-tested |
 | [v0.29.2](v0.29.2/NOTES.md) | v0.29.1 with one fix: custom modes (C1–C5) no longer change your films, and each brings back the films it was assigned with (Save Settings: Hold and Recall too) | Camera-tested |
 | [v0.29.1](v0.29.1/NOTES.md) | v0.29 with one fix: the films load with no card in the camera (from the camera's own memory) | Camera-tested |
 | [v0.29](v0.29/NOTES.md) | Films, edits and Extras kept in the camera's own memory, so any card works; GUIDES / LABELS / TONES built into the firmware (no card files); a card brings in only films the camera never had; no copies on the card; the colour-matched standard 20 (optional `LOOKS.BIN`) | Camera-tested |
