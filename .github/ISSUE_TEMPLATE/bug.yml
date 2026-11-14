@@ -1,6 +1,5 @@
 name: Report a problem
 description: Something isn't working on the camera or in LookLab.
-labels: [bug]
 body:
   - type: markdown
     attributes:

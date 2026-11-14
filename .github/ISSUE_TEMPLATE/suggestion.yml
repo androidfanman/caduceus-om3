@@ -1,6 +1,5 @@
 name: Suggest a feature
 description: An idea for the firmware, the films or LookLab.
-labels: [suggestion]
 body:
   - type: markdown
     attributes:

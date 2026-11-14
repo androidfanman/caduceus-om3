@@ -394,6 +394,21 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.29.2 release (fix/custom-modes-films; build k6, camera-tested 2026-11-14)
+
+v0.29.1 plus #41 (custom modes). The camera swaps COLOR 1..4's 18 film settings per shooting mode past the manager;
+sx_set runs rc_go at the manager's write of setting 1440 (the end of every mode-dial change, task 165): `cm_go` keeps the
+films (P+LIDX) and choice (the 901 value) per group (P / A / S / M / B, C1..C5) in a record at M+0x3B000 ('OM3C' v2),
+switches with fl_sw's no-capture flag and re-sets the picture mode through the manager; then `rc_put` writes each
+film's 18 settings that differ. Assign / Recall: the facade's entries 18 / 20 (vtable words 0x60e574bc / 0x60e574c4 ->
+cm_asg / cm_rcl). Save Settings Hold / Reset: settings 1880..1884. The group: the settings object's mode code (+24),
+or the mode dial's position (0xa32d9d0c) when the code is still 0 after a power-on. The Creative Dial memory (dm_turn)
+acts only when its position changes. Details: `research/NOTES.md` ("Custom modes and films" .. "k6").
+- `firmware/VERSION` "v0.29.2 (camera-tested k6 custom modes)", the same length as k6's name: main.bin differs only in
+  that string, the code-block tag and the built-in GUIDES copy's CRC / tag (checked). E1479999.BIN 00c64cbd…; `patch.py`
+  makes it by default; `--release v0.29.1` still makes 8bb07ccc….
+- Extras (LOOKS.BIN, DEBUG.TXT, photo code kit) copied from v0.29.1 unchanged. LookLab unchanged.
+
 ## v0.29.1 release (fix/films-no-card; build n1, camera-tested 2026-11-13)
 
 v0.29 plus one fix (#38): `pr_gate`'s last medium test `bne pr_gout` became `beq pr_go; jmp pr_nmd`; `pr_nmd` (end of

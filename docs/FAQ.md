@@ -91,6 +91,13 @@ keep a `LOOKS.BIN` of your films to bring them back.
 
 Your films were in `PROFILES.BIN`: rename it to `LOOKS.BIN`.
 
+### Do custom modes (C1–C5) keep my films?
+
+Yes, from v0.29.2. When you Assign a custom mode (Shooting menu 1 › Custom Mode › Cn › Assign › Set), the films you're
+using then are kept with it, and turning to it brings them back; P / A / S / M keep their own. A custom mode set to Save
+Settings: Hold keeps the films you pick in it, one set to Reset goes back to its assigned films. Assign your custom modes
+once after updating to v0.29.2.
+
 ### Do I still need to half-press after switching on?
 
 Yes, once. From v0.27.1 your films load at the first half-press after switching on. v0.26.2 and v0.27 loaded them by
