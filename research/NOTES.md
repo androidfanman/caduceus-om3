@@ -3807,3 +3807,14 @@ The camera chart shoot decides. Portra 400's grey tint: preview says slightly wa
 - **Released as v0.29.1** (owner, 2026-11-13): n1 renamed "v0.29.1 (tested on camera, n1)" (same length; byte diff: only the
   name, the code-block tag, the built-in GUIDES CRC / tag). `releases/v0.29.1`: patch.json (158 runs, 321,631 bytes),
   extras as v0.29. `patch.py` (no --release) makes v0.29.1 = E1479999.BIN 8bb07ccc…; `--release v0.29` still cd99362c….
+
+## Films at switch-on: tried and dropped (#38, second half) (2026-11-13; owner's decision)
+- Owner asked to try the films loading at switch-on again (no half-press), now that v0.29 keeps them in the camera's
+  memory. Branch `feature/films-at-switch-on` (kept for the record; its NOTES section "Films at switch-on" has the
+  details): the films load from M in the GUI task at its first events (gx_map), with no card access.
+- **Camera (owner, b1): no freeze, but lag at switch-on "sometimes".** Its log: the films loaded at the GUI's first
+  event, before the shooting screen. om-emu then showed the likely cause: with the films in that early, the camera's own
+  start-up SetValue(897) (Creative Dial family) ran our dial mapping (dm_turn), v0.27's power-on mapping that had lagged
+  and hung before. b2 held the mapping until the first half-press (emulator only, never on the camera).
+- **Dropped (owner, 2026-11-13):** the lag already showed, and the owner wants the camera's start-up left alone: rule in
+  CLAUDE.md. The films keep loading at the first half-press (v0.29.1).

@@ -60,6 +60,9 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 - **Images in LookLab:** send any new or changed image to the owner for approval before publishing.
 - **Film sims are our own designs:** no copied looks, LUTs or presets; no grain, Glow / Clarity or Art Effects in
   film sims (the user adds those).
+- **Leave the camera's start-up alone (owner, 2026-11-13):** no loading, setting changes or other work of ours while
+  the camera starts; things load at the first half-press. Three tries (v0.26.2's automatic load, v0.27's dial mapping at
+  power-on, the 2026-11-13 films at switch-on) lagged or froze the camera at start-up. Notes: `research/NOTES.md`.
 - **Do not touch** cakelesscoder's repositories (Caduceus for the E-P7); credit them where their work is used.
 
 ## Firmware safety
