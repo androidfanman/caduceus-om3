@@ -4137,10 +4137,7 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
   key 1's trash title. `sl_get` sends 1276 to `dl_get` as well. In om-emu the row shows after ▼ with "Off", the
   picker lists the movie Fn functions, and C1 stores 3457 in 1276. om-emu has no photo / video switch, so the movie
   menu opens from Button Settings (`menu left left left left left ok down ok`) and a press in video is not tested.
-- **Not proven:** om-emu reads the movie sid for stills keys, so the stills press path needs the camera.
-- **Camera test needed:** each Fn function on Delete in P, A, S, M and in video. Magnify, Multi Function, HDR,
-  High Res and Live ND fail on the arrows and may fail on Delete. Remove any that fail from the list. Delete must
-  still delete in playback.
+- **Camera:** the rows are camera-tested from d1, the press path from d5 (step 3).
 
 ## Delete button remap (#37), step 3: the press in live view
 - 2026-11-13. Camera result for d1, then static analysis and emulator for d2. d2 has no camera test.
@@ -4210,9 +4207,11 @@ profiles are not included. Not affiliated with or endorsed by spektrafilm; its n
 - **Display off (static, then camera, 2026-11-14):** stock `0x610b8397` first returns if `0x610894f0()` is 1, which
   it is when `getDisplayDeviceState` (`0x61087e84`) reads DISPLAY_OFF. The same guard blocks Menu. `dl_lv` skips it,
   as AF-ON's `0x610a2407` does. Camera: Delete runs its function with the screen folded shut and with the EVF on.
-- **Fallback states (static, 2026-11-14):** the lookup checks the state's block, then the global block `0x61339080`,
-  which has no Delete or AF-ON entry. Of the 69 states `dl_look` sends to AF-ON's entries, every handler dispatches
-  through `0x61083022` with Delete's setting, or only consumes the press (`0x610b74f4`) as it does for AF-ON.
+- **Fallback states (static + emulator, 2026-11-14):** the global block `0x61339080` has no Delete or AF-ON entry.
+  In om-emu 0x5100 has no parent block. Of the 69 states `dl_look` sends to AF-ON's entries, every handler dispatches
+  through `0x61083022` with Delete's setting, or only consumes the press (`0x610b74f4`) as it does for AF-ON. Not
+  proven: a sub-state of 0x5100 with an AF-ON entry would skip `dl_lv`, so a Multiple Exposure frame delete there
+  would not run.
 - **Arrows next (analysis, 2026-11-13):** d5's route may fix the five functions that fail on the arrows (Magnify,
   Multi Function, HDR, High Res, Live ND, `research/BUTTONS.md` "Up key, camera test 2"). On Delete, High Res and
   Magnify failed until Delete got a full-button list entry and AF-ON's press and release entries, and now they work.
