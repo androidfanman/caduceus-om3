@@ -5701,3 +5701,81 @@ rgb-page-counts-every-click, halation-matches-the-model). Package `test-builds/2
   tag (twice) and the built-in GUIDES CRC (53 bytes). E1479999.BIN 60b6d954…f546; `patch.py --release v0.30.3` makes it
   byte for byte, `--release v0.30.2` still 7fbd3957…. Extras as v0.30.2. LookLab rebuilt (h8's preview). PR #69 lands
   on main with this merge (its head 7b0cc80 is in the history).
+
+## Video: H.265 with the standard picture modes, and bitrates (2026-11-15; camera-tested by buburun)
+
+Branch `feature/video-h265-bitrate` (on main v0.29.4). Tools: `research/video/drive.mjs` (session_ed1 plus
+`get:` / `set:` through sget and the settings manager, `eget:` / `eset:` / `keys:` through om-emu's own API,
+`dial:`, `dialnames`, `trace:`), `research/video/rules.py` (setting rules near given ids).
+
+- **Camera (buburun, stock 1.1 behaviour):** with Video Codec H.265 (set in the menu), the Picture Mode list in the
+  Super Control Panel greys out everything but OM-Log and HLG.
+- **Settings:** 2131 MODE_MOVIE_CODEC (0 H.264, 1 H.265); 1361 MODE_EXPANDED_CONTRAST (0 = the picture modes,
+  251..255 the OM-Log / HLG choices; 254 is what H.265 forces); 1636 MODE_EXPANDED_CONTRAST_MODE (254 here); 44
+  MODE_MOVIE. Names from the settings name table (decoded block 02, 52-byte names from 0x28803f0, id = index).
+- **Setting rules (constraint groups):** header {u32 0, u16 target, u16 0x0c80, u32 records, u32 count}; record
+  (16 B) {u32 conditions, u32 count, u32 value table, u16 table length, u16 trigger id}; condition {u16 id, s16
+  value, u32 0}; table {s16 from, s16 to} applied to the target's value. Group 0x605da0ac targets 1361 with 7
+  records; record 0x605d24c8 "if 2131 == 1" has table 0x605d2450 (its only user): 0, 251..254 -> 254, 255 -> 255.
+  That is the lock. The H.264 record (0x605d24c0, table 0x605d2438) maps 255 (HLG) -> 254. The only group
+  targeting 2131 (0x605da7d4) is "if 3010 == 5 -> 0".
+- **om-emu:** stock: set 2131 = 1 -> 1361 goes 0 -> 254, and OK on the Picture Mode cell of the Super Control Panel
+  does not open the list. With table 0x605d2450 the identity (build.py): 1361 stays 0 and the list opens.
+- **Bitrates (analysis):** the recording bitrate is picked at 0x6053c2b6.. from tables of bps by size row and frame
+  rate: H.264 0x606df544 (rows of 40 B: 4K 200/100, FHD 200 (All-I) / 50 / 25, 8, 3; 0x606df5e4: 54 / 27 / 21 for
+  slow / quick motion 240 / 200 / 120 / 100 fps), H.265 0x606df60c (4K 150/75, FHD 160/40 and 80/20, 6, 3;
+  0x606df6ac 45 / 24). The menu's Mbps labels come from separate tables (GUI getBitrate 0x611d0055, tables
+  0x6154b03c / 0x6154b170 / 0x6154b25c / 0x6154b2bc, strings). The encoder itself (AV back end) is not in om-emu.
+- **Open (camera):** does H.265 with a standard picture mode record, and in which bit depth and colours.
+- **Camera (buburun, 2026-11-15, test build 51df15aa…: v0.29.3 + #46 + CWB fix + the table):** H.265 with a standard
+  picture mode records. PB150801 4K 59.94p, PB150802 4K 29.97p, PB150803 FHD 29.97p (11-13 s each): all HEVC Main 10,
+  yuv420p10le (10-bit 4:2:0), video ~130 / 74 / 20 Mbps (the stock H.265 rates), full range (Y 0..1023 used; tagged
+  pc), tagged BT.2020 primaries / bt2020-10 transfer / bt2020nc matrix. The picture has a normal picture mode's
+  contrast (not Log). Read as Rec.709 it looks natural; converted from BT.2020 to Rec.709 it is visibly
+  oversaturated, so the pixels are probably Rec.709 under a BT.2020 tag (analysis: no reference shot of the scene).
+  Players that honour the tag (Apple) would show it oversaturated. Fix options: the encoder's VUI / the MOV colr
+  atom per picture mode (not found yet), or a lossless re-tag on a computer (ffmpeg hevc_metadata).
+- buburun: the clips were Natural with Saturation +1, and all three "play very well" (players not named); PB150801
+  (4K 60p) looked best in dynamic range. The colour tag question stays open for Apple players.
+- Label A/B (buburun, mpv, 2026-11-15): PB150802 re-tagged Rec.709 (hevc_metadata, stream copy) looks "a touch less
+  saturated" than the original BT.2020 tag. Small difference on an overcast scene; which matches the scene is not
+  settled. Left as is: the camera's own tag is kept.
+- **Camera, bitrate probe (buburun, 2026-11-15, build b60058d6…: the unlock build + the H.265 table set to Low; the probe switch is not in this branch):** the encoder
+  follows table 0x606df60c. H.265 Main 10, Natural: PB150804 4K 59.94p 49.4 Mbps (table 50), PB150805 4K 29.97p
+  29.5 Mbps (30), PB150806 FHD 29.97p 9.8 Mbps (10); recording normal. So the bitrate the selector 0x6053c2b6..
+  reads (d3 at 0x6053c313) is the encoder's: a "Bitrate" setting can scale it there (H.264 table 0x606df544 the same
+  way, untested). The menu's Mbps labels still show the stock values (separate tables).
+- **Bitrate setting (om-emu, 2026-11-15):** row "Bitrate" (Stock / Medium / Low) on video page 221 after Video Codec,
+  stored in 1288 (9 / 88 / 3200). Menu data: page record 0x61587ce8 {n, labels, helps, n2, value lists, n3, value
+  lists}; row order (cursor kind 225, sub 0) via 0x61529634; the generic dropdown rows are the page definition's list
+  0x6150fe08 -> 0x6150b33c ({14, sid, 0, 1}; OK-entry list 0x6150fe18 -> 0x6150d90c is for popups / sub-menus, item
+  -> picker descriptor table 0x615c540c by item id, not used here); the dropdown lists the setting's allowed values
+  (descriptor record 0x6061a694 for 1288 -> our 3-entry list). Row texts are type-5 literals. vb_scale (hooks
+  0x6053c32d, 0x6053e6d8) scales the picked bps: om-emu 150 -> 150 / 100 / 50 Mbps. Not done: the Mbps shown in the
+  video quality screens (GUI getBitrate 0x611d0055) still shows stock values.
+- **Mbps text (om-emu, 2026-11-15):** `.hook_vbs` at getBitrate's end (0x611d01c7) -> vb_s / vb_str: the UTF-16
+  integer text ("21".."205") scaled (rounded (x + 1) / 3 or (2x + 1) / 3) into one of four buffers. Video quality
+  list (4K 30p L-8, H.264): 102 / 68 / 34 Mbps for Stock / Medium / Low. The set's detail screen (Size / FrameComp /
+  FrameRate) shows no Mbps; a Bitrate column there (tester's wish) is not built.
+- **Camera bug (buburun, 2026-11-15, build d2ce8d60):** in photo mode the top bar's remaining video time read an orange
+  [00:00] (plus stray "fpst" text and a grey box), video mode said "Card full" (98 GB free), Bitrate on Stock, H.264
+  and H.265 alike. Diagnostic build A (only .hook_vba / .hook_vbb, dedde439…): the same. **Cause (om-emu):** the
+  record-rate function 0x6053c2xx returns a status in d0 at 0x6053c36a (0 there: 0x6053c326..2b); vb_a left the
+  bitrate in d0, so the caller took an error and the second pass (from 0x6053c4d0) never ran. Fix: vb_a clears d0;
+  vb_s keeps d0. om-emu after the fix: both passes run, d0 0 and the byte rate 13067000 at 0x6053c36a as stock.
+- buburun: the extra row pushed Digital Tele-converter onto the page's second screen; the Bitrate row is now the page's
+  last row (alone on the second screen).
+- **Camera (buburun, 2026-11-15, build bdd4fb2a: the fix):** recording works again (no "Card full"). PB150807: H.265
+  Main 10, 4K 59.94p, 31 s, video 49.9 Mbps (stock 150 -> Low 50).
+- **Rebased onto v0.29.4** (main b2e599a: #45, #46, #48 merged) on 2026-11-15; only NOTES.md conflicted (both
+  appended). Builds; om-emu: the record-rate status 0 and byte rate as stock.
+- **Tester's layout (2026-11-15):** Bitrate right after Video Codec on page 221; Digital Tele-converter (2137: its
+  label, help, value list and dropdown entry) moved to the end of page 222 (record 0x61587d04 -> 6 rows; its
+  definition's dropdown list 0x6150fe2c -> 0x6150b36c + DTC; row order kind 226 + 2137). Page 221 keeps 8 labels (7
+  shown) and fits one screen. om-emu: both pages and both dropdowns work (1288 = 88, 2137 = 1 stored).
+- **Camera (buburun, 2026-11-15, build a5ce3eac…: this branch on main v0.29.4, the same package `build.py` makes
+  now):** tested on the OM-3: H.265 with a standard picture mode, the Bitrate row (right after Video Codec on page
+  221) and Digital Tele-converter at the end of page 222. Open: the BT.2020 tag on H.265 with a standard picture mode (see
+  above); a Bitrate column in the video quality detail screen; Sharpness down to Off in video (#6: the photo
+  sharpening table 0x606ad7f2 starts at a true 0, but the movie path's Sharpness read is not found; om-emu does not
+  run the movie image set-up).

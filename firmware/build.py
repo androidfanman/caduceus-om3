@@ -14,7 +14,7 @@ File format = Caduceus BUNDLES.BIN v1 (cakelesscoder/caduceus-ep7, Apache-2.0) w
   16 u32 CRC-32 (zlib) over bytes 0..15 ++ 20..543 | 20 4 bytes OM-3 decoded-main SHA-256 prefix | 24..31 zero
   32.. 8 slots x 64 B (Caduceus layout.json; ranges = Caduceus RANGES + TONE_RANGES).
 """
-import argparse, hashlib, json, struct, subprocess, sys, zlib
+import argparse, hashlib, json, os, struct, subprocess, sys, zlib
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -41,6 +41,9 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_wt': (0x605048c1, bytes.fromhex('f824302c5802')),
          '.hook_stw': (0x6128b1d3, bytes.fromhex('cdb3f90004ccee00')),   # sd3: a text widget's string id is set (call 0x6128ab86,[],4; jmp 0x6128b2c6): the panel's title
          '.hook_dl': (0x610ba015, bytes.fromhex('ba00c83d3c')),   # #37 Delete: the state block walk's end (dl_look)
+         '.hook_vba': (0x6053c32d, bytes.fromhex('856408f2faf277')),   # video bitrate: mov 100,d1; clr d2; mov d2,mdr; divu d1,d3 (the record-rate sum, d3 = bps)
+         '.hook_vbb': (0x6053e6d8, bytes.fromhex('73f813045c0c')),   # video bitrate: mov (a3),d0; mov d0,(4,a3); mov (12,sp),a0 (the encoder's rate pair)
+         '.hook_vbs': (0x611d01c7, bytes.fromhex('5c0cdff044')),   # video bitrate: getBitrate's end (mov (12,sp),a0; ret [d2,d3,a2,a3],68): the Mbps text
          '.hook_ag': (0x610833b3, bytes.fromhex('822d550d84')),   # v0.27 arrow keys: the key dispatcher's value read (PR #26's up_get)
          '.hook_dmg': (0x6109355f, bytes.fromhex('a8c816')),
          '.hook_ex': (0x60457578, bytes.fromhex('5c08fc6022930000')),   # v0.27: the per-shot EXIF fill, after Artist / Copyright (mov (8,sp),a0; movhu (37666,a0),d0)   # v0.27: the Creative Dial handler's "same family -> skip" (cmp d2,d0; beq +0x16) -> never skip
@@ -390,6 +393,88 @@ def build(defaults, testfile, out):
     assert bytes(m[o(0x61538464):o(0x61538464) + 80]) == bytes(m[o(sy['fl_scr']):o(sy['fl_scr']) + 80])
     struct.pack_into('<I', m, o(0x615384b4) + 84, 24)
     struct.pack_into('<I', m, o(0x615384b4) + 92, sy['fl_scr'])
+    # H.265 with the standard picture modes (feature/video-h265-bitrate): the setting rules' group for 1361
+    # (MODE_EXPANDED_CONTRAST: 0 = the picture modes, 251..255 = the OM-Log / HLG choices; header 0x605da0ac, 7
+    # records from 0x605d2468) has the record "if 2131 MODE_MOVIE_CODEC == 1 (H.265)" (0x605d24c8) with the value
+    # table 0x605d2450 (its only user): every value -> 254 except 255. Made the identity, so H.265 keeps the picture
+    # mode chosen (om-emu: codec 1 then left 1361 at 0; stock forced 254).
+    T265 = 0x605d2450
+    assert struct.unpack_from('<12h', m, o(T265)) == (0, 254, 252, 254, 251, 254, 253, 254, 254, 254, 255, 255)
+    assert struct.unpack_from('<4I', m, o(0x605d24c8)) == (0x605d23e8, 1, T265, 0x08530006)
+    struct.pack_into('<12h', m, o(T265), 0, 0, 252, 252, 251, 251, 253, 253, 254, 254, 255, 255)
+    # Video bitrate menu row (research/NOTES.md "Video: ... bitrates"), tester's layout (2026-11-15): page 221 (video
+    # tab, "Basic Settings/Image Quality") gets Bitrate (setting 1288) right after Video Codec (2131), and Digital
+    # Tele-converter (2137) moves to the end of page 222 ("Picture Mode/WB"), so page 221 stays one screen.
+    # Per page: the record {n, labels, helps, n2, value lists, n3, value lists} (label / help {u32 sid, u16 type,
+    # u16 id, u32 text}, value list {u16 sid, u16 n, u32 list}), the definition's dropdown rows {14, sid, 0, 1}
+    # and the row order (cursor kind 225 / 226, sub 0). Copies in ext12 (vbm_*, vbm2_*) where a list grows.
+    VSID, DTC = 1288, 2137
+    def rec(a):
+        return struct.unpack_from('<7I', m, o(a))
+    def ents(a, n, size):
+        return [bytes(m[o(a) + size * i:o(a) + size * i + size]) for i in range(n)]
+    def key(x):
+        return struct.unpack_from('<I', x)[0]
+    def put(name, blobs):
+        data = b''.join(blobs)
+        m[o(sy[name]):o(sy[name]) + len(data)] = data
+        return sy[name]
+    def row_order(kind):
+        a = 0x61529634                           # {u16 kind, u16 n, u32 subs}, subs {u16 sub, u16 n, u32 ids}
+        while struct.unpack_from('<H', m, o(a))[0] != kind:
+            a += 8
+        k_, kn, ksubs = struct.unpack_from('<HHI', m, o(a))
+        sub = next(ksubs + 8 * j for j in range(kn) if struct.unpack_from('<H', m, o(ksubs + 8 * j))[0] == 0)
+        s_, sn, sp = struct.unpack_from('<HHI', m, o(sub))
+        return sub, list(struct.unpack_from('<%dH' % sn, m, o(sp)))
+    # page 221
+    R1 = 0x61587ce8
+    assert rec(R1) == (8, 0x615875ec, 0x61586c5c, 6, 0x615865d8, 6, 0x615865d8)
+    labs, hlps = ents(0x615875ec, 8, 12), ents(0x61586c5c, 8, 12)
+    assert [key(x) for x in labs] == [key(x) for x in hlps] == [5435, 2131, 2236, 2237, 162, 1456, 2137, 5413]
+    dtc_lab, dtc_hlp = labs.pop(6), hlps.pop(6)
+    labs.insert(2, struct.pack('<IHHI', VSID, 5, 0, sy['vbs_title']))
+    hlps.insert(2, struct.pack('<IHHI', VSID, 5, 0, sy['vbs_help']))
+    vals = ents(0x615865d8, 6, 8)
+    assert [struct.unpack_from('<H', x)[0] for x in vals] == [2131, 2236, 2237, 162, 1456, 2137]
+    dtc_val = vals.pop(5)
+    vals.append(struct.pack('<HHI', VSID, 3, sy['vbm_vl']))
+    struct.pack_into('<7I', m, o(R1), 8, put('vbm_lab', labs), put('vbm_hlp', hlps), 6, put('vbm_val', vals),
+                     6, sy['vbm_val'])
+    D1 = 0x6150fe08                                  # page 221's dropdown rows {ptr, count}
+    assert struct.unpack_from('<2I', m, o(D1)) == (0x6150b33c, 3)
+    dds = ents(0x6150b33c, 3, 16)
+    assert [struct.unpack_from('<4I', x) for x in dds] == [(14, 162, 0, 1), (14, 1456, 0, 1), (14, DTC, 0, 1)]
+    dtc_dd = dds.pop(2)
+    dds.insert(0, struct.pack('<4I', 14, VSID, 0, 1))
+    struct.pack_into('<2I', m, o(D1), put('vbm_dd', dds), 3)
+    sub, ids = row_order(225)
+    assert ids == [5413, 5435, 2131, 2236, 2237, 1456, DTC], ids
+    ids.remove(DTC)
+    ids.insert(3, VSID)
+    struct.pack_into('<HHI', m, o(sub), 0, 7, put('vbm_ro', [struct.pack('<7H', *ids)]))
+    # page 222: Digital Tele-converter at its end
+    R2 = 0x61587d04
+    assert rec(R2) == (5, 0x6158764c, 0x61586cbc, 4, 0x61586608, 4, 0x61586608)
+    labs2, hlps2, vals2 = ents(0x6158764c, 5, 12), ents(0x61586cbc, 5, 12), ents(0x61586608, 4, 8)
+    assert [key(x) for x in labs2] == [key(x) for x in hlps2] == [1361, 1637, 1579, 5205, 1635]
+    struct.pack_into('<7I', m, o(R2), 6, put('vbm2_lab', labs2 + [dtc_lab]), put('vbm2_hlp', hlps2 + [dtc_hlp]),
+                     5, put('vbm2_val', vals2 + [dtc_val]), 5, sy['vbm2_val'])
+    D2 = 0x6150fe2c                                  # page 222's dropdown rows {ptr, count}
+    assert struct.unpack_from('<2I', m, o(D2)) == (0x6150b36c, 1)
+    assert struct.unpack_from('<4I', m, o(0x6150b36c)) == (16, 3200, 0, 11)
+    struct.pack_into('<2I', m, o(D2), put('vbm2_dd', ents(0x6150b36c, 1, 16) + [dtc_dd]), 2)
+    sub2, ids2 = row_order(226)
+    assert ids2 == [1361, 1637, 1579, 5205, 1635], ids2
+    struct.pack_into('<HHI', m, o(sub2), 0, 6, put('vbm2_ro', [struct.pack('<6H', *(ids2 + [DTC]))]))
+    # 1288's allowed values (the dropdown lists them): its descriptor record 0x6061a694 {u16 sid, u16 key, u32 list,
+    # u32 values, u16 bytes, u16 element size, ...} -> our 3-entry list (the stock list is the button functions').
+    VD = 0x6061a694
+    sid_, key_, lst, vls, nb, el = struct.unpack_from('<HHIIHH', m, o(VD))
+    assert (sid_, vls, el) == (VSID, 0, 2) and nb == 14, (sid_, vls, nb, el)
+    assert struct.unpack_from('<7H', m, o(lst)) == (3341, 6, 9, 425, 3409, 88, 3200)
+    struct.pack_into('<I', m, o(VD) + 4, sy['vbm_keys'])
+    struct.pack_into('<H', m, o(VD) + 12, 6)
     # film test 4: the held-OK reset sends its event to the rows listed for the selected picture mode (0x611c3c07
     # `add 0x61536324,d1` over 8 entries, bound `cmp 8,d1` at 0x611c3cae): fl_rtab = the stock 8 + the films
     assert struct.unpack_from('<HHI', m, o(0x61536324) + 8 * 4) == (54, 5, 0x61536310)
