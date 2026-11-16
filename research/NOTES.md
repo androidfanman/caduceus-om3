@@ -5793,3 +5793,8 @@ Branch `feature/video-h265-bitrate` (on main v0.29.4). Tools: `research/video/dr
   without the 0x605d2450 identity table. Hooks vba / vbb / vbs and the menu / rule-table patch sites added to
   tools/test/hooks.json after review: vba / vbb also run at start-up (the remaining-time estimate) but only read 1288
   with sget and scale; no loading, no setting write, no task (patch-audit clean).
+- **Camera, High bitrate (buburun, 2026-11-16, build 64910ed2…: this branch's c218217 on main v0.29.5):** 4K 59.94p
+  H.265 Main 10, 7 clips (PB160817..23). High: 218 / 220 / 222 Mbps video stream (stock 150, target 225); Low: 45 / 48 /
+  49 / 49 Mbps (target 50). Every clip has exactly duration x 59.94 frames (no dropped frames at ~220 Mbps). Films
+  in video: a Velvia-type and a Portra-type film each recorded at Low and High, the two looks visibly different (owner's
+  labels; the files carry no picture-mode tag). Colour tag still BT.2020 (open, as before).
