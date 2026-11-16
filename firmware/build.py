@@ -438,7 +438,7 @@ def build(defaults, testfile, out):
     vals = ents(0x615865d8, 6, 8)
     assert [struct.unpack_from('<H', x)[0] for x in vals] == [2131, 2236, 2237, 162, 1456, 2137]
     dtc_val = vals.pop(5)
-    vals.append(struct.pack('<HHI', VSID, 3, sy['vbm_vl']))
+    vals.append(struct.pack('<HHI', VSID, 4, sy['vbm_vl']))
     struct.pack_into('<7I', m, o(R1), 8, put('vbm_lab', labs), put('vbm_hlp', hlps), 6, put('vbm_val', vals),
                      6, sy['vbm_val'])
     D1 = 0x6150fe08                                  # page 221's dropdown rows {ptr, count}
@@ -468,13 +468,13 @@ def build(defaults, testfile, out):
     assert ids2 == [1361, 1637, 1579, 5205, 1635], ids2
     struct.pack_into('<HHI', m, o(sub2), 0, 6, put('vbm2_ro', [struct.pack('<6H', *(ids2 + [DTC]))]))
     # 1288's allowed values (the dropdown lists them): its descriptor record 0x6061a694 {u16 sid, u16 key, u32 list,
-    # u32 values, u16 bytes, u16 element size, ...} -> our 3-entry list (the stock list is the button functions').
+    # u32 values, u16 bytes, u16 element size, ...} -> our 4-entry list (High 425 / Stock 9 / Medium 88 / Low 3200, all from the stock list of button functions).
     VD = 0x6061a694
     sid_, key_, lst, vls, nb, el = struct.unpack_from('<HHIIHH', m, o(VD))
     assert (sid_, vls, el) == (VSID, 0, 2) and nb == 14, (sid_, vls, nb, el)
     assert struct.unpack_from('<7H', m, o(lst)) == (3341, 6, 9, 425, 3409, 88, 3200)
     struct.pack_into('<I', m, o(VD) + 4, sy['vbm_keys'])
-    struct.pack_into('<H', m, o(VD) + 12, 6)
+    struct.pack_into('<H', m, o(VD) + 12, 8)
     # film test 4: the held-OK reset sends its event to the rows listed for the selected picture mode (0x611c3c07
     # `add 0x61536324,d1` over 8 entries, bound `cmp 8,d1` at 0x611c3cae): fl_rtab = the stock 8 + the films
     assert struct.unpack_from('<HHI', m, o(0x61536324) + 8 * 4) == (54, 5, 0x61536310)

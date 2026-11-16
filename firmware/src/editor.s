@@ -19088,10 +19088,11 @@ el_tid:                           /* the GUI task's id, noted by el_go */
  * "Video: H.265 ..."); two readers use it: the record-rate sum 0x6053c32d.. (card / time estimate, (20,a2)) and the
  * encoder's rate pair 0x6053e6d8 ((a3), (4,a3)). Camera probe 2026-11-15: the encoder follows the table. The choice
  * lives in setting VB_SID 1288 (MODE_MOVIE_CUSTOM_SW_19: the movie function of key 54, an accessory key the OM-3 does
- * not have; not in its movie Button Function rows): VB_STOCK 9 (its default) as stock, VB_MED 88 x 2/3, VB_LOW 3200
- * x 1/3. Read with sget each time, so the menu's choice takes effect at the next recording. */
+ * not have; not in its movie Button Function rows): VB_STOCK 9 (its default) as stock, VB_HIGH 425 x 3/2, VB_MED 88
+ * x 2/3, VB_LOW 3200 x 1/3. Read with sget each time, so the menu's choice takes effect at the next recording. */
 .set VB_SID, 1288
 .set VB_STOCK, 9
+.set VB_HIGH, 425
 .set VB_MED, 88
 .set VB_LOW, 3200
 .section .hook_vba,"ax"
@@ -19106,11 +19107,19 @@ vb_scale:
  mov d0,d2
  mov VB_SID,d0
  call sget,[],4                   /* keeps d2, d3 */
+ cmp VB_HIGH,d0
+ beq 4f
  cmp VB_MED,d0
  beq 1f
  cmp VB_LOW,d0
  beq 2f
  mov d2,d0                        /* stock (9, or anything else) */
+ ret [d2,d3,a2,a3],24
+4:
+ mov d2,d0                        /* x 3/2 = x + x/2 (largest table rate 205 Mbps -> 307.5: no overflow) */
+ mov d2,d1
+ lsr 1,d1
+ add d1,d0
  ret [d2,d3,a2,a3],24
 1:
  mov d2,d0
@@ -19170,7 +19179,10 @@ vbm2_dd:
 vbm2_ro:
  .space 6 * 2
  .balign 4
-vbm_vl:                           /* the Bitrate row's values: 9 Stock, 88 Medium, 3200 Low */
+vbm_vl:                           /* the Bitrate row's values: 425 High, 9 Stock, 88 Medium, 3200 Low */
+ .long VB_HIGH
+ .hword 5, 0
+ .long vbs_high
  .long VB_STOCK
  .hword 5, 0
  .long vbs_stock
@@ -19186,13 +19198,15 @@ vbm_ro:                           /* page 221's row order (cursor kind 225, sub 
 vbm_dd:                           /* page 221's dropdown rows {14, sid, 0, 1} (build.py) */
  .space 3 * 16
 vbm_keys:                         /* 1288's allowed values (its descriptor record points here: build.py) */
- .hword VB_STOCK, VB_MED, VB_LOW
+ .hword VB_HIGH, VB_STOCK, VB_MED, VB_LOW
  .balign 4
  .balign 4
 vbs_title:
  .asciz "Bitrate"
 vbs_help:
- .asciz "Recording bitrate. Medium: 2/3, Low: 1/3 of the camera's own bitrate."
+ .asciz "Recording bitrate. High: 3/2, Medium: 2/3, Low: 1/3 of the camera's own bitrate."
+vbs_high:
+ .asciz "High"
 vbs_stock:
  .asciz "Stock"
 vbs_med:
@@ -19201,7 +19215,7 @@ vbs_low:
  .asciz "Low"
  .balign 4
 /* The Mbps the video quality screens show: GUI getBitrate (0x611d0055) returns a UTF-16 number text from its tables
- * ("102", "54", ...: integers only). With Medium / Low, vb_s returns that number scaled (rounded) in one of four
+ * ("102", "54", ...: integers only). With High / Medium / Low, vb_s returns that number scaled (rounded) in one of four
  * UTF-16 buffers instead. */
 .section .hook_vbs,"ax"
  jmp vb_s                         /* stock 0x611d01c7: mov (12,sp),a0; ret [d2,d3,a2,a3],68 */
@@ -19239,18 +19253,28 @@ vb_str:
  beq 8f                           /* empty */
  mov VB_SID,d0
  call sget,[],4                   /* keeps d2, d3 */
+ cmp VB_HIGH,d0
+ beq 6f
  cmp VB_MED,d0
  beq 3f
  cmp VB_LOW,d0
  bne 8f                           /* stock: the camera's own text */
  mov d2,d0
  bra 4f
+6:
+ mov d2,d0                        /* rounded: (3x + 1) / 2 */
+ add d0,d0
+ add d2,d0
+ inc d0
+ mov 2,d1
+ bra 7f
 3:
  mov d2,d0
  add d0,d0
 4:
  inc d0                           /* rounded: (x + 1) / 3 */
  mov 3,d1
+7:
  clr d3
  mov d3,mdr
  divu d1,d0

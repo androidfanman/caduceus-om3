@@ -5779,3 +5779,9 @@ Branch `feature/video-h265-bitrate` (on main v0.29.4). Tools: `research/video/dr
   above); a Bitrate column in the video quality detail screen; Sharpness down to Off in video (#6: the photo
   sharpening table 0x606ad7f2 starts at a true 0, but the movie path's Sharpness read is not found; om-emu does not
   run the movie image set-up).
+- **High bitrate (buburun's request, 2026-11-16; emulator only, not camera-tested yet):** a fourth Bitrate choice, High =
+  x 3/2 of the camera's own bitrate, stored as 425 in 1288 (a value from 1288's stock list, as 9 / 88 / 3200); the
+  dropdown lists High / Stock / Medium / Low. vb_scale: x + x/2 (205 Mbps -> 307.5: no overflow); vb_str: rounded
+  (3x + 1) / 2. om-emu (main v0.29.5 + this branch): 1288 keys [425, 9, 88, 3200]; vb_scale 150 Mbps -> 225 / 150 /
+  100 / 50; vb_str "150" / "102" / "205" -> "225" / "153" / "308" on High. Open (camera): whether the encoder and the
+  card keep up at 1.5x (4K 60p H.265 225 Mbps, H.264 up to ~308 Mbps).
