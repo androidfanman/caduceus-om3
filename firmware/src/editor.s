@@ -10420,6 +10420,7 @@ lg_cnow:
  mov d2,d0
  call lg_h4,[],0
  LGS lg_rb
+ call vb_txt,[d2,d3,a2,a3],24     /* PR #51: the Video: line (codec, bitrate choice, picture-mode range, scaling) */
  ret [d2,d3,a2,a3],24
 
 /* lg_btn: `call lg_btn,[d2,d3,a2,a3],24`: BUTTONS AND DIALS from lg_cv: photo and video buttons, our Creative Dial
@@ -19304,6 +19305,35 @@ vb_str:
 8:
  mov a2,a0
  ret [d2,d3,a2,a3],24
+/* vb_txt: `call vb_txt,[d2,d3,a2,a3],24` from the debug log writer (a half-press, DEBUG.TXT on the card): the CADLOG.TXT
+ * line "Video: codec C, bitrate choice B, picture-mode range R, 100000000 bps recorded as N" (sget 2131, VB_SID, 1361;
+ * vb_scale of 100 Mbps), at the end of the CAMERA section (lg_cnow), for the emulator tests (tools/test/emu_test.py video-*). */
+vb_txt:
+ LGS vbl_1
+ mov 2131,d0
+ call sget,[],4
+ LGD
+ LGS vbl_2
+ mov VB_SID,d0
+ call sget,[],4
+ LGD
+ LGS vbl_3
+ mov 1361,d0
+ call sget,[],4
+ LGD
+ LGS vbl_4
+ mov 100000000,d0
+ call vb_scale,[d2,d3,a2,a3],24
+ LGD
+ ret [d2,d3,a2,a3],24
+vbl_1:
+ .asciz "\r\nVideo: codec "
+vbl_2:
+ .asciz ", bitrate choice "
+vbl_3:
+ .asciz ", picture-mode range "
+vbl_4:
+ .asciz ", 100000000 bps recorded as "
  .balign 4
 vb_buf:
  .space 4 * 16
