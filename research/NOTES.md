@@ -5785,10 +5785,10 @@ Branch `feature/video-h265-bitrate` (on main v0.29.4). Tools: `research/video/dr
   (3x + 1) / 2. om-emu (main v0.29.5 + this branch): 1288 keys [425, 9, 88, 3200]; vb_scale 150 Mbps -> 225 / 150 /
   100 / 50; vb_str "150" / "102" / "205" -> "225" / "153" / "308" on High. Open (camera): whether the encoder and the
   card keep up at 1.5x (4K 60p H.265 225 Mbps, H.264 up to ~308 Mbps).
-- **Emulator tests (2026-11-16, om-emu 7063b53):** CADLOG.TXT gets a line "Video: codec C, bitrate choice B,
+- **Emulator tests (2026-11-16; om-emu 0819080, the pin since #63):** CADLOG.TXT gets a line "Video: codec C, bitrate choice B,
   picture-mode range R, 100000000 bps recorded as N" (vb_txt from the log writer, after the films-in-memory lines;
   only with DEBUG.TXT on the card). `tools/test/emu_test.py` video-bitrate-stock-by-default / -high / -medium / -low
-  and video-h265-keeps-picture-mode pick the rows through the video menu (14 lefts from a fresh camera's menu, rows
+  and video-h265-keeps-picture-mode pick the rows through the video menu (21 lefts from a fresh camera's menu in video, which opens on the first camera tab; rows
   Custom Mode, Separate Settings, Video Codec, Bitrate). All pass; video-h265-keeps-picture-mode is caught on a build
   without the 0x605d2450 identity table. Hooks vba / vbb / vbs and the menu / rule-table patch sites added to
   tools/test/hooks.json after review: vba / vbb also run at start-up (the remaining-time estimate) but only read 1288

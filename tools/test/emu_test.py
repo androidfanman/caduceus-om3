@@ -147,11 +147,12 @@ GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 7 + HOLDER
 NOISE_FILTER_OFF_ROW = (f's1 wait wait {NR_ROW_STAR(False)} poke:{NF_BYTE:x}=fe wait {NR_ROW_STAR(False)} '
                         f'pokep:{NR_SLOT_COLOR2}=01 wait {NR_ROW_STAR(True)} poweroff')
 
-# Video menu (PR #51, H.265 with the standard picture modes and the Bitrate row). On a fresh camera the menu opens on
-# the wrench tab's first page; 14 lefts reach the video tab's page 1, whose rows run Custom Mode, Separate Settings,
+# Video menu (PR #51, H.265 with the standard picture modes and the Bitrate row). On a fresh camera in video (om-emu
+# 0819080) the menu opens on the first camera tab's first page; 21 lefts (My Menu, the wrench tab's 6 pages, then the
+# gear, playback and video tabs' pages) reach the video tab's page 1, whose rows run Custom Mode, Separate Settings,
 # Video Codec, Bitrate. The Bitrate dropdown lists High / Stock / Medium / Low with the cursor on the stored value
 # (Stock); the Video Codec picker is H.264 | H.265 (right). Each pick ends with OK, then MENU closes the menu.
-VIDEO_PAGE1 = 'menu wait' + ' left wait' * 14
+VIDEO_PAGE1 = 'menu wait' + ' left wait' * 21
 def video_pick(row_downs, moves):
     return (f'wait wait wait s1 wait wait {VIDEO_PAGE1}' + ' down wait' * row_downs + f' ok wait {moves} ok wait '
             'menu wait wait s1 wait wait poweroff')

@@ -382,9 +382,6 @@ calling convention accounts for three. Settings kept per mode and across boots i
 - **Node version.** The om-emu README asks for Node 26 or newer. The runs above used Node 24.22.1 without a problem.
 - **om-emu version.** `research/setup.sh` clones om-emu at its newest commit (`--depth 1`). A suite needs a pinned
   commit, so an upstream change cannot alter results. The checkout used above is `7063b53` (2026-11-13).
-  om-emu's newer head (0819080, 2026-11-14, after a history rewrite upstream) fails `video-boot-after-photo-boot` on
-  main v0.29.5 too: the photo/video switch reads as photo in the video boot (photo check 194, not 193). `7063b53`
-  is still fetchable from the rewritten repository (`git fetch --unshallow`, then `git checkout 7063b53`).
 - **om-emu license.** The repository has no license file. Ask upstream before vendoring or redistributing it.
 - **Continuous integration.** The tests need the stock firmware, which cannot be in the repo or in a public CI
   runner. The suite runs locally, or on a self-hosted runner that holds each person's own copy.
