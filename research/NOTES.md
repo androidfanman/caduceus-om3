@@ -5882,3 +5882,74 @@ still held the last photo pass's curve blocks. crombach: none of the custom sett
 - **Camera (crombach, 2026-11-17, build 9b8a861a...): passed.** A tap and every key, `up` included, give Picture
   Mode 30 s. Other touch menus and a screen opened from Picture Mode close after 8 s. The white balance screen closes
   8 s after `down`. Photo, video, sleep and start-up work as before.
+
+## ISO Auto key: a button function that switches the photo ISO between Auto and the last manual value
+- 2026-11-17 / 18, ryanbughuang (branch `feature/iso-auto-key`). **Camera-tested** on the contributor's OM-3 (the
+  function: camera test packages 3 and 5; its own Button Function entry: package 8), as test builds laid onto the
+  released v0.30.3 (`research/isoauto/layer.py`). The build of this branch itself is emulator-tested only.
+- **Wish:** one press takes a manual ISO to Auto; with the dial it has to be turned all the way down. A second press
+  brings the manual value back.
+- **The settings (om-emu, read through sget; then the camera):** **1701 is the photo ISO as the user sets it** (0
+  Auto, else Sv x 256; ISO 100 = 1280, ISO 200 = 1536): the super control panel's ISO cell writes it (facade
+  SetValue(1701, mode 1 = one step up)). **6 is the value in use and follows 1701** (the debug log's "ISO" is 6);
+  4002 is the ISO the metering uses (ISO 200 with Auto in om-emu). A first test wrote 6: 1701 stayed at Auto, and on
+  the camera the change showed only after a half-press and release. Reading and writing 1701 changes the ISO at the
+  press (camera-tested). As dial function codes 1701 is WB and 1578 ISO; as settings 1578 is the WB mode.
+- **Facade SetValue's mode (static, `0x60b8781f`):** 1 one step up (`0x60bb5473`), 2 one step down (`0x60bb5423`),
+  3 (`0x60bb53d3`, not looked at), anything else sets the value given through the settings manager. The button
+  module's own setter `0x61085d05` (`call ..,[d2,a2],20`, d0 id, d1 value; `ar_setv`) uses mode 0, its getter is
+  `0x61085dbb` (`ar_getv`).
+- **Where a function runs:** the dispatcher `0x61083022` is called from 86 places (each state's press and release
+  handlers) and several times per press (om-emu, Delete in P live view: 3 calls with the press event 0x01000026, 6
+  with the release 0x01000027). There is no single stock point that runs an action once. The touch / key exclusivity
+  check `0x61084d48` calls the dispatcher only under conditions.
+- **The hook:** `.hook_ia` at `0x61083041`, the dispatcher's key table walk (`call 0x610830c9,[d2,d3,a2,a3],20`, d0 =
+  d3 = the event). `ia_key` runs the stock walk, then `ia_do` reads the key's function through the stock value read
+  `0x610833b3` (so `ar_get`'s arrow-pad rule holds). When it is ours and the event is a press (event table
+  `0x612f3100`, 20 B records, +8: 0 press, 1 release, 2 long, 3 repeat), it acts, and the walk answers 3200 ("no
+  key"), so the dispatcher returns 0 and no stock function runs. Only with the photo / movie switch on photo
+  (`0xa32d9d0d` = 2) and the GUI on a COMMON screen (`0x62ce5864` low byte 1).
+- **One act per key event:** `.hook_dl` (the event walk's end, `0x610ba015`) goes to `ia_dl` first, which notes the
+  event and sets `ia_new` when it differs from the event walked before, then goes on to `dl_look`. `ia_do` acts only
+  when the press is the event being handled and `ia_new` is set, and clears it. (A first version acted on the first
+  press event after a release event had reached the dispatcher; on the camera a second press of a key was not always
+  taken.)
+- **The last manual value** is kept in RAM (`ia_last`); with none yet (after a power-on), Auto goes to ISO 200.
+- **Its own Button Function entry:** function code **3910** (the camera's own end below 3500; the Creative Dial
+  rows use 3900..3904). It is not in the function table `0x612f20a8`. The photo buttons' lists, read from the v0.30.3
+  image:
+  - Validator lists: Fn 47 and Delete 570 share `0x60615432`; REC 48, |o| 1292, CP 49 and AF-ON 1964 each have a list
+    of their own with the same 50 codes; L-Fn 56 has 51 (`0x60615a5c`, + 3209); the arrows 50 to 53 share `ar_list`
+    (48). Three different code lists, so three copies with the new code before Off (3200): the choice screen's grid
+    follows the validator list, so it shows last, before Off.
+  - The rows' value labels (item records behind `0x61569064`, 28 B, +12 list and +16 count): `0x615685d4` (50; Fn,
+    REC, |o|, CP, AF-ON, Delete), `0x6156882c` (51; L-Fn), `ar_lab` (48; the arrows). Entries `{code, id << 16 | type,
+    object}`, type 4 a string, 0xc a picture; the object word is the same through a list.
+  - The choice screen: 11 of the 32 variants at `0x61571ba0` (24 B `{key, n, titles, cells, help, ?}`) hold the photo
+    Fn lists `(55, 0x61570e08, 0x61571288, 0x61571708)`: titles and help are strings, cells strings or pictures.
+  `firmware/isoauto.py` `menu_tables(m, o, sy)` makes the copies in space at the end of ext13 (`ia_v0..2`, `ia_l0..2`,
+  `ia_pt / ia_pc / ia_ph`) from the image's own lists, for each function in its `FUNCS`, and points the records at
+  them. Strings ST_IAC + 0..2 (0x7f0a..: cell "ISO Auto", title "ISO Auto / Manual", two lines of help) through
+  `ia_str`, which `.hook_str` reaches before `st_get`. The movie Button Function is untouched.
+- **Space:** at the end of ext13, after the debug log and the wheel labels (about 4.9 KB with the list copies); the
+  loader's end word follows ext13's end as build.py already does it, inside the GX4-proven reserve (0x60fb8000 in
+  this branch's build; the test builds on v0.30.3 had the code from `0x60fb4d00`).
+- **Rebased 2026-11-18** onto main at e32363a (PRs #70, #73, #76). The camera tests above were made before that, on
+  v0.30.3; on the new main the build is emulator-tested only.
+- **tools/test/hooks.json:** the new patch sites are added by hand as whole fields (the validator records' list and
+  length words of the 11 photo buttons, the 11 variants' count and three list words). `static_check.py --write-hooks`
+  on a macOS build narrows other entries whose first byte happens to match stock there, so it was not used.
+- **Emulator tests (om-emu 0819080):** `iso-auto-key-switches-auto-and-manual` (Delete stands for the button, with
+  `ia_code` poked to the value om-emu's Delete reads: Auto -> ISO 200 -> Auto -> ISO 200, two presses in a row end
+  where they started, five presses make five switches) and `iso-auto-key-from-the-button-function-menu` (Delete is
+  given ISO Auto in the menu, no poke; two presses switch the ISO and back).
+- **Camera (contributor's OM-3):** the ISO changes at the press and the next press brings the manual value back; the
+  entry shows in the Button Function lists with its name and help, and the row reads "ISO Auto".
+- **Test builds on a release:** a local macOS build renders Caduceus' own pictures differently from the release, so
+  `research/isoauto/layer.py` writes only this change into a release's package: the code at the end of ext13, the
+  hook, the two jumps (`.hook_dl`, `.hook_str`) with the release's own `dl_look` / `st_get` addresses, and the lists
+  made again from the release's.
+- **After flashing / going back:** before going back to a firmware without the entry, set a button that holds ISO
+  Auto to something else (a value outside a list stays stored).
+- **Not done / not known:** the movie Button Function; the last manual value is not kept per custom mode or over a
+  power-off; B (Auto may be refused there).

@@ -254,6 +254,20 @@ def ck_line(mem, card, matches, on_builtin, with_values):
             '^Curves / mix on COLOR 1-4: ' + re.escape(', '.join(words)) + '$']
 
 
+# ISO Auto key (feature/iso-auto-key): Delete stands for a button set to the function. om-emu's Delete has no
+# function and reads as Off (3200), so the test writes 3200 into ia_code: the state "this button's function is ISO
+# Auto". Each press is followed by a half-press, whose log line shows the ISO setting: Auto at first, then the
+# default manual value (ISO 200), Auto again, and the manual value again. One switch per press: two presses in a row
+# end where they started, and five presses make five switches (ia_n).
+ISO_AUTO_KEY = ('s1 wait wait poke:{ia_code}=800c delete wait s1 wait wait delete wait s1 wait wait '
+                'delete wait s1 wait wait delete delete wait expect:mem:{ia_n}=05 s1 wait wait poweroff')
+# The ISO Auto key's own Button Function entry, with no poke: Menu > Button Settings > Button Function, down to the
+# Delete row (the 11th), its choice screen opens on Off (the last of 51), ISO Auto is one to the left; OK, back out to
+# the shooting screen. A Delete press then switches the ISO, and the next one switches it back.
+ISO_AUTO_FROM_MENU = ('s1 wait wait menu wait left left left left left wait ok wait ok wait '
+                      'down down down down down down down down down down wait ok wait left wait ok wait '
+                      'menu wait menu wait menu wait s1 wait wait delete wait s1 wait wait delete wait s1 wait wait '
+                      'expect:mem:{ia_n}=02 poweroff')
 TESTS = {
     'boot-smoke': [
         Boot('s1 wait wait poweroff', expect=[
@@ -285,6 +299,13 @@ TESTS = {
         Boot(BOOT1_ASSIGN_C1),
         Boot(C1_TURN_WHILE_OFF, expect=[C1_FILM_LINE, C1_RECORD_LINE], mode_dial=MODE_DIAL_C1),
         Boot(C1_TURN_WHILE_OFF, expect=[P_FILM_LINE, C1_RECORD_LINE], mode_dial=MODE_DIAL_P),
+    ],
+    'iso-auto-key-switches-auto-and-manual': [
+        Boot(ISO_AUTO_KEY, expect=[r'^#1 .* ISO Auto ', r'^#3 .* ISO 200 ', r'^#5 .* ISO Auto ', r'^#7 .* ISO 200 ',
+                                   r'^#9 .* ISO 200 ']),
+    ],
+    'iso-auto-key-from-the-button-function-menu': [
+        Boot(ISO_AUTO_FROM_MENU, expect=[r'^#3 .* ISO Auto ', r'^#5 .* ISO 200 ', r'^#7 .* ISO Auto ']),
     ],
     'dial-turn-before-first-half-press': [
         Boot(BOOT1_ASSIGN_C1),

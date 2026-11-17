@@ -93,7 +93,7 @@
                                    * clr d0; mov 116,a0; add a3,a0; mov d0,(a0) */
  .byte 0xcb
 .section .hook_str,"ax"
- jmp st_get                       /* v0.23 stock 0x610f56a6 (string getter, d0 id): mov d0,d2; call 0x610f56bd,[],0 */
+ jmp ia_str                       /* v0.23 stock 0x610f56a6 (string getter, d0 id): mov d0,d2; call 0x610f56bd,[],0 */
  .byte 0xcb
 .section .hook_lc,"ax"
  jmp gr_lc                        /* v0.23 stock 0x611d1982 (left-column id lookup): cmp 5400,d0; beq 0x611d19ac;
@@ -9186,8 +9186,10 @@ fl_scr:
 .section .hook_ag,"ax"
  jmp ar_get                       /* v0.27 stock 0x610833b3 (the key dispatcher's value read): mov d0,d2; mov 3413,d1;
                                    * mov d1,d0 (5 bytes) */
+.section .hook_ia,"ax"
+ jmp ia_key                       /* ISO Auto key: stock 0x61083041 `call 0x610830c9,[d2,d3,a2,a3],20` (5 bytes) */
 .section .hook_dl,"ax"
- jmp dl_look                      /* #37 stock 0x610ba015 (the state block walk's end): cmp 0,a2; beq; mov sp,a0 */
+ jmp ia_dl                        /* #37 stock 0x610ba015 (the state block walk's end): cmp 0,a2; beq; mov sp,a0 */
 .section .hook_ex,"ax"
  jmp ex_hook                      /* v0.27: the film's name in the photo's EXIF (ex_hook) */
  .byte 0xcb, 0xcb, 0xcb
@@ -19248,3 +19250,173 @@ el_tid:                           /* the GUI task's id, noted by el_go */
 .balign 4
 wl_blk:                           /* the heap copy of wl_tab (fl_mk), 0 = none */
  .long 0
+
+/* ---------------------------------------------------------------- ISO Auto key (feature/iso-auto-key)
+ * A button whose function is IA_CODE switches the photo ISO between Auto and the last manual value: one press Auto,
+ * the next press back. The ISO the user sets is setting 1701 (0 Auto, else Sv x 256), the one the super control
+ * panel writes; setting 6 is the value in use, which follows 1701.
+ * It has its own function code and Button Function entry: see the lists at the end of this section.
+ * One act per key event: the dispatcher 0x61083022 runs several times for one press, from handlers that the state
+ * machines find with the event walk 0x610b9fdb. ia_dl (.hook_dl, before dl_look) notes each walked event; a
+ * different event than the one before sets ia_new. ia_do acts on a press event only when it is the event being
+ * handled (ia_cur) and ia_new is set, and clears ia_new: every later dispatcher call for that press does nothing, and
+ * the next press acts because the key's release (or any other event) was walked in between.
+ * ia_key <- .hook_ia, in the dispatcher's frame (d0 = d3 = the key event, d2 = 0): the stock key table walk, then
+ * ia_do. A press with the function returns "no key" (3200): the dispatcher answers 0 and no stock function runs.
+ * Photo switch position and the COMMON screens only (LG_GUI's parent 1).
+ * Kept at the end of ext13 (the last thing in this file): besides ia_dln and ia_strn (dl_look's and st_get's
+ * addresses) it holds only stock addresses, so a test build can be laid onto a release (research/isoauto/layer.py). */
+.section .ext13,"ax"
+ .set IA_CODE, 3910               /* our own function code (firmware/isoauto.py IA) */
+ .set IA_ISO, 1701                /* the photo ISO as set: 0 Auto, else Sv x 256 (ISO 100 = 1280) */
+ .set IA_EVT, 0x612f3100          /* the event table, 259 x 20 B {event, keycode, phase (0 press, 1 release), ..} */
+ .set IA_GUI, 0x62ce5864          /* as LG_GUI: the GUI state's parent byte */
+ .set IA_SW, 0xa32d9d0d           /* the photo / movie / S&Q switch: 2 photo (as the debug log) */
+ .balign 4
+ia_last:                          /* the last manual ISO seen at a switch to Auto (0: none yet -> ISO 200) */
+ .short 0
+ia_code:                          /* the function code that means ISO Auto (a variable so an emulator test can set it) */
+ .short IA_CODE
+ia_new:                           /* 1: a new event has been walked since the last act */
+ .byte 1
+ia_n:                             /* ISO switches done this power-on (for tests) */
+ .byte 0
+ .balign 4
+ia_cur:                           /* the event walked last (the one being handled) */
+ .long 0
+ia_dln:                           /* where .hook_dl went before: dl_look */
+ .long dl_look
+ia_dl:                            /* .hook_dl, as dl_look: d0 = the event (a0 and d2 are free here) */
+ mov (ia_cur),d2
+ cmp d2,d0
+ beq 1f
+ mov d0,(ia_cur)
+ mov 1,d2
+ movbu d2,(ia_new)
+1:
+ mov (ia_dln),a0
+ jmp (a0)
+ia_key:
+ call ia_walk,[d2,d3,a2,a3],20    /* the stock call: d0 = the key's setting id, 3200 for none */
+ cmp 3200,d0
+ beq 1f
+ mov d3,d1
+ call ia_do,[d2,d3,a2,a3],32
+1:
+ jmp ia_back
+/* ia_do: `call ia_do,[d2,d3,a2,a3],32`, d0 = the key's setting id, d1 = the event -> d0 = that id, or 3200 when the
+ * key's function is ours. Local (4) the id. */
+ia_do:
+ mov d0,(4,sp)
+ mov d1,d3
+ call ia_val,[d2],8               /* the key's function now (through ar_get: the arrow-pad mode counts) */
+ exthu d0
+ movhu (ia_code),d1
+ cmp d1,d0
+ beq 2f
+ mov (4,sp),d0
+ ret [d2,d3,a2,a3],32
+2:
+ mov (ia_cur),d0
+ cmp d0,d3
+ bne 8f                           /* not the event being handled */
+ mov IA_EVT,a0
+ clr d2
+3:
+ mov (a0),d1
+ cmp d3,d1
+ beq 4f
+ add 20,a0
+ inc d2
+ cmp 259,d2
+ bne 3b
+ bra 8f
+4:
+ mov (8,a0),d1                    /* the phase */
+ cmp 0,d1
+ bne 8f                           /* release / long press / repeat: nothing */
+ movbu (ia_new),d0
+ cmp 0,d0
+ beq 8f                           /* this press has been acted on */
+ clr d0
+ movbu d0,(ia_new)
+ movbu (IA_SW),d0
+ cmp 2,d0
+ bne 8f                           /* movie / S&Q: not ours (their ISO is another setting) */
+ movbu (IA_GUI),d0
+ cmp 1,d0
+ bne 8f                           /* a menu, the quick panel, playback: nothing */
+ mov IA_ISO,d0
+ call ar_getv,[d2,a2],24          /* the ISO now */
+ exthu d0
+ cmp 0,d0
+ beq 6f
+ movhu d0,(ia_last)               /* manual -> Auto */
+ clr d1
+ bra 7f
+6:
+ movhu (ia_last),d1               /* Auto -> the last manual value */
+ cmp 0,d1
+ bne 7f
+ mov 1536,d1                      /* none yet: ISO 200 */
+7:
+ mov IA_ISO,d0
+ call ar_setv,[d2,a2],20
+ movbu (ia_n),d0
+ inc d0
+ movbu d0,(ia_n)
+8:
+ mov 3200,d0
+ ret [d2,d3,a2,a3],32
+/* The function's own Button Function entry (firmware/isoauto.py fills the lists): function code IA_CODE in the photo
+ * buttons' validator lists (ia_v0..2: Fn's, L-Fn's, the arrows'), the rows' value labels (ia_l0..2) and the choice
+ * screen's titles / cells / help (ia_pt / ia_pc / ia_ph), with our strings ST_IAC + 0..2 (cell, title, help).
+ * ia_str <- .hook_str, before st_get. */
+ .set ST_IAC, 0x7f0a
+ .balign 4
+ia_strn:                          /* where .hook_str went before: st_get */
+ .long st_get
+ia_strs:
+ .long ia_s0, ia_s1, ia_s2
+ia_str:                           /* .hook_str, as st_get: d0 = the string id (frame `call ..,[d2],8`) -> a0 */
+ cmp ST_IAC,d0
+ bcs 1f
+ cmp ST_IAC + 3,d0
+ bcc 1f
+ mov d0,d1
+ add -ST_IAC,d1
+ asl2 d1
+ mov ia_strs,a0
+ add d1,a0
+ mov (a0),a0
+ ret [d2],8
+1:
+ mov (ia_strn),a0
+ jmp (a0)
+ .balign 2
+ia_s0:                            /* "ISO Auto" */
+ .short 73, 83, 79, 32, 65, 117, 116, 111, 0
+ia_s1:                            /* "ISO Auto / Manual" */
+ .short 73, 83, 79, 32, 65, 117, 116, 111, 32, 47, 32, 77, 97, 110, 117, 97, 108, 0
+ia_s2:                            /* "Switches ISO between Auto | and the last manual value." */
+ .short 83, 119, 105, 116, 99, 104, 101, 115, 32, 73, 83, 79, 32, 98, 101, 116, 119, 101, 101, 110, 32, 65, 117, 116, 111, 13, 10, 97, 110, 100, 32, 116, 104, 101, 32, 108, 97, 115, 116, 32, 109, 97, 110, 117, 97, 108, 32, 118, 97, 108, 117, 101, 46, 0
+ .balign 4
+ia_v0:
+ .space 2 * 56
+ia_v1:
+ .space 2 * 56
+ia_v2:
+ .space 2 * 56
+ia_l0:
+ .space 12 * 56
+ia_l1:
+ .space 12 * 56
+ia_l2:
+ .space 12 * 56
+ia_pt:
+ .space 12 * 57
+ia_pc:
+ .space 12 * 57
+ia_ph:
+ .space 12 * 57
+ia_tend:

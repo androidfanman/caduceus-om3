@@ -17,6 +17,7 @@ SECTIONS {
   .hook_wt      0x605048c1 : { *(.hook_wt) }
   .hook_ag      0x610833b3 : { *(.hook_ag) }
   .hook_dl      0x610ba015 : { *(.hook_dl) }
+  .hook_ia      0x61083041 : { *(.hook_ia) }
   .hook_dmg     0x6109355f : { *(.hook_dmg) }
   .hook_ex      0x60457578 : { *(.hook_ex) }
   .hook_scw     0x61157d30 : { *(.hook_scw) }
@@ -224,6 +225,9 @@ ar_getv       = 0x61085dbb;         /* v0.27: the key dispatcher's plain setting
 ar_setv       = 0x61085d05;         /* v0.27: its setter pair (SetValue through the facade, as the dial handler) */
 ar_vget       = 0x610834b1;         /* v0.27: the dispatcher's value read, assigned value: mov d2,d0; call getter; ret */
 ar_vback      = 0x610833b8;         /* v0.27: the value read after its first 5 bytes (.hook_ag) */
+ia_walk       = 0x610830c9;         /* ISO Auto key: the dispatcher's key table walk (d0 event -> the key's sid, 3200 none) */
+ia_val        = 0x610833b3;         /* ISO Auto key: the dispatcher's value read (d0 sid; .hook_ag, `ret [d2],8`) */
+ia_back       = 0x61083046;         /* ISO Auto key: the dispatcher after its walk call (.hook_ia) */
 dl_mexp       = 0x610865c5;         /* #37: non-zero while a Multiple Exposure frame can be deleted */
 dl_mx         = 0x610b8397;         /* #37: live view's stock Delete press handler (deletes that frame) */
 dl_fn         = 0x610a2407;         /* #37: live view's AF-ON press handler (runs the button function) */

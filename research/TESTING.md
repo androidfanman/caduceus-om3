@@ -84,6 +84,8 @@ The gate and the digest have unit tests that need no firmware:
 | `live-dial-turn-back-keeps-the-mode-choice` | A live turn from M to C1 and back brings M back on its own film and picture mode |
 | `live-dial-turn-to-b-switches-the-films` | A live turn from C1 to B switches to the P / A / S / M / B films, though B has no mode code of its own (#54) |
 | `live-dial-turn-holds-the-label` | During a live turn's wait for the mode code, the shooting screen's label holds no picture, and the hold clears once the mode is real (#54) |
+| `iso-auto-key-switches-auto-and-manual` | A button set to the ISO Auto function: each press switches the photo ISO between Auto and the last manual value (ISO 200 with none yet), once per press. Delete stands for the button, with `ia_code` poked to the value om-emu's Delete reads (feature/iso-auto-key) |
+| `iso-auto-key-from-the-button-function-menu` | Delete is given ISO Auto in the Button Function menu (its own entry, no poke); a press switches the photo ISO from Auto to ISO 200 and the next press back (feature/iso-auto-key) |
 | `video-boot-after-photo-boot` | A video boot after a photo boot does no film or custom-mode work (#53) |
 | `debug-log-written-at-releases-only` | Three half-presses: the debug log is written at the three releases only, not at the half-presses (v0.30.3; the burst rule needs photos: camera-only) |
 | `noise-filter-row-follows-the-camera-setting` | A COLOR profile without a film, its Noise Filter on Camera: the Noise Filter row has no '*' with the camera's own Noise Filter on Standard or on Off, and gets one when Standard is chosen while the camera is on Off (v0.30 test 13) |
