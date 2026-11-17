@@ -10420,6 +10420,7 @@ lg_cnow:
  mov d2,d0
  call lg_h4,[],0
  LGS lg_rb
+ call vb_txt,[d2,d3,a2,a3],24     /* PR #51: the Video: line (codec, bitrate choice, picture-mode range, scaling) */
  ret [d2,d3,a2,a3],24
 
 /* lg_btn: `call lg_btn,[d2,d3,a2,a3],24`: BUTTONS AND DIALS from lg_cv: photo and video buttons, our Creative Dial
@@ -19082,3 +19083,260 @@ el_tid:                           /* the GUI task's id, noted by el_go */
  .include "rgbcurves.inc"           /* rgb-curves: engine, storage */
  .include "colourmix.inc"           /* colour mix: the per-film 3 x 3 matrix (m1) */
  .include "curvesfile.inc"          /* v0.30 test 9: CURVES.BIN, each film's built-in curves and mix */
+
+/* ------------------------------------------------------------------ video bitrate (feature/video-h265-bitrate)
+ * The camera picks the recording bitrate (bps) from its tables (H.264 0x606df544, H.265 0x606df60c, research/NOTES.md
+ * "Video: H.265 ..."); two readers use it: the record-rate sum 0x6053c32d.. (card / time estimate, (20,a2)) and the
+ * encoder's rate pair 0x6053e6d8 ((a3), (4,a3)). Camera probe 2026-11-15: the encoder follows the table. The choice
+ * lives in setting VB_SID 1288 (MODE_MOVIE_CUSTOM_SW_19: the movie function of key 54, an accessory key the OM-3 does
+ * not have; not in its movie Button Function rows): VB_STOCK 9 (its default) as stock, VB_HIGH 425 x 3/2, VB_MED 88
+ * x 2/3, VB_LOW 3200 x 1/3. Read with sget each time, so the menu's choice takes effect at the next recording. */
+.set VB_SID, 1288
+.set VB_STOCK, 9
+.set VB_HIGH, 425
+.set VB_MED, 88
+.set VB_LOW, 3200
+.section .hook_vba,"ax"
+ jmp vb_a                         /* stock 0x6053c32d: mov 100,d1; clr d2; mov d2,mdr; divu d1,d3 */
+ .byte 0xcb,0xcb
+.section .hook_vbb,"ax"
+ jmp vb_b                         /* stock 0x6053e6d8: mov (a3),d0; mov d0,(4,a3); mov (12,sp),a0 */
+ .byte 0xcb
+.section .ext12,"ax"
+/* vb_scale: `call vb_scale,[d2,d3,a2,a3],24`, d0 = bps -> d0 scaled by the choice in VB_SID. Uses d1, a0, a1, mdr. */
+vb_scale:
+ mov d0,d2
+ mov VB_SID,d0
+ call sget,[],4                   /* keeps d2, d3 */
+ cmp VB_HIGH,d0
+ beq 4f
+ cmp VB_MED,d0
+ beq 1f
+ cmp VB_LOW,d0
+ beq 2f
+ mov d2,d0                        /* stock (9, or anything else) */
+ ret [d2,d3,a2,a3],24
+4:
+ mov d2,d0                        /* x 3/2 = x + x/2 (largest table rate 205 Mbps -> 307.5: no overflow) */
+ mov d2,d1
+ lsr 1,d1
+ add d1,d0
+ ret [d2,d3,a2,a3],24
+1:
+ mov d2,d0
+ add d0,d0                        /* x 2 (largest table rate 205 Mbps: no overflow) */
+ bra 3f
+2:
+ mov d2,d0
+3:
+ mov 3,d1
+ clr d2
+ mov d2,mdr
+ divu d1,d0                       /* / 3 */
+ ret [d2,d3,a2,a3],24
+/* vb_a <- .hook_vba (jmp): d3 = the picked bps; d0, d1, a0, a1 free here (d0 / a1 used up at 0x6053c326..2b) */
+vb_a:
+ add -4,sp                        /* (0,sp) for the call's return address */
+ mov d3,d0
+ call vb_scale,[d2,d3,a2,a3],24
+ add 4,sp
+ mov d0,d3
+ mov 100,d1                       /* the replaced stock instructions */
+ clr d2
+ mov d2,mdr
+ divu d1,d3
+ clr d0                           /* d0 is the function's status (0 here: 0x6053c326..2b); it returns it at 0x6053c36a
+                                     (camera, build A 2026-11-15: left non-zero -> remaining video time 0, "Card full") */
+ jmp vb_ra
+/* vb_b <- .hook_vbb (jmp): (a3) = the picked bps (not 0 here); d0, d1, a0, a1 free (d1 / a0 reloaded right after) */
+vb_b:
+ mov (a3),d0
+ add -4,sp
+ call vb_scale,[d2,d3,a2,a3],24
+ add 4,sp
+ mov d0,(a3)                      /* the replaced stock instructions, with the scaled rate */
+ mov d0,(4,a3)
+ mov (12,sp),a0
+ jmp vb_rb
+/* The menu rows (tester's layout): page 221 (video tab "Basic Settings/Image Quality") gets Bitrate right after Video
+ * Codec, and Digital Tele-converter moves to the end of page 222 ("Picture Mode/WB"). build.py fills the copies below
+ * (page 221: vbm_*, page 222: vbm2_*); our row's texts are type-5 (literal) descriptors, as the camera's "x2" / "-2".
+ * List entries: label / help / value {u32 key, u16 type, u16 id, u32 text}; value lists {u16 mode, u16 n, u32 list}. */
+ .balign 4
+vbm_lab:
+ .space 8 * 12
+vbm_hlp:
+ .space 8 * 12
+vbm_val:
+ .space 6 * 8
+vbm2_lab:
+ .space 6 * 12
+vbm2_hlp:
+ .space 6 * 12
+vbm2_val:
+ .space 5 * 8
+vbm2_dd:
+ .space 2 * 16
+vbm2_ro:
+ .space 6 * 2
+ .balign 4
+vbm_vl:                           /* the Bitrate row's values: 425 High, 9 Stock, 88 Medium, 3200 Low */
+ .long VB_HIGH
+ .hword 5, 0
+ .long vbs_high
+ .long VB_STOCK
+ .hword 5, 0
+ .long vbs_stock
+ .long VB_MED
+ .hword 5, 0
+ .long vbs_med
+ .long VB_LOW
+ .hword 5, 0
+ .long vbs_low
+vbm_ro:                           /* page 221's row order (cursor kind 225, sub 0) */
+ .space 7 * 2
+ .balign 4
+vbm_dd:                           /* page 221's dropdown rows {14, sid, 0, 1} (build.py) */
+ .space 3 * 16
+vbm_keys:                         /* 1288's allowed values (its descriptor record points here: build.py) */
+ .hword VB_HIGH, VB_STOCK, VB_MED, VB_LOW
+ .balign 4
+ .balign 4
+vbs_title:
+ .asciz "Bitrate"
+vbs_help:
+ .asciz "Recording bitrate. High: 3/2, Medium: 2/3, Low: 1/3 of the camera's own bitrate."
+vbs_high:
+ .asciz "High"
+vbs_stock:
+ .asciz "Stock"
+vbs_med:
+ .asciz "Medium"
+vbs_low:
+ .asciz "Low"
+ .balign 4
+/* The Mbps the video quality screens show: GUI getBitrate (0x611d0055) returns a UTF-16 number text from its tables
+ * ("102", "54", ...: integers only). With High / Medium / Low, vb_s returns that number scaled (rounded) in one of four
+ * UTF-16 buffers instead. */
+.section .hook_vbs,"ax"
+ jmp vb_s                         /* stock 0x611d01c7: mov (12,sp),a0; ret [d2,d3,a2,a3],68 */
+.section .ext12,"ax"
+vb_s:
+ mov (12,sp),a0
+ cmp 0,a0
+ beq 1f
+ add -8,sp
+ mov d0,(4,sp)                    /* d0 kept as the stock end leaves it (only a0 is the result) */
+ call vb_str,[d2,d3,a2,a3],24
+ mov (4,sp),d0
+ add 8,sp
+1:
+ ret [d2,d3,a2,a3],68
+/* vb_str: `call vb_str,[d2,d3,a2,a3],24`, a0 = a UTF-16 number text -> a0 = it scaled by the choice (or a0 itself) */
+vb_str:
+ mov a0,a2
+ mov a0,a1
+ clr d2
+1:
+ movhu (a1),d0                    /* parse the digits */
+ cmp 0,d0
+ beq 2f
+ add -48,d0
+ cmp 10,d0
+ bcc 8f                           /* not a digit: leave the text alone */
+ mov 10,d1
+ mul d1,d2
+ add d0,d2
+ add 2,a1
+ bra 1b
+2:
+ cmp a2,a1
+ beq 8f                           /* empty */
+ mov VB_SID,d0
+ call sget,[],4                   /* keeps d2, d3 */
+ cmp VB_HIGH,d0
+ beq 6f
+ cmp VB_MED,d0
+ beq 3f
+ cmp VB_LOW,d0
+ bne 8f                           /* stock: the camera's own text */
+ mov d2,d0
+ bra 4f
+6:
+ mov d2,d0                        /* rounded: (3x + 1) / 2 */
+ add d0,d0
+ add d2,d0
+ inc d0
+ mov 2,d1
+ bra 7f
+3:
+ mov d2,d0
+ add d0,d0
+4:
+ inc d0                           /* rounded: (x + 1) / 3 */
+ mov 3,d1
+7:
+ clr d3
+ mov d3,mdr
+ divu d1,d0
+ movbu (vb_bi),d1                 /* the next of four buffers */
+ inc d1
+ and 3,d1
+ movbu d1,(vb_bi)
+ asl 4,d1
+ mov vb_buf,a1
+ add d1,a1
+ add 14,a1
+ clr d1
+ movhu d1,(a1)                    /* the terminator, then the digits from the end */
+5:
+ mov 10,d1
+ clr d3
+ mov d3,mdr
+ divu d1,d0
+ mov mdr,d3
+ add 48,d3
+ add -2,a1
+ movhu d3,(a1)
+ cmp 0,d0
+ bne 5b
+ mov a1,a0
+ ret [d2,d3,a2,a3],24
+8:
+ mov a2,a0
+ ret [d2,d3,a2,a3],24
+/* vb_txt: `call vb_txt,[d2,d3,a2,a3],24` from the debug log writer (a half-press, DEBUG.TXT on the card): the CADLOG.TXT
+ * line "Video: codec C, bitrate choice B, picture-mode range R, 100000000 bps recorded as N" (sget 2131, VB_SID, 1361;
+ * vb_scale of 100 Mbps), at the end of the CAMERA section (lg_cnow), for the emulator tests (tools/test/emu_test.py video-*). */
+vb_txt:
+ LGS vbl_1
+ mov 2131,d0
+ call sget,[],4
+ LGD
+ LGS vbl_2
+ mov VB_SID,d0
+ call sget,[],4
+ LGD
+ LGS vbl_3
+ mov 1361,d0
+ call sget,[],4
+ LGD
+ LGS vbl_4
+ mov 100000000,d0
+ call vb_scale,[d2,d3,a2,a3],24
+ LGD
+ ret [d2,d3,a2,a3],24
+vbl_1:
+ .asciz "\r\nVideo: codec "
+vbl_2:
+ .asciz ", bitrate choice "
+vbl_3:
+ .asciz ", picture-mode range "
+vbl_4:
+ .asciz ", 100000000 bps recorded as "
+ .balign 4
+vb_buf:
+ .space 4 * 16
+vb_bi:
+ .byte 0
+ .balign 4

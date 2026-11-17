@@ -147,6 +147,20 @@ GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 7 + HOLDER
 NOISE_FILTER_OFF_ROW = (f's1 wait wait {NR_ROW_STAR(False)} poke:{NF_BYTE:x}=fe wait {NR_ROW_STAR(False)} '
                         f'pokep:{NR_SLOT_COLOR2}=01 wait {NR_ROW_STAR(True)} poweroff')
 
+# Video menu (PR #51, H.265 with the standard picture modes and the Bitrate row). On a fresh camera in video (om-emu
+# 0819080) the menu opens on the first camera tab's first page; 21 lefts (My Menu, the wrench tab's 6 pages, then the
+# gear, playback and video tabs' pages) reach the video tab's page 1, whose rows run Custom Mode, Separate Settings,
+# Video Codec, Bitrate. The Bitrate dropdown lists High / Stock / Medium / Low with the cursor on the stored value
+# (Stock); the Video Codec picker is H.264 | H.265 (right). Each pick ends with OK, then MENU closes the menu.
+VIDEO_PAGE1 = 'menu wait' + ' left wait' * 21
+def video_pick(row_downs, moves):
+    return (f'wait wait wait s1 wait wait {VIDEO_PAGE1}' + ' down wait' * row_downs + f' ok wait {moves} ok wait '
+            'menu wait wait s1 wait wait poweroff')
+def video_line(codec, choice, scaled, pm_range=0):
+    # The debug log's video line (vb_txt): settings 2131, 1288, 1361, then vb_scale of 100 Mbps.
+    return (rf'^Video: codec {codec}, bitrate choice {choice}, picture-mode range {pm_range}, '
+            rf'100000000 bps recorded as {scaled}$')
+
 
 @dataclass
 class Boot:
@@ -273,6 +287,26 @@ TESTS = {
     'video-boot-after-photo-boot': [
         Boot('s1 wait wait poweroff'),
         Boot(VIDEO_BOOT, expect=VIDEO_BOOT_LINES, photo_switch=PHOTO_SWITCH_VIDEO),
+    ],
+    # PR #51: Bitrate. A fresh camera records at the stock rate; each choice scales it (High x 3/2, Medium x 2/3,
+    # Low x 1/3) and stays H.264 with the picture mode untouched.
+    'video-bitrate-stock-by-default': [
+        Boot(VIDEO_BOOT, expect=[video_line(0, 9, 100000000)], photo_switch=PHOTO_SWITCH_VIDEO),
+    ],
+    'video-bitrate-high': [
+        Boot(video_pick(3, 'up wait'), expect=[video_line(0, 425, 150000000)], photo_switch=PHOTO_SWITCH_VIDEO),
+    ],
+    'video-bitrate-medium': [
+        Boot(video_pick(3, 'down wait'), expect=[video_line(0, 88, 66666666)], photo_switch=PHOTO_SWITCH_VIDEO),
+    ],
+    'video-bitrate-low': [
+        Boot(video_pick(3, 'down wait down wait'), expect=[video_line(0, 3200, 33333333)],
+             photo_switch=PHOTO_SWITCH_VIDEO),
+    ],
+    # PR #51: H.265 keeps the picture mode chosen. Stock firmware sets the picture-mode range (1361) to 254 (OM-Log /
+    # HLG) when Video Codec turns H.265; with the patch it stays 0 (the standard picture modes).
+    'video-h265-keeps-picture-mode': [
+        Boot(video_pick(2, 'right wait'), expect=[video_line(1, 9, 100000000)], photo_switch=PHOTO_SWITCH_VIDEO),
     ],
 }
 

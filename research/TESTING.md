@@ -91,6 +91,11 @@ The gate and the digest have unit tests that need no firmware:
 | `curves-file-new-values-follow-edits-stay` | A new `CURVES.BIN` reaches a film you never changed; a curve changed on the RGB page stays when another file comes |
 | `curves-file-none-or-not-valid` | No `CURVES.BIN`, or one with a wrong CRC: nothing taken, no film gets values (as test 8) |
 | `look-tables-match-the-model` | `st_run`'s R, G and B tables on a fake COLOR job match the Python models for split toning, curves and both together, and `sd_crc` matches zlib's CRC-32 |
+| `video-bitrate-stock-by-default` | A fresh camera's Bitrate is Stock: 100 Mbps stays 100 Mbps (the CADLOG.TXT `Video:` line) |
+| `video-bitrate-high` | Bitrate High through the video menu: 100 Mbps records as 150 Mbps, codec and picture mode untouched |
+| `video-bitrate-medium` | Bitrate Medium through the video menu: 100 Mbps records as 66.7 Mbps |
+| `video-bitrate-low` | Bitrate Low through the video menu: 100 Mbps records as 33.3 Mbps |
+| `video-h265-keeps-picture-mode` | Video Codec H.265 through the video menu leaves the picture-mode range (1361) at 0; stock sets 254 (OM-Log / HLG) |
 | `patch-audit` | om-emu's audit finds no patched byte the camera does not load, and no task started at power-on |
 | `static:release-rebuild` | `firmware/patch.py` rebuilds the newest release byte for byte, and `SHA256SUMS` matches |
 | `static:hook-list` | The build's hooks equal `tools/test/hooks.json` |

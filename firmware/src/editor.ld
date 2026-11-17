@@ -16,6 +16,9 @@ SECTIONS {
   .hook_wt      0x605048c1 : { *(.hook_wt) }
   .hook_ag      0x610833b3 : { *(.hook_ag) }
   .hook_dl      0x610ba015 : { *(.hook_dl) }
+  .hook_vba     0x6053c32d : { *(.hook_vba) }
+  .hook_vbb     0x6053e6d8 : { *(.hook_vbb) }
+  .hook_vbs     0x611d01c7 : { *(.hook_vbs) }
   .hook_dmg     0x6109355f : { *(.hook_dmg) }
   .hook_ex      0x60457578 : { *(.hook_ex) }
   .hook_scw     0x61157d30 : { *(.hook_scw) }
@@ -228,6 +231,8 @@ dl_fn         = 0x610a2407;         /* #37: live view's AF-ON press handler (run
 dl_walk       = 0x610b9fe0;         /* #37: the state block walk's loop start (clr d3) */
 dl_hit        = 0x610ba01a;         /* #37: the walk's end after .hook_dl's 5 bytes, an entry with a handler */
 dl_none       = 0x610ba054;         /* #37: the walk's return (d0 = found) */
+vb_ra         = 0x6053c334;         /* video bitrate: after .hook_vba's 7 bytes (the record-rate sum) */
+vb_rb         = 0x6053e6de;         /* video bitrate: after .hook_vbb's 6 bytes (the encoder's rate pair) */
 ex_back       = 0x60457580;         /* v0.27 EXIF: after the hook's 8 bytes */
 ds_get        = 0x610cd5ac;         /* #54: the camera's data store, read: a0 buffer, d0 item, d1 length (call [],4) */
 ds_put        = 0x610cd5c4;         /* #54: and write, marking the item changed: a1 0 as the camera's (call [d2,a2],16) */
