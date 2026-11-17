@@ -41,6 +41,9 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_wt': (0x605048c1, bytes.fromhex('f824302c5802')),
          '.hook_stw': (0x6128b1d3, bytes.fromhex('cdb3f90004ccee00')),   # sd3: a text widget's string id is set (call 0x6128ab86,[],4; jmp 0x6128b2c6): the panel's title
          '.hook_dl': (0x610ba015, bytes.fromhex('ba00c83d3c')),   # #37 Delete: the state block walk's end (dl_look)
+         '.hook_wi': (0x6118cc43, bytes.fromhex('dd79df0f00e010')),   # WB lock sign: the shooting screen's WB display, its last call (the Kelvin text shown / hidden)
+         '.hook_wd': (0x60545933, bytes.fromhex('f8bc843cfa93a401')),   # WB lock key: the capture's WB set-up, where its gains are settled
+         '.hook_wd2': (0x60545b1c, bytes.fromhex('f8bc88fa93a801')),   # WB lock key: the same place in the twin set-up (High Res, Live ND)
          '.hook_ia': (0x61083041, bytes.fromhex('cd8800f014')),   # ISO Auto key: the key dispatcher's key table walk (call 0x610830c9,[d2,d3,a2,a3],20)
          '.hook_ag': (0x610833b3, bytes.fromhex('822d550d84')),   # v0.27 arrow keys: the key dispatcher's value read (PR #26's up_get)
          '.hook_dmg': (0x6109355f, bytes.fromhex('a8c816')),
@@ -785,9 +788,10 @@ def build(defaults, testfile, out):
         a = o(sy['lg_ft'] + 20 * i + 8)
         assert struct.unpack_from('<I', m, a)[0] == 0x4c475831
         struct.pack_into('<I', m, a, struct.unpack_from('<I', (out / f).read_bytes(), 8)[0])
-    # ISO Auto key: its Button Function entry (firmware/isoauto.py)
+    # ISO Auto key / WB lock key: their Button Function entries (firmware/isoauto.py)
     import isoauto
     isoauto.menu_tables(m, o, sy)
+    print('WB Lock sign: %d x %d, %d bytes, squeeze %.2f' % isoauto.lock_picture(m, o, sy), file=sys.stderr)
     # v0.20: the code-block tag = 'X' + 3 bytes of the image's SHA-256 (with the placeholder in place)
     tr = sy['x_tagref']
     assert m[o(tr):o(tr) + 2] == b'\xfc\xc8' and struct.unpack_from('<I', m, o(tr) + 2)[0] == 0x58000000

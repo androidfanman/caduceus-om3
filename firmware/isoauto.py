@@ -1,6 +1,6 @@
-"""The Button Function entry of the ISO Auto key (editor.s "ISO Auto key").
+"""The Button Function entries of the ISO Auto key and the WB lock key (editor.s "ISO Auto key and WB lock key").
 
-menu_tables(m, o, sy) gives the photo buttons the functions in FUNCS, here IA (ISO Auto): the buttons'
+menu_tables(m, o, sy) gives the photo buttons the functions in FUNCS, IA (ISO Auto) and WK (WB lock): the buttons'
 validator lists, the Button Function rows' value labels and the choice screen's title / cell / help lists each get a
 copy with the new entries, in the space editor.s keeps for them (ia_v0.. ia_ph, at the end of ext13), and the
 camera's records are pointed at the copies. It reads the lists from the image it is given, so build.py runs it on its
@@ -9,7 +9,8 @@ own image and research/isoauto/layer.py on a release's.
 import struct
 
 IA = 3910                                # ISO Auto's function code (free: the camera's codes end below 3500, ours 3900..3904)
-FUNCS = ((IA, 0),)                       # (function code, its first string: ST_IAC + this = cell, + 1 title, + 2 help)
+WK = 3911                                # WB lock's
+FUNCS = ((IA, 0), (WK, 3))               # (function code, its first string: ST_IAC + this = cell, + 1 title, + 2 help)
 OFF = 3200
 VAL, NVAL = 0x6061912c, 1712             # validator records, 20 B
 HDR = 0x61569064                         # the photo Button Function rows' item records {0, ptr, n}
@@ -27,7 +28,7 @@ def menu_tables(m, o, sy):
         m[o(sy[name]):o(sy[name]) + len(data)] = data
         return sy[name]
 
-    # 1. validator lists: one copy per different list (Fn's, L-Fn's, the arrows'), the new codes before Off
+    # 1. validator lists: one copy per different list (Fn's, L-Fn's, the arrows'), IA and WK before Off
     vrec = {struct.unpack_from('<H', m, o(VAL) + 20 * i)[0]: VAL + 20 * i for i in range(NVAL)}
     copies = {}
     for sid in BUTTONS:
@@ -78,3 +79,36 @@ def menu_tables(m, o, sy):
             hits += 1
     assert hits == 11, hits
 
+
+def lock_picture(m, o, sy):
+    """The shooting screen's "WB Lock" sign (editor.s wi_lv / wi_ic): drawn as the author's "FILM n" label there
+    (mkicons._lv_glyph: DejaVu Sans Condensed, cap 24, baseline 33, the label style), on the size of the camera's
+    "WB Auto" picture, 86 x 44: the widget shows no more than that width (a wider picture is cut on the left), so the
+    two words are squeezed until they fit, 4 px apart, against the right edge. An OSD type-11 stream in wi_pic;
+    wi_desc gets its size and uncached address."""
+    import numpy as np
+    import mkicons
+    W, GAP = 86, 4
+    sq0 = mkicons.LV_SQ
+    try:
+        for sq in (0.80, 0.78, 0.76, 0.74, 0.72, 0.70, 0.68, 0.66, 0.64, 0.62, 0.60):
+            mkicons.LV_SQ = sq
+            a, b = mkicons._lv_glyph('WB'), mkicons._lv_glyph('Lock')
+            if a.shape[1] + GAP + b.shape[1] <= W - 2:
+                break
+        else:
+            raise AssertionError('the sign does not fit')
+    finally:
+        mkicons.LV_SQ = sq0
+    px = np.zeros((mkicons.LVH, W), dtype=np.uint8)
+    x = W - 1 - b.shape[1]
+    px[:, x:x + b.shape[1]] = b
+    x -= GAP + a.shape[1]
+    px[:, x:x + a.shape[1]] = a
+    st = mkicons.encode11([int(v) for v in px.reshape(-1)], W, mkicons.LVH)
+    assert len(st) <= sy['wi_pend'] - sy['wi_pic'], len(st)
+    m[o(sy['wi_pic']):o(sy['wi_pic']) + len(st)] = st
+    d = sy['wi_desc']
+    assert struct.unpack_from('<6H', m, o(d)) == (14, 0, 0, 8, 0, 0)
+    struct.pack_into('<6H3I', m, o(d), 14, W, mkicons.LVH, 8, 0, 0, len(st), sy['wi_pic'] + 0x40000000, 0)
+    return W, mkicons.LVH, len(st), sq

@@ -5953,3 +5953,371 @@ still held the last photo pass's curve blocks. crombach: none of the custom sett
   Auto to something else (a value outside a list stays stored).
 - **Not done / not known:** the movie Button Function; the last manual value is not kept per custom mode or over a
   power-off; B (Auto may be refused there).
+
+## WB lock key: a button function that holds Auto WB, on the screen and in the photo
+- 2026-11-17 / 18, ryanbughuang (branch `feature/wb-lock-key`, on top of `feature/iso-auto-key`). **Camera-tested**
+  on the contributor's OM-3 as test builds laid onto the released v0.30.3 (`research/isoauto/layer.py`), packages 5
+  to 10 in the work log below. This branch's build, on main at e32363a, is emulator-tested; its camera test is noted
+  at the end of this section.
+- **What it does:** a button set to "WB Lock" holds Auto WB where it is now; the next press lets it go. While it
+  holds, the shooting screen reads "WB Lock" under the Picture Mode label. Only with Auto WB, in the photo modes.
+- **How, in short** (the sections after this one are the work in the order it was done, with every address):
+  - Live view: the camera's own hold in the live view WB task (queue word `0x6004362c`): message 10 takes a snapshot of
+    the Auto WB result, message 11 ends it, sent with the synchronous send `0x6004f3bd` from the key's code.
+  - The photo: the capture module settles a photo's WB gains (R / G / G / B, G = 128; the photo's WB_RBLevels are
+    twice these; live view's gains are in the same units) in two set-ups. `.hook_wd` at `0x60545933` (single shots,
+    burst, AE BKT, Live GND) and `.hook_wd2` at `0x60545b1c` (the twin set-up: High Res, Live ND, focus stacking):
+    with Auto WB and the hold on, R and B become the snapshot's. A third set-up (a task loop, the call at
+    `0x60545514`) has no hook: every mode tried on the camera takes the hold without it (test package 11).
+  - The sign: `.hook_wi` at the end of the shooting screen's WB display update (`0x6118cc4d`) shows the WB icon widget
+    on its "WB Auto" choice, and `.hook_ic` answers that picture (11223) with ours, drawn as the "FILM n" label is
+    (`firmware/isoauto.py` `lock_picture`). The key writes the shooting screen's record back (data store item 38) so
+    the screen draws at the press.
+  - Only with Auto WB: the key starts a hold only when the WB mode (1578) is Auto, and the WB display update ends a
+    hold when it runs with another mode.
+  - The Button Function entry: function code 3911, a second entry in `firmware/isoauto.py` `FUNCS`.
+- **Camera results in one place:** the hold on the LCD, in the viewfinder and the INFO styles; the photo's JPEG, its
+  WB_RBLevels and the ORF; single shots, burst (normal and SH2), AE BKT, High Res (hand-held), Live ND, Live GND; the
+  Button Function entry; the "WB Lock" sign; no effect with a preset; a hold ended when the WB mode leaves Auto.
+  **With this branch's code (test package 11, 2026-11-18):** HDR1, High Res on a tripod, focus bracketing, focus
+  stacking (the frames and the composite), multiple exposure, Live Composite, Live Time and Bulb take the hold; the
+  hold stays over the mode dial's turn to B and over sleep and wake. Details: "WB lock in the multi-shot modes".
+  **A film with its own WB during a hold (test package 11):** picked in the Picture Mode screen, a film with Custom
+  WB brings it and the hold ends; at a Creative Dial turn into COLOR the film's WB does not come and the hold stays
+  (the film WB's own behaviour, not the hold's: see "WB lock in the multi-shot modes").
+- **Not tried (camera):** interval shooting with this branch's code (it took the hold in test package 10); HDR2;
+  mode changes other than to B and the Creative Dial during a hold.
+- **Names:** the symbols are `wk_` / `WK_` (main has `wl_tab` / `wl_blk` for the wheel labels). The work log below
+  still says `wl_code`, `wl_n` and so on for them, and speaks of a ring of noted captures (`wd_ring`) and a file
+  `WBDIAG.BIN` with its reader `wbdiag.py`: those were in the test builds only and are not in this branch.
+
+### The WB lock key's work log (in the order it was done; "test N" = camera test package N)
+The two mixed sections also cover the ISO Auto key's early tests.
+
+## WB lock key (feature/iso-auto-toggle), test 2
+- 2026-11-17, ryanbughuang. Static analysis and emulator; no camera test yet. The emulator runs no Auto WB, so
+  whether the hold works is a camera question.
+- **Wish:** a press stops Auto WB where it is; the next press lets it go again.
+- **The live view WB task (static):** task loop `0x6048bb26`, queue word `0x6004362c`, context `0xa32e9238`. Each
+  message is `{reply queue, task, id, parameter}`; id at context +272 (`0xa32e9348`), state word +276
+  (`0xa32e934c`: 0 stopped, 1 running, 2 One-touch WB, 3 holding), one handler table per state (`0x6065c890` stopped,
+  `0x6065c8bc` running, `0x6065c8e8` One-touch, `0x6065c914` holding; 11 entries each).
+- **Auto WB's result:** `0xa32e9308..` (context +208): +0 / +2 / +4 three words (meaning not known; +4 is a light
+  source index below 14), **+8 / +10 the R and B gains** (`0xa32e9310` / `..12`), +12 / +14 two more gains, +16.. the
+  nine colour matrix words (`0xa32e9320`), then a second set. Written by the running state's update handler
+  `0x6048c55e` (data key 33057 = the WB mode: 0 / 4 Auto) from the calculation `0x6048d6f8`. `0x6048bc0f` copies the
+  gains out (the WB gain provider `0x603c2b3b`, request mode 4 / 6; `stb_expose_get_wb_gain` is one caller).
+- **The camera has its own hold.** Message 10 (running state, `0x6048c4c0`; parameter byte 0 = take a new snapshot,
+  1 = keep the one there is): `0x6048c7c8` copies the result (gains, matrix, the evaluation words `0xa32e9368..`) to a
+  snapshot at `0xa32e9400..`, sets the hold byte `0xa32e93fe` = 1 and the state to 3. While the hold byte is 1 (or 3)
+  the task's getters answer with the snapshot: `0x6048bca9` (gains and matrix for a request; caller `0x6047d6dd`) and
+  `0x6048bfd6` (the evaluation words; three callers in the capture set-up at `0x605311be..`). A stop and a start of
+  live view keep it (the start handler `0x6048c316` goes back to state 3 when the hold byte is 1). Message 11
+  (`0x6048cc74`) ends it: hold byte 3, state 1, and the next update makes it 2. The snapshot needs a valid result
+  (`0xa32e938c` non-zero).
+- **Who uses it in stock:** command handlers 45 (`0x603c8f5d`, sends 10) and 46 (`0x603c8fda`, sends 11) of the
+  command table `0x6031e224` (dispatcher `0x603178e4`, 93 commands), guarded by bit 0x80000 of that module's state
+  word. Which camera feature sends commands 45 / 46 is **not found** (a multi-shot mode is the guess). A stock message
+  10 during our hold is refused by the holding state (handler `0x6048c3f7`), so its bit stays clear and it sends no 11.
+- **Test 2:** a second function in `ia_do` (same hook, same one-act-per-press rule, photo switch and COMMON screens
+  only): `wl_code` = 404 (ART BKT, borrowed as Test Picture is for ISO Auto). Hold byte 1 -> message 11; else, only
+  when the state word is 1, message 10 with parameter 0. Sent with the generic synchronous send `0x6004f3bd` (d0
+  queue, d1 id, a0 parameter; it makes its own reply queue, so any task may call it) and it waits for the answer.
+- **Emulator:** the WB task is stopped there (state 0, hold byte 0, no valid result). Test
+  `wb-lock-key-sends-the-hold-message`: a press sends nothing while the state is 0; with the state word poked to 1 the
+  press sends message 10 and returns. The suite passes (28 tests).
+- **Camera test package 2** (ISO Auto key + WB lock key on the released v0.30.3): 304 B at `0x60fb4d00` and the 5-byte
+  hook; sha256 `1546ad63…da94`.
+- **Not known (camera):** whether a photo taken during the hold has the held white balance. The capture works its own
+  Auto WB out from the captured frame (`rec_cam_get_awb_exec` `0x6054a39e`, from `rec_precon_wb_exec`); the hold reaches
+  the capture set-up through `0x6048bfd6` only. Whether the waiting send can stall the button task. Whether sleep, a
+  mode change or video ends the hold. There is no sign on the screen that the hold is on.
+- **If photos do not follow the hold:** next candidates are the capture's own Auto WB (hook where it stores its
+  gains) or a One-touch WB slot written with the held values (store `0x603c3120`, data keys 52290.. per slot; it keeps
+  two chromaticity-like words, not gains, so the values need converting).
+
+## ISO Auto key and WB lock key, camera test 2 and test 3 (feature/iso-auto-toggle)
+- 2026-11-17, ryanbughuang.
+- **Camera (test package 2, `1546ad63…`; camera-tested):** the ISO Auto key changes the ISO only after a half-press
+  and release. The WB lock key holds Auto WB (the picture stops following the light), but a second press does not let
+  it go, and picking another WB mode then changes nothing on the screen. No freeze: the waiting send returns.
+- **ISO, the cause (emulator):** there are two settings. **1701 is the photo ISO as the user sets it** (the super
+  control panel's ISO cell writes it: facade SetValue(1701, mode 1 = one step up)); **6 is the value in use and follows
+  1701**. Read through sget in om-emu: a panel change moves both; test 1's write to 6 left 1701 at Auto. 4002 is the
+  ISO the metering uses (ISO 200 with Auto in om-emu). The debug log's "ISO" is 6. (The dial function code 1701 is WB
+  and 1578 ISO; as settings 1578 is the WB mode and 1701 this ISO.) Test 3 reads and writes 1701 through the same
+  getter / setter: in om-emu 6 and 1701 change together at the press.
+- **Facade SetValue's mode (static, `0x60b8781f`):** 1 one step up (`0x60bb5473`), 2 one step down (`0x60bb5423`),
+  3 (`0x60bb53d3`, not looked at), anything else sets the value given through the settings manager.
+- **WB, what the second press may have met (analysis, not proven):** read statically, message 11 in the holding state
+  (`0x6048cc74`) puts the Auto WB filters back at the held gains (`0x6048e1c8`), sets the hold byte to 3 and the state
+  to 1; the getters keep answering with the snapshot while the byte is 3, and the next periodic update in the running
+  state (messages 4 and 5, posted by the task's own two timers) makes it 2. Nothing found there that would keep the
+  hold. So either the second press sent nothing, or the press was acted on twice (11, then 10 again). Tests 1 and 2
+  acted on the first press event after a release event had reached the dispatcher; whether every button's release
+  reaches it on the camera is not known.
+- **Test 3, one act per key event:** `.hook_dl` (the event walk's end, `0x610ba015`) now goes to `ia_dl` first, which
+  notes the event and sets `ia_new` when it differs from the event walked before, then goes on to `dl_look`. `ia_do`
+  acts on a press only when it is the event being handled and `ia_new` is set. After message 11 it also makes the hold
+  byte 2 itself when the task left it at 3. A hold is ended when the hold byte is 1 or the state is 3.
+- **Emulator:** ISO test extended (two presses in a row end where they started; five presses, five switches). The
+  suite passes (28 tests); the same tokens pass on the camera test image.
+- **Camera test package 3:** `research/isoauto/layer.py` also moves the release's `.hook_dl` jump to `ia_dl` and gives
+  `ia_dln` the release's own `dl_look` address (0x60f67e85 in v0.30.3). 368 B at `0x60fb4d00`; sha256 `1db34dc7…c865`.
+- **Still not known (camera):** whether a photo taken during the hold has the held white balance; why the second
+  press did nothing in test 2.
+
+## WB lock key, camera test 3 and test 4 (the capture's WB; feature/iso-auto-toggle)
+- 2026-11-17, ryanbughuang.
+- **Camera (test package 3, `1db34dc7…`; camera-tested):** the ISO Auto key works (the ISO changes at the press).
+  The WB lock key holds live view's Auto WB, but **a photo taken during the hold is not held**: the capture works its
+  white balance out again.
+- **The capture's WB (static):**
+  - `rec_cam_get_awb_exec` (`0x6054a39e`) only fetches the capture's Auto WB picture (a 28160 B thumbnail, through the
+    CAM capture `0x6054a902`); the calculation is inside the image processor library (`0x61a2…`), reached from the WB
+    set-up `0x60546b11(parameters, request)`.
+  - The shooting parameters (`0x603e8c12..`) take the WB type from data key **33057** (parameters +37644: 0 Auto,
+    1 preset with its index from key 33073 at +37640, 2 One-touch with the slot at +37766, 3 Custom WB with the Kelvin
+    at +37642, 4 not known) through the data getter `0x60063380`.
+  - **Where the gains meet: `0x60545933`** (function around `0x605456f0`, a3 = the parameters). The usual path builds a
+    request and calls `0x60546b11`; the gains come back at (132 / 134 / 136 / 138,sp) (copied on as R, G, G, B). A second
+    path skips the image processor's Auto WB and uses stored gains: type 0 and (byte +7632 set, or +6140 non-zero with
+    byte +40717 set): the four words at +6512 (or +6334 when byte +38227 is 1), each halved, with (172,sp) = 8 and
+    (182,sp) = 3120 (3840). Which camera feature sets +7632 is not known (frames after the first of a multi-shot
+    sequence is the guess).
+  - The capture set-up `0x60531173` hands live view's Auto WB to the capture (parameters +660: the gains through the
+    provider's mode 4, i.e. `0x6048bc0f`, and the evaluation words through `0x6048bfd6`): a starting point, not the
+    result.
+  - `0x6055dc..`: for some capture kinds the non-Auto gains are kept as ratios to a reference (the provider's mode 0,
+    select 8): `(gain << 7) / reference` at parameters +37462 (R) and +37468 (B), 128 = 1.0.
+- **What is missing:** how live view's gains (`0xa32e9310`, the provider's units) relate to the gains at
+  `0x60545933` and to the stored words at +6512. Only the camera can say: om-emu takes no photo.
+- **Test 4 is a measurement build.** `.hook_wd` at `0x60545933` (8 bytes) -> `wd_cap` notes each capture in a ring
+  of four (WB type, the stored-gains byte, the hold byte, the four gains, (172,sp), (182,sp), the words at +6512 and
+  +6334): reads and our own RAM only. Every press of the WB lock key then writes `OM3MOD/WBDIAG.BIN` (720 B: our
+  variables and the ring, then the WB task's context `0xa32e9228..0xa32e9460`) with the stock file calls
+  (`OS_FOPEN`, `fwrite`, `OS_FCLOSE`). `research/isoauto/wbdiag.py` reads it. The lock itself is as test 3.
+- **Emulator:** the file is written at a press (720 B); the suite passes (28 tests); the same tokens pass on the
+  camera test image. The capture hook cannot run there.
+- **Camera test package 4:** 784 B at `0x60fb4d00`, so the loader's end word goes from 0x60fb5000 to 0x60fb6000
+  (inside the GX4-proven reserve, as build.py does it); hooks `0x61083041`, `0x60545933`, `.hook_dl`. sha256
+  `54531cf4…b79e`.
+
+## WB lock key, camera test 4 (measured) and test 5 (the photo is locked too)
+- 2026-11-17, ryanbughuang.
+- **Camera (test package 4, `54531cf4…`; camera-tested):** the second press ends the hold now (live view follows the
+  light again); no stall or freeze at a press, with the file write. `WBDIAG.BIN` and the photos PB170057..60 (kept
+  privately):
+
+  | Photo | Scene | Hold byte | Gains at `0x60545933` R / G / G / B | (182,sp) | Photo's WB_RBLevels |
+  |---|---|---|---|---|---|
+  | PB170057 | warm light | 1 (held) | 324 / 128 / 128 / 173 | 1792 | 648 346 256 256 |
+  | PB170058 | warm light | 2 (let go) | 318 / 128 / 128 / 179 | 1792 | 636 358 256 256 |
+  | PB170059 | cool light | 1 (held at the warm light) | 229 / 128 / 128 / 344 | 1024 | 458 688 256 256 |
+
+  The snapshot of that hold: gains R 318, B 181 (G 128, 128); the second pair R 324, B 176. Live at the file write:
+  318 / 181 and 281 / 266.
+- **So:** `.hook_wd` runs once per photo; the gains there are the ones the photo gets (**WB_RBLevels = 2 x them**);
+  **live view's Auto WB gains are in the same units** (G = 128) and within about 2 % of what the capture works out
+  for the same scene; during a hold the capture still works its own out (PB170059). The stored-gains words at +6512
+  were 0 and the byte +7632 was 0 in all three. (182,sp) changes with the light (1792 warm, 1024 cool); what it is
+  for is not known.
+- **Test 5:** in `wd_cap`, with WB type 0 or 4 and the hold byte 1, the R and B words at (132,sp) / (138,sp) become
+  the snapshot's first pair (`0xa32e9400` / `..02`, the one `0x6048bca9` gives live view as its gains). The G words,
+  (172,sp) and (182,sp) stay as the camera worked them out. The ring now keeps the gains as used, as worked out, the
+  snapshot's and whether the lock replaced them; the file is still written at each press.
+- **Emulator:** the suite passes (28 tests); the capture hook cannot run there. Camera test package 5: 832 B at
+  `0x60fb4d00`; sha256 `a6b1871f…35ae`.
+- **Not known (camera):** whether the photo then matches the screen (the image processor's other Auto WB results,
+  such as whatever (182,sp) selects, still follow the scene); whether the RAW file's recorded WB levels follow (they
+  may be written from the image processor's own result); burst, bracketing, High Res and the other multi-shot modes;
+  video (the key does nothing there).
+
+## WB lock key, camera test 5: the photo is locked (camera-tested)
+- 2026-11-17, ryanbughuang. Camera test package 5 (`a6b1871f…`), `WBDIAG.BIN` and photos PB170072..76 (kept privately).
+- **Result:** a photo taken during the hold has the held white balance, in the JPEG, in its WB_RBLevels and in the
+  RAW file's levels. The second press ends it; photos after that are worked out by the camera again.
+
+  | Photo | Hold | Worked out R / B | Used R / B | WB_RBLevels | JPEG mean R/G, B/G |
+  |---|---|---|---|---|---|
+  | PB170072 | off | 229 / 344 | 229 / 344 | 458 688 | 1.01, 0.94 |
+  | PB170073 | off | 230 / 344 | 230 / 344 | 460 688 | 1.02, 0.92 |
+  | PB170074 | on (held under the first light) | 312 / 182 | **229 / 348** | 458 696 | 0.71, 1.32 (blue, as the screen) |
+  | PB170075 | on (held under the second light) | 230 / 344 | **306 / 187** | 612 374 | 1.33, 0.41 (orange, as the screen) |
+  | PB170076 | off | (after the file) | | 460 688 | 1.02, 0.94 |
+
+- So the gains at `0x60545933` are what the JPEG, the EXIF levels and the ORF take; replacing R and B there is enough
+  for the photo to match the screen (owner of the camera: "looks right"). The G words, (172,sp) and (182,sp) were
+  left as the camera worked them out ((182,sp) 1792 / 1024 as before, by the scene).
+- Correction to the test 4 table above: "warm" and "cool" there are the user's two lights in the order they were
+  used; by the gains, R 324 / B 173 is the bluer light and R 229 / B 344 the redder one.
+- `research/isoauto/wbdiag.py` fixed (it read 12 of the ring's 14 words).
+- **Open:** burst, bracketing, High Res and the other multi-shot modes; video (the key does nothing there); sleep and
+  mode changes during a hold; no sign on the screen that the hold is on; the borrowed function codes (Test Picture,
+  ART BKT) instead of menu entries of their own; the measurement file is still written at each press.
+
+## ISO Auto key and WB lock key, test 6: their own Button Function entries
+- 2026-11-17, ryanbughuang. Emulator only for the menu; the two functions themselves are camera-tested (tests 3 and 5).
+- **Function codes:** ISO Auto 3910, WB lock 3911 (the camera's own end below 3500; ours for the Creative Dial rows
+  are 3900..3904). Neither is in the function table `0x612f20a8`, and `ia_do` answers "no key" for them, so no stock
+  function runs. Test Picture and ART BKT are the camera's own again.
+- **The photo buttons' lists (read from the v0.30.3 image):**
+  - Validator lists: Fn 47 and Delete 570 share `0x60615432`; REC 48, |o| 1292, CP 49 and AF-ON 1964 each have a list
+    of their own with the same 50 codes; L-Fn 56 has 51 (`0x60615a5c`, + 3209); the arrows 50 to 53 share `ar_list`
+    (48). Three different code lists, so three copies with the two codes before Off (3200): the choice screen's grid
+    follows the validator list, so they show last, before Off.
+  - The rows' value labels (item records behind `0x61569064`, 28 B, +12 list and +16 count): `0x615685d4` (50; Fn,
+    REC, |o|, CP, AF-ON, Delete), `0x6156882c` (51; L-Fn), `ar_lab` (48; the arrows). Entries `{code, id << 16 | type,
+    object}`, type 4 a string, 0xc a picture; the object word is the same through a list.
+  - The choice screen: 11 of the 32 variants at `0x61571ba0` (24 B `{key, n, titles, cells, help, ?}`) hold the photo
+    Fn lists `(55, 0x61570e08, 0x61571288, 0x61571708)`: titles and help are strings, cells strings or pictures.
+- **Build:** `firmware/isoauto.py` `menu_tables(m, o, sy)` makes the copies in space at the end of ext13 (`ia_v0..2`,
+  `ia_l0..2`, `ia_pt / ia_pc / ia_ph`) from the image's own lists and points the records at them; build.py calls it,
+  and `research/isoauto/layer.py` runs it again on the release image. Strings ST_IAC + 0..5 (0x7f0a..0x7f0f: cell,
+  title, help of each) through `ia_str`, which `.hook_str` reaches before `st_get` (as `.hook_dl` and `dl_look`).
+- **Emulator:** the Fn and Delete choice screens show "Test, ISO Auto, WB Lock, Off" on the last page, with the
+  titles "ISO Auto / Manual" and "Auto WB Lock" and two lines of help each; the row reads "Fn : ISO Auto". New test
+  `iso-auto-key-from-the-button-function-menu`: Delete is given ISO Auto in the menu, with no poke, and two presses
+  switch the ISO and back. The suite passes (29 tests); the same steps pass on the camera test image.
+- **tools/test/hooks.json:** the new patch sites are added by hand as whole fields (the validator records' list and
+  length words of the 11 photo buttons, the 11 variants' count and three list words). `static_check.py --write-hooks`
+  on a macOS build narrows other entries whose first byte happens to match stock there, so it was not used.
+- **Measurement file:** no longer written (the ring of the last four captures stays in RAM).
+- **Camera test package 6:** 5488 B at `0x60fb4d00`, loader end word 0x60fb7000; sha256 `a7c7be03…d65a`.
+- **After flashing:** a button that was on Test Picture or ART BKT does that stock function again; pick ISO Auto /
+  WB Lock for it. Going back to a firmware without these entries: set those buttons to something else first (a value
+  outside a list stays stored).
+- **Not done:** the movie Button Function (the two functions are photo only); a sign on the screen for the hold.
+
+## WB lock key, test 7: a sign on the shooting screen
+- 2026-11-17, ryanbughuang. Emulator only (the screen); the lock itself is camera-tested (test 5).
+- **The shooting screen's WB display (static + om-emu):** function `0x6118cc4d` (three callers in the information
+  view's update, `0x6118bf89 / 0x6118c08c / 0x6118c0c2`) shows the WB icon and, for a preset or Custom WB, the Kelvin
+  as text; with Auto WB every widget of it is hidden (om-emu: nothing drawn; a preset draws pictures 12722 / 13718 and
+  the digits). Widgets at its (16 / 24 / 28 / 32 / 36 / 52,sp); the Kelvin text is (52,sp): `"%dK"` (UTF-16) formatted
+  by `0x610fc42c`, set with `0x610d7e31(widget, text)`, placed with `0x6128adf3(widget, x, 0)` (x 135 after an icon,
+  98 without) and shown / hidden with `0x6128abbc(widget, 1 / 0)`, the function's last call (`0x6118cc43`).
+- **The sign:** `.hook_wi` takes that last call (7 bytes) -> `wi_lv`: when the Kelvin text is hidden and the hold
+  byte is 1, the widget gets our text at x 98 and is shown.
+- **Its font is small:** only A B F K L M, the digits and `- + * / . : [ ]` draw (om-emu; anything else is a filled
+  block, and K L M are small capitals). So the sign reads **"A-L"** (Auto WB locked, as AEL / AFL), not "AWB Lock".
+- **Making it show at the press:** the information view updates its items when the camera writes the shooting
+  screen's record, data store item 38 (464 B; the camera does at an ISO change, and `lv_end` uses the same for the
+  Picture Mode label). The screen runs on the GUI task, the key dispatcher on another (om-emu: different stack
+  roots), so the key code does not touch the widgets: after its message it reads item 38 and writes it back
+  (`ds_get` / `ds_put`), and the GUI task draws. Tried and not enough (om-emu): the WB mode (1578) written with its
+  own value, Custom WB Kelvin (107) moved a step and back, item 31 written back.
+- **Emulator:** with the hold byte set, a press of the key puts "A-L" under the Picture Mode label at once, and with it
+  cleared the next press takes it away; test `wb-lock-key-sends-the-hold-message` now also checks it (wi_n). The suite
+  passes (29 tests); the same on the camera test image, with WB Lock chosen for Delete in the menu.
+- **Camera test package 7:** 6096 B at `0x60fb4d00`; hooks `0x61083041`, `0x60545933`, `0x6118cc43`, `.hook_dl`,
+  `.hook_str`; loader end word 0x60fb7000; sha256 `50b65e14…a6e1`.
+- **Not known (camera):** the viewfinder and the other information styles (INFO); whether the sign stays right
+  through a photo, playback and back, and a mode change; the sign with a preset WB (the hold has no effect then, and
+  no sign shows: the Kelvin is there).
+
+## WB lock sign: "ABL" (test 8)
+- 2026-11-17, ryanbughuang. Emulator only.
+- The user asked for "wb-L", or "ABL" / "AWL". The Kelvin text's font has no lower case at all and no W (om-emu:
+  a to z and W draw as blocks), so the sign is **"ABL"** (the L is one of the font's small capitals). Nothing else
+  changed from test 7. The suite passes (29 tests). Camera test package 8: sha256 `4e80d135…39b0`.
+
+## WB lock sign as a picture, "WB Lock"; the lock only with Auto WB (test 9)
+- 2026-11-18, ryanbughuang. Emulator only for the screen and the Auto-only rule.
+- **Camera (test package 8, `4e80d135…`; camera-tested):** the Button Function entries ("ISO Auto", "WB Lock") and the
+  "ABL" sign work. The user: "ABL" is ugly; wants "WB Lock", made the way the author makes text.
+- **How the author puts text on the shooting screen:** as pictures. `firmware/mkicons.py` draws the words with DejaVu
+  Sans Condensed in the camera's label style (palette 10 fill, 7 / 8 / 9 edge, 11 / 12 soft; `_lv_glyph`: cap 24,
+  baseline 33, squeezed 0.8), `encode11` packs an OSD type-11 stream, and the picture lookup hook (`.hook_ic`,
+  `0x610f5611`: id -> a slot holding a `<6H3I>` descriptor {14, w, h, 8, 0, 0, length, uncached address, 0}) answers
+  the camera's own id with it ("COLOR k", 15706.., -> "FILM n": `fl_lvp`).
+- **Why "ABL" looked as it did:** the Kelvin text is drawn from pictures, one per character (16 x 30: the digits 104..,
+  K 13718, 12722 / 12725 / 12726 the digits 3 / 6 / 7 ...); only A B F K L M, the digits and a few signs exist.
+- **The WB display's pictures (om-emu dumps):** the icon widget at (32,sp) of `0x6118cc4d` shows 11223 "WB Auto"
+  (86 x 44), 11224 / 11229 / 11234 / 11235 One-touch 1 to 4, 11230 underwater (76 x 44); 56 x 44: 11233 sunny, 11231
+  shade, 11232 flash, 11236 CWB, 11237 cloudy, 11238 incandescent, 11239 fluorescent. Choice 0 is "WB Auto", which the
+  LCD's shooting screen never shows with Auto WB (the widget is hidden; the lookup still runs).
+- **Test 9:** `wi_lv` (with the hold on and Auto WB) sets that widget to choice 0, places it (`0x6128b45f(widget, 0)`)
+  and shows it, and sets `wi_on`; `wi_ic` (`.hook_ic`, before `cv_ic`) answers 11223 with our picture while `wi_on`
+  is set. The picture: `firmware/isoauto.py` `lock_picture`, "WB" and "Lock" 4 px apart in `_lv_glyph`'s style, 86 x 44.
+  The widget shows 86 px and cuts a wider picture on its left (a first 104 px one read "/B Lock"), so the words are
+  squeezed to 0.66.
+- **Only with Auto WB:** the key starts a hold only when the WB mode (setting 1578) is Auto; `wi_lv` ends a hold
+  (message 11, sent from the GUI task) when the WB display is updated with another mode. Before: live view kept the
+  held gains under a preset too (the task's getter answers with the snapshot whatever the mode), while the photo took
+  the preset's (`wd_cap` acts on type 0 / 4 only).
+- **Emulator:** "WB Lock" under the Picture Mode label, in its lettering, at the press; gone at the next; a preset
+  shows its own icon and Kelvin. New test `wb-lock-only-with-auto-wb`. The suite passes (30 tests); the same on the
+  camera test image. Camera test package 9: 9312 B at `0x60fb4d00`, loader end word 0x60fb8000; hooks as test 7 plus
+  `.hook_ic`; sha256 `af86bc0d…82ec`.
+- **Camera (2026-11-18): package 9 works** (the sign, the viewfinder and INFO styles, the Auto-only rule: see the
+  summary section above). Not known: the hold ending when a film brings its own WB mode.
+
+## WB lock in the multi-shot modes (camera tests 9 and 10)
+- 2026-11-18, ryanbughuang.
+- **Camera, test package 9 (`af86bc0d…`):** during a hold, burst (normal and SH2) and AE BKT photos take the held
+  white balance; **High Res and Live ND do not**.
+- **Why (static):** the capture module has three WB set-ups that call the image processor's WB (`0x60546b11`):
+  1. `0x605456a6..`, gains at (132 / 134 / 136 / 138,sp), met at `0x60545933` (`.hook_wd`, since test 4);
+  2. its twin `0x605459a5..` (one caller, `0x6054b08a`), gains at (136 / 138 / 140 / 142,sp), met at `0x60545b1c`;
+  3. a task loop around `0x60545326..`: after the call at `0x60545514` the gains at (200 / 202 / 204 / 206,sp) are
+     stored into the capture's parameters at +37608 (R), +37610 (B), +37612, +37614, with +37632 = 1.
+- **Test 10** (`test/wb-lock-composite`, package `8964b53c…`): the same lock at 2 (`.hook_wd2`, `0x60545b1c`, 7
+  bytes, stock `f8 bc 88 fa 93 a8 01`) and 3 (`.hook_wd3`, `0x60545522`, 6 bytes, stock `82 f8 bd c8 80 01`), the ring
+  of noted captures grown to 16 with the set-up's number, and the measurement file written at a press again.
+- **Camera, test package 10: High Res, Live ND and Live GND photos take the held white balance** (the contributor).
+- **Which set-up each mode uses** (a second run of package 10, `WBDIAG.BIN` and PB180023..25, kept privately; held at
+  R 334 / B 208, the scene worked out as about R 262 / B 256):
+
+  | Photo | Mode (StackedImage) | Set-up | Worked out R / B | Used R / B | WB_RBLevels |
+  |---|---|---|---|---|---|
+  | PB180023 | High Res, hand-held, 5760 x 4320 (11 12) | **2** | 264 / 254 | 334 / 208 | 668 416 |
+  | PB180024 | Live ND (3 2) | **2** | 260 / 256 | 334 / 208 | 668 416 |
+  | PB180025 | Live GND (0 0) | **1** | 262 / 256 | 334 / 208 | 668 416 |
+
+  All three JPEGs have the same cast (mean R/G 1.30, B/G 0.75). So High Res and Live ND go through the twin set-up
+  (`0x60545b1c`), which is why package 9 missed them; Live GND goes through the first, as single shots, burst and AE
+  BKT do. **Set-up 3 (`0x60545522`) was not used by any mode tried**: its hook has no camera evidence and does not
+  go into `feature/wb-lock-key`.
+- **Done in `feature/wb-lock-key` (2026-11-18):** `.hook_wd2` is in, the ring and the file write are out, the branch
+  is on main at e32363a and its symbols are `wk_`. Emulator-tested; the camera test of that build is in the summary
+  section.
+- **Camera, test package 10 again, the other modes** (the contributor; judged from the photos' WB_RBLevels and
+  colour, the files kept privately): held at R 337 / B 212 under one light and shot under another (Auto WB there:
+  R 244 / B 334, WB_RBLevels 488 668, neutral), every photo read 674 424 and has the held cast: HDR1 (5 4), High
+  Res on a tripod (8 8), focus bracketing (two runs, 24 and 25 frames), Live Composite (1 n), Live Time (4 n), Bulb,
+  interval shooting (3 frames), focus stacking (9 n: the frames and the composite). The measurement file kept one
+  capture only, because the camera was switched off and on during the run: **focus stacking, set-up 2**. Which set-up
+  the others use was not measured.
+- **Camera, test package 11 (`b07f0780…`) = this branch's code** (`feature/wb-lock-key`, two hooks, no hook at set-up
+  3, no measurement), the contributor, 2026-11-18. Held under the first light (WB_RBLevels 668 428, later 674 424
+  after a new hold), shot under the second:
+
+  | Photos | Mode (StackedImage) | WB_RBLevels | Colour |
+  |---|---|---|---|
+  | PB180121..146 | Focus bracketing, 26 frames | 668 428 | held |
+  | PB180147 | HDR1 (5 4) | 668 428 | held |
+  | PB180148 | High Res on a tripod (8 8) | 674 424 | held |
+  | PB180149 | Live Composite (1 13) | 674 424 | held |
+  | PB180150 | Live Time (4 6) | 674 424 | held |
+  | PB180151..152 | Bulb | 674 424 | held |
+  | PB180153..163 | Focus stacking, 10 frames and the composite (9 10) | 674 424 | held |
+  | PB180120 | Multiple exposure, hold on | 256 256 | held |
+  | PB180164 | Multiple exposure, no hold | 256 256 | neutral |
+
+  **So no mode tried needs the hook at set-up 3.** A multiple exposure's file reads WB_RBLevels 256 256 with and
+  without the hold (the camera's own way, it seems), so that mode is judged by colour alone: the held cast with the
+  hold, neutral without. The hold stayed over the mode dial's turn to B (Live Composite read the same levels as the
+  shot before it) and over sleep and wake (the sign was still there). `WBDIAG.BIN` on the card kept its old time:
+  package 11 writes no file.
+- **A film that brings its own WB during a hold** (camera, package 11, the contributor; om-emu, this branch's build):
+  - Picked in the Picture Mode screen, from a film on Auto WB to a film that keeps Custom WB: the film's WB comes and
+    the hold ends (camera). om-emu the same with a film that keeps Sunny: "WB Lock" on COLOR 1, then FILM 2 with
+    Sunny 5300K and no sign.
+  - **A Creative Dial turn into COLOR, to a film that keeps Custom WB: the screen still reads "WB Lock", the WB stays
+    Auto and the film has its `*`** (camera). om-emu (a temporary `inject:1906=V` token in the test driver, as
+    `tools/emulator/sess7.mjs` has it; FILM 2 keeps CWB 5400K; a turn to ART, WB set to Auto by hand, a turn back to
+    COLOR): the WB stays Auto **with the hold and without it**. So the film's WB does not come at a dial turn back
+    into COLOR, hold or no hold (emulator only for "without"; `fw_apply` runs from `fl_set` after a change of look or
+    COLOR), and the hold stays because the WB mode is still Auto. Not the key's doing; left as it is.
+- **Not tried:** interval shooting with package 11 (held in package 10); HDR2; what set-up 3 is for.

@@ -10,8 +10,8 @@ reserve); the hook in the key dispatcher (the release must hold the stock bytes 
 .hook_str, which go to ia_dl and ia_str now. The words ia_dln and ia_strn are dl_look's and st_get's addresses: they
 get the addresses the release's own jumps went to. The Button Function lists (firmware/isoauto.py) are made again
 from the release's own lists, and its records pointed at them.
-With the WB lock key: also the hooks in the capture's WB set-up and the shooting screen's WB display (stock bytes
-there), and .hook_ic -> wi_ic, with wi_icn given the release's cv_ic.
+With the WB lock key: also the hooks in the capture's two WB set-ups and the shooting screen's WB display (stock
+bytes there), and .hook_ic -> wi_ic, with wi_icn given the release's cv_ic.
 
 usage: layer.py RELEASE_E1479999.BIN NEW_main.bin NEW_p.elf OUT_DIR
 """
@@ -68,6 +68,11 @@ if new_end != end_word:
     assert end_word < new_end <= 0x6103f000 and set(rel[o(end_word):o(new_end)]) == {0xff}, (hex(end_word), hex(new_end))
     struct.pack_into('<I', rel, o(0x60045e9c), new_end)
     print(f'loader end word {end_word:#x} -> {new_end:#x}')
+WD2, WD2_STOCK = 0x60545b1c, bytes.fromhex('f8bc88fa93a801')        # .hook_wd2: the twin WB set-up
+if WB:
+    assert rel[o(WD2):o(WD2) + 7] == WD2_STOCK, 'the release does not hold the stock bytes at .hook_wd2'
+    assert new[o(WD2)] == 0xdc and struct.unpack_from('<i', new, o(WD2) + 1)[0] + WD2 == sy['wd_cap2'] and new[o(WD2) + 5:o(WD2) + 7] == b'\xcb' * 2
+    rel[o(WD2):o(WD2) + 7] = new[o(WD2):o(WD2) + 7]
 if WB:
     rel[o(WD):o(WD) + 8] = new[o(WD):o(WD) + 8]
     rel[o(WI):o(WI) + 7] = new[o(WI):o(WI) + 7]

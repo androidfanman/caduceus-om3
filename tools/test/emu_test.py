@@ -261,13 +261,31 @@ def ck_line(mem, card, matches, on_builtin, with_values):
 # end where they started, and five presses make five switches (ia_n).
 ISO_AUTO_KEY = ('s1 wait wait poke:{ia_code}=800c delete wait s1 wait wait delete wait s1 wait wait '
                 'delete wait s1 wait wait delete delete wait expect:mem:{ia_n}=05 s1 wait wait poweroff')
+# WB lock key (feature/wb-lock-key): Delete stands for a button set to the function (wk_code poked to 3200, as
+# ISO_AUTO_KEY). om-emu runs no Auto WB, so its live view WB task is stopped (state word 0xa32e934c = 0): the first
+# press must send nothing (wk_n 0). The state word is then set to 1, the camera's "running": the next press sends the
+# hold message and comes back (wk_n 1). The ISO setting is untouched, and the half-presses after each press still log.
+# Whether Auto WB then holds needs the camera. The sign on the shooting screen: no sign while the hold byte is 0
+# (om-emu's task never sets it); with the hold byte set to 1, the camera's "held", the next press (it sends the end
+# message, which om-emu's stopped task ignores) makes the screen draw its WB display again, with the sign (wi_n 1).
+WB_LOCK_KEY = ('s1 wait wait poke:{wk_code}=800c delete wait expect:mem:{wk_n}=00 s1 wait wait '
+               'poke:a32e934c=0100 delete wait expect:mem:{wk_n}=01 expect:mem:{wi_n}=00 '
+               'poke:a32e93fe=01 delete wait wait expect:mem:{wk_n}=02 expect:mem:{wi_n}=01 s1 wait wait poweroff')
 # The ISO Auto key's own Button Function entry, with no poke: Menu > Button Settings > Button Function, down to the
-# Delete row (the 11th), its choice screen opens on Off (the last of 51), ISO Auto is one to the left; OK, back out to
+# Delete row (the 11th), its choice screen opens on Off (the last of 52), ISO Auto is two to the left; OK, back out to
 # the shooting screen. A Delete press then switches the ISO, and the next one switches it back.
 ISO_AUTO_FROM_MENU = ('s1 wait wait menu wait left left left left left wait ok wait ok wait '
-                      'down down down down down down down down down down wait ok wait left wait ok wait '
+                      'down down down down down down down down down down wait ok wait left left wait ok wait '
                       'menu wait menu wait menu wait s1 wait wait delete wait s1 wait wait delete wait s1 wait wait '
                       'expect:mem:{ia_n}=02 poweroff')
+# The WB lock acts only with Auto WB. The quick panel's WB cell (OK, right) one step on: a preset. With the WB task's
+# state word on "running", a press of the key sends nothing (wk_n 0). With the hold byte set to 1 as well (a hold
+# left on from Auto WB), the shooting screen's next WB display update shows no sign (wi_on 0, wi_n 0): it ends the
+# hold instead. Back on Auto WB (one step back), the hold byte set again and a press: the sign (wi_on 1).
+WB_LOCK_NOT_AUTO = ('s1 wait wait poke:{wk_code}=800c poke:a32e934c=0100 ok wait right wait main+1 wait s1 wait wait '
+                    'delete wait wait expect:mem:{wk_n}=00 poke:a32e93fe=01 s1 wait wait expect:mem:{wi_on}=00 '
+                    'expect:mem:{wi_n}=00 ok wait main-1 wait s1 wait wait poke:a32e93fe=01 delete wait wait '
+                    'expect:mem:{wi_on}=01 poweroff')
 TESTS = {
     'boot-smoke': [
         Boot('s1 wait wait poweroff', expect=[
@@ -304,8 +322,14 @@ TESTS = {
         Boot(ISO_AUTO_KEY, expect=[r'^#1 .* ISO Auto ', r'^#3 .* ISO 200 ', r'^#5 .* ISO Auto ', r'^#7 .* ISO 200 ',
                                    r'^#9 .* ISO 200 ']),
     ],
+    'wb-lock-key-sends-the-hold-message': [
+        Boot(WB_LOCK_KEY, expect=[r'^#1 .* ISO Auto ', r'^#5 .* ISO Auto ']),
+    ],
     'iso-auto-key-from-the-button-function-menu': [
         Boot(ISO_AUTO_FROM_MENU, expect=[r'^#3 .* ISO Auto ', r'^#5 .* ISO 200 ', r'^#7 .* ISO Auto ']),
+    ],
+    'wb-lock-only-with-auto-wb': [
+        Boot(WB_LOCK_NOT_AUTO),
     ],
     'dial-turn-before-first-half-press': [
         Boot(BOOT1_ASSIGN_C1),

@@ -18,6 +18,9 @@ SECTIONS {
   .hook_ag      0x610833b3 : { *(.hook_ag) }
   .hook_dl      0x610ba015 : { *(.hook_dl) }
   .hook_ia      0x61083041 : { *(.hook_ia) }
+  .hook_wd      0x60545933 : { *(.hook_wd) }
+  .hook_wd2     0x60545b1c : { *(.hook_wd2) }
+  .hook_wi      0x6118cc43 : { *(.hook_wi) }
   .hook_dmg     0x6109355f : { *(.hook_dmg) }
   .hook_ex      0x60457578 : { *(.hook_ex) }
   .hook_scw     0x61157d30 : { *(.hook_scw) }
@@ -227,6 +230,11 @@ ar_vget       = 0x610834b1;         /* v0.27: the dispatcher's value read, assig
 ar_vback      = 0x610833b8;         /* v0.27: the value read after its first 5 bytes (.hook_ag) */
 ia_walk       = 0x610830c9;         /* ISO Auto key: the dispatcher's key table walk (d0 event -> the key's sid, 3200 none) */
 ia_val        = 0x610833b3;         /* ISO Auto key: the dispatcher's value read (d0 sid; .hook_ag, `ret [d2],8`) */
+wk_rpc        = 0x6004f3bd;         /* WB lock key: the synchronous message send (d0 queue, d1 message, a0 parameter; `call ..,[d2,d3,a2,a3],72`) */
+wi_lay        = 0x6128b45f;         /* WB lock sign: a widget's place (a0, d0 0: an icon with nothing after it; `call ..,[d2,d3,a2,a3],32`) */
+wi_vis        = 0x6128abbc;         /* WB lock sign: a widget shown / hidden (a0, d0 1 / 0; `call ..,[d2,d3,a2],16`) */
+wd_back       = 0x6054593b;         /* WB lock key: the capture's WB set-up after .hook_wd's 8 bytes */
+wd_back2      = 0x60545b23;         /* WB lock key: the twin set-up after .hook_wd2's 7 bytes */
 ia_back       = 0x61083046;         /* ISO Auto key: the dispatcher after its walk call (.hook_ia) */
 dl_mexp       = 0x610865c5;         /* #37: non-zero while a Multiple Exposure frame can be deleted */
 dl_mx         = 0x610b8397;         /* #37: live view's stock Delete press handler (deletes that frame) */

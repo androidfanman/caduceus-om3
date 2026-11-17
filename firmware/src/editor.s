@@ -85,7 +85,7 @@
  jmp gr_end                       /* stock 0x611d059c (Picture Mode update's end): mov (12,sp),d0; cmp 0,d0; bne 0x611d05b2 */
  .byte 0xcb
 .section .hook_ic,"ax"
- jmp cv_ic                        /* rgb-curves cv_ic, then v0.27: ar_ic (▲ / ◀ pictures), then ic_get. v0.23 stock 0x610f5611 (picture id -> its slot in the picture table): mov d0,d1;
+ jmp wi_ic                        /* rgb-curves cv_ic, then v0.27: ar_ic (▲ / ◀ pictures), then ic_get. v0.23 stock 0x610f5611 (picture id -> its slot in the picture table): mov d0,d1;
                                    * exthu d1; cmp 0,d1; bne 0x610f561b */
  .byte 0xcb
 .section .hook_stp,"ax"
@@ -9186,6 +9186,19 @@ fl_scr:
 .section .hook_ag,"ax"
  jmp ar_get                       /* v0.27 stock 0x610833b3 (the key dispatcher's value read): mov d0,d2; mov 3413,d1;
                                    * mov d1,d0 (5 bytes) */
+.section .hook_wi,"ax"
+ jmp wi_lv                        /* WB lock key: the shooting screen's WB display, its last call, stock 0x6118cc43
+                                   * `call 0x6128abbc,[d2,d3,a2],16` (the Kelvin text shown or hidden; 7 bytes) */
+ .byte 0xcb, 0xcb
+.section .hook_wd,"ax"
+ jmp wd_cap                       /* WB lock key: stock 0x60545933 `movhu (132,sp),d0; mov sp,a0; movhu d0,(420,sp)`
+                                   * (8 bytes), where a capture's WB gains are settled (single shots, burst, AE BKT,
+                                   * Live GND) */
+ .byte 0xcb, 0xcb, 0xcb
+.section .hook_wd2,"ax"
+ jmp wd_cap2                      /* WB lock key: stock 0x60545b1c `movhu (136,sp),d0; movhu d0,(424,sp)` (7 bytes),
+                                   * the same place in the twin set-up (High Res, Live ND) */
+ .byte 0xcb, 0xcb
 .section .hook_ia,"ax"
  jmp ia_key                       /* ISO Auto key: stock 0x61083041 `call 0x610830c9,[d2,d3,a2,a3],20` (5 bytes) */
 .section .hook_dl,"ax"
@@ -19251,27 +19264,40 @@ el_tid:                           /* the GUI task's id, noted by el_go */
 wl_blk:                           /* the heap copy of wl_tab (fl_mk), 0 = none */
  .long 0
 
-/* ---------------------------------------------------------------- ISO Auto key (feature/iso-auto-key)
- * A button whose function is IA_CODE switches the photo ISO between Auto and the last manual value: one press Auto,
- * the next press back. The ISO the user sets is setting 1701 (0 Auto, else Sv x 256), the one the super control
- * panel writes; setting 6 is the value in use, which follows 1701.
- * It has its own function code and Button Function entry: see the lists at the end of this section.
+/* ---------------------------------------------------------------- ISO Auto key and WB lock key
+ * (feature/iso-auto-key, feature/wb-lock-key)
+ * ISO Auto key: a button whose function is IA_CODE switches the photo ISO between Auto and the last manual value: one
+ * press Auto, the next press back. The ISO the user sets is setting 1701 (0 Auto, else Sv x 256), the one the super
+ * control panel writes; setting 6 is the value in use, which follows 1701.
+ * WB lock key: a button whose function is WK_CODE holds Auto WB where it is now, and the next press lets it go again.
+ * It uses the camera's own hold in the live view WB task (queue word 0x6004362c, context 0xa32e9238): message 10
+ * copies the Auto WB result (gains 0xa32e9310.., matrix, evaluation values) into a snapshot and the task's getters
+ * then answer with the snapshot (hold byte 0xa32e93fe = 1, kept over a live view restart); message 11 ends it (hold
+ * byte 3 until the task's next update makes it 2). Sent as the camera's own senders do (0x603c8f5d / 0x603c8fda),
+ * with the synchronous send 0x6004f3bd. The photo takes the held gains in wd_cap / wd_cap2, and the shooting screen
+ * shows "WB Lock" (wi_lv, wi_ic). Only with Auto WB.
+ * Each has its own function code and Button Function entry: see the lists at the end of this section.
  * One act per key event: the dispatcher 0x61083022 runs several times for one press, from handlers that the state
  * machines find with the event walk 0x610b9fdb. ia_dl (.hook_dl, before dl_look) notes each walked event; a
  * different event than the one before sets ia_new. ia_do acts on a press event only when it is the event being
  * handled (ia_cur) and ia_new is set, and clears ia_new: every later dispatcher call for that press does nothing, and
  * the next press acts because the key's release (or any other event) was walked in between.
  * ia_key <- .hook_ia, in the dispatcher's frame (d0 = d3 = the key event, d2 = 0): the stock key table walk, then
- * ia_do. A press with the function returns "no key" (3200): the dispatcher answers 0 and no stock function runs.
- * Photo switch position and the COMMON screens only (LG_GUI's parent 1).
- * Kept at the end of ext13 (the last thing in this file): besides ia_dln and ia_strn (dl_look's and st_get's
- * addresses) it holds only stock addresses, so a test build can be laid onto a release (research/isoauto/layer.py). */
+ * ia_do. A press with one of the functions returns "no key" (3200): the dispatcher answers 0 and no stock function
+ * runs. Photo switch position and the COMMON screens only (LG_GUI's parent 1).
+ * Kept at the end of ext13 (the last thing in this file): besides ia_dln, ia_strn and wi_icn (dl_look's, st_get's and
+ * cv_ic's addresses) it holds only stock addresses, so a test build can be laid onto a release
+ * (research/isoauto/layer.py). */
 .section .ext13,"ax"
- .set IA_CODE, 3910               /* our own function code (firmware/isoauto.py IA) */
+ .set IA_CODE, 3910               /* our own function codes (firmware/isoauto.py IA, WL) */
+ .set WK_CODE, 3911
  .set IA_ISO, 1701                /* the photo ISO as set: 0 Auto, else Sv x 256 (ISO 100 = 1280) */
  .set IA_EVT, 0x612f3100          /* the event table, 259 x 20 B {event, keycode, phase (0 press, 1 release), ..} */
  .set IA_GUI, 0x62ce5864          /* as LG_GUI: the GUI state's parent byte */
  .set IA_SW, 0xa32d9d0d           /* the photo / movie / S&Q switch: 2 photo (as the debug log) */
+ .set WK_Q, 0x6004362c            /* the live view WB task's queue (s16) */
+ .set WK_FE, 0xa32e93fe           /* its hold byte: 1 while Auto WB is held, 3 let go and waiting for an update */
+ .set WK_ST, 0xa32e934c           /* its state (u16): 0 stopped, 1 running, 2 One-touch WB, 3 holding */
  .balign 4
 ia_last:                          /* the last manual ISO seen at a switch to Auto (0: none yet -> ISO 200) */
  .short 0
@@ -19281,11 +19307,60 @@ ia_new:                           /* 1: a new event has been walked since the la
  .byte 1
 ia_n:                             /* ISO switches done this power-on (for tests) */
  .byte 0
+wk_code:                          /* the function code that means WB lock */
+ .short WK_CODE
+wk_par:                           /* message 10's parameter byte: 0 = take a new snapshot */
+ .byte 0
+wk_n:                             /* WB lock messages sent this power-on (for tests) */
+ .byte 0
+wk_res:                           /* the last message's answer (0 = done) */
+ .short 0
  .balign 4
 ia_cur:                           /* the event walked last (the one being handled) */
  .long 0
 ia_dln:                           /* where .hook_dl went before: dl_look */
  .long dl_look
+/* wd_cap <- .hook_wd and wd_cap2 <- .hook_wd2, in the capture module's two WB set-ups (0x605456a6.. and its twin
+ * 0x605459a5..; a3 = the capture's parameters; d0, d1, a0, a1 free): where the gains from the image processor (Auto
+ * WB, presets) or the stored ones meet, as R / G / G / B words on the stack with G = 128, at (132 / 134 / 136 / 138,sp)
+ * in the first and (136 / 138 / 140 / 142,sp) in the twin. They are the gains the photo gets (camera: the photo's
+ * WB_RBLevels are twice these, in the JPEG and the ORF) and are in the same units as live view's.
+ * With Auto WB (parameters +37644: type 0 or 4) and the live view hold on (hold byte 1), R and B become the held
+ * snapshot's (0xa32e9400 / ..02), so the photo gets the white balance the screen shows. Camera: single shots, burst,
+ * AE BKT and Live GND go through the first set-up, High Res and Live ND through the twin. A third set-up (a task
+ * loop, the call at 0x60545514) was used by no mode tried and is left alone. */
+ .set WK_SNAP, 0xa32e9400         /* the hold's snapshot: R, B gains (u16 each) */
+ .macro WKCAP r, b
+ movhu (37644,a3),d0
+ cmp 0,d0
+ beq 91f
+ cmp 4,d0
+ bne 92f                          /* a preset, One-touch or Custom WB: as it is */
+91:
+ movbu (WK_FE),d0
+ cmp 1,d0
+ bne 92f                          /* no hold */
+ movhu (WK_SNAP),d0
+ movhu (WK_SNAP + 2),d1
+ cmp 0,d0
+ beq 92f
+ cmp 0,d1
+ beq 92f                          /* no snapshot (never expected with the hold on) */
+ movhu d0,(\r,sp)
+ movhu d1,(\b,sp)
+92:
+ .endm
+wd_cap:
+ WKCAP 132, 138
+ movhu (132,sp),d0                /* the stock bytes */
+ mov sp,a0
+ movhu d0,(420,sp)
+ jmp wd_back
+wd_cap2:
+ WKCAP 136, 142
+ movhu (136,sp),d0                /* the stock bytes */
+ movhu d0,(424,sp)
+ jmp wd_back2
 ia_dl:                            /* .hook_dl, as dl_look: d0 = the event (a0 and d2 are free here) */
  mov (ia_cur),d2
  cmp d2,d0
@@ -19305,18 +19380,24 @@ ia_key:
 1:
  jmp ia_back
 /* ia_do: `call ia_do,[d2,d3,a2,a3],32`, d0 = the key's setting id, d1 = the event -> d0 = that id, or 3200 when the
- * key's function is ours. Local (4) the id. */
+ * key's function is one of ours. Locals (4) the id, (8) 0 ISO Auto / 1 WB lock. */
 ia_do:
  mov d0,(4,sp)
  mov d1,d3
  call ia_val,[d2],8               /* the key's function now (through ar_get: the arrow-pad mode counts) */
  exthu d0
+ clr d2
  movhu (ia_code),d1
+ cmp d1,d0
+ beq 2f
+ inc d2
+ movhu (wk_code),d1
  cmp d1,d0
  beq 2f
  mov (4,sp),d0
  ret [d2,d3,a2,a3],32
 2:
+ mov d2,(8,sp)
  mov (ia_cur),d0
  cmp d0,d3
  bne 8f                           /* not the event being handled */
@@ -19342,10 +19423,13 @@ ia_do:
  movbu d0,(ia_new)
  movbu (IA_SW),d0
  cmp 2,d0
- bne 8f                           /* movie / S&Q: not ours (their ISO is another setting) */
+ bne 8f                           /* movie / S&Q: not ours (their ISO and WB are other settings) */
  movbu (IA_GUI),d0
  cmp 1,d0
  bne 8f                           /* a menu, the quick panel, playback: nothing */
+ mov (8,sp),d0
+ cmp 0,d0
+ bne 10f
  mov IA_ISO,d0
  call ar_getv,[d2,a2],24          /* the ISO now */
  exthu d0
@@ -19368,20 +19452,165 @@ ia_do:
 8:
  mov 3200,d0
  ret [d2,d3,a2,a3],32
-/* The function's own Button Function entry (firmware/isoauto.py fills the lists): function code IA_CODE in the photo
- * buttons' validator lists (ia_v0..2: Fn's, L-Fn's, the arrows'), the rows' value labels (ia_l0..2) and the choice
- * screen's titles / cells / help (ia_pt / ia_pc / ia_ph), with our strings ST_IAC + 0..2 (cell, title, help).
- * ia_str <- .hook_str, before st_get. */
+10:                               /* WB lock: held now -> message 11; else, with the task running, message 10 */
+ clr d2                           /* d2 = 1: letting go */
+ mov 10,d1
+ mov wk_par,a0
+ movbu (WK_FE),d0
+ cmp 1,d0
+ beq 12f
+ movhu (WK_ST),d0
+ cmp 3,d0
+ beq 12f
+ cmp 1,d0
+ bne 13f                          /* live view's WB is not running (or a One-touch WB is being taken): nothing */
+ mov 1578,d0
+ call sget,[],4
+ cmp 0,d0
+ bne 13f                          /* not Auto WB: nothing to hold */
+ mov 10,d1
+ mov wk_par,a0
+ bra 11f
+12:
+ inc d2
+ mov 11,d1
+ mov 0,a0
+11:
+ movhu (WK_Q),d0
+ exth d0
+ call wk_rpc,[d2,d3,a2,a3],72     /* waits for the task's answer */
+ movhu d0,(wk_res)
+ movbu (wk_n),d0
+ inc d0
+ movbu d0,(wk_n)
+ cmp 0,d2
+ beq 14f
+ movbu (WK_FE),d0                 /* let go: the task leaves 3 here until its next update; the getters answer */
+ cmp 3,d0                         /* with the snapshot until then, so make it 2 now (as that update would) */
+ bne 14f
+ mov 2,d0
+ movbu d0,(WK_FE)
+14:
+ mov wi_rec,a0                    /* the shooting screen's record in the camera's data store, written back as it
+                                   * is: the screen takes it as changed and draws its items again (wi_lv), so the
+                                   * sign shows or goes at the press (as lv_end does for the Picture Mode label) */
+ mov WI_ITEM,d0
+ mov WI_RLEN,d1
+ call ds_get,[],4
+ cmp 0,d0
+ beq 13f
+ mov wi_rec,a0
+ mov WI_ITEM,d0
+ mov WI_RLEN,d1
+ mov 0,a1
+ call ds_put,[d2,a2],16
+13:
+ jmp 8b
+/* wi_lv <- .hook_wi, the end of the shooting screen's WB display update 0x6118cc4d: a0 = the Kelvin text's widget
+ * ((52,sp)), d0 = 1 when it shows a Kelvin (a preset or Custom WB); d2, d3, a2, a3 are free (the function returns
+ * next). The WB icon's widget is (32,sp): its choice 0 is the camera's "WB Auto" picture (11223, 86 x 44), which
+ * this screen never shows with Auto WB (om-emu).
+ * With the hold on and Auto WB (setting 1578 = 0): that widget is shown on choice 0, and wi_ic answers the picture
+ * with ours, "WB Lock", drawn in the same style (firmware/isoauto.py lock_picture, as the author's "FILM n" label).
+ * With the hold on and any other WB mode: the hold is ended here (message 11, as the key does), so the lock never
+ * acts outside Auto WB. (The Kelvin text beside it cannot spell this: it is drawn from one picture per character,
+ * and only A B F K L M, the digits and - + * / . : [ ] exist.) */
+ .set WI_PIC, 11223               /* the camera's "WB Auto" picture */
+wi_lv:
+ mov d0,d2
+ clr d0
+ movbu d0,(wi_on)
+ movbu (WK_FE),d0
+ cmp 1,d0
+ bne 9f
+ mov 1578,d0
+ call sget,[],4                   /* the WB mode: 0 Auto */
+ cmp 0,d0
+ beq 2f
+ movhu (WK_Q),d0                  /* held, but not Auto WB: let go */
+ exth d0
+ mov 11,d1
+ mov 0,a0
+ call wk_rpc,[d2,d3,a2,a3],72
+ movbu (WK_FE),d0
+ cmp 3,d0
+ bne 9f
+ mov 2,d0
+ movbu d0,(WK_FE)
+ bra 9f
+2:
+ mov 1,d0
+ movbu d0,(wi_on)
+ mov (32,sp),a0
+ clr d0
+ call scw_set,[d2,a2],12          /* choice 0 */
+ mov (32,sp),a0
+ clr d0
+ call wi_lay,[d2,d3,a2,a3],32     /* placed as an icon with no Kelvin after it */
+ mov (32,sp),a0
+ mov 1,d0
+ call wi_vis,[d2,d3,a2],16
+ movbu (wi_n),d0
+ inc d0
+ movbu d0,(wi_n)
+9:
+ mov (52,sp),a0
+ mov d2,d0
+ call wi_vis,[d2,d3,a2],16        /* the stock call */
+ ret [d2,d3,a2,a3],100
+/* wi_ic <- .hook_ic (the picture lookup, d0 = the id -> a0 its slot, `retf`), before cv_ic: the "WB Auto" picture
+ * while the sign is on -> ours. */
+wi_ic:
+ mov d0,d1
+ exthu d1
+ cmp WI_PIC,d1
+ bne 1f
+ movbu (wi_on),d1
+ cmp 0,d1
+ beq 1f
+ mov wi_ent,a0
+ retf [],0
+1:
+ mov (wi_icn),a0
+ jmp (a0)
+ .balign 4
+wi_icn:                           /* where .hook_ic went before: cv_ic */
+ .long cv_ic
+wi_ent:
+ .long wi_desc
+wi_desc:                          /* <6H3I>: format 14, w, h, 8, 0, 0, length, the stream's uncached address, 0 (build) */
+ .short 14, 0, 0, 8, 0, 0
+ .long 0, 0, 0
+wi_on:                            /* 1 while the shooting screen shows the sign */
+ .byte 0
+wi_n:                             /* times the sign was put on the screen this power-on (for tests) */
+ .byte 0
+ .balign 4
+wi_pic:                           /* the "WB Lock" picture's stream (build) */
+ .space 3072
+wi_pend:
+ .set WI_ITEM, 38                 /* the shooting screen's record in the camera's data store (as LV_ITEM: the camera
+                                   * writes it at an ISO change, and the screen then draws ISO, WB and the rest again;
+                                   * item 31 written back does not do it: om-emu) */
+ .set WI_RLEN, 464
+ .balign 4
+wi_rec:
+ .space WI_RLEN
+ .balign 2
+/* The two functions' own Button Function entries (firmware/isoauto.py fills the lists): function codes IA_CODE and
+ * WK_CODE in the photo buttons' validator lists (ia_v0..2: Fn's, L-Fn's, the arrows'), the rows' value labels
+ * (ia_l0..2) and the choice screen's titles / cells / help (ia_pt / ia_pc / ia_ph), with our strings ST_IAC + 0..5
+ * (cell, title, help of each). ia_str <- .hook_str, before st_get. */
  .set ST_IAC, 0x7f0a
  .balign 4
 ia_strn:                          /* where .hook_str went before: st_get */
  .long st_get
 ia_strs:
- .long ia_s0, ia_s1, ia_s2
+ .long ia_s0, ia_s1, ia_s2, ia_s3, ia_s4, ia_s5
 ia_str:                           /* .hook_str, as st_get: d0 = the string id (frame `call ..,[d2],8`) -> a0 */
  cmp ST_IAC,d0
  bcs 1f
- cmp ST_IAC + 3,d0
+ cmp ST_IAC + 6,d0
  bcc 1f
  mov d0,d1
  add -ST_IAC,d1
@@ -19400,6 +19629,12 @@ ia_s1:                            /* "ISO Auto / Manual" */
  .short 73, 83, 79, 32, 65, 117, 116, 111, 32, 47, 32, 77, 97, 110, 117, 97, 108, 0
 ia_s2:                            /* "Switches ISO between Auto | and the last manual value." */
  .short 83, 119, 105, 116, 99, 104, 101, 115, 32, 73, 83, 79, 32, 98, 101, 116, 119, 101, 101, 110, 32, 65, 117, 116, 111, 13, 10, 97, 110, 100, 32, 116, 104, 101, 32, 108, 97, 115, 116, 32, 109, 97, 110, 117, 97, 108, 32, 118, 97, 108, 117, 101, 46, 0
+ia_s3:                            /* "WB Lock" */
+ .short 87, 66, 32, 76, 111, 99, 107, 0
+ia_s4:                            /* "Auto WB Lock" */
+ .short 65, 117, 116, 111, 32, 87, 66, 32, 76, 111, 99, 107, 0
+ia_s5:                            /* "Holds Auto WB as it is now. | Press again to release it." */
+ .short 72, 111, 108, 100, 115, 32, 65, 117, 116, 111, 32, 87, 66, 32, 97, 115, 32, 105, 116, 32, 105, 115, 32, 110, 111, 119, 46, 13, 10, 80, 114, 101, 115, 115, 32, 97, 103, 97, 105, 110, 32, 116, 111, 32, 114, 101, 108, 101, 97, 115, 101, 32, 105, 116, 46, 0
  .balign 4
 ia_v0:
  .space 2 * 56

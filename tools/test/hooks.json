@@ -176,6 +176,18 @@
    "addr": "0x605197d7",
    "len": 7
   },
+  "hook_wd": {
+   "addr": "0x60545933",
+   "len": 8
+  },
+  "hook_wd2": {
+   "addr": "0x60545b1c",
+   "len": 7
+  },
+  "hook_wi": {
+   "addr": "0x6118cc43",
+   "len": 7
+  },
   "hook_wl": {
    "addr": "0x604b8d91",
    "len": 8
