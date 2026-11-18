@@ -829,6 +829,7 @@ cv_v0:
  * Pictures while on (cv_ic): the curve halves 4147..4176 clear, the middle curves 4177..4206 our picture of the three
  * curves (cv_draw, drawn when anything changed), the header labels (test 7) "Sh" 4208 -> "Level", "Hi" 4207 -> "Pt" (its "+" blank), "Mid"
  * 4331 -> the colour's name in its colour, the guides 16247 / 16248 -> "Color [INFO]" (firmware/rgbpics.py). */
+ .set CV_RFID, 2191               /* cv_sv's refresh write on our pages */
  .set CV_MIDV, 0                  /* a value in -7..+7: the middle curve's object (our picture) shows only then (om-emu) */
  .set HS_GSH, 0x612881f2          /* the page's reads (0x61288159): GetValue Hi / Sh / Mid return here */
  .set HS_GHI, 0x612881de
@@ -1076,7 +1077,7 @@ cv_dflt:
 
 /* cv_sv <- .hook_set (the facade SetValue's manager call, entered as the manager: d0 id, d1 value, a0 inner, a1 mode;
  * d2 / d3 / a2 / a3 saved by the call, frame 68, the return address at (68,sp)): while our page is on, COLOR k's H&S
- * ids and 2191 keep the camera's own values (the manager gets them back: no change, the page refreshes, as ed_set);
+ * ids and 2191 keep the camera's own values (the manager gets 2191 back: no change, the page refreshes, as ed_set);
  * our values change in cv_ev only, and on the camera's reset of our row (cv_rst). Else sl_set. */
 cv_sv:
  mov (cv_on),d2
@@ -1091,7 +1092,7 @@ cv_sv:
  bcc 9f
  movbu (cv_rst),d2                /* the camera's reset of our row (OK held): COLOR k's curves flat, once */
  cmp 1,d2
- bne 8f
+ bne 7f
  mov 2,d2
  movbu d2,(cv_rst)
  mov d0,a3
@@ -1103,7 +1104,9 @@ cv_sv:
  add 4,sp
  mov a3,d0
  mov d3,d1
-8:
+7:
+ mov CV_RFID,d0                   /* the refresh: the panel's mode 2191 with its own value (~20k instructions; the H&S */
+8:                                /* id's write re-checks 37 more settings, ~355k). The page redraws the same. */
  mov d0,d2
  mov a0,d3
  mov a1,a2
@@ -1722,12 +1725,14 @@ cvd_st:
  mov d0,(cv_desc + 12)            /* too big: nothing shown */
  jmp 99f
 31:
- mov CV_WRK + CW_ROW,a0           /* the row clear */
+ mov CV_WRK + CW_ROW,a0           /* the row clear, three words a turn */
  clr d0
- mov 75,d1
+ mov 25,d1
 32:
  mov d0,(a0)
- add 4,a0
+ mov d0,(4,a0)
+ mov d0,(8,a0)
+ add 12,a0
  add -1,d1
  bne 32b
  mov (cv_on),d0                   /* colour mix: its row instead */
@@ -1898,6 +1903,8 @@ cvd_enc:
  mov a2,a0
  add d3,a0
  movbu (a0),d0
+ cmp 0,d0
+ beq 55f
  mov d3,d1                        /* a1: the run's end at most */
  add 16,d1
  cmp 300,d1
@@ -1926,6 +1933,59 @@ cvd_enc:
  call cv_tok,[d2,d3],12
  cmp 300,d3
  bcs 50b
+ bra 59f
+55:                               /* colour 0: up to the next pixel of another colour (a0) or the row's end, word by */
+ mov a2,a1                        /* word where aligned, then the same 16-pixel runs as above */
+ add 300,a1
+56:
+ inc a0
+ cmp a1,a0
+ bcc 58f
+ mov a0,d1
+ and 3,d1
+ beq 57f
+ movbu (a0),d1
+ cmp 0,d1
+ beq 56b
+ bra 58f
+57:
+ mov (a0),d1
+ cmp 0,d1
+ bne 571f
+ add 4,a0
+ cmp a1,a0
+ bcs 57b
+ bra 58f
+571:
+ movbu (a0),d1
+ cmp 0,d1
+ bne 58f
+ inc a0
+ bra 571b
+58:
+ mov a0,d1
+ mov a2,d2
+ sub d2,d1
+ mov d1,d2
+ sub d3,d2                        /* d2 = the length, d3 = the next run's start */
+ mov d1,d3
+581:
+ cmp 16,d2
+ bcs 582f
+ mov 15,d0
+ call cv_tok,[d2,d3],12
+ add -16,d2
+ bra 581b
+582:
+ cmp 0,d2
+ beq 583f
+ mov d2,d0
+ add -1,d0
+ call cv_tok,[d2,d3],12
+583:
+ cmp 300,d3
+ bcs 50b
+59:
  mov (16,sp),d0                   /* next row */
  inc d0
  mov d0,(16,sp)

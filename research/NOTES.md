@@ -7060,7 +7060,7 @@ still held the last photo pass's curve blocks. crombach: none of the custom sett
   id 500 at 8000 ms, armed from 89 sites. The super control panel uses id 510, also 8000 ms.
 - **Patch:** `PM_IDLE_SITES` in `firmware/build.py` changes `mov 8000,d1` (`2d 40 1f`) to `mov 30000,d1`
   (`2d 30 75`). The sites are all 9 id-500 arms in Picture Mode's code, `0x611c20ad..0x611c3cc2`. The immediate is
-  signed 16-bit, so a byte patch gives 32767 ms at most. No hook, nothing at start-up.
+  signed 16-bit, so a byte patch gives 32767 ms at most. Nothing at start-up. A touch also needs `.hook_tch`, below.
 - **Which code is which screen (emulator):** a factory table at `0x615025d8` pairs screen classes with screen ids.
   `0x611c20ad` (id 0x3d) builds Picture Mode. The next one, `0x611c3cc2` (id 0x3c, vtable `0x6153734c`), builds the
   white balance screen `ID_ST_DIRECT_WB`, opened from the super control panel with `right` then `ok`.
@@ -7104,6 +7104,137 @@ still held the last photo pass's curve blocks. crombach: none of the custom sett
   Mode 30 s. Other touch menus and a screen opened from Picture Mode close after 8 s. The white balance screen closes
   8 s after `down`. Photo, video, sleep and start-up work as before.
 
+### Film switch cost and pf_put's unchanged writes (#72; 2026-11-17; emulator only + analysis)
+- Question (cad): a film switch in the Picture Mode list is "much slower" than a COLOR switch (#72). pf_put writes all
+  18 of COLOR k's camera settings through the settings manager on every film switch. Can it skip a value the camera
+  already has? Branch `experiment/pfput-skip-equal`.
+- **Cost, om-emu (P, the Picture Mode list, `right` from COLOR 1; om-emu instructions in one run slice, GUI task):**
+
+  | Part | COLOR k -> k+1 | FILM 1 -> FILM 2 (both COLOR 1) |
+  |---|---|---|
+  | fw_keep, fl_set | ~4k | ~4k |
+  | fl_sw capture (pf_capto, cv_cap, sd_crc) | none | ~12k (~275k from COLOR 1's own: ed_pmod) |
+  | pf_put: 18 manager writes, cv_rec | none | **6.75M** (each write ~375k; cv_rec <1k) |
+  | fw_apply (WB 1578 write) | ~32k | ~32k |
+  | stock work from the 901 write to the next gx_map | 2.72M (a real picture-mode change) | 0.96M (901 unchanged) |
+  | cm_hp -> ss_hp -> ss_wr | ~25k (ss_wr returns at once) | ~355k (ss_wr copies: ~286k to LOCK, ~46k under it) |
+
+  So a film switch on the active COLOR costs about 8M against about 2.8M for a COLOR switch, and pf_put is most of
+  it. Each manager write to the active COLOR's settings costs ~375k whether the value changes or not. None of our
+  code runs inside it (a trace of every symbol in p.elf: nothing between pf_put's calls), so it is the camera's own
+  work. The first film from COLOR 4 to FILM 1 writes COLOR 1 while COLOR 4 is still active: ~22k a write, 0.40M.
+- **What an unchanged write does** (code + om-emu, NOTES 2026-11-15 "RGB curves: live view refresh"): the manager
+  and its writer tail 0x60aea1de run, the change notifier 0x60063519 does not. The picture-mode message goes out only
+  for 111, 897..901 and 988, none of the 18. pf_put calls the manager directly, not through the facade, so none of our
+  hooks (sl_set, sx_set, cv_sv, ed_set) run. The '*' (fl_fch, ed_pmod) compares values, which do not change.
+- **ed_set's unchanged write is the only redraw** for a change of ours (our values are not camera settings).
+  pf_put does not need its writes for that: s_look ends in s_dirty2 and fl_set in the 901 write, after it.
+- Verdict, all 18 (Saturation x 12, Contrast, Sharpness, Shading, Shadows, Midtones, Highlights): skip when sget
+  already reads the value, as rc_put does (camera-tested in k1). Analysis + emulator. One open point: sd2's
+  automatic load (camera-tested 2026-11-09) got the live view to follow with unchanged writes, and why is not known.
+- **Build pfse-1:** pf_put asks `pf_eq` (ext9: sget vs the value) before each write. om-emu, same script: FILM 1 ->
+  FILM 2 writes 12 (6.75M -> 4.51M), FILM 2 -> FILM 3 11 (6.75M -> 4.13M), COLOR 4 -> FILM 1 8 (0.40M -> 0.19M).
+  The change notifier fires for the same writes as before. The 18 values and the '*' of each COLOR after each step
+  match the old build. A film switch stays at roughly 6M: the changed writes are most of what is left.
+- Test `film-switch-writes-only-changed-settings` (driver tokens `wcount:` / `expect:wcount`: the manager's writes of
+  COLOR k's 18 ids, from pf_ids, must equal the values that changed): passes on pfse-1, `caught` on main 78a809e
+  (18 writes, 8 changed).
+- Needs the camera: whether film scrolling feels faster, whether the live view follows a switch between two films with
+  the same camera settings, and whether #72's reboot still comes. Not known if the reboot is tied to the cost.
+- Camera result (2026-11-17, build cc44c55 on experiment/perf-looks, E1479999.BIN `06829c20…`, GUIDES.BIN
+  `d253ea32…`): film scrolling feels a little faster. **#72's reboot still happens** when scrolling films fast, so
+  pf_put's unchanged writes are not its cause on their own. Start-up is normal. The '*' marks behave. The live view
+  follows a film switch. The owner did not say whether the two films had the same camera settings. Not yet checked:
+  the stills (WB shift, Hue / Lightness, burst, self-timer, RAW+JPEG).
+
+## Halation without the Soft Focus passes? (2026-11-17; analysis only; branch experiment/halation-no-softfocus)
+- Question: a still with Halation on and Glow 0 sets job flag 0x80 (`xb_cap`), so the camera runs the Soft Focus
+  blur and blend at weight 1024 (`xb_wt`) only so that `xb_gs` can call `HL_RUN`. Can `HL_RUN` run from another
+  point, so the Soft Focus passes are skipped and the photo stays byte for byte the same?
+- **Stopped at step 1: the no-op can't be shown in om-emu.** om-emu has no development job and no image processor
+  blend (om-emu `emu/FIDELITY-NOTES.md` "no camera-side development job"; `research/TESTING.md` "What stays
+  camera-only"). The blend (stage 0xf005, effect 0x0402) runs on the image processor, not the CPU. So nothing was
+  built or changed in firmware.
+- Static (analysis): combiner 11's set-up 0x60504ecd takes w from the weight getter and writes +96 = w | w << 16,
+  +100 = w (sharp input A), +148 / +152 = 1024 - w (blurred input B), mode +92 / +144 = 0x2a0000, clamps from
+  0x605047c1. At w 1024 that is A x 1024 + B x 0. That is a no-op only if the hardware rounds (A x 1024 + r) >> 10
+  back to A, which we can't see. The blend also writes a new 0x1000 buffer (memHw rounded up to 64; 5184 already is).
+- Work list (builder 0x604b917f..0x604b9561, analysis): 0x604b8c45 appends a stage; 0x604b8c80 holds a pending pair
+  (a1 = the stage when more follow, d1 = the stage when it is last); 0x604b8cd7 ends the list and keeps d1 if the
+  pending stage is last. Soft Focus classes 0-3: stage 0x604be238 (blur, makes 0x1060 / 0x1061), then the pair
+  0x604be2aa / 0x604be445. Our hook (word 0x604b9288) replaces only the "more follow" stage 0x604be2aa, so on the
+  camera a Halation-only still has some stage after Soft Focus (h3 camera: the halo shows).
+- Hook candidates (analysis only, ranked by risk, none tried):
+  1. Lowest: the stage that follows Soft Focus on a plain COLOR still (likely the kind-3 stage 0x0101 pass seen in
+     the gl7 / v0.24 logs; which push in the builder is not yet known). Hook its entry word as g_sf does and run
+     `HL_RUN` first. Needs both words of its pair, the xb_rv job-type gate (#65: not on types 0x1xx / 0x4x), and a
+     check that RAW+JPEG has one main job. Halation would then run after Frame (xb_art), not before it.
+  2. Medium-high: the development stage pair at the builder's start (0x604b857b / 0x604b84c6, or 0x604bb367 /
+     0x604bb4cd on the other path). Runs on every still job, review pictures included; not known whether 0x1000 is
+     complete when the entry returns.
+  3. High: keep the current hook and skip `SF_ENT` in `xb_gs` for Halation alone. The blur stage still runs, and its
+     0x1060 / 0x1061 buffers are released only by `SF_ENT`: a leak per photo unless the blur stage is skipped too.
+- Next (owner's call): a camera probe answers step 1 in one shot. In `xb_gs`, on a Halation-only still, sum the Y and
+  C bytes of the input 0x1000 before `SF_ENT` and of the new 0x1000 after it, through `hl_open`'s window, and write
+  both sums to the debug log. Equal sums on a few scenes would justify candidate 1.
+
+## The color wheel's dial click: cost and a cheaper refresh (2026-11-17, emulator only and analysis, branch experiment/wheel-speed)
+- Owner (camera): the color wheel feels a little sluggish when turning the dial, though it catches every click.
+  Asked (cad): make each click's redraw cheaper, with the same screen.
+- **How it was measured.** A scratch copy of session_ed1.mjs traced every instruction of one token (the click and the
+  driver's 1.2 s idle after it), per PC and per call (entry, return address and sp). An idle token's count (4,507,771)
+  is taken off. Build v0.30.3 + experiment/perf-looks (b80e1d5), P, COLOR 1, the Hue page, red.
+- **Rear dial click on Hue: 1,093,353 instructions.** Saturation (the camera's own setting) costs about the same,
+  1,102,556. The split:
+
+  | Part | Instructions | Whose |
+  |---|---|---|
+  | The refresh write in ed_set (manager, writer tail 0x60aea1de) | ~375k | stock, asked for by ours |
+  | ... of which 37 more settings re-checked under the sector id (0x60400fc0, 37 x ~9k) | ~355k | stock |
+  | The screen's 23 pictures (0x610eafe0 -> 0x610f6834), 1.3k to 18.5k each | ~181k | stock (8 of them ours: icons, labels) |
+  | '*' checks (fl_isdef x 3, ed_isd0, each into stock_isdef) | ~57k | ours around stock |
+  | The wheel's drawing 0x60b1ced8, once a click (12 tn_poly reads) | ~10k | stock |
+  | Our own code (GetValue chain sl_get .. ed_get x 44, sl_slot, vl_s 78) | ~17k | ours |
+  | The rest: text, layout, the event path | ~450k | stock |
+
+  Front dial click (cursor move): 790k. Its writes are the cursor 2197 + k, ~17k each, no settings re-checked.
+- **Ranking.** (1) The refresh write's id: ed_set and tn_set hand the manager the sector id (928 + 12k + c) with its
+  unchanged Saturation value. That id re-checks 37 settings (8, 7, 0x3b, 0x82, 0x83, 0x132, 0x69, 0x70e, 0x17e,
+  0x17f, 0x189..0x18c, 0x1a7, 0x1a8, 0x24f, 0x250, 0x298, 0x299, 0x2b2, 0x363, 916..927, 0x3e6, 0x3f3, 0x3f8), a third
+  of the click. The cursor 2197 + k with its own value (k_cur's poke after a page change, camera-proven to redraw
+  the wheel) does the same redraw. (2) The '*' checks: the same stock check runs twice with the same id in one click.
+  A cache would save ~14k (1 %) and could go stale. Not done. (3) Our GetValue chain: ~1.5 %. Not done. (4) The
+  pictures are the camera's own redraw of the whole screen, as on Saturation. Not ours to cut. (5) The double step
+  of EDLR (below): ~51k once per turn past all colors. Not done.
+- **Built: `s_cur` (ext1).** ed_set's Hue / Lum path and tn_set (Shadows / Highlights) turn the sector id into
+  2197 + k before s_dirty. Saturation, sliders, Extras and the RGB row are unchanged. No new hook. ext1 1644 of 1744 B.
+- **Counts after:** Hue click 1,093,353 -> 738,009 (-32 %), Hue -1 1,073,883 -> 718,539, Lum 1,076,025 -> 720,463,
+  Shadows 1,063,754 -> 708,192, Highlights +2 (two redraws) 2,133,564 -> 1,422,440. Saturation 1,102,556 both.
+- **Same screen (om-emu):** 23 screenshots over Hue up to +5 and past it (+1, +3), down to -5 and past it (-1, -5, -4,
+  -2, -9), another color, Lum, Shadows and Highlights, and Saturation are byte for byte the same on both builds. The
+  driver's per-step state (values, pages, labels, guides, '*') is the same in all 67 steps. The wheel is drawn once a
+  click on both. om-emu does not draw the wheel diagram itself, so its picture is a camera check.
+- Test `color-wheel-dial-step-writes-the-cursor-only` (driver tokens `mids:` / `expect:mids:`, `fhash:` /
+  `expect:fsame:` / `expect:fdiff:`): on Hue and on Shadows, a click's manager write is 2197 only, the frame changes,
+  and a click back gives the frame before it. `caught` on b80e1d5 (`expect:mids: 928, not 2197`).
+- **Not known (camera):** whether the click feels faster, and whether anything on the camera listened to the sector
+  id's re-check. The live view took our values at the next half-press before (2026-11-15, "RGB curves: live view
+  refresh"). If it followed a Hue click live on the camera, this change could stop that. Check it on the camera.
+- **The vanished wheel and the green box (analysis only, not fixed here).** One camera sighting, after fast
+  counterclockwise turns on red Hue. EDLR (ed_l / ed_r) calls the camera's step handler twice when a step off
+  Saturation lands on all colors (255): 1 -> 255 -> 12 counterclockwise. In om-emu both calls run inside one event,
+  each writes the cursor (255, then 12), and the screen is drawn once, ~0.8M instructions later. A redraw that ran
+  between the two calls on the camera would draw the all-colors state on the Hue page. That fits an empty wheel and
+  the camera's all-colors guide in the bottom bar (the #66 empty holder). om-emu cannot show it. On the value side,
+  every path clamps to -5..5 (ed_set refuses, ed_get / ed_poly clamp), and the cursor indexes nothing in our code,
+  so no table read goes out of range at the hue limit.
+- **EDLR in one write: tried, not kept (2026-11-17, emulator only).** ed_l / ed_r wrote the cursor straight to 12 / 1
+  (one SetValue 2197 + k, no stock step) when a step off Saturation would land on all colors. om-emu: that step writes
+  the cursor once (`mids` 2197, was 2197,2197), but the next plain step from there writes it twice (12 -> 255 -> 11
+  path): the stock step handler keeps its own position, which the SetValue does not move. So the cursor setting alone
+  cannot stand in for a stock step. A fix needs the handler's own position (not found) or a way to keep the first
+  step's 255 write from drawing. Not done.
+
 ## v0.40 alpha test 1: crop modes + section gates + PR #76 (2026-11-17; emulator + analysis, camera test pending; branch try/v0.40-alpha)
 
 - **What.** `feature/crop-modes` 1a3e6e2 (crop round 10, camera-tested) + `try/section-gates-blv` a5936e2 (gates
@@ -7132,3 +7263,177 @@ still held the last photo pass's curve blocks. crombach: none of the custom sett
   42 bytes). `releases/v0.40-alpha`: E1479999.BIN `fbef591d…72a2`, `patch.py --release v0.40-alpha` makes it byte for
   byte; static checks (release-rebuild included), boot-smoke, video boot and patch-audit pass on it. Not pushed or
   published yet.
+
+## WB Compensation <-> Highlight & Shadow: the one-frame flash (2026-11-18, emulator trace + analysis; fix built on experiment/perf-040, emulator only)
+
+- **Camera (owner):** moving between the WB Compensation row and the Highlight & Shadow row shows one frame where the
+  table area is empty. Seen on the earlier main-based perf test build.
+- **Cause (emulator trace, build of 866e7fd):** our holder swap draws the screen once too early.
+  - A stock row move (Contrast <-> Sharpness) runs the screen update in the key event. Only then does it run the row
+    refresh, the property 275 handler 0x611356e6 (its publish at 0x6113577d). The screen is drawn once after that
+    (draw pass from 0x610d88f3).
+  - From WB to H&S, gr_end's `sc_set` (holder 456) sends full-screen redraw requests (0x610c8e75 with 899 / 599)
+    inside the key event. The GUI then draws a pass straight after the event returns (0x610f6016), before the row
+    refresh. That pass has the new cursor in the left column, no grid and no curve. The curve's pictures (4145,
+    4192, 4147) and the Sh / Mid / Hi labels come only in a second pass after 0x6113577d.
+  - From H&S to WB, gr_upd's `sc_set` (holder 498) does the same. The first pass still has H&S's Sh / Mid / Hi
+    labels, with no curve and no grid. The grid's pictures (10904, 10327 ..) come in the second pass.
+  - Check: with gr_cont poked to 0 (no swap), WB -> H&S draws once, after the row refresh, as stock.
+  - Status: emulator trace for the extra pass. Analysis: the camera shows that first pass as a frame. The row refresh
+    and the second pass take about 0.9M instructions after it. This fits the camera report, and #66 showed the
+    camera can show a pass drawn between an update and its refresh.
+- **om-emu cannot show the frame.** Both passes run inside the key event's pump, before om-emu composes its next frame.
+  Frames 2 ms apart after the key are all the final screen. SHOTAT composes a new frame from inside the trace and
+  crashes ("a continue is paused"). Composing the last latched bank from the trace crashes too, and aborting the run
+  from the trace hangs it. Past regressions row added in research/TESTING.md.
+- **Why there is no fix here.** Any `sc_set` during the key event triggers the early pass. The hooks we have on this
+  screen (0x611d04ec, 0x611d059c, 0x610f6016) all run in the key event. A clean fix makes the swap in the row refresh,
+  so the one pass after it draws the new holder scene. That needs a new hook. Proposal, not built:
+  - Hook the 275 handler's entry, 0x611356e6, stock bytes `cf b0 f8 fe f0 92`: `movm [d2,a2,a3],(sp)`,
+    `add -16,sp`, `mov a0,a2`.
+  - gr_upd / gr_end set a pending scene (456 or 498) instead of calling `sc_set`. The hook calls `sc_set` for it,
+    then runs the stock bytes.
+  - Start-up rule: the hook does nothing unless Picture Mode's update set the pending scene (analysis only).
+  - Open: whether a swap inside that handler is safe for the scenes it walks, and whether the handler runs on every
+    row move. It ran on all four moves traced.
+  - A new hook fails `static:hook-list` until the owner's OK (hooks.json), so it is not done in this session.
+- **Fix built (2026-11-18, `experiment/perf-040`, emulator only; not camera-tested).** The swap moved into the row
+  refresh, as proposed.
+  - New hook `hook_rr` at 0x611356e6, the entry of property 275's handler (section 7). Stock bytes checked in the
+    decoded firmware: `cf b0 f8 fe f0 92` (`movm [d2,a2,a3],(sp)`, `add -16,sp`, `mov a0,a2`). It jumps to `rr_g`.
+  - `rr_g` (section 1's tail, `.ext1`): a gate on section 6's ready bit (SEC_READY & 0x20). Not ready: the stock
+    bytes (`rr_st`), then back to 0x611356ec. d0 is free there: the handler clears it before reading it.
+  - `rr_go` (`.ext11`): `gr_due` 0 runs the stock bytes only. Else it keeps d1, a0, a1 and MDR, and `rr_set` clears
+    `gr_due`, calls `sc_set` on the holder (`gr_cont`) and, for 498, `gr_ref`. Then the stock bytes.
+  - `gr_upd` sets `gr_due` = 498 where it called `sc_set`, and 0 when the holder already shows the grid. `gr_end`
+    sets it to 456 when the holder shows the grid, else 0. Leaving Picture Mode clears it. The leave path's own
+    `sc_set` is unchanged.
+  - **Start-up rule:** `gr_due` is 0 from the load and is set only by `gr_upd` / `gr_end`, which run only in Picture
+    Mode's screen update. At power-on the hook runs the stock bytes and nothing else. Before section 6 is ready it
+    does not read `gr_due` at all.
+  - **Re-entrancy and stack (om-emu trace):** every handler hit, `rr_go`, `rr_set` and `sc_set` ran on task 168, the
+    key event's. No handler entry between `rr_set` and its return: `sc_set` does not re-enter the handler, and
+    `gr_due` is cleared before the call anyway. `sc_set` runs at sp 0x6245c450, 0x40..0x54 bytes shallower than from
+    `gr_upd` / `gr_end` (0x6245c410 / 0x6245c3fc).
+  - **Draw passes (om-emu, hits at 0x610d88f3 per key):** a stock row move 10. Before the fix, WB -> H&S 14 and
+    each later switch 17: two passes. With the fix 7 and 10: one pass, after the refresh.
+  - **Screens:** screenshots after WB -> H&S, back, and after fast `down up down up down` / `up` / `down` are byte
+    for byte the same before and after the fix.
+  - Not shown: om-emu runs the row refresh after every key, so a key that comes before the last key's refresh (a
+    scene still due) is analysis only. `gr_upd` and `gr_end` reset `gr_due` from the holder's real scene, so the
+    last key wins.
+  - `.ext1` is now full, 1744 / 1744 B (+28 B for `rr_g`).
+  - Test: `wb-to-highlight-shadow-sets-the-scene-in-the-row-refresh`. Status: emulator only. The owner's camera
+    test decides.
+
+
+### Perf branch on v0.40 alpha: first camera test (2026-11-18; camera-tested)
+- Build aef99af on experiment/perf-040 (E1479999.BIN `d816d437…`, GUIDES.BIN `63cbc41e…`). Log:
+  "Look at: nothing unusual", 3 photos, 18 shutter events.
+- Start-up normal. Film scrolling a little faster than before. #72's reboot does not come back (v0.30.4's fix).
+- Borders render right on photos. Crop modes work (shooting, review, playback).
+- Not yet checked on this build: the color wheel pages and the live view after a click, the '*' marks, a WB shift
+  look, a Hue / Lightness look, burst, self-timer, RAW+JPEG. The one-frame flash fix (ddec3cd) came after this build.
+
+## The Mix page's dial click: cost and a cheaper click (2026-11-18, emulator only, branch experiment/rgb-cal-speed)
+
+- Owner (camera): the "R/G/B color calibration" editor feels sluggish when turning the dial. That is the Mix row
+  (MX_IT 5377), the first row under the film in Picture Mode: hue and strength of red, green and blue (colour mix).
+  Its page is the RGB page's code with cv_on = 2. A dial click runs cv_ev -> mx_ev (the value), then the camera's H&S
+  panel (pm_ev), whose write of 976 / 978 + 3k cv_sv refuses and hands the manager with the camera's own value. The
+  screen then redraws, and cv_ic -> cv_pic -> cv_draw draws our 300 x 300 picture once (mx_line row by row, then the
+  run encoder).
+- **How it was measured.** A scratch copy of session_ed1.mjs counted every instruction of one token (the click and
+  1.2 s idle after it), with a call tree from the call instructions. An idle token (4,511,789) is taken off. Build
+  b356d66, P, COLOR 1.
+- **Before: Mix click 2,625,625 instructions** (sub dial 2,598,602), RGB page 2,706,708. The camera's own H&S row,
+  same panel: 1,312,400. The split of a Mix click:
+
+  | Part | Instructions | Whose |
+  |---|---|---|
+  | cv_draw (our picture: mx_line 140k, row clear 90k, run encoder ~770k) | 999k | ours |
+  | The refresh write, 978 with its own value (37 more settings re-checked under 0x60400fc0) | 374k | stock, asked for by ours |
+  | '*' checks: the film row's profile '*' (ed_pmod, 17 x ed_isd0) 264k, the other rows (13 x fl_isdef) 189k | 449k | stock through ours; page 1 of the list, not ours to cut |
+  | The rest of the redraw and the event path | ~800k | stock |
+
+- **Built (ext12, no new hook):**
+  - cv_sv: on our pages the refresh write is 2191 (the H&S panel's mode, its own value), not the H&S id. om-emu:
+    2191 and 2197 redraw the page the same, so the redraw does not need the H&S id. -355k a click.
+  - cv_draw's encoder: a run of colour 0 is found word by word (aligned), then cut into the same 16-pixel tokens.
+    Other colours as before. The row clear stores three words a turn. cv_draw 999k -> 530k (RGB 1,086k -> 598k).
+- **After: Mix click 1,801,390 (-31 %)**, sub 1,775,882, a 4-click burst 1,785,211; RGB 1,863,795 (-31 %). H&S row
+  unchanged.
+- **Same screen (om-emu):** 33 screenshots over a sequence on Mix and RGB (both dials, both ends and past them, bursts
+  of 3 / 9 / 20, INFO through the colours, OK held reset) are byte for byte the same on b356d66 and the new build. So
+  are the drawn picture stream after each step, the curves / mix slots (cv_ram) after each step and after the
+  half-press.
+- Test `mix-and-rgb-dial-step-writes-the-panel-mode-only`: on Mix (both dials) and RGB, a click's manager write is
+  2191 only, the frame changes, a click back gives the frame before it.
+- **Not known (camera):** whether the click feels faster. Live view takes our values at the next half-press either
+  way (2026-11-15, "RGB curves: live view refresh"). The held-OK reset now refreshes through 2191 as well (om-emu: same
+  screens). Next candidates, not done: cv_tok's call per token (~6,000 tokens a picture, ~180k), mx_line (140k).
+
+## Border row: the dials step it the wrong way (2026-11-18; emulator + analysis, camera test pending; branch experiment/border-dial-direction)
+- Owner (camera, v0.40 alpha): on the Border row the rear dial clockwise moves the dot right. Owner expects the other
+  way, as on the camera's own sliders. Owner also believes the front dial does nothing on that row.
+- om-emu, one click from the same value. `main` is the rear dial (0x9032), `sub` the front one (0x9031). om-emu does
+  not know which way is clockwise, so the rows are compared with each other:
+
+  | Row | Whose | main+1 (rear) | sub+1 (front) |
+  |---|---|---|---|
+  | Contrast | stock | value +1, dot right | value -1, dot left |
+  | Shading | stock | value +1, dot right | not run |
+  | Sharpness (our values, stock row) | ours | goes up (clamped at +2) | not run |
+  | Glow | ours | value -1, dot left | not run |
+  | Halation | ours | value -1 (clamped at 0) | not run |
+  | Film Grain | ours | value -1, dot left | not run |
+  | Border | ours | value -1, dot left | value +1, dot right |
+
+- So Border runs opposite to Contrast on both dials. Glow, Halation and Film Grain do the same (not changed here: the
+  owner's call). In om-emu the front dial does step Border, one value per click. Camera: not known whether it does.
+- Upstream a2551d0 (try/v0.40-alpha) behaves the same: main+1 2 -> 1, sub+1 x2 1 -> 3. Not caused by perf-040.
+- Cause (trace + disassembly): both rows end in the same SetValue call (0x611b4572: value = list[index]). The dial
+  step is 0x611b41f8. With the control's +152 = 1 it steps one fixed way. With +152 = 0 it takes a list's way, which
+  setting 307 = 16 flips. 0x611b77b2 sets +152 = 1 for the camera's own sliders after the list build (0x611b20ea).
+  Our bar rows get their list from the same builder but never get +152 = 1.
+- Fix: rv_chk (.ext11, already hooked from 0x611b21e8 inside the builder) writes 1 to the Border bar's control +152.
+  No new hook, no .ext1 bytes (.ext11 65072 -> 65088). After the fix, om-emu: main+1 2 -> 3 dot right, sub+1 x2
+  3 -> 1, left / right as before (2 -> 3, 1 -> 0 -> 1). Values and screens otherwise the same.
+- Not known: what else +152 changes for our bar (touch, other methods at 0x611b9243..). Nothing seen in om-emu.
+- Test: `border-dial-steps-as-contrast` (Contrast first, then Border, the same clicks). Caught on the b356d66 build.
+- **All our controls (2026-11-18, experiment/perf-040; emulator only, camera test pending):** owner asked that every dial
+  click steps as on Contrast. om-emu, one click of each dial on each row and page, compared with Contrast (rear +1 =
+  value up, dot right; front +1 = value down, dot left) or, for pages that are not bars, with the closest stock page:
+
+  | Control | Compared with | Before | After |
+  |---|---|---|---|
+  | Glow (screen +2) | Contrast | rear +1 -> +1, front +1 -> +3 | rear -> +3, front -> +1 |
+  | Halation 2 | Contrast | rear -> 1, front -> 3 | rear -> 3, front -> 1 |
+  | Split Tone Balance 2 | Contrast | rear -> 1, front -> 3 | rear -> 3, front -> 1 |
+  | Film Grain 2 | Contrast | rear -> 1, front -> 3 | rear -> 3, front -> 1 |
+  | Noise Filter, Vignette, Grain Size, the film row | Contrast | rear right, front left (both wrap at the ends) | same |
+  | Mix page (Sat / Hue) | stock Highlight & Shadow page | rear Sat +1, front Hue -1 | same |
+  | RGB page (Level / Pt) | stock Highlight & Shadow page | rear Level +1, front Pt -1 | same |
+  | Wheel: Hue, Lum, Shadows, Highlights, Extras | stock Saturation page | rear value +1, front the same next colour | same |
+  | Blacks / Whites grid | stock WB compensation grid | front +1 left (Blacks -1), rear +1 up (Whites +1) | same |
+  | WB grid row | is the camera's own WB screen | front +1 to B, rear +1 to G | same |
+
+- So only the bar rows ran opposite. Same cause as Border. Fix: rv_chk writes +152 = 1 for the Glow, Halation, Tone
+  Balance and Film Grain bars too (all its bar ids except Blacks / Whites, whose bars Picture Mode no longer shows:
+  their row is the grid). No new hook, no .ext1 bytes, .ext11 65088 (unchanged). Stored values the same per value;
+  left / right as before.
+- Film Grain: only the direction. Its byte +53 is the level (strength 1, 2, 3 -> level 1, 1, 2), so the test also
+  reads the strength from the debug log.
+- Tests: `glow-`, `halation-`, `tone-balance-`, `grain-dial-steps-as-contrast`, each caught on the f319a02 build.
+
+### Perf branch on v0.40 alpha: second camera test (2026-11-18; camera-tested, build d180028)
+- E1479999.BIN d1bfcf8a…, GUIDES.BIN 6f679bd4….
+- **Dials:** Border, Glow, Halation, Tone Balance and Film Grain step the right way.
+- **WB <-> Highlight & Shadow:** the one-frame flash is gone.
+- **Mix (R/G/B calibration):** feels faster. Values look right. The held-OK reset works.
+- **Color wheel:** feels a bit faster. Live view follows a click on Hue and Light.
+- **Shadows / Highlights tint:** the live view shows it only after the next autofocus. The owner sees this on AF,
+  which the half-press drives by default. Most likely not a regression: the tint is our st_run stage, which runs only
+  when the camera builds a live-view development job. Hue and Light go through the camera's own colour tables.
+  The 2026-11-15 notes ("RGB curves: live view refresh") found no refresh path for st_run under the old sector-id
+  write either, and the owner chose to keep the half-press for curves. Owner: not new, no fix now.

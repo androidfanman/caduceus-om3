@@ -675,8 +675,6 @@ cr_txt:                           /* `call cr_txt,[d2,d3,a2,a3],24` */
  * width; 5:4: full height), and gives bl_tail the strip as the picture's place, so a Border's frame line sits inside
  * the strip too. Photo modes (mx_photo), stills grid (155 / 2047), after the first shutter event (cr_on). */
  .balign 4
-cr_gid:                           /* the id bl_gv read */
- .long 0
 cr_px:                            /* the picture's place (x0, y0, w, h) and the strip's (x0, y0, w, h) */
  .long 0
 cr_py:
@@ -694,8 +692,9 @@ cr_sw:
 cr_sh:
  .long 0
 
-/* cr_gm: `call cr_gm,[d2,d3,a2,a3],28` from bl_gv (after its own work), a0 -> the grid value: + BL_C when a crop is
- * set and the value draws lines (thirds 1, 6x4 5, golden 6, or a Border's value). */
+/* cr_gm: `call cr_gm,[d2,d3,a2,a3],28` from bl_gv (after its own work), a0 -> the grid value, a3 = bl_gv's mx_photo
+ * (0: not the stills grid 155 / 2047, or not a photo mode): + BL_C when a crop is set and the value draws lines
+ * (thirds 1, 6x4 5, golden 6, or a Border's value). */
 cr_gm:
  movbu (cr_on),d0
  cmp 0,d0
@@ -705,16 +704,10 @@ cr_gm:
  bcs 9f
  cmp 8,d0
  bcc 9f
- mov (cr_gid),d0
- cmp 155,d0
- beq 1f
- cmp 2047,d0
- bne 9f
-1:
- mov a0,a2
- call mx_photo,[],0               /* uses d0, a0 */
+ mov a3,d0                        /* bl_gv's mx_photo */
  cmp 0,d0
  beq 9f
+ mov a0,a2
  mov (a2),d0
  mov d0,d1
  and 0xffffff00,d1

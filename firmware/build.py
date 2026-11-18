@@ -73,6 +73,7 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_sc': (0x610cdf05, bytes.fromhex('f1e3f1d38001')),
          '.hook_pu': (0x611d04ec, bytes.fromhex('fca460a33760')),
          '.hook_pe': (0x611d059c, bytes.fromhex('580ca000c912')),
+         '.hook_rr': (0x611356e6, bytes.fromhex('cfb0f8fef092')),  # property 275's handler (the row refresh): movm [d2,a2,a3],(sp); add -16,sp; mov a0,a2
          '.hook_inf': (0x611c29c2, bytes.fromhex('1efaca1515')),   # rgb-curves: exthu d2; cmp 5397,d2 (INFO: the row's panel for 5397 / 5398)
          '.hook_rsi': (0x611c296f, bytes.fromhex('1efacabc13')),   # rgb-curves: exthu d2; cmp 5052,d2 (held-OK reset: 5052 / 5396 / 5397 / 5398)
          '.hook_mx': (0x6051485a, bytes.fromhex('cd95fcf014')),    # colour mix: call 0x605144ef,[d2,d3,a2,a3],20 (the matrix's row scaling)

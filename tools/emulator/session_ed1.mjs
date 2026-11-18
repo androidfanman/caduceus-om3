@@ -21,11 +21,25 @@ const env = { rom, resBlock: loadBlock(), createHash, card, ...(nvram ? { nvram 
   deflate: (b, l) => new Uint8Array(zlib.deflateSync(b, { level: l })), inflate: (b) => new Uint8Array(zlib.inflateSync(b)) };
 const pl = new Player({ ...PLAYER_PARSER, no_browser: true, idle: 'off', a15: 'on', out: '<out>', no_wait_on_error: true, device: 'tft' },
   { ...env, wallClock: () => performance.now() / 1000 });
+const WATCH = new Set((process.env.WATCH || '').split(',').filter(Boolean).map((x) => parseInt(x, 16) >>> 0));
+let curStep = 'start'; const hits = [];
+// WBOOT=1: WATCH attaches when the lab is made, before the camera starts, so its hits include the start-up (step 'start').
+const { Debugger } = await import(EMU + '/src/debug/debugger.mjs');
+let bootLab = null;
+// Memory readers for a lab: armWatch takes its own (with WBOOT it runs in preinit, before the session's lab exists).
+const readers = (L) => {
+  const rd = (a, n) => L.sim.read(a >>> 0, n);
+  return { rd, u16: (a) => { const b = rd(a, 2); return b[0] | b[1] << 8; },
+    u32: (a) => { const b = rd(a, 4); return (b[0] | b[1] << 8 | b[2] << 16 | b[3] << 24) >>> 0; } };
+};
+if (process.env.WBOOT && process.env.WATCH) {
+  const { PlaySession } = await import(EMU + '/src/lab/play.mjs');
+  const Base = PlaySession.lab_class;
+  PlaySession.lab_class = class extends Base { preinit(opts) { super.preinit(opts); bootLab = this; armWatch(this); } };
+}
 pl.open_session();
 const s = pl.session, lab = s.lab, log = []; let saved_sp_for_desc;
-const rd = (a, n) => lab.sim.read(a >>> 0, n);
-const u16 = (a) => { const b = rd(a, 2); return b[0] | b[1] << 8; };
-const u32 = (a) => { const b = rd(a, 4); return (b[0] | b[1] << 8 | b[2] << 16 | b[3] << 24) >>> 0; };
+const { rd, u16, u32 } = readers(lab);
 const s8 = (x) => (x << 24) >> 24;
 // settings read: the facade GetValue is code; read through the debugger would need a call. Use the stock getter's
 // table? Not known: so record the editor's view only (P) and the GUI state.
@@ -48,15 +62,15 @@ const pset = (code, k) => { const { groups } = uiin_layout(rom); const pos = [];
 if (process.env.PSET0) console.error('pset0', pset(PHOTO_VIDEO_SWITCH, parseInt(process.env.PSET0, 10)));
 if (process.env.MODE0) s.switch_input('mode_dial', parseInt(process.env.MODE0, 10));
 s.idle_slice(lab.lab_time() + 1500e6); snap('start');
-const { Debugger } = await import(EMU + '/src/debug/debugger.mjs');
-const WATCH = new Set((process.env.WATCH || '').split(',').filter(Boolean).map((x) => parseInt(x, 16) >>> 0));
-let curStep = 'start'; const hits = [];
 const WRANGE = process.env.WRANGE; let wdbg = null; const wlog = [];
 if (WRANGE) { wdbg = Debugger.attach(lab.sim, { lab }); }
-if (WATCH.size) {
-  const dbg = Debugger.attach(lab.sim, { lab });
-  dbg.traceExec((r) => { const g = dbg.regs(); if (process.env.WIDS && !((g.d0 >>> 0) >= 928 && (g.d0 >>> 0) <= 975) && !(((g.d0 >>> 0) >> 4) >= 928 && ((g.d0 >>> 0) >> 4) <= 975 && (g.d0 >>> 0) < 0x10000)) return; if (process.env.WFROM && !globalThis.__armed) return; if (hits.length < 200000) { const h = { step: curStep, pc: r.pc.toString(16), mdr: (g.mdr >>> 0).toString(16), sp: (g.sp >>> 0), d0: g.d0 | 0, d1: g.d1 | 0, d2: g.d2 | 0, d3: g.d3 | 0, a0: (g.a0 >>> 0).toString(16) }; if (r.pc === 0x6051861a) { const out = u32((g.a2 >>> 0) + 12); h.rec = []; for (let i = 0; i < 12; i++) { const b = rd(out + 836 + 24 * i + 18, 6); const sh = (o) => ((b[o] | b[o + 1] << 8) << 16) >> 16; h.rec.push([sh(0), sh(2), sh(4)]); } } if (process.env.WTID) { const cpu = u32(0x8050), t1 = u32((0x97f00004 + 4 * cpu) >>> 0), t2 = u32((t1 + 96) >>> 0), t3 = u32(t2); h.tid = u16((t3 + 16) >>> 0); h.hls = u16(0x62b4dd14); } if (process.env.WSTACK) { h.stk = []; for (let k = 0; k < 160; k++) { const v = u32(((g.sp >>> 0) + 4 * k) >>> 0); if (v >= 0x60021020 && v < 0x62020fe0) h.stk.push(k * 4 + ':' + v.toString(16)); } } hits.push(h); if (process.env.WLIVE) console.log('HIT ' + JSON.stringify(h)); } }, { pcs: [...WATCH] });   // WLIVE=1: each hit printed at once (a run that crashes writes no OUT)
+// WSTR=1: each WATCH hit also gets s, the C string at a0 (a file path at fopen).
+function armWatch(L) {
+  const { rd, u16, u32 } = readers(L);
+  const dbg = Debugger.attach(L.sim, { lab: L });
+  dbg.traceExec((r) => { const g = dbg.regs(); if (process.env.WIDS && !((g.d0 >>> 0) >= 928 && (g.d0 >>> 0) <= 975) && !(((g.d0 >>> 0) >> 4) >= 928 && ((g.d0 >>> 0) >> 4) <= 975 && (g.d0 >>> 0) < 0x10000)) return; if (process.env.WFROM && !globalThis.__armed) return; if (hits.length < 200000) { const h = { step: curStep, pc: r.pc.toString(16), mdr: (g.mdr >>> 0).toString(16), sp: (g.sp >>> 0), d0: g.d0 | 0, d1: g.d1 | 0, d2: g.d2 | 0, d3: g.d3 | 0, a0: (g.a0 >>> 0).toString(16) }; if (r.pc === 0x6051861a) { const out = u32((g.a2 >>> 0) + 12); h.rec = []; for (let i = 0; i < 12; i++) { const b = rd(out + 836 + 24 * i + 18, 6); const sh = (o) => ((b[o] | b[o + 1] << 8) << 16) >> 16; h.rec.push([sh(0), sh(2), sh(4)]); } } if (process.env.WSTR) { try { const b = L.sim.read(g.a0 >>> 0, 64), z = b.indexOf(0); h.s = Buffer.from(b.subarray(0, z < 0 ? 64 : z)).toString('latin1'); } catch (e) { h.s = null; } } if (process.env.WTID) { const cpu = u32(0x8050), t1 = u32((0x97f00004 + 4 * cpu) >>> 0), t2 = u32((t1 + 96) >>> 0), t3 = u32(t2); h.tid = u16((t3 + 16) >>> 0); h.hls = u16(0x62b4dd14); } if (process.env.WSTACK) { h.stk = []; for (let k = 0; k < 160; k++) { const v = u32(((g.sp >>> 0) + 4 * k) >>> 0); if (v >= 0x60021020 && v < 0x62020fe0) h.stk.push(k * 4 + ':' + v.toString(16)); } } hits.push(h); if (process.env.WLIVE) console.log('HIT ' + JSON.stringify(h)); } }, { pcs: [...WATCH] });   // WLIVE=1: each hit printed at once (a run that crashes writes no OUT)
 }
+if (WATCH.size && !bootLab) armWatch(lab);
 lab.sim.write(0xa32de590, new Uint8Array([0xff, 0x03, 0, 0])); lab.sim.write(0x60369308, new Uint8Array([0x00, 0xf0, 0, 0]));
 const shot = (file, tick = true) => {
     if (tick) s.scene_frame(); s.a15_apply('tft'); const comp = lab.compose('tft', true, true); const w = comp.header.width, h = comp.header.height, px = comp.raw; const bpp = px.length / (w * h); console.log('shot', w, h, bpp, comp.status, comp.errors.length);
@@ -167,6 +181,45 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
       else if (held !== null) { if (v !== held) { console.error(`keep ${reg}: ${v.toString(16)} at ${exit}, not ${held.toString(16)}`); process.exit(1); } kept++; held = null; }
     }, { pcs: [E, X] });
   }
+  else if (t.startsWith('wcount:')) {
+    // wcount:MGR:IDS:K counts the settings manager's (MGR, hex) calls for COLOR K's 18 settings, their ids from the
+    // table at IDS (hex, pf_ids: u16 base, u8 step per COLOR, u8 record offset), and notes their values now (getv).
+    // expect:wcount ends the run with exit 1 unless the calls equal the settings whose value changed since.
+    const [mgr, tab, k] = t.slice(7).split(':'), K = Number(k);
+    const ids = [...Array(18).keys()].map((i) => { const a = (parseInt(tab, 16) + 4 * i) >>> 0; return u16(a) + rd(a + 2, 1)[0] * K; });
+    const set = new Set(ids), dw = Debugger.attach(lab.sim, { lab });
+    globalThis.__wc = { ids, before: ids.map(getv), n: 0, dw };
+    dw.traceExec(() => { if (set.has(dw.regs().d0 >>> 0)) globalThis.__wc.n++; }, { pcs: [parseInt(mgr, 16) >>> 0] });
+  }
+  else if (t === 'expect:wcount') {
+    const wc = globalThis.__wc; wc.dw.traceExec(null);
+    const after = wc.ids.map(getv), changed = after.filter((v, i) => v !== wc.before[i]).length;
+    console.log(`wcount: ${wc.n} writes, ${changed} changed`);
+    if (wc.n !== changed) { console.error(`expect:wcount: ${wc.n} writes, ${changed} values changed`); process.exit(1); }
+  }
+  else if (t.startsWith('mids:')) {
+    // mids:PC (hex) notes d0 each time the code reaches PC. expect:mids:ID,... (decimal) ends the run with exit 1
+    // unless the d0s noted since are those ids, in that order.
+    const dm = Debugger.attach(lab.sim, { lab });
+    globalThis.__mids = { ids: [], dm };
+    dm.traceExec(() => { globalThis.__mids.ids.push(dm.regs().d0 >>> 0); }, { pcs: [parseInt(t.slice(5), 16) >>> 0] });
+  }
+  else if (t.startsWith('expect:mids:')) {
+    const mi = globalThis.__mids, got = mi.ids.join(',');
+    mi.dm.traceExec(null);
+    console.log(`mids: ${got}`);
+    if (got !== t.slice(12)) { console.error(`expect:mids: ${got}, not ${t.slice(12)}`); process.exit(1); }
+  }
+  else if (t.startsWith('fhash:')) {
+    // fhash:NAME notes the screen's hash (as shot: composes a fresh frame). expect:fsame:A:B / expect:fdiff:A:B end the
+    // run with exit 1 unless the frames noted as A and B are the same / differ.
+    s.scene_frame(); s.a15_apply('tft');
+    (globalThis.__fh ??= {})[t.slice(6)] = createHash('sha256').update(lab.compose('tft', true, true).raw).digest('hex');
+  }
+  else if (t.startsWith('expect:fsame:') || t.startsWith('expect:fdiff:')) {
+    const [a, b] = t.slice(13).split(':'), fh = globalThis.__fh || {}, same = fh[a] === fh[b];
+    if (!fh[a] || !fh[b] || same !== t.startsWith('expect:fsame:')) { console.error(`${t}: ${fh[a]} ${fh[b]}`); process.exit(1); }
+  }
   else if (t === 'expect:kept') { if (!kept) { console.error('expect:kept: no keep: check ran'); process.exit(1); } }
   else if (t.startsWith('expect:p:')) {
     // expect:p:OFF=HEX: as expect:mem at P + OFF (OFF decimal, as pokep:), e.g. expect:p:82=03 = COLOR 1's slot +50
@@ -235,7 +288,7 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     }
     dd.m.setRegs(saved); console.log('MALLOC', JSON.stringify(res));
   }
-  else if (t === 'ncall') {
+  else if (t === 'ncall') {   // a call's count: PCs, each one's hits before the stop in its result's count
     const spec = JSON.parse(fs.readFileSync(process.env.NCALL, 'utf8')), out = [];
     const dd = Debugger.attach(lab.sim, { lab }); const saved = dd.m.getRegs().slice();
     const st = u16(STATE), P = (POOL + st - 1) >>> 0;
@@ -249,9 +302,9 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
       for (const [k, v] of Object.entries(cs.regs || {})) r[RN.indexOf(k)] = ev(v);
       if (!cs.regs || cs.regs.sp === undefined) r[8] = SP;
       r[9] = ev(cs.pc); dd.m.setRegs(r);
-      const stops = (cs.stop || []).map(ev); let n = 0;
-      while (!stops.includes(dd.m.getRegs()[9] >>> 0) && n < (cs.max || 200000)) { dd.m.step(); n++; }
-      const g = dd.m.getRegs(), o = { name: cs.name, steps: n, regs: {}, mem: [] };
+      const stops = (cs.stop || []).map(ev), counts = (cs.count || []).map(ev), hit = counts.map(() => 0); let n = 0;
+      for (let pc; !stops.includes(pc = dd.m.getRegs()[9] >>> 0) && n < (cs.max || 200000); n++) { const i = counts.indexOf(pc); if (i >= 0) hit[i]++; dd.m.step(); }
+      const g = dd.m.getRegs(), o = { name: cs.name, steps: n, regs: {}, mem: [], count: hit };
       RN.forEach((k, i) => { o.regs[k] = (g[i] >>> 0).toString(16); });
       for (const [a, len] of cs.read || []) { try { o.mem.push(Buffer.from(rd(ev(a), len)).toString('hex')); } catch (e) { o.mem.push('ERR ' + e.message.slice(0, 40)); } }
       for (const [a, hex] of cs.restore || []) dd.write(ev(a), Uint8Array.from(Buffer.from(hex, 'hex')));
@@ -335,8 +388,8 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   else if (t.startsWith('pokeb:')) {      // pokeb:ADDR=V writes one byte at an absolute address (hex), e.g. a flag of a simulation build
     const [a, v] = t.slice(6).split('='); lab.sim.write(parseInt(a, 16) >>> 0, Uint8Array.from([Number(v) & 255]));
   }
-  else if (t.startsWith('pokep:')) {      // pokep:OFF=HEX,... writes bytes at P + OFF (decimal), e.g. pokep:685=01 sets the editor's dirty byte
-    const P = POOL + u16(STATE) - 1; for (const kv of t.slice(6).split(',')) { const [o, hex] = kv.split('='); lab.sim.write((P + parseInt(o, 10)) >>> 0, Uint8Array.from(Buffer.from(hex, 'hex'))); }
+  else if (t.startsWith('pokep:')) {      // pokep:OFF=HEX,... writes bytes at P + OFF (decimal, or hex with 0x), e.g. pokep:685=01 sets the editor's dirty byte
+    const P = POOL + u16(STATE) - 1; for (const kv of t.slice(6).split(',')) { const [o, hex] = kv.split('='); lab.sim.write((P + Number(o)) >>> 0, Uint8Array.from(Buffer.from(hex, 'hex'))); }
   }
   else if (t === 'poweroff') {           // the power lever off and the firmware's own power-off (om-emu H-POWER, S-SHUTDOWN); ends the run
     s.switch_input('power', 1 - s.bit_of('power')); const off = s.power_down(); log.push({ step: t, power_off: off ? true : null }); break;

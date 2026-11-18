@@ -19,6 +19,7 @@ import static_check  # noqa: E402
 from provenance import source_digest  # noqa: E402
 sys.path.insert(0, str(REPO / 'card'))
 import mkcurves  # noqa: E402
+import build as fwbuild  # noqa: E402
 _spec = importlib.util.spec_from_file_location('curves_model', REPO / 'research/rgbcurves/model.py')
 curves_model = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(curves_model)
@@ -204,6 +205,29 @@ NR_ROW_STAR = lambda star: f'expect:isdef:{{ed_isdef}}:{NR_ROW_COLOR2:x}={0 if s
 HOLDER_SCENE = lambda element: f'expect:mem:{{gr_cont}}+0*+308*+4={element & 255:02x}{element >> 8:02x}'
 GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 7 + HOLDER_SCENE(24813) +
                      ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) + ' poweroff')
+# WB Compensation (the sixth row) <-> Highlight & Shadow (the seventh): the holder's scene changes in the row refresh,
+# not in the screen update. A scene set during the update makes the camera draw a pass without grid or curve before
+# the refresh (research/NOTES.md, "the one-frame flash"). Hits: gr_upd / gr_end to the update's end (pe_back /
+# pe_ret) holds no sc_set; each switch still sets the scene, which HOLDER_SCENE checks after each key.
+WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCENE(24813) +
+                ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) +
+                ' down up down wait ' + HOLDER_SCENE(24771) + ' up down up wait ' + HOLDER_SCENE(24813) + ' poweroff')
+SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
+
+
+def no_scene_set_in_update(hits):
+    """SCENE_IN_UPDATE hits: no sc_set between gr_upd or gr_end and the update's end."""
+    inside, errors = False, []
+    for n, _ in hits:
+        if n in ('gr_upd', 'gr_end'):
+            inside = True
+        elif n in ('pe_back', 'pe_ret'):
+            inside = False
+        elif inside:
+            errors.append('sc_set during the Picture Mode update')
+    return errors
+
+
 NOISE_FILTER_OFF_ROW = (f's1 wait wait {NR_ROW_STAR(False)} poke:{NF_BYTE:x}=fe wait {NR_ROW_STAR(False)} '
                         f'pokep:{NR_SLOT_COLOR2}=01 wait {NR_ROW_STAR(True)} poweroff')
 
@@ -247,6 +271,28 @@ WHEEL_DIAL_SKIPS_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:{CURSOR}=255 sub-1 
                         f'sub-1 wait expect:val:{CURSOR}=1 poweroff')
 # Left on Hue, the half-press puts the wheel back on Saturation and the camera's "Vivid" back for the other screens.
 # The wheel opens again with Sat.
+# A rear dial click on Hue and on Shadows: the screen refresh writes only COLOR 1's cursor, with its own value. The
+# sector id's write before it re-checked 37 more settings (~375k of ~1.09M instructions a click). The screen follows
+# each click, and a click back gives the same frame as before (om-emu does not draw the wheel itself). The first click
+# on a page puts the '*' up, so the frames are compared from the second on.
+WHEEL_STEP_WRITE = (f'main+1 wait fhash:a mids:{{manager}} main+1 wait expect:mids:{CURSOR} fhash:b '
+                    f'expect:fdiff:a:b main-1 wait fhash:c expect:fsame:a:c')
+WHEEL_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} {WHEEL_STEP_WRITE} '
+                            f'info wait info wait {LABEL_IS("Tint")} {WHEEL_STEP_WRITE} poweroff')
+# The same on the Extras page (P + AXIS = 3). INFO does not reach it in this build (W_EXTRAS 0), so the test puts the
+# page byte there from Hue.
+EXTRAS_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} pokep:0x{{AXIS}}=03 wait '
+                             f'{WHEEL_STEP_WRITE} poweroff')
+# The Mix page (the second row in Picture Mode) and the RGB page (the third): a dial click's refresh writes only the
+# H&S panel's mode (2191) with its own value. The H&S id's write before it (976 / 978 + 3k) re-checked 37 more
+# settings, ~355k of ~2.6M instructions a click. The picture follows each click, and a click back gives the frame
+# before it. The first click on a page puts the '*' up, so the frames are compared from the second on.
+OPEN_MIX = 's1 wait wait ok wait ok wait down wait'
+PANEL_MODE = 2191
+PANEL_STEP_WRITE = lambda dial: (f'{dial}+1 wait fhash:a mids:{{manager}} {dial}+1 wait expect:mids:{PANEL_MODE} '
+                                 f'fhash:b expect:fdiff:a:b {dial}-1 wait fhash:c expect:fsame:a:c')
+MIX_STEP_WRITES_MODE = (f'{OPEN_MIX} {PANEL_STEP_WRITE("main")} {PANEL_STEP_WRITE("sub")} down wait '
+                        f'{PANEL_STEP_WRITE("main")} poweroff')
 VIVID_SIZE = 1660                 # the camera's own dial label picture
 WHEEL_RESET_LABEL = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} menu wait menu wait s1 wait wait '
                      f'expect:mem:{VDESC + 12:x}={U32(VIVID_SIZE)} {OPEN_WHEEL} {LABEL_IS("Sat")} poweroff')
@@ -274,6 +320,16 @@ FUNCTION = 'expect:gui:ID_ST_MENU_FUNC_DIRECT'
 FUNCTION_TOUCH_8S = (f's1 wait wait ok wait up wait ok {FUNCTION} hit:{{s_tch}}:d0=512,d1=8000 tap:150:100 '
                      f'{WAITS(4)}{FUNCTION} {WAITS(2)}expect:hit {SHOOTING} poweroff')
 
+# A film switch writes only the camera settings it changes (pf_put): through the Picture Mode list from COLOR 1 to FILM 1,
+# then FILM 2 and FILM 3, all three on COLOR 1. Each switch's writes of COLOR 1's 18 settings must equal the settings
+# whose value changed. Before, all 18 were written each time. No '*' after, as before.
+COLOR_1 = 0
+FILM_WRITES = f'wcount:{{manager}}:{{pf_ids}}:{COLOR_1} right wait expect:wcount'
+FILM_SWITCH_WRITES = ('wait wait s1 wait wait ok wait ok wait ' + 'right wait ' * 3 +
+                      ' '.join([FILM_WRITES] * 3) + ' menu wait wait s1 wait wait poweroff')
+FILM_3_LINE = r'^Picture mode: COLOR 1, FILM 3\b'
+NO_STAR_LINE = r'^Films with changes \(a \* in the camera\): none$'
+
 @dataclass
 class Boot:
     tokens: str
@@ -281,8 +337,21 @@ class Boot:
     reject: list = field(default_factory=list)     # regexes no debug log line may match
     mode_dial: int = MODE_DIAL_P
     photo_switch: int = PHOTO_SWITCH_PHOTO    # None leaves PSET0 unset: the movie switch
+    no_log: bool = False                           # no debug log may be on the card after this boot
     card: dict = field(default_factory=dict)   # OM3MOD file name -> a FIXTURES key put on the card before this boot,
                                                # or None to remove the file
+    watch: tuple = ()                              # build symbols: each time the code reaches one is a hit
+    hits: object = None                            # fn([(symbol, path at a0)] in run order) -> errors
+    env: tuple = ()                                # (name, value) pairs added to the driver's environment
+
+EDITS_MAGIC, EDITS_LEN = 0x54334d4f, 16 + 24 * 68    # TWMAGIC, TW_LEN in firmware/src/editor.s
+
+
+def edits_file():
+    """A valid EDITS.BIN with no record valid: magic, length, CRC-32 of the rest."""
+    rest = bytes(EDITS_LEN - 12)
+    return struct.pack('<III', EDITS_MAGIC, EDITS_LEN, zlib.crc32(rest)) + rest
+
 
 # v0.30 test 9: CURVES.BIN (each film's built-in curves and mix, docs/FORMATS.md), made from the newest release's
 # LOOKS.BIN. Film 1 (COLOR 1, look 2: PICK_FILM_2) gets values; B changes them; BAD has a wrong CRC.
@@ -290,6 +359,8 @@ FIXTURES = {
     'CURVES_A': lambda looks, names: mkcurves.build(looks, {names[1]: {'r': [1, 0, 0, 0, -1], 'mix': [1, 2, 0, 0, 0, 0]}}),
     'CURVES_B': lambda looks, names: mkcurves.build(looks, {names[1]: {'g': [0, 2, 0, 0, 0], 'mix': [0, 0, 0, 0, -1, 3]}}),
     'CURVES_BAD': lambda looks, names: (lambda b: b[:40] + bytes([b[40] ^ 1]) + b[41:])(FIXTURES['CURVES_A'](looks, names)),
+    'BUNDLES_HUE': lambda looks, names: fwbuild.make_file({0: {'hue': [3] + [0] * 11, 'light': [0] * 12}}),
+    'EDITS_EMPTY': lambda looks, names: edits_file(),
 }
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
@@ -305,6 +376,27 @@ BORDER_LINE_OFF = 'expect:pxsame:75,300,100,300 expect:pxsame:200,25,200,40'
 BORDER_LINE_OFF_VIDEO = 'expect:pxsame:22,250,40,250 expect:pxsame:75,300,100,300'
 BORDER_TO_3 = f'{OPEN_BORDER}' + ' right wait' * 3 + ' expect:p:82=03 menu wait wait s1 wait wait'
 BORDER_TO_0 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
+# border-dial-direction (2026-11-18): a dial click on the Border row steps it the way it steps the camera's own
+# Contrast row (the 9th, COLOR 1's setting 908). From Contrast nine rows down to Border.
+CONTRAST_COLOR_1 = 908
+DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
+                    f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1 sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1' +
+                    ' down wait' * 9 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
+                    ' sub+1 wait sub+1 wait expect:p:82=01 menu wait wait s1 wait wait poweroff')
+# dial direction (2026-11-18): the same for Glow, Halation, Split Tone Balance and Film Grain. Contrast first, then
+# the row (moves from Contrast, the 9th row): right twice, the rear dial once (+1), the front dial twice (-2). The
+# values: COLOR 1's slot byte (P + 32 + slot) after each step. Glow keeps Glow as -1..-5 (the screen shows +1..+5).
+# Film Grain's byte is its level (strength 2, 3, 1 -> 1, 2, 1), so its strength is also checked in the debug log.
+CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
+                   f' sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1')
+BAR_DIAL = lambda moves, off, two, three, one: (
+    f'{CONTRAST_CLICKS} {moves} right wait right wait expect:p:{off}={two} main+1 wait expect:p:{off}={three}'
+    f' sub+1 wait sub+1 wait expect:p:{off}={one} menu wait wait s1 wait wait poweroff')
+GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
+HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
+BALANCE_DIAL = BAR_DIAL('up wait ' * 4, 65, '02', '03', '01')
+GRAIN_DIAL = BAR_DIAL('down wait ' * 7, 85, '01', '02', '01')
+GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
 # better grain g2: the Film Grain strength row, the 16th (Grain Size under it); COLOR 1's level byte +53 is P + 85
 OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 15
 GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
@@ -332,6 +424,52 @@ def CROP_ASPECT_IS(v):                           # Image Aspect in the camera's 
 
 def CROP_NOW(now):
     return rf'^CROP MODES \(crop round \d+\w*\): .*, now {now};'
+
+
+# A valid films block in camera memory: BUNDLES.BIN and EDITS.BIN on the card change nothing, their lines as without.
+CARD_FILES_UNUSED_LINES = [
+    r"^Films: from the camera's memory; films block in camera memory at power-on: valid",
+    r'^Loaded: films \(LOOKS\) yes, film changes and pictures \(EDITS\) yes, TONES yes$',
+    r'^Card files: all match this firmware$',
+    r"^  EDITS\.BIN: on the card, not used \(kept in the camera's memory\)$",
+    r"^  BUNDLES\.BIN: on the card, not used \(kept in the camera's memory\)$",
+    r'^COLOR 1: its own settings, no film$',
+]
+
+CARD_FILE_READS = ('fopen',)
+# The driver's own watch (tools/emulator/session_ed1.mjs): WBOOT arms it before the session's lab exists. A hit there
+# with WTID read memory through readers not yet declared (ReferenceError, driver exit 1). The getter runs at start-up.
+WATCH_FROM_START_UP = ('getter',)
+
+
+def watch_hit_seen(hits):
+    return [] if hits else ['no getter hit']
+
+
+def no_card_file_reads(hits):
+    """fopen hits: DEBUG.TXT asked (so the probe sees fopen), BUNDLES.BIN and EDITS.BIN never."""
+    paths = [s or '' for _, s in hits]
+    return ([] if any(p.endswith('DEBUG.TXT') for p in paths) else [f'no fopen of DEBUG.TXT seen: {paths}']) + \
+        [f'fopen {p}' for p in paths if p.endswith(('BUNDLES.BIN', 'EDITS.BIN'))]
+
+
+LOG_GATE = ('lg_write', 'hl_ok', 'lg_out')
+
+
+def card_gate_first_event_only(hits):
+    """lg_write to lg_out hits: the card gate hl_ok in the first event's write only (it finds DEBUG.TXT absent)."""
+    gates, inside = [], False
+    for n, _ in hits:
+        if n == 'lg_write':
+            gates.append(0)
+            inside = True
+        elif n == 'lg_out':
+            inside = False
+        elif inside:
+            gates[-1] += 1
+    if len(gates) < 2:
+        return [f'lg_write ran {len(gates)} times, want 2 or more']
+    return [f'hl_ok in lg_write after the first event, per event: {gates}'] if any(gates[1:]) else []
 
 
 CK_WORDS = ['none', 'none (its film has some)', "its film's", 'changed']   # has values x 2 + differs from the built-in
@@ -409,6 +547,13 @@ TESTS = {
         Boot(f'wait wait s1 wait wait expect:p:82=03 {OPEN_BORDER}' + ' left wait' * 4 + ' expect:p:82=00'
              ' menu wait wait s1 wait wait poweroff'),
     ],
+    # border-dial-direction: the rear and front dials step Border as they step Contrast (rear +1 up, front +1 down).
+    'border-dial-steps-as-contrast': [Boot(DIAL_AS_CONTRAST)],
+    # dial direction: the rear and front dials step Glow, Halation, Split Tone Balance and Film Grain as Contrast.
+    'glow-dial-steps-as-contrast': [Boot(GLOW_DIAL)],
+    'halation-dial-steps-as-contrast': [Boot(HALATION_DIAL)],
+    'tone-balance-dial-steps-as-contrast': [Boot(BALANCE_DIAL)],
+    'grain-dial-steps-as-contrast': [Boot(GRAIN_DIAL, expect=[GRAIN_1_MEDIUM])],
     # border preview: the frame line is there at Border 3 and gone at Border 0 (and not there before the Border).
     'border-preview-on-at-3-off-at-0': [
         Boot(f's1 wait wait {BORDER_LINE_OFF} {BORDER_TO_3} {BORDER_LINE_ON} {BORDER_TO_0} {BORDER_LINE_OFF} poweroff'),
@@ -495,11 +640,25 @@ TESTS = {
         Boot('wait wait s1 wait wait poweroff', card={'CURVES.BIN': 'CURVES_BAD'},
              expect=[*ck_line('no', 'not valid', 0, 15, 0)]),
     ],
+    'card-edits-and-bundles-unused-with-films-in-camera': [
+        Boot('s1 wait wait poweroff'),
+        Boot('wait wait s1 wait wait poweroff', card={'BUNDLES.BIN': 'BUNDLES_HUE', 'EDITS.BIN': 'EDITS_EMPTY'},
+             expect=CARD_FILES_UNUSED_LINES),
+        Boot('wait wait s1 wait wait poweroff', card={'DEBUG.TXT': None}, no_log=True, watch=CARD_FILE_READS,
+             hits=no_card_file_reads),
+    ],
     'grid-row-gives-the-bottom-bar-back': [
         Boot(GRID_ROW_AND_BACK),
     ],
+    'wb-to-highlight-shadow-sets-the-scene-in-the-row-refresh': [
+        Boot(WB_HS_SWITCH, watch=SCENE_IN_UPDATE, hits=no_scene_set_in_update),
+    ],
     'debug-log-written-at-releases-only': [
         Boot('s1 wait wait s1 wait wait s1 wait wait poweroff', expect=[DEBUG_LOG_RELEASES_ONLY]),
+    ],
+    'debug-log-off-writes-no-log': [
+        Boot('s1 wait wait s1 wait wait s1 wait wait poweroff', card={'DEBUG.TXT': None}, no_log=True, watch=LOG_GATE,
+             hits=card_gate_first_event_only),
     ],
     'noise-filter-row-follows-the-camera-setting': [
         Boot(NOISE_FILTER_OFF_ROW),
@@ -515,6 +674,11 @@ TESTS = {
     'control-panel-dial-keeps-the-record-once-as-it-closes': [
         Boot('s1 wait wait ok wait count:{cm_hp}:*' + ' main+1 wait' * 8 + ' expect:count:{cm_hp}=0 menu wait wait'
              ' expect:count:{cm_hp}=1 s1 wait wait poweroff'),
+    ],
+    # border preview: with no Border on any COLOR, the grid read (bl_gv) asks the GUI for no picture mode (111): a
+    # menu open and close makes the camera's own 25 reads, as stock (with the extra read: 50).
+    'border-preview-grid-read-asks-only-what-it-needs': [
+        Boot('s1 wait wait count:{gui_get}:6f menu wait wait menu wait wait expect:count:{gui_get}=25 poweroff'),
     ],
     'color-wheel-dial-label-follows-the-page': [
         Boot(WHEEL_PAGE_LABELS),
@@ -560,6 +724,22 @@ TESTS = {
     ],
     'white-balance-closes-after-8-s-idle': [
         Boot(WHITE_BALANCE_IDLE_8S),
+    ],
+    'color-wheel-dial-step-writes-the-cursor-only': [
+        Boot(WHEEL_STEP_WRITES_CURSOR),
+    ],
+    'extras-dial-step-writes-the-cursor-only': [
+        Boot(EXTRAS_STEP_WRITES_CURSOR),
+    ],
+    'mix-and-rgb-dial-step-writes-the-panel-mode-only': [
+        Boot(MIX_STEP_WRITES_MODE),
+    ],
+    'driver-watch-from-start-up-reads-thread-ids': [
+        Boot('wait poweroff', watch=WATCH_FROM_START_UP, env=(('WTID', '1'),), hits=watch_hit_seen),
+    ],
+    'film-switch-writes-only-changed-settings': [
+        Boot('s1 wait wait poweroff'),
+        Boot(FILM_SWITCH_WRITES, expect=[FILM_3_LINE, NO_STAR_LINE]),
     ],
     'video-boot-after-photo-boot': [
         Boot('s1 wait wait poweroff'),
@@ -689,7 +869,7 @@ def elf_symbols(path):
 
 
 def boot_key(boot):
-    return boot.tokens, boot.mode_dial, boot.photo_switch, tuple(sorted(boot.card.items()))
+    return boot.tokens, boot.mode_dial, boot.photo_switch, tuple(sorted(boot.card.items())), boot.watch, boot.hits, boot.env
 
 
 def run_boot(emu, build, d, i, boot, card, syms, fixtures=None):
@@ -699,12 +879,15 @@ def run_boot(emu, build, d, i, boot, card, syms, fixtures=None):
     if boot.card:
         card = put_card_files(emu, card, boot.card, fixtures, d / f'card{i}-in.omsd')
     tokens = boot.tokens
-    if '{' in tokens:
+    if '{' in tokens or boot.watch:
         if not syms:
             syms.update({k: f'{v:x}' for k, v in elf_symbols(build / 'p.elf').items()})
         tokens = tokens.format_map(syms)
     env = {**os.environ, 'OM_EMU_MODEL': MODEL, 'NV_FILE': str(d / 'nv.bin'), 'MODE0': str(boot.mode_dial),
            'PSET0': str(boot.photo_switch)}
+    if boot.watch:
+        env.update(WATCH=','.join(syms[n] for n in boot.watch), WSTR='1', WBOOT='1')
+    env.update(boot.env)
     try:
         r = node(DRIVER, emu, build / 'main.bin', card, d / f'boot{i}.json', nxt, tokens, env=env)
     except subprocess.TimeoutExpired:
@@ -717,11 +900,17 @@ def run_boot(emu, build, d, i, boot, card, syms, fixtures=None):
     errors = []
     if boot.tokens.split()[-1] == 'poweroff' and not json.loads((d / f'boot{i}.json').read_text())['log'][-1].get('power_off'):
         errors.append(f'boot {i}: the firmware did not power off (boot{i}.json)')
+    if boot.hits:
+        name = {int(syms[n], 16): n for n in boot.watch}
+        hits = [(name[int(h['pc'], 16)], h.get('s')) for h in json.loads((d / f'boot{i}.json').read_text())['hits']]
+        errors += [f'boot {i}: {e} (boot{i}.json)' for e in boot.hits(hits)]
     return nxt, read_log(emu, nxt, d / f'cadlog{i}.txt'), errors, None
 
 
 def check_log(i, boot, lines):
     """boot i's expect and reject against its log lines -> errors, and whether the test must stop."""
+    if boot.no_log:
+        return ([f'boot {i}: unwanted {LOG_PATH} on the card'] if lines is not None else []), False
     if lines is None:
         return ([f'boot {i}: no {LOG_PATH} on the card'], True) if boot.expect or boot.reject else ([], False)
     return ([f'boot {i}: no line matches {p}' for p in boot.expect if not any(re.search(p, l) for l in lines)] +
@@ -1176,6 +1365,116 @@ def run_gates(emu, build, out, card0):
     return GATES, errors
 
 
+WB_KEYS = {'A-B': 34041, 'G-M': 38521}           # wb_get's reads, shifted by slot +26 and +27
+CALL_REGS_D2_D3 = 0xc0                           # a call's register list [d2,d3]
+
+
+def call_spec(name, fn, imm, d0, mem=(), count=()):
+    """An ncall of `call fn,[d2,d3],imm` at B with d0, d1 0, a0 0 (a getter call's registers), stopped after it.
+    count: addresses, each one's hits during the call in the result's count."""
+    stub = [['B', 'dd'], ['B+1', f'={fn:#x}-B'], ['B+5', f'{CALL_REGS_D2_D3:02x}{imm:02x}']]
+    return {'name': name, 'pc': 'B', 'stop': ['B+7'], 'max': 200000, 'mem': stub + list(mem),
+            'regs': {'d0': str(d0), 'd1': '0', 'a0': '0'}, 'count': list(count)}
+
+
+s8 = lambda v: v - 256 if v > 127 else v
+# wb_get adds the active COLOR's slot +26 (A-B) or +27 (G-M) to the stock read when its +25 & 0x81 == 1, clamped to
+# -7..7. Each case: slot +25..+27 for COLOR 1..4. The test camera is on COLOR 1.
+WB_CASES = [('none', [(0, 0, 0)] * 4),
+            ('color-1', [(1, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
+            ('color-1-off', [(0x81, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
+            ('color-2-only', [(0, 0, 0), (1, 5, 5), (0, 0, 0), (0, 0, 0)])]
+WB = 'wb-shift-reads-follow-the-look'
+
+
+def run_wb(emu, build, out, card0):
+    """wb_get on each WB_KEYS read, per WB_CASES look: the stock value, plus the shift when COLOR 1 (active) has one.
+    With no slot's shift on, the stock read is wb_get's only getter call."""
+    d = out / WB
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    spec = [call_spec('mode', sym['getter'], 12, 63153)]
+    spec += [call_spec(f'stock:{k}', sym['getter'], 12, key) for k, key in WB_KEYS.items()]
+    for name, slots in WB_CASES:
+        mem = [[f'P+{32 + 64 * k + 25}', bytes(s).hex()] for k, s in enumerate(slots)]
+        spec += [call_spec(f'{name}:{k}', sym['wb_get'], 12, key, mem, [sym['getter']]) for k, key in WB_KEYS.items()]
+    res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return WB, [res]
+    if int(res['mode']['regs']['d0'], 16) & 255 != 1:
+        return WB, [f"the camera is not on COLOR 1 (getter 63153: {res['mode']['regs']['d0']}, out.json)"]
+    errors = []
+    for name, slots in WB_CASES:
+        flag, ab, gm = slots[0]
+        for i, k in enumerate(WB_KEYS):
+            stock = s8(int(res[f'stock:{k}']['regs']['d0'], 16) & 255)
+            want = max(-7, min(7, stock + s8((ab, gm)[i]))) if flag & 0x81 == 1 else stock
+            got = s8(int(res[f'{name}:{k}']['regs']['d0'], 16) & 255)
+            if got != want:
+                errors.append(f'{name} {k}: wb_get gives {got}, want {want} (out.json)')
+            calls, shift = res[f'{name}:{k}']['count'][0], any(f & 0x81 == 1 for f, _, _ in slots)
+            if (calls > 1) != shift:
+                errors.append(f'{name} {k}: wb_get calls the getter {calls} times, want {"more than " if shift else ""}1 (out.json)')
+    return WB, errors
+
+
+# hl_pp's per-hue Hue / Lightness (slot +0..+23, -7..7, on when +31 & 2) into the COLOR stage's 12 output records,
+# entered at hl_pp_cb, after its color_builder call, on a fake context C at B+0x200, output O at B+0x1000.
+# Keep HL_HUE, HL_LIGHT and HL_PERM in sync with hl_lut in firmware/src/editor.s.
+HL = 'hue-lightness-follows-the-look'
+HL_HUE = [7000 - 1000 * i for i in range(15)]
+HL_LIGHT = [-300, -250, -200, -150, -100, -50, -25, 0, 25, 50, 100, 150, 200, 250, 300]
+HL_PERM = [0, 2, 4, 6, 8, 10, 1, 3, 5, 7, 9, 11]
+HL_REC, HL_REC_STEP, HL_FILL = 854, 24, 0x55     # O + 854: record 0's hue field, then lightness at +4
+HL_LOOK = [(3 * i) % 15 - 7 for i in range(12)] + [7 - (2 * i) % 15 for i in range(12)]
+HL_CASES = [('none', None), ('color-1', 0), ('color-2-only', 1)]
+
+
+def run_hl(emu, build, out, card0):
+    """hl_pp per HL_CASES (the H/L look on no slot, on COLOR 1 (active), on COLOR 2): the records get the look's LUT
+    values only when COLOR 1 has it, else stay as they were. With no slot's H/L on, hl_pp calls no getter."""
+    d = out / HL
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    span = HL_REC_STEP * 12
+    look = bytes(v & 255 for v in HL_LOOK)
+    spec = [call_spec('mode', sym['getter'], 12, 63153)]
+    for name, slot in HL_CASES:
+        mem = [['B+0x200', '00' * 0x100], ['B+0x20c', '=B+0x1000'], [f'B+0x1000+{HL_REC}', f'{HL_FILL:02x}' * span]]
+        for k in range(4):
+            mem += [[f'P+{32 + 64 * k}', (look if k == slot else bytes(24)).hex()],
+                    [f'P+{32 + 64 * k + 31}', '02' if k == slot else '00']]
+        spec.append({'name': name, 'pc': f'{sym["hl_pp_cb"]:#x}', 'stop': [hex(sym['color_resume'])],
+                     'max': 200000, 'mem': mem, 'regs': {'a2': 'B+0x200'}, 'read': [[f'B+0x1000+{HL_REC}', span]],
+                     'count': [sym['getter']]})
+    res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return HL, [res]
+    if int(res['mode']['regs']['d0'], 16) & 255 != 1:
+        return HL, [f"the camera is not on COLOR 1 (getter 63153: {res['mode']['regs']['d0']}, out.json)"]
+    errors = []
+    for name, slot in HL_CASES:
+        want = bytearray([HL_FILL] * span)
+        if slot == 0:
+            for r, w in enumerate(HL_PERM):
+                struct.pack_into('<H', want, HL_REC_STEP * r, HL_HUE[HL_LOOK[w] + 7] & 0xffff)
+                struct.pack_into('<H', want, HL_REC_STEP * r + 4, HL_LIGHT[HL_LOOK[12 + w] + 7] & 0xffff)
+        got = bytes.fromhex(res[name]['mem'][0])
+        if res[name]['regs']['pc'] != f"{sym['color_resume']:x}":
+            errors.append(f'{name}: hl_pp did not reach color_resume (out.json)')
+        elif got != want:
+            bad = next(i for i in range(span) if got[i] != want[i])
+            errors.append(f'{name}: output byte {HL_REC + bad} is {got[bad]:02x}, want {want[bad]:02x} (out.json)')
+        calls = res[name]['count'][0]
+        if calls != (slot is not None):
+            errors.append(f'{name}: hl_pp calls the getter {calls} times, want {int(slot is not None)} (out.json)')
+    return HL, errors
+
+
+# Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
+DIRECT = {WB: run_wb, HL: run_hl}
+
+
 def newest_looks():
     def key(d):
         n, _, pre = d.name.lstrip('v').partition('-')
@@ -1187,7 +1486,7 @@ def newest_looks():
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('build', type=pathlib.Path)
-    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, HALATION, BORDER, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, *STATIC]))
+    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, HALATION, BORDER, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, *DIRECT, *STATIC]))
     ap.add_argument('--jobs', type=lambda v: max(1, int(v)), default=DEFAULT_JOBS)
     ap.add_argument('--out', type=pathlib.Path)
     ap.add_argument('--looks', type=pathlib.Path)
@@ -1210,7 +1509,7 @@ def main():
     looks = (a.looks or newest_looks()).resolve()
     make_card(emu, build, looks, card0)
     fixtures = make_fixtures(out, looks)
-    names = a.only or sorted([*TESTS, AUDIT, HALATION, BORDER, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, *STATIC])
+    names = a.only or sorted([*TESTS, AUDIT, HALATION, BORDER, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, *DIRECT, *STATIC])
     stock = static_check.find_stock(a.stock) if any(n in STATIC for n in names) else None
     runs = [(n, k) for n in names for k in range(1, a.repeat + 1)]
     print(f'{len(names)} tests{f" x {a.repeat}" if a.repeat > 1 else ""} on {build}, results in {out}')
@@ -1251,6 +1550,8 @@ def main():
                 return run_cropq(emu, build, d, card0)
             if n == GATES:
                 return run_gates(emu, build, d, card0)
+            if n in DIRECT:
+                return DIRECT[n](emu, build, d, card0)
             first = shared.get((k, boot_key(TESTS[n][0])))
             return run_test(n, TESTS[n], emu, build, card0, d, first and first.result(), fixtures)
         except static_check.Skip as e:

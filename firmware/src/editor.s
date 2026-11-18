@@ -84,6 +84,10 @@
 .section .hook_pe,"ax"
  jmp gr_end                       /* stock 0x611d059c (Picture Mode update's end): mov (12,sp),d0; cmp 0,d0; bne 0x611d05b2 */
  .byte 0xcb
+.section .hook_rr,"ax"
+ jmp rr_g                         /* stock 0x611356e6 (property 275's handler, the row refresh): movm [d2,a2,a3],(sp);
+                                   * add -16,sp; mov a0,a2 */
+ .byte 0xcb
 .section .hook_ic,"ax"
  jmp cv_ic                        /* rgb-curves cv_ic, then v0.27: ar_ic (▲ / ◀ pictures), then ic_get. v0.23 stock 0x610f5611 (picture id -> its slot in the picture table): mov d0,d1;
                                    * exthu d1; cmp 0,d1; bne 0x610f561b */
@@ -214,10 +218,19 @@
 74:
  .endm
 
+ .set SEC_READY, 0xa32de58c       /* bit id - 1: section id is ready (crop.s sets the same) */
+
 hl_pp:
  call color_builder,[d2,d3,a2,a3],96
- movhu (STATE),d0
+hl_pp_cb:                         /* tools/test/emu_test.py enters here */
+ mov 0x202,d1                     /* want 2 << 8 | mask 2 */
+ mov 32 + 31,a0
+ mov (SEC_READY),d0               /* section 6 (slot_any) ready? Before it STATE is 0: the same exit */
+ and 0x20,d0
+ beq 8f                           /* short, so the gate stays right before the call; Z still set at 8 */
+ call slot_any,[d2,d3,a2],16      /* P valid and some COLOR slot with H/L on (+31 & 2)? Else no getter call */
  cmp 0,d0
+8:
  beq hl_out
  mov 63153,d0                     /* effective COLOR profile number (as capture population) */
  clr d1
@@ -228,17 +241,10 @@ hl_pp:
  cmp 4,d0
  bcc hl_out                       /* not COLOR1..4 */
  mov d0,d1                        /* d1 = slot 0..3 */
- movhu (STATE),d0
- add -1,d0                        /* h - 1 */
- cmp HMAX,d0
- bcc hl_out                       /* 0 (-1 wraps), 0xFFFF and out-of-pool handles */
- btst 3,d0
- bne hl_out
+ movhu (STATE),d0                 /* P, valid since slot_any: STATE and the header change only before publish */
+ add -1,d0
  mov d0,a1
  add POOL,a1                      /* a1 = block (uncached) */
- mov (a1),d0
- cmp MAGIC,d0
- bne hl_out
  asl 6,d1
  add d1,a1
  add 32,a1                        /* a1 = slot entry */
@@ -441,8 +447,8 @@ d_stock:
 
 /* ed_set <- 0x60b8798b `call 0x60bb528f,[d2,d3,a2,a3],68` in the facade SetValue (mode 0): entered exactly like
  * the settings manager (d0 id, d1 value, a0 inner, a1 mode; d2/d3/a2/a3 saved by the call; return address at
- * (68,sp)). H/L hit: value -5..5 into the table, slot H/L bit, dirty; then the manager runs for the id with its
- * unchanged Saturation value, so its listeners refresh the screen as after a stock edit. */
+ * (68,sp)). H/L hit: value -5..5 into the table, slot H/L bit, dirty; then the manager runs for COLOR k's cursor
+ * 2197 + k with its unchanged value (s_cur), so its listeners refresh the screen. */
 ed_set:
  WHERE s_stock
  cmp -5,d1
@@ -466,7 +472,12 @@ ed_set:
  movbu (d2,a2),d1
  or 2,d1
  movbu d1,(d2,a2)                 /* ... then the slot's H/L enable bit ... */
-s_dirty:                          /* test 16: hand edits belong to the selected bank profile (saved back at the half-press) */
+s_cur:                            /* wheel pages: d2 = P offset of a byte in slot k, 64k + 32 + x (x < 64) -> the refresh */
+ mov d2,d0                        /* writes COLOR k's cursor 2197 + k (~17k instructions; the sector id's write re-checks */
+ add -32,d0                       /* 37 more settings, ~375k). The cursor write redraws the wheel (k_cur's poke). */
+ lsr 6,d0
+ add 2197,d0
+s_dirty:                        /* test 16: hand edits belong to the selected bank profile (saved back at the half-press) */
 s_dirty2:
  mov 1,d1
  movbu d1,(DIRTY,a2)              /* ... then dirty (saved to the card on the next half-press) */
@@ -518,7 +529,7 @@ s_x:                              /* Extras page: d2 = 64*slot + slice, d1 = val
  and 0x7f,d1
  movbu d1,(d2,a2)
 7:
- bra s_dirty
+ bra s_cur
 s_bad:
  clr d0
  ret [d2,d3,a2,a3],68
@@ -551,6 +562,15 @@ wb_get:
  mov d0,d2                        /* key (d2/d3 saved by the site's call) */
  call getter,[d2,d3],12           /* the stock value */
  mov d0,d3
+ mov 0x181,d1                     /* want 1 << 8 | mask 0x81 */
+ mov 32 + 25,a0
+ mov (SEC_READY),d0               /* section 6 (slot_any) ready? Before it STATE is 0: the same exit */
+ and 0x20,d0
+ beq 8f                           /* short, so the gate stays right before the call; Z still set at 8 */
+ call slot_any,[d2,d3,a2],16      /* P valid and some COLOR slot with the WB flag? (else no more getter calls) */
+ cmp 0,d0
+8:
+ beq 9f
  mov 38017,d0                     /* picture mode (6 -> 40209), as capture population reads it */
  clr d1
  mov 0,a0
@@ -575,17 +595,10 @@ wb_get:
  cmp 4,d0
  bcc 9f
  mov d0,d1                        /* slot 0..3 */
- movhu (STATE),d0
+ movhu (STATE),d0                 /* P, valid since slot_any: STATE and the header change only before publish */
  add -1,d0
- cmp HMAX,d0
- bcc 9f
- btst 3,d0
- bne 9f
  mov d0,a1
  add POOL,a1
- mov (a1),d0
- cmp MAGIC,d0
- bne 9f
  asl 6,d1
  add d1,a1
  add 32,a1                        /* slot entry */
@@ -649,6 +662,13 @@ sd_z:
  cmp 1024,d2
  bne sd_z
  call sd_def,[d2],8               /* built-in defaults into the block */
+ mov (SEC_READY),d0               /* section 6 (ub_chk) ready? Else the read, as before */
+ and 0x20,d0
+ beq 7f
+ call ub_chk,[d2,d3,a2,a3],20     /* a valid block: ub_bun overwrites the whole file, so no read */
+ cmp 0,d0
+ bne sd_pub
+7:
  mov sd_path,a0
  mov sd_mode,a1
  call fopen,[],4
@@ -2035,15 +2055,31 @@ pf_put1:                          /* v0.24 (fl_sw): (4) a0, (8) a1, (12) k set, 
  movbu (d2,a1),d1
  extb d1
 6:
+ call pf_eq,[d2,d3,a2,a3],28      /* the camera's value already this one: no write (as rc_put) */
+ cmp 0,a0
+ beq 62f
  mov (4,sp),a0
  mov (8,sp),a1
  call manager,[d2,d3,a2,a3],68
+62:
  mov (20,sp),d3
  inc d3
  mov d3,(20,sp)
  cmp 18,d3
  bne 5b
  ret [d2,d3,a2,a3],40
+
+/* pf_eq: `call pf_eq,[d2,d3,a2,a3],28` from pf_put, d0 = setting id, d1 = value -> d0, d1 kept, a0 = 0 when the
+ * camera's value (sget) is already d1. Locals (4) id, (8) value. */
+pf_eq:
+ mov d0,(4,sp)
+ mov d1,(8,sp)
+ call sget,[],4
+ mov (8,sp),d1
+ sub d1,d0
+ mov d0,a0
+ mov (4,sp),d0
+ ret [d2,d3,a2,a3],28
 
 .section .ext1,"ax"
 /* lk_hold (v0.21) <- ed_event on the Looks page (axis 4), in its frame (a2 = P, a3 = parent, d2 = 4, (12,sp) cursor
@@ -2548,7 +2584,6 @@ s_cl:                             /* v0.21 grain: request configuration 0x604955
  * 0x60046064); no stock wait puts live view's first set-up after section 6's. Each gate tests section 6's bit and,
  * until it is set, runs the stock instructions: the same picture as now (our looks need the films, which load
  * later). d0 is free at all three sites (each target writes it before reading it). Section 1's tail: always in. */
- .set SEC_READY, 0xa32de58c       /* bit id - 1: section id is ready (crop.s sets the same) */
 .section .ext1,"ax"
 mx_g:                             /* G1: jmp from .hook_mx (0x6051485a), in the matrix function's frame */
  mov (SEC_READY),d0
@@ -2566,6 +2601,16 @@ tn_g:                             /* G2: `call tn_g,[d2,d3,a2,a3],56` from .hook
 1:
  mov d3,a0                        /* the stock 0x605197d7: mov d3,a0, then 0x60518fa4 in this call's frame */
  jmp tone_next
+rr_g:                             /* G5: jmp from .hook_rr (section 7); rr_go reads section 6 */
+ mov (SEC_READY),d0               /* d0 is free: the handler clears it before reading it */
+ and 0x20,d0
+ beq rr_st
+ jmp rr_go
+rr_st:                            /* the stock 0x611356e6 */
+ movm [d2,a2,a3],(sp)
+ add -16,sp
+ mov a0,a2
+ jmp rr_back
 lv_g:                             /* G3: jmp from s_lv (the live view / movie request at a COLOR mode, d0 = 11) */
  mov (SEC_READY),d0
  and 0x20,d0
@@ -4299,23 +4344,28 @@ rv_chk:
  movhu (a0),d0
  add -GLB,d0
  cmp 4,d0
- bcs 1f
+ bcs 4f
  movhu (a0),d0
  add -HLB,d0
  cmp 4,d0
- bcs 1f
+ bcs 4f
  movhu (a0),d0
  add -TBB,d0
  cmp 4,d0
- bcs 1f
+ bcs 4f
  movhu (a0),d0
  add -GSB,d0                      /* g2: the Film Grain bar */
  cmp 4,d0
- bcs 1f
+ bcs 4f
  movhu (a0),d0
  add -FRB,d0                      /* borders: the Border bar */
  cmp 4,d0
  bcc 2f
+4:                                /* dial direction: Glow, Halation, Tone Balance, Film Grain and Border */
+ mov (24,sp),a0                   /* border-dial-direction: the bar's control +152 = 1, as 0x611b77b2 sets it for */
+ mov 1,d0                         /* the camera's own sliders: a dial click steps it as on Contrast (else the dial */
+ mov d0,(152,a0)                  /* step 0x611b41f8 takes the list's way, reversed by setting 307) */
+ mov (16,sp),a0
 1:
  mov 1,a2
 2:
@@ -4506,6 +4556,11 @@ gx_sh:
  .long 0
 gr_cont:                          /* the holder of Picture Mode's layer 457, captured at start-up (sc_cap) */
  .long 0
+gr_due:                           /* the scene the holder takes in the next row refresh (rr_go), 0: none. Set only in
+                                   * Picture Mode, cleared when it closes */
+ .long 0
+rr_sv:
+ .long 0, 0, 0, 0
 gr_sv:
  .long 0, 0, 0, 0
 gr_st:                            /* v0.26: the GUI state gx_map last sent the screen to */
@@ -4932,10 +4987,13 @@ gr_upd:
 71:
  mov (gr_mode),d0
  mov d0,(gr_lmode)
- mov (gr_cont),a0
- mov 498,d0
- call sc_set,[d2,d3,a2,a3],28     /* the holder takes the WB grid scene */
+ mov 498,d0                       /* the holder takes the WB grid scene in the row refresh: a swap here draws a pass
+                                   * without grid or curve before the refresh */
+ mov d0,(gr_due)
+ bra 9f
 7:
+ clr d0
+ mov d0,(gr_due)
  call gr_ref,[d2,d3,a2,a3],20
  bra 9f
 8:
@@ -4954,11 +5012,11 @@ gr_end:
  bne 1f
  mov (gr_cont),a0
  call gr_is,[d2],8
- cmp 1,d0
- bne 1f
- mov (gr_cont),a0
- mov GLY,d0
- call sc_set,[d2,d3,a2,a3],28
+ cmp 0,d0
+ beq 3f
+ mov GLY,d0                       /* in the row refresh (rr_go), as gr_upd's grid */
+3:
+ mov d0,(gr_due)
 1:
  add 4,sp
  mov (12,sp),d0
@@ -4967,6 +5025,44 @@ gr_end:
  jmp pe_ret
 2:
  jmp pe_back
+
+/* rr_go <- jmp from rr_g, the row refresh's entry with section 6 ready: the holder takes the scene gr_upd / gr_end
+ * left due, then the stock entry. The camera draws once after the refresh, so that pass has the new scene. */
+rr_go:
+ mov (gr_due),d0
+ cmp 0,d0
+ bne 1f
+ jmp rr_st
+1:
+ mov d1,(rr_sv)
+ mov a0,(rr_sv + 4)
+ mov a1,(rr_sv + 8)
+ mov mdr,d0
+ mov d0,(rr_sv + 12)
+ add -4,sp                        /* our call's slot (the handler's return address stays at (0,sp)) */
+ call rr_set,[d2,d3,a2,a3],20
+ add 4,sp
+ mov (rr_sv + 12),d0
+ mov d0,mdr
+ mov (rr_sv),d1
+ mov (rr_sv + 4),a0
+ mov (rr_sv + 8),a1
+ jmp rr_st
+
+rr_set:
+ mov (gr_due),d2
+ clr d0
+ mov d0,(gr_due)                  /* before sc_set: a refresh inside it takes rr_go's stock path */
+ mov (gr_cont),a0
+ cmp 0,a0
+ beq 9f
+ mov d2,d0
+ call sc_set,[d2,d3,a2,a3],28
+ cmp 498,d2
+ bne 9f
+ call gr_ref,[d2,d3,a2,a3],20
+9:
+ ret [d2,d3,a2,a3],20
 
 /* gr_is: `call gr_is,[d2],8`, a0 = the holder (or 0) -> d0 = 1 when its scene is the WB grid (element 24813) */
 gr_is:
@@ -5293,6 +5389,8 @@ gx_map:
  bne 6f                           /* to the fine-tune screen from our row: keep the look */
  movbu d1,(gr_flag)
 6:
+ clr d1
+ mov d1,(gr_due)
  mov (gr_cont),a0                 /* and give the holder its own layer back */
  cmp 0,a0
  beq 9f
@@ -6735,6 +6833,9 @@ fl_mk:
  mov d0,(12,a0)
  movbu d0,(TW_LEN,a0)
  movbu d0,(TW_LEN + 1,a0)
+ movbu (ub_ok),d0                 /* a valid block: ub_pfl overwrites the whole image, so no read */
+ cmp 0,d0
+ bne 95f
  mov tw_path,a0
  mov sd_mode,a1
  call fopen,[],4
@@ -8470,8 +8571,8 @@ s_sel2:                           /* the selector's frame; a0 = context */
 9:
  jmp SEL
 
-/* #75: a touch re-arms the open screen's idle timer through shared code (0x612a8db3), with id 500 at 8000 ms for
- * every touch screen. In Picture Mode (GUI state 0x0418) it gets 30000 ms, as Picture Mode's own arms. */
+/* #75: a touch re-arms the open screen's idle timer through shared code (0x612a8db3), with the screen's own id and
+ * time. Only Picture Mode's touch layout gives id 500 at 8000 ms. In Picture Mode (GUI state 0x0418) it gets 30000 ms, as Picture Mode's own arms. */
 .section .hook_tch,"ax"
  call s_tch,[d2,d3],12            /* stock 0x612a8db3: call 0x612970e8,[d2,d3],12 (d0 timer id, d1 ms) */
 
@@ -9424,6 +9525,31 @@ s_lv6:
 9:
  jmp lv_skip                      /* 0x6046b94f */
 
+/* slot_any: `call slot_any,[d2,d3,a2],16`, d1 want << 8 | mask, a0 byte offset in the block -> d0 1 when P is valid
+ * and some COLOR slot k (0..3) has (P + a0 + 64k) & mask == want, else 0. Uses d0, d1. Used by wb_get and hl_pp, each
+ * behind a SEC_READY gate right before the call (d0 is the gate's register, so the arguments are in d1 and a0). */
+slot_any:
+ mov d1,d0
+ lsr 8,d0                         /* want */
+ extbu d1                         /* mask */
+ PVAL 9f
+ add a0,a2
+ mov 4,d2
+1:
+ movbu (a2),d3
+ and d1,d3
+ cmp d0,d3
+ beq 2f
+ add 64,a2
+ add -1,d2
+ bne 1b
+9:
+ clr d0
+ ret [d2,d3,a2],16
+2:
+ mov 1,d0
+ ret [d2,d3,a2],16
+
 st_run:
  add -100,sp
  mov d0,(64,sp)
@@ -9732,7 +9858,7 @@ t_ret:                            /* emu_test: the caller's d2, d3, a2 are back 
 
 /* tn_set <- sl_set's miss (instead of ed_set), entered as ed_set (d0 id, d1 value, a0 inner, a1 mode; d2/d3/a2/a3
  * saved by the setter's call, frame 68). A sector id on a Shadows / Highlights page: value -5..5; not 0 -> this
- * colour and strength; 0 -> strength 0 if this is the page's colour. Then s_dirty (dirty, the manager's refresh). */
+ * colour and strength; 0 -> strength 0 if this is the page's colour. Then s_cur (dirty, the refresh through the cursor). */
 tn_set:
  TONEP 9f
  mov d0,d2
@@ -9755,7 +9881,6 @@ tn_set:
 5:
  asr 1,d1
 6:
- mov d0,a3                        /* keep the id */
  clr d0
 1:
  cmp 12,d2
@@ -9768,6 +9893,7 @@ tn_set:
  add d3,d0
  add d3,d0                        /* 64k + 2 (axis - 5) */
  add 87,d0                        /* P offset of the page's colour byte */
+ mov d0,a3                        /* kept for s_cur */
  cmp 0,d1
  bne 3f
  movbu (d0,a2),d3
@@ -9782,8 +9908,8 @@ tn_set:
  inc d0
  movbu d1,(d0,a2)                 /* ... and strength */
 4:
- mov a3,d0
- jmp s_dirty
+ mov a3,d2
+ jmp s_cur
 8:
  clr d0
  ret [d2,d3,a2,a3],68
@@ -10423,12 +10549,13 @@ lg_pre:                           /* edits waiting before ed_trig (it saves them
  ret [d2,d3,a2,a3],36
 
 lg_write:                         /* frame 40: (0) call slot, (4) handle */
+ movbu (lg_on),d0                 /* 0 not checked yet, 1 on, 2 off */
+ cmp 2,d0
+ beq lg_out                       /* off: before the card gate, so no card work at all */
  call hl_ok,[a2],16               /* the card gate (as the loaders and the GX probes) */
  cmp 0,d0
  bne lg_out
- movbu (lg_on),d0                 /* 0 not checked yet, 1 on, 2 off */
- cmp 2,d0
- beq lg_out
+ movbu (lg_on),d0
  cmp 1,d0
  beq 2f
  mov 2,d0
@@ -20696,8 +20823,8 @@ wl_blk:                           /* the heap copy of wl_tab (fl_mk), 0 = none *
 .section .ext12,"ax"
 bl_gv:
  mov d0,(4,sp)
- mov d0,(cr_gid)                  /* crop modes: the id, for cr_gm (crop.s) */
  mov a0,(8,sp)
+ mov 0,a3                         /* mx_photo's answer, for cr_gm (crop.s): 0 not asked */
  call gui_get,[d2,d3,a2,a3],28    /* the stock read */
  mov d0,d2                        /* its answer, given back */
  mov (4,sp),d0
@@ -20707,12 +20834,25 @@ bl_gv:
  bne 9f
 1:
  call mx_photo,[],0               /* photo modes only (#68): video and S&Q keep their grid */
+ mov d0,a3
  cmp 0,d0
  beq 9f
  movbu (el_hold),d0               /* after the early load: not before the first shutter event */
  cmp 0,d0
  bne 9f
  PVAL 9f                          /* a2 = P (STATE is 0 until the films load) */
+ mov a2,a1                        /* some COLOR slot with a Border 1..5 (+50)? Else no picture mode read */
+ mov 4,d1
+4:
+ movbu (32 + 50,a1),d0
+ add -1,d0
+ cmp 5,d0
+ bcs 5f
+ add 64,a1
+ add -1,d1
+ bne 4b
+ bra 9f
+5:
  mov 111,d0                       /* the picture mode, through the GUI's own read (ex_live's id) */
  mov sp,a0
  add 4,a0
