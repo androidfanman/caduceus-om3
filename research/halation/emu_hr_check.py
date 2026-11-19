@@ -4,6 +4,7 @@
 
     emu_hr_check.py BUILD_DIR OUT_DIR [--only NAME ...] [--radii 0 1 2 3] [--big] [--jobs N]
 
+--own R: a fixed-radius test build (hr_rad not poked), expected radius R.
 --busy: another pass holds the work area, so every radius must fall back to Bloom.
 BUILD_DIR: a build of this branch (main.bin, p.elf). Needs OM3_EMU / OM3_CARD. Exit 0 when every case is exact."""
 import argparse, concurrent.futures, json, os, pathlib, subprocess, sys
@@ -28,7 +29,10 @@ def main():
     ap.add_argument('--only', nargs='+'); ap.add_argument('--radii', nargs='+', type=int, default=[0, 1, 2, 3])
     ap.add_argument('--big', action='store_true'); ap.add_argument('--jobs', type=int, default=3)
     ap.add_argument('--busy', action='store_true', help='hr_busy set: every radius must give Bloom (the fallback)')
+    ap.add_argument('--own', type=int, help="a fixed-radius test build: hr_rad left as the build has it, expected this radius")
     a = ap.parse_args()
+    if a.own is not None:
+        a.radii = [a.own]
     sy = syms(a.build / 'p.elf')
     out = a.out.resolve(); out.mkdir(parents=True, exist_ok=True)
     names = a.only or [n for n in emu_check.CASES if a.big or n not in emu_check.BIG]
@@ -45,7 +49,7 @@ def main():
             expect[k] = (e.tobytes(), st)
             cases.append({'name': k, 'in': str(out / f'{n}.in'), 'out': str(out / f'{k}.out'), 'W': W, 'H': H,
                           'pitch': pitch, 'level': level,
-                          'pokes': [[sy['hr_rad'], f'{r:02x}'], [sy['hr_busy'], '01' if a.busy else '00']]})
+                          'pokes': ([] if a.own is not None else [[sy['hr_rad'], f'{r:02x}']]) + [[sy['hr_busy'], '01' if a.busy else '00']]})
     def run(group):
         spec = out / f'spec-{group[0]["name"]}.json'; res = out / f'res-{group[0]["name"]}.json'
         spec.write_text(json.dumps({'hl_run': sy['hl_sel'], 'flush': 0x60070e69, 'lock': 0x60075f73,
