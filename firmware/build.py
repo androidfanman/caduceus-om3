@@ -154,6 +154,7 @@ EXT8 = (0x617e45f0, 0x617e47f0)            # section-8 tail (FF from 0x617e45e0,
 EXT11 = (0x60f49800, 0x60f59800)           # v0.23: section 6 extended by 64 KiB (loader end word 0x60045e9c raised; camera-proven GX2)
 EXT12 = (0x60f59800, 0x60f99800)           # v0.27: section 6 extended by 256 KiB more (camera-proven GX3, 2026-11-10)
 EXT13 = (0x60fac000, 0x60fc0000)           # v0.30 test 10: the debug log, after the RGB work area (GX4-proven reserve to 0x6103f000);
+EXT14 = (0x60fc0000, 0x60fc4000)           # Halation Radius: its code; then its work area HR_WRK .. HR_END (hradius.s), in the GX4-proven reserve
                                             # gentler Shading s1: + 16 KB for the vignette pass and its tables (still inside the reserve)
 EXT3 = (0x6081fe10, 0x6081fffc)            # section-3 tail (FF from 0x6081fe00, end 0x60820000)
 EXT5 = (0x60adb5b0, 0x60adb7f0)            # section-5 tail (FF from 0x60adb5a0, end 0x60adb800)
@@ -323,7 +324,7 @@ def build(defaults, testfile, out):
     subprocess.run([P.AS, '-I', out, '-I', HERE / 'src', '-o', out / 'p.o', HERE / 'src' / 'editor.s'], check=True)
     subprocess.run([P.LD, '-T', HERE / 'src' / 'editor.ld', '-o', out / 'p.elf', out / 'p.o'], check=True)
     blobs = {}
-    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13']:
+    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13', '.ext14']:
         subprocess.run([P.OBJCOPY, '-O', 'binary', '-j', s, out / 'p.elf', out / (s[1:] + '.bin')], check=True)
         blobs[s] = (out / (s[1:] + '.bin')).read_bytes()
     raw = Path(P.STOCK).read_bytes()
@@ -425,6 +426,11 @@ def build(defaults, testfile, out):
     print('SIZE .ext13', len(b13), EXT13[1] - EXT13[0], file=sys.stderr)
     assert EXT13[0] + len(b13) <= EXT13[1] and set(m[o(EXT13[0]):o(EXT13[1])]) <= {0xff}, len(b13)
     m[o(EXT13[0]):o(EXT13[0]) + len(b13)] = b13
+    b14 = blobs['.ext14']                                # Halation Radius: hr_run and its helpers
+    print('SIZE .ext14', len(b14), EXT14[1] - EXT14[0], file=sys.stderr)
+    assert EXT13[1] == EXT14[0] and EXT14[0] + len(b14) <= EXT14[1] and sy['HR_WRK'] == EXT14[1], (len(b14), hex(sy['HR_WRK']))
+    assert set(m[o(EXT14[0]):o(sy['HR_END'])]) <= {0xff}, 'Halation Radius: its code or work area is not free in the image'
+    m[o(EXT14[0]):o(EXT14[0]) + len(b14)] = b14
     # v0.23 new Picture Mode choice rows (Noise Filter, Shading Comp.): the item table (17 x 40 B at 0x6154c2a8) -> it_tab
     # (the stock 17, then our 4), at both lookups (mov table,a0 ... cmp 17,d1); the rows join the column's 9 row switches
     IT = 0x6154c2a8
@@ -882,6 +888,9 @@ def build(defaults, testfile, out):
     # v0.30 test 10: the debug log (.ext13, written with ext11 / ext12) right after the work area, loaded too
     assert EXT13[0] == vf_end
     vf_end = (EXT13[0] + len(blobs['.ext13']) + 0xfff) & ~0xfff
+    # Halation Radius: its code (.ext14) and work area, loaded too (GX4-proven reserve to 0x6103f000)
+    assert vf_end <= EXT14[0], hex(vf_end)
+    vf_end = (sy['HR_END'] + 0xfff) & ~0xfff
     assert vf_end <= 0x6103f000, hex(vf_end)
     struct.pack_into('<I', m, o(0x60045e9c), vf_end)
     print('BUILT IN: GUIDES, LABELS, TONES at 0x%x..0x%x, loader end word 0x%x' % (EXT12[1], at, vf_end))
@@ -920,7 +929,7 @@ def make_xblock(out, sy, xtag):
                STATE=sy['STATE'], HMAX=sy['HMAX'], POOL=sy['POOL'], MAGIC=sy['MAGIC'], BUFIDX=0x604afdf9, SF_ENT=0x604be2aa, LOCK=0x60075f73, UNLOCK=0x60075fbc, WINMAP=0x60071018, FLUSH=0x60070e69, free=0x6002409a,
                SEL=0x6052cf39, fwrite=0x608d4da9, PF_CAPTO=sy['pf_capto'], PF_CAP=sy['pf_cap'], E_LK=sy['e_lk'], E_RET=sy['e_ret'], E_RST=sy['e_rst'], REFRESH=0x611b20ea, XT_TAB=sy['xt_tab'], EMARK=680, EMAGIC=0x45334d4f,
                FL_HAS=sy['fl_has'], FACADE=0x60b8696a, AGET=0x603f039d, TXGET=0x604cd921, TXATT=0x604bc0cf, TXPF=0x604b77fb, TWO=sy['TWO'], TW_LEN=sy['TW_LEN'], FV0=sy['FV0'],
-               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'], HL_RUN=sy['hl_run'], BD_RUN=sy['bd_run'], TYPEMAP=0x60555b58,
+               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'], HL_RUN=sy['hl_sel'], BD_RUN=sy['bd_run'], TYPEMAP=0x60555b58,
                TG_OWN=sy['tg_own'], TG_BAD=sy['tg_bad'], GS_EFF=sy['gs_eff'],
                VG_RUN=sy['vg_run'], VG_LVL=sy['vg_lvl'], VG_NT=sy['vg_nt'], VG_ND=sy['vg_nd'],
                PT_N=sy['pt_n'], PT_US=sy['pt_us'], PT_MX=sy['pt_mx'])    # glow-shots-1: our passes' timing (log)

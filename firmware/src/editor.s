@@ -22085,3 +22085,5 @@ bl_v:                             /* the value */
  .include "fwver.s"               /* our version on the camera's Firmware Version screen (ext13) */
 
  .include "newfilms.s"            /* #86: a new film set made again in every mode (ext13) */
+
+ .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
