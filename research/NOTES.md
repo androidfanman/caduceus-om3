@@ -9109,3 +9109,29 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   pass** (exit 0, pass recorded on 598a47c). Package `test-builds/2026-11-20-speed-radius-93/` (private), go-back v0.40.2.
 - Behaviour different from v0.40.2, for the owner: the Halation Radius row (rows below move down one); playback of a
   photo taken with no film shows "COLOR n"; the start-up copy is ~376 KB longer.
+- **r3 on the camera (owner's OM-3, 2026-11-20; E1479999.BIN cca13d25…9783): camera-tested, the owner's verdict to come
+  (via cad).** Log and photo list private: `test-builds/2026-11-20-speed-radius-93/camera-results/`. 57 photos, all
+  saved, every photo code as set (decoded: byte 57 Halation, byte 63 bits 2-3 the radius): 8 singles on a lamp (FILM
+  10, Halation 5) Bloom / Tight / Medium / Wide twice (PB204522..529; grain Off on the first four, level 3 on the
+  rest); a Wide burst of 22, RAW+JPEG, drive [32], all within ~1 s (PB204530..551); a Wide burst of 21, JPEG only
+  (PB204552..572, the #91 setup plus Halation); then #93's photos (PB204573..576, Halation 0). Log: grain tiles 47,
+  failed 0, Coarse last 328 ms (speed-1: 336); our passes 53 photos, last 888 ms (pass A 151, map 71, pass C 657,
+  pauses 0), longest 4388 ms; stacks as speed-1 (cached).
+  - **The last Halation photo is PB204572, a Wide one** (the #93 photos have Halation 0), so its parts are the radius
+    pass's: map 71 ms is Wide's own map (16 px cells; om-emu big5 at Halation 5: map 12.3 M steps against Bloom's
+    1.98 M, x6.2), not a change to Bloom (8 ms on speed-1). Pass A 151 ms (Wide 17.1 M steps, Bloom 25.2 M: the reading
+    sets the time), pass C 657 ms (Wide 124.6 M steps, Bloom 58.5 M, x2.1). A Wide photo of that scene: ~0.9 s in all.
+  - **The 4388 ms photo (analysis; the log keeps only the last photo's parts and pauses):** most likely a burst frame
+    whose pass waited while the camera's own burst work ran on the same CPU. Not Wide's own work: the same scene took
+    888 ms, so 4.4 s is ~5x. Not the cap failing in the old way: hl_yld checks the photo's measured sleep time before
+    each sleep and stops at 0.3 s (emulator test). But the cap cannot bound one sleep that starts under 0.3 s and
+    lasts long, and nothing bounds the waits between lock groups when no lock is held: in both, our task (the capture
+    job's) runs only when the camera's own tasks on that CPU let it, and a burst of 22 frames in ~1 s (the first one
+    RAW+JPEG) is the heaviest load tested. Which of the two cannot be told from this log. The photos' saving was not
+    held up (all 57 saved).
+  - **Ideas, not built (the owner's / cad's call):** log the longest photo's parts and pauses (not only the last
+    photo's), and the longest single sleep, to settle it next time. The radius pass keeps its own work area for one
+    photo at a time (hr_busy): a second photo processed at the same moment on another CPU gets Bloom while its code
+    says Wide, so two neighbouring burst frames' halos are worth one look by eye. The radius pass's rows still use
+    v0.40.2's hl_lp / hl_sp (om-emu: ~12.7 M stack accesses in Wide's pass C on big5, cheap on the camera's cached
+    stack but many calls) and its pass A still flushes after every group, as Bloom did before speed-1.
