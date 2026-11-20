@@ -461,6 +461,7 @@ FIXTURES = {
     'LOOKS_ONE': lambda looks, names: other_set(looks, names, [*range(18), 19, 18]),
     'LOOKS_WB': lambda looks, names: film_wb_set(looks, FILMS_WB),
     'LOOKS_WB_NEW': lambda looks, names: film_wb_set(looks, FILMS_WB_NEW),
+    'NORING': lambda looks, names: b'aperture ring off\r\n',      # apring.s: OM3MOD/NORING.TXT (any content)
 }
 # #88: from COLOR 1 on the shooting screen, FILM 1 (the list runs COLOR 1-4, then the films); then the next film. Both
 # leave the super control panel's cursor on its Picture Mode cell.
@@ -746,6 +747,17 @@ def ck_line(mem, card, matches, on_builtin, with_values):
     return [rf"^CURVES\.BIN \(each film's built-in curves and mix\): in camera memory: {mem}; this power-on's card: {card}; "
             rf"films it matches: {matches}$",
             '^Curves / mix on COLOR 1-4: ' + re.escape(', '.join(words)) + '$']
+
+
+# Panasonic aperture ring (firmware/src/apring.s; om-emu's lens made a scratch ring lens by session_ed1.mjs RING_LENS):
+# NOW's line after the first half-press. 0x0a37 = 2615 (Av 10.2); the ring at A = 0x8000.
+def RING_LINE(on='on', lens='yes', asked=r'[1-9]\d*', asked0=r'\d+', stops='0', at_a='0', ign='0', short='0', odd='0',
+              word='0', used='no'):
+    return (rf'^Aperture ring: {on}; ring lens {lens}; asked {asked} \({asked0} before the first half-press\), '
+            rf'stops {stops}, at A {at_a}, ignored {ign}, short {short}, odd {odd}; last word {word}, used in A/M {used}$')
+
+
+RING_ANY = r'[1-9]\d*'
 
 
 TESTS = {
@@ -1043,6 +1055,48 @@ TESTS = {
         Boot(f's1 wait wait {OPEN_GRAIN}' + ' right wait' * 7 + ' expect:p:85=03 left wait left wait left wait'
              ' expect:p:85=01 down wait right wait menu wait wait s1 wait wait poweroff', expect=[GRAIN_2_COARSE]),
         Boot('wait wait s1 wait wait expect:p:85=01 poweroff', expect=[GRAIN_2_COARSE]),
+    ],
+    # Panasonic aperture ring: a lens without a ring is never asked (the stock exchange), in M too
+    'aperture-ring-lens-without-ring-stays-stock': [
+        Boot('s1 wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_M, expect=[RING_LINE(lens='no', asked='0')]),
+    ],
+    # a ring lens at a stop in M: asked, the ring word read at every poll. om-emu never calls the 0x80CA aperture getter
+    # (its two callers 0x605a936d / 0x605aa6bd do not run in a boot), so "used in A/M" stays no here: the getter is
+    # checked by research/apring/ncall_ring.py's native cases, and on the camera
+    'aperture-ring-stop-read-in-m': [
+        Boot('s1 wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_M, env=(('RING_LENS', '0a37'),),
+             expect=[RING_LINE(stops=RING_ANY, word='2615')]),
+    ],
+    # live from switch-on (2026-11-20): the ring lens is asked before the first half-press
+    'aperture-ring-live-from-switch-on': [
+        Boot('wait wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_M, env=(('RING_LENS', '0a37'),),
+             expect=[RING_LINE(asked0=RING_ANY, stops=RING_ANY, word='2615')]),
+    ],
+    # in P the ring is read but the body's aperture stays (the getter's own value)
+    'aperture-ring-ignored-in-p': [
+        Boot('s1 wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_P, env=(('RING_LENS', '0a37'),),
+             expect=[RING_LINE(stops=RING_ANY, word='2615', used='no')]),
+    ],
+    # the ring at A: the body's aperture in M
+    'aperture-ring-at-a-keeps-the-body-aperture': [
+        Boot('s1 wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_M, env=(('RING_LENS', '8000'),),
+             expect=[RING_LINE(at_a=RING_ANY, word='32768', used='no')]),
+    ],
+    # a ring-flagged lens that ignores the bit (its reply exactly 2 short): asked once, then never again
+    'aperture-ring-lens-ignoring-the-bit-is-asked-once': [
+        Boot('s1 wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_M, env=(('RING_LENS', 'ign'),),
+             expect=[RING_LINE(asked='1', ign='1')]),
+    ],
+    # a reply out of step (short by other than 2): read as stock, asked once, then never again
+    'aperture-ring-short-reply-is-asked-once': [
+        Boot('s1 wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_M, env=(('RING_LENS', 'short:0a37'),),
+             expect=[RING_LINE(asked='1', short='1')]),
+    ],
+    # OM3MOD/NORING.TXT: the feature off from the first half-press (read there: the card); asked only before it
+    'aperture-ring-off-with-noring-txt': [
+        Boot('s1 wait wait s1 wait wait poweroff', mode_dial=MODE_DIAL_M, env=(('RING_LENS', '0a37'),),
+             card={'NORING.TXT': 'NORING'},
+             expect=[RING_LINE(on=r'off \(NORING\.TXT\)', asked=r'(\d+)', asked0=r'\1', stops=r'\d+', word=r'\d+')]),
     ],
     'curves-file-kept-in-camera': [
         Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff', card={'CURVES.BIN': 'CURVES_A'},

@@ -8,6 +8,10 @@
    "addr": "0x611d0be0",
    "len": 8
   },
+  "hook_av": {
+   "addr": "0x605ac5f1",
+   "len": 7
+  },
   "hook_bar": {
    "addr": "0x611d1035",
    "len": 12
@@ -148,6 +152,10 @@
    "addr": "0x6129ba07",
    "len": 5
   },
+  "hook_ps": {
+   "addr": "0x602fc5ed",
+   "len": 6
+  },
   "hook_pu": {
    "addr": "0x611d04ec",
    "len": 6
@@ -164,9 +172,17 @@
    "addr": "0x611b21e8",
    "len": 10
   },
+  "hook_rl": {
+   "addr": "0x60305322",
+   "len": 9
+  },
   "hook_rng": {
    "addr": "0x611d1041",
    "len": 11
+  },
+  "hook_rq": {
+   "addr": "0x603049f6",
+   "len": 7
   },
   "hook_rr": {
    "addr": "0x611356e6",

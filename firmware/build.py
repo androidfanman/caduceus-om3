@@ -32,6 +32,10 @@ class P:                                   # toolchain and stock identity (set f
 
 LAYOUT = HERE / 'vendor' / 'caduceus-bundles-layout.json'    # Caduceus (Apache-2.0) bundle-table layout
 HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
+         '.hook_rq': (0x603049f6, bytes.fromhex('f8c808f1e4f050')),   # aperture ring: the lens frame builder (R+21 = p2 >> 8)
+         '.hook_ps': (0x602fc5ed, bytes.fromhex('164a18f8ee02')),     # aperture ring: the lens state parser (extbu d2; mov d2,(24,sp); btst 2,d2)
+         '.hook_rl': (0x60305322, bytes.fromhex('828bddc7b300000004')),   # aperture ring: the reply count helper's entry (all six lens replies)
+         '.hook_av': (0x605ac5f1, bytes.fromhex('dd8f6dabffc00c')),   # aperture ring: the 0x80CA selected-aperture getter's InfoGet call
          '.hook_crs': (0x60061183, bytes.fromhex('470c93cd79fd0000')),   # crop modes: the settings store write (power-off)
          '.hook_crb': (0x6006120e, bytes.fromhex('fccf80d273a3')),       # crop modes: the buffer before the write (menus)
          '.hook_crg': (0x611cb24d, bytes.fromhex('5c0870f85309')),       # crop round 3: the GUI screen spec's ratio byte

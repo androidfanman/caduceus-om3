@@ -16,6 +16,22 @@ const STATE = 0x62b4dd16, POOL = 0xa2852000, HMAX = 0xae81;
 // to start a task entry it does not model, so it joins the application's allowed entries (decoded address), as in
 // session_ed1_worker.mjs
 if (process.env.OM_WORKER_ENTRY) { const ca = await import(EMU + '/src/lab/camapp.mjs'); ca.CA_TASK_ENTRIES.push((parseInt(process.env.OM_WORKER_ENTRY, 16) - 0x10021020) >>> 0); }
+// RING_LENS=MODE (aperture ring tests, firmware/src/apring.s): om-emu's lens (S-LENSMCU, a lens without a ring) made a
+// scratch Panasonic ring lens: its record's flags byte (+1096) gets bit 7, and its state reply ([00 06], 30 B) carries
+// the u16 ring word at +12 when the request sets p2 bit 0. MODE: HEX (the ring word, e.g. 0a37 = Av 10.2; 8000 = the
+// ring at A), ign (has the flag, ignores the bit: the stock 30 B), short:HEX (the word, then the reply one byte short).
+if (process.env.RING_LENS) {
+  const LM = await import(EMU + '/src/lab/lensmcu.mjs');
+  const [mode, w] = process.env.RING_LENS.split(':'), word = parseInt(mode === 'short' ? w : mode, 16);
+  const oldChar = LM.LensMcu.prototype.characteristics, oldState = LM.LensMcu.prototype.state;
+  LM.LensMcu.prototype.characteristics = function (f) { const b = oldChar.call(this, f); b[0] |= 0x80; return b; };
+  LM.LensMcu.prototype.state = function (f) {
+    const b = oldState.call(this, { ...f, p2: f.p2 & ~1 });
+    if (!(f.p2 & 1) || mode === 'ign') return b;
+    const o = Uint8Array.from([...b.slice(0, 12), word & 255, word >> 8, ...b.slice(12)]);
+    return mode === 'short' ? o.slice(0, o.length - 1) : o;
+  };
+}
 let c0 = cardFromImage(new Uint8Array(fs.readFileSync(CARD)));
 const card = { open: () => c0, save: (x) => { c0 = x; } };
 const rom = expandImage(new Uint8Array(fs.readFileSync(IMAGE)));
