@@ -63,6 +63,10 @@ SECTIONS {
   .hook_bgd     0x611eae1e : { *(.hook_bgd) }
   .hook_blk     0x611c7922 : { *(.hook_blk) }   /* border preview: the line lookup's loop end -> bl_tail */
   .hook_fv      0x6120b698 : { *(.hook_fv) }    /* fwver: the Firmware Version page's build, its end -> fv_add */
+  .hook_rq      0x603049f6 : { *(.hook_rq) }    /* aperture ring: the lens frame builder (R+21 = p2 >> 8) */
+  .hook_ps      0x602fc5ed : { *(.hook_ps) }    /* aperture ring: the lens state parser at the reply's +12 */
+  .hook_rl      0x60305322 : { *(.hook_rl) }    /* aperture ring: the reply count helper's entry (all six replies) */
+  .hook_av      0x605ac5f1 : { *(.hook_av) }    /* aperture ring: the 0x80CA selected-aperture getter's InfoGet */
   .ext2         0x607187a8 : { *(.ext2) }
   .ext7         0x6164afd0 : { *(.ext7) }
   .ext3         0x6081fe10 : { *(.ext3) }
@@ -76,6 +80,15 @@ SECTIONS {
   .ext13        0x60fac000 : { *(.ext13) }   /* v0.30 test 10: the debug log, after the RGB work area */
 }
 color_builder = 0x60518381;
+ap_rq_back    = 0x603049fd;   /* aperture ring (apring.s): after the frame builder's R+21 store */
+ap_ps_back    = 0x602fc5f3;   /* aperture ring: the state parser's beq after `btst 2,d2` */
+ap_rl_tgt     = 0x603106eb;   /* aperture ring: the count helper's first call */
+ap_rl_back    = 0x6030532b;   /* aperture ring: the count helper after that call */
+ap_mode       = 0x603f088b;   /* aperture ring: mode (`call ..,[d2],8`): 2 A, 4 M, 53..56 C1..C4, 63 C5 */
+ap_ae         = 0x6031c0eb;   /* aperture ring: effective AE (`call ..,[],4`; C modes): 4 A, 6 M */
+ap_lens       = 0x602f6460;   /* aperture ring: (0) -> a0 = the lens record when a lens is connected, else 0 ([d2],8) */
+ap_f1         = 0x602f95f7;   /* aperture ring: lens info (d0 index) -> 1 / 0 (`call ..,[],0`, retf), parser 0x602fc799 */
+ap_f2         = 0x602f9616;   /* aperture ring: lens info (d0 index) -> a version (retf), parser 0x602fc7a4 (>= 5130) */
 si_get44      = 0x610fd8ef;   /* screen info: the shooting-screen updater's settings getter (d0 id, a0 out) */
 si_sv0        = 0x60b8781f;   /* screen info: the facade's stock SetValue (vtable +4) */
 si_back       = 0x61230443;   /* screen info: after the hook's replaced mov 0x62ceeb54,a0 */

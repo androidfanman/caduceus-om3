@@ -11758,6 +11758,7 @@ lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call e
  clr d0                           /* L1: the first shutter event releases the hooks held since the early load */
  movbu d0,(el_hold)
  call lg_pre,[d2,d3,a2,a3],36
+ call ap_chk,[d2,d3,a2,a3],20     /* aperture ring: OM3MOD/NORING.TXT, once per power-on (apring.s) */
  call ed_trig,[d2,d3,a2,a3],36
  call ub_try,[d2,d3,a2,a3],36     /* films in camera memory: a block write held back by the camera's own save */
  call el_card,[d2,d3,a2,a3],36
@@ -12567,6 +12568,7 @@ lg_now:
  LGY
  call lg_ckn,[d2,d3,a2,a3],24     /* v0.30 test 10: curves / mix */
  call lg_gsn,[d2,d3,a2,a3],24     /* better grain g2: each COLOR's Film Grain strength and Grain Size */
+ call lg_apn,[d2,d3,a2,a3],24     /* aperture ring: what it did this power-on (apring.s) */
 9:
  ret [d2,d3,a2,a3],24
 
@@ -22877,3 +22879,5 @@ bl_v:                             /* the value */
  .include "fwver.s"               /* our version on the camera's Firmware Version screen (ext13) */
 
  .include "newfilms.s"            /* #86: a new film set made again in every mode (ext13) */
+
+ .include "apring.s"              /* Panasonic aperture ring: hooks (ext1 stubs), code and state (ext11) */
