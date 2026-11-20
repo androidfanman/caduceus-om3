@@ -488,6 +488,7 @@ PAGE_TO_FILM_3 = 'right wait ' * 6 + 'ok wait wait'
 # own WB screen again with the panel's cursor still on the WB cell.
 ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wait ok wait menu wait menu wait menu wait wait'
 WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
+FWM_CRC = 0x62960588                              # #99: record 'OM3W' (M + 0x3FE80), its CRC word
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
 # borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
@@ -919,21 +920,32 @@ TESTS = {
              f'{TO_STANDARD} {TO_COLOR} expect:val:{AUTO_AB}=-5 expect:p:{SLOT1_AB}=fb s1 wait wait poweroff',
              expect=[r'^Films with changes \(a \* in the camera\): none$'], card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #99, test 1's choice for a power-off on a film (the owner's call): the camera modes' own compensation is not kept
-    # over it, so the turn to them gives 0 / 0 (no compensation), not the film's B5.
-    'camera-mode-wb-shift-after-a-power-off-on-a-film': [
-        Boot(f's1 wait wait {PICK_FILM_1} ok wait ok wait right wait right wait ok wait wait expect:val:{AUTO_AB}=-5 '
-             's1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
-        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} expect:val:{AUTO_AB}=0 s1 wait wait poweroff'),
+    # #99 (owner, 2026-11-20: "Keep it, like the stock camera"): the camera modes' own compensation is kept in camera
+    # memory (record 'OM3W'): switched off on a film (B5), on again, the turn to the standard modes gives their own A1.
+    'camera-mode-wb-shift-kept-over-a-power-off': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
+             card={'LOOKS.BIN': 'LOOKS_WB'}),
+        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} expect:val:{AUTO_AB}=1 {TO_COLOR} '
+             f'expect:val:{AUTO_AB}=-5 s1 wait wait poweroff'),
     ],
-    # #99, what stays: a mode-dial turn brings a custom mode's own settings back, and the camera mode's compensation
-    # kept for P never goes into it. P on the standard modes with its own A1 assigned to C1, then P's own A2, a film
-    # in P (B5), the turn to C1: C1's own A1 (not P's A2, not the film's B5); back to P: the film's B5.
-    'custom-mode-keeps-its-own-wb-shift-at-a-dial-turn': [
+    # #99: a record that is not valid (here its CRC broken before the first look; a camera that never ran this build
+    # has none) means nothing is kept: the turn to the standard modes gives 0 / 0, nothing is taken from it.
+    'camera-mode-wb-shift-not-known-without-a-good-record': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
+             card={'LOOKS.BIN': 'LOOKS_WB'}),
+        Boot(f'poke:{FWM_CRC:x}=00000000 wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} '
+             f'expect:val:{AUTO_AB}=0 s1 wait wait poweroff'),
+    ],
+    # #99: each shooting mode keeps its own (as the stock camera keeps the compensation per custom mode). P's standard
+    # modes A1 assigned to C1, P's own then A2, a film in P (B5). The turn to C1 (the dial still on COLOR): at the
+    # half-press COLOR 1's own 0 (no film there); C1's standard modes: C1's own A1; back to COLOR: 0. The turn to P:
+    # the film's B5; P's standard modes: P's own A2 (kept over the turns).
+    'custom-modes-keep-their-own-wb-shift': [
         Boot(f'{STANDARD_OWN_A1} {ASSIGN_C1} {WB_SCREEN_AGAIN_A_PLUS_1} expect:val:{AUTO_AB}=2 {TO_COLOR} '
-             f'{PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait mode:{MODE_DIAL_C1} wait wait wait '
-             f'expect:val:{AUTO_AB}=1 s1 wait wait expect:val:{AUTO_AB}=1 mode:{MODE_DIAL_P} wait wait wait '
-             f'expect:val:{AUTO_AB}=-5 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+             f'{PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait mode:{MODE_DIAL_C1} wait wait wait s1 wait wait '
+             f'expect:val:{AUTO_AB}=0 {TO_STANDARD} expect:val:{AUTO_AB}=1 {TO_COLOR} expect:val:{AUTO_AB}=0 '
+             f'mode:{MODE_DIAL_P} wait wait wait expect:val:{AUTO_AB}=-5 s1 wait wait {TO_STANDARD} '
+             f'expect:val:{AUTO_AB}=2 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
     # borders: the Border row steps -5..+5 (2026-11-18: - black, + white; right / left, no step past either end) into
     # COLOR 1's slot +50, and the value is kept over a power-off (saved at the half-press).

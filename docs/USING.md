@@ -125,7 +125,9 @@ gets Auto with no compensation. Set a film's white balance in LookLab, or just c
 that film: a change in the super control panel's White Balance screen goes into the film (it gets a "*"), and
 resetting the film brings its own back. The camera keeps one compensation per white balance mode, so if you switch
 the mode by hand, that mode's own compensation applies. The camera's own picture modes (Natural, Vivid, ...) keep the
-white balance the last film left.
+white balance mode the last film left, but get their own WB compensation back: when you turn the Creative Dial from a
+film to them, each white balance mode's compensation is back as it was there before, and a change you make there is
+theirs. Like the camera's own settings, this is kept over a power-off, and each custom mode (C1–C5) keeps its own.
 
 ## The film in your photos
 

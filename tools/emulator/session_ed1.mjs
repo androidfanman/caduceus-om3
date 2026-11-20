@@ -420,6 +420,10 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     const ids = t.slice(5).split(',').map(Number);
     console.log('GETV ' + curStep + ' ' + JSON.stringify(Object.fromEntries(ids.map((id) => [id, getv(id)]))));
   }
+  else if (t.startsWith('mbytes:')) {      // mbytes:ADDR:LEN prints MBYTES ADDR hex, LEN bytes at ADDR (hex; decimal LEN; #99)
+    const [ad, n] = t.slice(7).split(':'), at = parseInt(ad, 16) >>> 0;
+    console.log('MBYTES ' + curStep + ' ' + ad + ' ' + Buffer.from(rd(at, Number(n))).toString('hex'));
+  }
   else if (t.startsWith('pbytes:')) {      // pbytes:OFF:LEN prints PBYTES OFF hex, the bytes at P + OFF (decimal; #88)
     const [o, n] = t.slice(7).split(':').map(Number), at = (POOL + u16(STATE) - 1 + o) >>> 0;
     console.log('PBYTES ' + curStep + ' ' + o + ' ' + Buffer.from(rd(at, n)).toString('hex'));
