@@ -12251,11 +12251,12 @@ pt_mx:                            /* the longest (us) */
  * (analysis): live view / AF work there, and Single (S-AF) waits for them. So:
  *   - hl_yld at the end of each of hl_run's lock groups (passes A and C, lock given back): while the shutter button
  *     is half-pressed (hl_hp), sleep one tick (sdl_dly_tsk 1: the OS's delay, as the log writer and the SDLOAD worker
- *     call it; it does nothing with dispatch off) so the camera's tasks get this CPU; at most HL_YMAX a photo (a long
- *     half-press slows the pass by about the sleeps' time, well under the 10 s an E-P7 watchdog allowed).
+ *     call it; it does nothing with dispatch off) so the camera's tasks get this CPU; until the photo's sleeps add up
+ *     to HL_YUS (r1, 2026-11-20; was at most 800 sleeps: a held burst stretched a photo to 4.9 s on the camera, each
+ *     sleep lasting ~5 ms while the burst's own work ran). The measured time decides, so a long tick can't stretch it.
  *   - hl_tk: the times of pass A (reading the frame), the map (blur, curve) and pass C (drawing) for the log.
  * The picture is the same byte for byte (only when the pass runs changes). research/NOTES.md, "glow-shots-2". */
- .set HL_YMAX, 800                /* sleeps a photo at most */
+ .set HL_YUS, 300000              /* r1: the photo's sleeps stop once they add up to 0.3 s (us, hl_yus) */
 /* hl_ga (speed-1, 2026-11-19): `call hl_ga,[d2],8`, d0 = bytes -> a0 = a 64-byte aligned buffer of at least that many
  * bytes, through its cached alias, or 0. malloc gives the uncached heap (0xa...; every access ~50 ns on the camera):
  * hl_run's grids are now used through the cached alias, as tg_fill's work buffer. The buffer is malloc(d0 + HL_GA)
@@ -12300,9 +12301,10 @@ hl_yld:
  movbu (hl_hp + 0x40000000),d0    /* the uncached alias (written by lg_pr on another CPU) */
  cmp 0,d0
  beq 9f
- mov (hl_yn),d0
- cmp HL_YMAX,d0
+ mov (hl_yus),d0                  /* r1: at most HL_YUS of sleeps a photo (measured, not counted) */
+ cmp HL_YUS,d0
  bcc 9f
+ mov (hl_yn),d0
  inc d0
  mov d0,(hl_yn)
  mov (USCLK),d2

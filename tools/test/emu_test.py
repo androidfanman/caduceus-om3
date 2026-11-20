@@ -2290,29 +2290,35 @@ def run_cropsave(emu, build, out, card0):
 
 
 # glow-shots-2: hl_run gives its CPU back between lock groups (hl_yld) only while the shutter button is half-pressed
-# (hl_hp, set by lg_pr through the uncached alias), at most HL_YMAX sleeps a photo. Called directly: button up, button
-# held, the cap reached; the sleep itself (sdl_dly_tsk) is camera-only, so the call stops at it (hl_ydl). Then a boot:
-# a release clears hl_hp (poked to 1 first). Halation's bytes with the new calls: halation-matches-the-model.
+# (hl_hp, set by lg_pr through the uncached alias), until the photo's sleeps add up to HL_YUS (r1, 2026-11-20: was 800
+# sleeps; a held burst stretched a photo to 4.9 s). Called directly: button up, button held, 799 sleeps taking
+# 0.299 s (still sleeps: the count no longer caps), 0.3 s reached (returns, whatever the count); the sleep itself
+# (sdl_dly_tsk) is camera-only, so the call stops at it (hl_ydl). Then a boot: a release clears hl_hp (poked to 1
+# first). Halation's bytes with the new calls: halation-matches-the-model.
 HLYIELD = 'halation-pauses-only-while-half-pressed'
-HL_YMAX = 800
+HL_YUS = 300000
 
 
 def run_hlyield(emu, build, out, card0):
     d = out / HLYIELD
     d.mkdir(parents=True, exist_ok=True)
     sym = elf_symbols(build / 'p.elf')
-    hp, yn, ydl = sym['hl_hp'] + 0x40000000, sym['hl_yn'], sym['hl_ydl']
-    def case(name, pressed, sleeps):
+    hp, yn, yus, ydl = sym['hl_hp'] + 0x40000000, sym['hl_yn'], sym['hl_yus'], sym['hl_ydl']
+    def case(name, pressed, sleeps, us=0):
         return {'name': name, 'pc': 'B', 'stop': ['B+7', f'{ydl:#x}'], 'max': 20000,
                 'mem': [['B', 'dd'], ['B+1', f"={sym['hl_yld']:#x}-B"], ['B+5', 'f014'],    # call hl_yld,[d2,d3,a2,a3],20
-                        [f'{hp:#x}', f'{pressed:02x}'], [f'{yn:#x}', sleeps.to_bytes(4, 'little').hex()]],
-                'read': [[f'{yn:#x}', 4]], 'restore': [[f'{hp:#x}', '00'], [f'{yn:#x}', '00000000']]}
-    spec = [case('button-up', 0, 0), case('half-pressed', 1, 0), case('cap-reached', 1, HL_YMAX)]
+                        [f'{hp:#x}', f'{pressed:02x}'], [f'{yn:#x}', sleeps.to_bytes(4, 'little').hex()],
+                        [f'{yus:#x}', us.to_bytes(4, 'little').hex()]],
+                'read': [[f'{yn:#x}', 4]],
+                'restore': [[f'{hp:#x}', '00'], [f'{yn:#x}', '00000000'], [f'{yus:#x}', '00000000']]}
+    spec = [case('button-up', 0, 0), case('half-pressed', 1, 0), case('under-the-time-cap', 1, 799, HL_YUS - 1000),
+            case('time-cap-reached', 1, 3, HL_YUS)]
     res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
     if isinstance(res, str):
         return HLYIELD, [res]
     errors = []
-    want = {'button-up': (False, 0), 'half-pressed': (True, 1), 'cap-reached': (False, HL_YMAX)}
+    want = {'button-up': (False, 0), 'half-pressed': (True, 1), 'under-the-time-cap': (True, 800),
+            'time-cap-reached': (False, 3)}
     for name, (sleeps, n) in want.items():
         r = res[name]
         pc, got = int(r['regs']['pc'], 16), int.from_bytes(bytes.fromhex(r['mem'][0]), 'little')
