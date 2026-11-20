@@ -18,11 +18,13 @@ is that build under its release name.
   stop after 0.3 s a photo, so burst photos save sooner.
 - **Playback shows each photo's own film (#93):** after switching a COLOR to another film, older photos no longer
   show the new film's name. A photo taken on a COLOR with no film shows "COLOR n".
-- **#91** (the camera switching off on the first photo with Film Grain, in sequential with JPEG only): we couldn't
-  make it happen here, and this version changes how the grain and Halation use the camera's memory. If you had #91,
-  please try this version and tell us on #91 whether it still happens.
 - **Debug log:** also records Halation's slowest photo of each power-on.
 - **Firmware Version screen:** shows "Caduceus : 0.40.3-b".
+
+**Known issue (#91, also in v0.40.1 and v0.40.2):** with Film Grain on, Sequential drive and JPEG only, the camera
+switches itself off on the first photo at ISO 1600 and below when the camera's **Low ISO Processing** is set to
+**Drive Priority**. Until it's fixed, set Low ISO Processing to **Detail Priority**, or shoot RAW+JPEG or Single.
+Found by fernandezk26.
 
 **Start-up:** nothing of ours runs while the camera starts. The camera copies about 376 KB more of the firmware into
 memory at switch-on (the Halation Radius work area).

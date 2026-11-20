@@ -61,7 +61,8 @@ the build before its release name).
 - **Bursts:** Halation's pauses while the button is held stop after 0.3 s a photo (a burst photo had waited 4.9 s).
 - **#93:** playback labels each photo with the film in its own Exif, not the film its COLOR has now; a photo taken
   with no film shows "COLOR n".
-- **#91:** not reproduced here; this version changes how grain and Halation use memory, so the reporter is asked to try it.
+- **Known issue (#91, also in v0.40.1 / v0.40.2):** Film Grain + Sequential + JPEG only switches the camera off at ISO 1600
+  and below with Low ISO Processing on Drive Priority (found by fernandezk26). Workaround: Detail Priority.
 - The debug log records Halation's slowest photo of each power-on. The Firmware Version screen shows "0.40.3-b".
 ## v0.40.2
 2026-11-19. v0.40.1 plus smoother colour grain, made faster; camera-tested (the build before its release name).
