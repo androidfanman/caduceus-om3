@@ -9096,3 +9096,16 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   forgotten, FILM 20, a no-film photo the camera's own picture, no text read FILM 2. v0.40.2's build: `caught`.
 - Camera checks still open: the label right after moving between photos (the widget asks the getter at each draw,
   crop round 9c), image review right after a shot, a RAW-only photo, a photo from another camera.
+
+## r3: fix #93 merged into try/speed-radius (2026-11-20; emulator only, camera test pending)
+- Owner (2026-11-20): combine #93 into the next test build. cad merged fix/93-playback-film-name (81de76e) into
+  try/speed-radius (r2 = d3c938b): merge fc0408d (conflicts: the include list, playfilm.s / hradius.s / hrrow.s all
+  kept; these notes, both sections kept), VERSION "v0.40.2-r3 (speed + Halation Radius, pause cap, #93)" (598a47c; the
+  first name was over build.py's 60-character limit).
+- cad's check: #93 adds no hook (pb_note rides crop's cr_pbk1, playback only); playfilm.s in ext13; nothing at start-up.
+  Sizes: ext11 64,064 / 65,536, ext12 262,072 / 262,144, ext13 77,888 / 81,920, ext14 13,216 / 16,384; loader end word
+  0x6101d000 (the radius work area; GX4-proven reserve to 0x6103f000).
+- Build of 598a47c, twice, byte-identical: E1479999.BIN cca13d25…9783, GUIDES.BIN e5c89518…a7a1. **Suite 121 of 121
+  pass** (exit 0, pass recorded on 598a47c). Package `test-builds/2026-11-20-speed-radius-93/` (private), go-back v0.40.2.
+- Behaviour different from v0.40.2, for the owner: the Halation Radius row (rows below move down one); playback of a
+  photo taken with no film shows "COLOR n"; the start-up copy is ~376 KB longer.
