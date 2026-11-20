@@ -8882,3 +8882,100 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   "v0.40.2"; E1479999.BIN da59432c…4d7b (`patch.py --release v0.40.2` byte for byte); the shorter name moves the code
   after `lg_ver` in ext13 by 24 bytes, nothing else. LookLab's grain preview: colour planes at full height with the g6
   taps, Cr sigma 9 (vitest 76 pass).
+
+## Grain and Halation speed, speed-1 (2026-11-19; emulator + analysis, camera test pending; branch fix/grain-halation-speed)
+- Owner (via cad, on v0.40.2): "we need to speed up grain and halation. in .30 it was rapid ... every release seems to
+  have made it slower". Asked: find what made a Grain + Halation photo slower from v0.30.3 to v0.40.2, build the
+  speed-ups that leave the photos the same, list the ones that would change the look. From main 9fc2dc1 (v0.40.2).
+- **Camera numbers we have (owner's OM-3, debug log):** v0.40.2 (test build 218b018a, same code), lamp scene, FILM 10,
+  RAW+JPEG: grain tile Medium 274 ms, made for every photo ("made 7" for 7); Halation last 599 ms (pass A 275, map 54,
+  pass C 268), longest 891. glow-shots-2 (h7, same Halation code): last 335 ms (A 283, map 50, C 0), longest 1763.
+  v0.40.1 combined test: Coarse tile 322 ms, Halation 974 ms (C 623); g6: Coarse tile 348 ms, Halation 1052 ms
+  (C 703). glow-shots-1 (h8): Halation 1361 / 1742 ms. g3 tile: 268-270 ms. g1 / g2c tile: ~0.39-0.43 s. v0.30.x:
+  no timing in the log (it came with glow-shots-1); grain was the camera's own (no tile, no CPU work of ours).
+- **om-emu counts per release on the same frames** (every release rebuilt from its tag, sha256 = the published file;
+  big5 = 5184 x 3888 night scene at Halation 5; the grain tile at Medium). Scratch counter (scratchpad, not in the
+  repo): emu_hl.mjs with om-emu watchpoints logging every load / store by region. Its first runs counted the stack 3x
+  and the heap / cached aliases 2x (overlapping watch ranges); the numbers below are corrected.
+
+  | Release | Halation code | big5 steps | uncached heap | stack | stores into the photo | lock groups (FLUSH on the camera) |
+  |---|---|---|---|---|---|---|
+  | v0.30 | h4 | 230.4 M | 4.08 M | 20.9 M | 9.93 M | 5647 |
+  | v0.30.3, v0.40-alpha, v0.40-beta(2) | h8 | 124.4 M | 2.16 M | 6.0 M | 7.71 M | 2143 |
+  | v0.40-beta3, v0.40, v0.40.1, v0.40.2 | h7 + the pause | 84.1 M | 1.31 M | 3.7 M | 4.75 M | 1310 |
+  | speed-1 | h7, same bytes | 85.7 M | 0 | 0.26 M | 2.14 M | 1310 (825 FLUSH) |
+
+  | Release | grain | tile steps (Medium) | stores into the tile | FLUSH | camera time per tile |
+  |---|---|---|---|---|---|
+  | v0.30.x | the camera's own | - | - | - | none of ours |
+  | v0.40-alpha | g2c | 66.3 M | 1.18 M | 1538 | ~0.4 s (g1 / g2c, measured) |
+  | v0.40-beta .. v0.40 | g3 | 18.5 M | 1.70 M | 254 | 268-270 ms (measured) |
+  | v0.40.1 | g4 | 18.7 M (Coarse 24.2 M) | 1.72 M | 278 | Coarse 322 ms (measured) |
+  | v0.40.2 | g6, faster | 16.5 M (Coarse 22.9 M) | 1.61 M | 278 | Medium 274 ms (measured) |
+  | speed-1 | the same tile | 16.4 M | 1.30 M | 278 | camera test pending |
+
+- **What made it slower (measured, with the reading marked):** Halation got faster with every release from v0.30
+  (h4 -> h8 -> h7: about 2.7x fewer steps; camera: v0.30.3 test 1 "much quicker", h8 1.4-1.7 s, h7 0.3-1.1 s). The
+  step the owner feels is the grain: from v0.40-alpha every photo with Film Grain builds our tile on the CPU (0.27 to
+  0.4 s, measured), where v0.30's grain was the camera's own texture. A JPEG with our grain is also larger (owner's
+  photos: 12 MB with grain, 8.7 MB without), so the card write takes longer (camera-side; v0.30's size with the
+  camera's grain is not known). Grain + Halation on v0.40.2 = ~0.27 + ~0.6 s of our work per photo on a lamp scene.
+- **Where the camera's time goes (analysis: a fit of the camera times above to the om-emu counts; not measured
+  directly):** ~2.8 ns a step (Shading s2's rate, assumed); an access to malloc's heap (uncached, 0xa...) ~150 ns
+  (the map: 1.98 M steps + 0.31 M heap accesses = 50-54 ms); a FLUSH ~0.05 ms; a store into the photo or the tile
+  through the bus window's cached view ~120 ns a store (the tile fit: g2c / g3 / v0.40.1 / v0.40.2 within 11 ms;
+  ~45 ns a byte fits too, so word stores may or may not beat byte stores); reading through the window is cheap (pass A
+  reads 20 MB in ~90 ms); the stack ~10 ns (g3 and v0.40.2 make 0.04 M and 1.2 M stack accesses and took the same
+  time). om-emu's sp is 0xa21f.. (uncached) but the camera's capture task may differ: the log now prints it.
+  So for Halation on v0.40.2: pass A ~95 ms of heap accesses (the E / Q grids, uncached) + ~25 ms of FLUSH after
+  every 4-row group + ~70 ms steps + ~90 ms reading; the map ~47 ms of heap; pass C mostly stores into the photo.
+- **speed-1 (commit be80868; the same bytes, emulator-checked):**
+  - `hl_ga` / `hl_gf` (ext13): hl_run's three grids are malloc(n + 128) rounded up to 64 bytes and used through the
+    cached alias (as tg_fill's work buffer, camera-proven), malloc's pointer kept in the 4 bytes before (written
+    uncached); no cache line we touch holds a neighbour's bytes. FLUSH before the frees (the dirty lines back first).
+    A pointer outside the uncached heap (never seen) is given back and the photo gets no halation.
+  - Pass A: no FLUSH after each group (it only reads: clean lines, and every remap goes through the mapper, which
+    flushes); one FLUSH after the pass. hl_pa keeps the row's end in a1 (hl_x8 reads through a0).
+  - The map's g loop: gmax and sc in registers.
+  - Pass C: hl_row (ext13) keeps its values in a context in mem1 (cached), with this photo's copy of hl_cb / hl_cr so
+    a1 is both the table and the context: no stack traffic per segment (hl_lp and hl_sp inline). A pair whose four
+    bytes all change (g >= GY) is staged in the context and written with one word store (was four byte stores);
+    pairs with Cb / Cr only keep their two byte stores. hl_bd (ext12) reads hl_run's frame once a band.
+  - Rows must be 4-byte aligned for the word stores: hl_run now also requires memHw even and the buffer 4-byte
+    aligned (the camera's: memHw a multiple of 64, page-aligned buffers); otherwise no halation (never seen).
+  - Grain tile: tg_bl writes each blended 4 bytes into W's p row (scratch there) and stores them with two word stores
+    (rows y and y + 768; were eight byte stores). The tile is the model's byte for byte.
+  - Debug log: the "Shot timing" line ends with the stack addresses hl_run and tg_fill ran on (0x6.. cached, 0xa..
+    uncached), to settle the stack cost on the camera.
+  - Code space: ext12 260,896 of 262,144 B; ext13 77,696 of 81,920 B, ending 0x60fbef80, inside the same 4 KB page
+    as v0.40.2's (the loader's end word and the camera's start-up copy unchanged). No new hook, nothing at start-up.
+  - VERSION "v0.40.2-s1 (faster grain and Halation, same photos)" (Firmware Version page "0.40.2-s1").
+- **om-emu checks:** `emu_check.py` 21 of 21 frames bit-exact (the two camera-sized included), the same lock counts
+  as v0.40.2, the most steps under one lock 104 K (cap 120 K by the estimate). New in emu_check: every block malloc
+  handed out during the case goes back to free once (a throwaway build freeing the aligned pointer: 0 of 2, caught).
+  The grain tile test (Fine / Medium / Coarse fast, Medium across an edge) passes. **Full suite on the be80868 build:
+  119 of 119 pass** (exit 0).
+- Package `test-builds/2026-11-19-grain-halation-speed/` (private): E1479999.BIN 5cbe537a…1146, GUIDES.BIN
+  7660db12…b02c (rebuilt from be80868: the same); go-back v0.40.2 da59432c…4d7b (the published file) + its
+  GUIDES.BIN 5a5ff16e…9348. Camera test: the lamp scene in Single and a burst, then the log's tile and Halation
+  times and the stack addresses.
+- **Estimate for the camera (analysis, from the fit):** Halation on the v0.40.2 lamp scene 599 ms -> ~310-390 ms
+  (pass A 275 -> ~160, map 54 -> ~6, pass C 268 -> ~150-220: the lower if the camera charges per store); a scene
+  without glow 335 -> ~170 ms; the 20 MP night scene ~0.85-1.15 s -> ~0.6 s. Tile: 274 -> ~225-265 ms (only its
+  blended rows changed; its stores are near the floor of one per tile word, 1.18 M). Grain + Halation on the lamp
+  scene ~0.87 -> ~0.55-0.65 s.
+- **Not built (they change the look or need a camera probe first; the owner's call):**
+  1. The grain tile kept for the next photos (once per power-on, or while grain is on): saves the whole tile
+     (~0.23-0.27 s) on every photo after the first; every photo gets the same grain pattern (the camera still shifts
+     it at random per shot). Needs the texture kept alive (4.7 MB of the camera's image memory held between shots:
+     a risk for long bursts and RAW+JPEG, cf. #91).
+  2. A 768-row tile (the tile already repeats every 768 rows, so the texture would be the same): about half the
+     tile's stores, ~70-90 ms. The look is unchanged in principle, but it changes what we hand the camera's texture
+     builder: a camera probe first.
+  3. Pass A on every 4th row instead of every 2nd: ~45-60 ms of reading on every Halation photo; the halo map from
+     half the samples (a slightly different halo near small lights).
+  4. Pass C skipping the faint tint (g < GY, Cb / Cr only): fewer stores at the halo's outer edge; the faint edge of
+     the tint goes.
+- **Camera-only:** the times; whether the capture task's stack is cached (the log line); bursts; #91 (a user's shutoff
+  on the first photo with Grain 5 Medium + Halation 5, sequential, face / eye on; not reproduced on the owner's
+  camera). speed-1 adds no memory: the grids' mallocs are 128 B larger, hl_run's context 576 B in mem1.

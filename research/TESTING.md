@@ -99,7 +99,7 @@ The gate and the digest have unit tests that need no firmware:
 | `video-boot-after-photo-boot` | A video boot after a photo boot does no film or custom-mode work (#53) |
 | `debug-log-written-at-releases-only` | Three half-presses: the debug log is written at the three releases only, not at the half-presses (v0.30.3; the burst rule needs photos: camera-only) |
 | `debug-log-card-write-off-the-shutter-task` | Three half-presses with `DEBUG.TXT`: `CADLOG.TXT` is opened by the log's own writer task, never inside `lg_write` and never in the shutter's task (HLS_EVENT), and the log still says three writes (#85; the shot timing on a busy card is camera-only) |
-| `debug-log-times-the-shutter-events-and-writes` | Three half-presses with `DEBUG.TXT`: the log's "Shot timing" line is there, every logged shutter event is timed (`lg_ptm`) in the shutter's task after `lg_write`, and every background `CADLOG.TXT` write is timed in the writer's task (glow-shots-1; the times themselves are camera-only: om-emu's counter barely moves and it takes no photos) |
+| `debug-log-times-the-shutter-events-and-writes` | Three half-presses with `DEBUG.TXT`: the log's "Shot timing" line is there, every logged shutter event is timed (`lg_ptm`) in the shutter's task after `lg_write`, and every background `CADLOG.TXT` write is timed in the writer's task (glow-shots-1; the times themselves are camera-only: om-emu's counter barely moves and it takes no photos); from speed-1 the line ends with the stack addresses Halation and the tile builder ran on (0 in om-emu) |
 | `halation-pauses-only-while-half-pressed` | `hl_yld` called directly: with the button up it returns, half-pressed it reaches the one-tick sleep (`sdl_dly_tsk` 1) and counts it, at 800 sleeps it returns; then a boot: a release clears `hl_hp` (glow-shots-2; the sleep, the AF and the shots are camera-only) |
 | `noise-filter-row-follows-the-camera-setting` | A COLOR profile without a film, its Noise Filter on Camera: the Noise Filter row has no '*' with the camera's own Noise Filter on Standard or on Off, and gets one when Standard is chosen while the camera is on Off (v0.30 test 13) |
 | `curves-file-kept-in-camera` | v0.30 `CURVES.BIN`: taken at the first half-press, a film picked shows its values, kept over a boot with no file, the same file again changes nothing |
@@ -325,7 +325,9 @@ is still found only on the camera.
 the editor's fields. It runs `session.mjs` once for the patch audit. `halation-matches-the-model` (2026-11-16, the
 faster halation h7) boots no camera: `research/halation/emu_check.py` calls the halation pass (`hl_run`) directly on
 ten small test frames and checks every byte against `research/halation/model.py`, the callee-saved registers and sp,
-and a guard after the frame. Moving the boots to `session.mjs` would add its
+and a guard after the frame; from speed-1 (2026-11-19) also that every block `malloc` handed out during the pass went back
+to `free` exactly once (its grids come from `hl_ga` / `hl_gf`: aligned, used through the cached alias; a build that
+frees the aligned pointer instead fails it). Moving the boots to `session.mjs` would add its
 `expect:` checks and frame hashes, once it can set the photo/video switch.
 
 Store only state in the repo: screen state names, memory values, debug log lines, and frame hashes. The repo rule on
