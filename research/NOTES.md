@@ -9050,3 +9050,15 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   (built from c9a9fea); go-back v0.40.2 da59432c…4d7b (the published file) + its GUIDES.BIN 5a5ff16e…9348. Camera test:
   start-up, the row, the four radii on a lamp scene, speed-1's single shots and a burst, a burst at Wide, the log.
 - Still open with the owner, not built: Halation's pauses while a burst is held (speed-1's 4917 ms photo).
+- **r2: Halation's pauses capped at 0.3 s a photo (2026-11-20; emulator; camera test pending).** Owner: "ok lets add
+  that into the next test build" (cad: the cap). `hl_yld` now sleeps only while the photo's measured sleep time
+  (`hl_yus`) is under `HL_YUS` = 300,000 us, whatever the count (was at most 800 sleeps, which a held burst turned into
+  ~4 s: speed-1's 4917 ms photo). `hl_yn` is still counted for the log. Single shots keep the pause (a quick second press
+  still gets the CPU); a burst photo waits at most ~0.3 s more. hradius.s has no pause of its own: `hr_run` calls the
+  same `hl_yld` after its lock groups, so the radius pass gets the cap with its code unchanged. Commit 8d62048 (ours,
+  after fernandezk26's merge), VERSION "v0.40.2-r2 (speed-1 + Halation Radius #92, pause cap)" (page "0.40.2-r2").
+  Test `halation-pauses-only-while-half-pressed`: + 799 sleeps adding up to 0.299 s (still sleeps), 0.3 s reached with 3
+  sleeps (returns); r1's build (c9a9fea): caught ("time-cap-reached: slept"). Bloom 19 of 19 and the radius check 76 of
+  76 exact on the r2 build; **full suite 120 of 120** (exit 0). The package `test-builds/2026-11-20-speed-radius/` now
+  holds r2: E1479999.BIN db2aabba…, GUIDES.BIN d8c9573e… (built from 8d62048). Camera-only: the burst's photo times
+  (the log's "longest").
