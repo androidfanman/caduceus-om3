@@ -9192,7 +9192,7 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   differs only in the version name. Docs: CHANGELOG, README (test version line), releases/README, docs/USING.md (the
   Halation Radius row; playback shows a photo's own film).
 
-## #91: Film Grain with Low ISO Processing = Drive Priority, fix91-1 (2026-11-20; emulator + analysis, camera test pending)
+## #91: Film Grain with Low ISO Processing = Drive Priority, fix91-1 (2026-11-20; camera-tested: fixed on the owner's camera)
 Branch `fix/91-drive-priority-grain` (from try/v0.40.3-beta ceb6d17), local.
 - **The report (camera-tested by the reporter fernandezk26 and the owner):** the camera switches itself off and stays off,
   no photo, on the first photo of a **Sequential, JPEG-only** shot with **Film Grain on** at **ISO 1600 and below** when the
@@ -9251,6 +9251,12 @@ Branch `fix/91-drive-priority-grain` (from try/v0.40.3-beta ceb6d17), local.
   checks all pass. Builds of 2950cc2 twice, identical: E1479999.BIN 6948ffdf…9323, GUIDES.BIN 958da094…d9ac. Package
   `test-builds/2026-11-20-fix91/` (private): TEST-STEPS (the owner's repro: Drive Priority, Sequential, JPEG only, ISO
   1000, Film Grain 5), go-back v0.40.3-beta 306149fb…5b17 (`patch.py --release v0.40.3-beta` gives the same).
+- **Camera-tested 2026-11-20 (the owner's OM-3, fix91-1 flashed): no shut-down** (owner: "No, never"). Low ISO
+  Processing Drive Priority (the log), ISO 1000, JPEG only, COLOR 1 own settings with Film Grain 5 Coarse (grain plain
+  at 100 % in the burst photos): three Sequential bursts of 53, 77 and 26 photos and one Single, all 157 saved and
+  decode in full; the second burst 77 photos in about 5 s. The same set-up on r5 switched the camera off on the first
+  photo of a burst. The log covers only the last power-on (the Single: "Detail already 1"); the bursts' counts are not
+  in it. Not tested: other ISOs below 1600, RAW+JPEG (saved before), films with grain (the same route as COLOR 1).
 - **If the camera still shuts off with fix91-1** (then the cause is not the processing choice): options for the owner,
   not built: (1) no grain on those photos (Drive Priority + Sequential + JPEG only), the only sure stop; (2) a test of
   v0.30.3 (the camera's own grain tile, the same route) and v0.40-alpha (the first with our tile) to see whether the
