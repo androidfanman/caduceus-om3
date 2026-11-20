@@ -9182,3 +9182,12 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   pass 76 of 76. **Full suite on the f04239d build: 122 of 122 pass** (exit 0). Builds of f04239d twice, identical:
   E1479999.BIN ec78fdb9…5e41, GUIDES.BIN ea9f267c…e920. Package `test-builds/2026-11-20-r5/` (private), row screenshots in
   `screenshots/`, go-back v0.40.2.
+
+## v0.40.3-beta: r5 released as a test version (2026-11-20)
+- Owner (2026-11-20, after testing r5: "looks good"): "lets release this as a .40.3 (orwhatever number we are on) beta".
+  Branch `try/v0.40.3-beta` from try/speed-radius 48383d9 (r5 + notes); VERSION "v0.40.3-b (beta: faster Halation,
+  Halation Radius, #93)", Firmware Version page "0.40.3-b" (1d9f0bc). Release folder `releases/v0.40.3-beta/`:
+  patch.json (tools/mkpatch.py), NOTES.md, SHA256SUMS, and LOOKS.BIN, CURVES.BIN, DEBUG.TXT and the photo-code kit as
+  v0.40.2. E1479999.BIN 306149fb…5b17; `patch.py --release v0.40.3-beta` rebuilds it byte for byte. r5 (ec78fdb9…5e41)
+  differs only in the version name. Docs: CHANGELOG, README (test version line), releases/README, docs/USING.md (the
+  Halation Radius row; playback shows a photo's own film).

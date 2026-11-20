@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.40.3-beta](#v0403-beta-test-version) | 2026-11-20 (test version) | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26); faster Halation; burst photos with Halation save sooner; playback shows each photo's own film (#93) |
 | [v0.40.2](#v0402) | 2026-11-19 | Smoother colour grain with less red-green speckle; grain made faster, so long bursts with Film Grain keep up |
 | [v0.40.1](#v0401) | 2026-11-19 | Round film grain with fewer repeats; a film's WB Compensation shows in the super control panel (#88) |
 | [v0.40](#v040) | 2026-11-19 | Crop modes XPan, 21:9 and 5:4; a black or white Border per film at every ratio; our own film grain (1–5, Grain Size); looks in live view as you adjust them; your own choice of screen info; faster looks and Halation; quick single shots (#85); new film sets in custom modes (#86); focus stacking with more lenses; LookLab knows all of it |
@@ -49,6 +50,19 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## v0.40.3-beta (test version)
+A test version (a GitHub pre-release; v0.40.2 stays the current version). Camera-tested 2026-11-20 (test build r5,
+the build before its release name).
+- **Halation Radius** (by fernandezk26, discussion #92): a Picture Mode row under Halation Effect with Bloom (v0.40's
+  halo, the default), Tight, Medium and Wide (about 32 / 64 / 128 px), separate from the strength; each film keeps its
+  own, and the photo code carries it. The rows below it move down one. LookLab can't set it yet.
+- **Faster Halation:** its working grids go through the cache and it flushes once instead of after every few rows;
+  the fixed work per photo is about half. The photos are the same, byte for byte.
+- **Bursts:** Halation's pauses while the button is held stop after 0.3 s a photo (a burst photo had waited 4.9 s).
+- **#93:** playback labels each photo with the film in its own Exif, not the film its COLOR has now; a photo taken
+  with no film shows "COLOR n".
+- **#91:** not reproduced here; this version changes how grain and Halation use memory, so the reporter is asked to try it.
+- The debug log records Halation's slowest photo of each power-on. The Firmware Version screen shows "0.40.3-b".
 ## v0.40.2
 2026-11-19. v0.40.1 plus smoother colour grain, made faster; camera-tested (the build before its release name).
 - **Smoother colour grain:** the grain's colour speckle is now made on every row instead of every other row, so it has

@@ -56,6 +56,7 @@ The rows under Picture Mode change the film (or the COLOR) you're on, straight a
 | **Shading** | Darker or lighter corners, as an effect. |
 | **Glow Effect** | +1 to +5 adds a soft glow. −1 to −5 adds Clarity (crisper local contrast). 0 = off. |
 | **Halation Effect** | 0 to 5: a red-orange glow around bright lights, as on cinema film (CineStill). Works with or without Glow; fades out in bright daylight scenes. The halo fades away from the light. Saving takes a little longer with it on (much less since v0.30.3, and less again since v0.40-beta3). |
+| **Halation Radius** | From v0.40.3-beta: Bloom (the halo above, the default), Tight, Medium or Wide: how far the glow spreads from bright lights (about 32, 64 and 128 pixels), separate from its strength. Each film keeps its own. LookLab can't set it yet. |
 | **Film Grain Effect** | Off, Low, Med or High. Added in colour, with no extra wait after the photo. From v0.40-alpha: our own colour grain, Off and 1 to 5 (a film's Low / Med / High become 2 / 3 / 5); highlights stay white and Halation keeps its glow. |
 | **Grain Size** | From v0.40-alpha: Fine, Medium or Coarse, for Film Grain. From v0.40.1 the clumps are round, with fewer repeats; from v0.40.2 the colour speckle is smoother, with less red-green. |
 | **Border** | From v0.40-alpha: a white border, 0 (off) to 5, the same width on every side; from v0.40-beta the row runs from −5 to +5: minus is black, plus is white. JPEG only: the photo keeps its size and the border covers its outer edge; RAW is untouched. In live view a thin frame line shows where its inner edge will be (from the first half-press; not in video). |
@@ -132,7 +133,8 @@ Every JPEG taken on a FILM keeps the film in its EXIF: the name (Image Descripti
 the whole recipe as a short code in the User Comment: the film as it was set when you took the photo, with your
 changes on the camera and the white balance. Open the JPEG in LookLab (**Open...**), or paste the
 comment with **Paste link**, and the film is added to your films. Photos on COLOR 1–4 with your own settings, CRT, ART
-and MONO don't get one.
+and MONO don't get one. From v0.40.3-beta playback shows each photo's own film, read from the photo (a photo taken
+with no film shows "COLOR n").
 
 ## New films from LookLab
 
