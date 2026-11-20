@@ -2315,8 +2315,117 @@ def run_hlyield(emu, build, out, card0):
     return HLYIELD, errors + more
 
 
+# #93 (v0.40.2): playback labels a photo's picture mode with the shooting screen's "COLOR1".."COLOR4" pictures (15706..),
+# which fl_lvp answered with COLOR k's film now, so every COLOR 1 photo read "FILM3" once COLOR 1 was on FILM 3.
+# SimplePlayCommon's info build (cr_pbk1) now reads the shown photo's ImageDescription through the camera's Exif tag
+# read, 0x6042f92e (group 1, tag 270), and the label shows that photo's own "FILM n" (playfilm.s). om-emu's playback
+# reads no photo's Exif, so the tag read is stood in (mov TEXT,a0; ret [d2,d3,a2,a3],80) for the calls of cr_pbk1, and
+# the picture getter is then asked in playback (GUI class 5) and on the shooting screen (1). COLOR 1 holds FILM 2.
+PBFILM = 'playback-labels-a-photo-by-its-own-film'
+PBFILM_TAG, PBFILM_TAG_STOCK = 0x6042f92e, '4318f1d6f89b22f897'   # its first 9 bytes, put back after each stand-in
+PBFILM_TEXT = {'FILM 7 Velvia 50': 7, 'FILM 20 Astia 100F': 20, 'FILM 1': 1, 'FILM 12 Ektar 100': 12,
+               'OM SYSTEM DIGITAL CAMERA': 0, ' ' * 31: 0, 'FILM 21 X': 0, 'FILM 0 X': 0, 'FILM 12x': 0, 'FILMS 1': 0,
+               'FILM  1': 0, None: 0xff}   # None: the tag read finds no text (a0 0)
+# The label calls, in order: (name, the note before it: text or '-' for none, GUI class, picture id) -> what the getter
+# gives: ('ours', k, N) = our block's picture k drawn as "FILM N" (no star), ('now', k) = COLOR k's film now (FILM 2:
+# N 2), 'stock' = the camera's own picture.
+PBFILM_LABELS = [
+    ('photo-on-film-7-in-playback', 'FILM 7 Velvia 50', 5, 15706, ('ours', 0, 7)),
+    ('a-color-2-photo-on-film-7', '-', 5, 15707, ('ours', 1, 7)),
+    ('the-same-photo-starred-id', '-', 5, 15710, ('ours', 0, 7)),
+    ('shooting-screen-after-playback', '-', 1, 15706, ('now', 0)),
+    ('playback-again-nothing-read-yet', '-', 5, 15706, ('now', 0)),
+    ('photo-on-film-20', 'FILM 20 Astia 100F', 5, 15706, ('ours', 0, 20)),
+    ('photo-with-no-film', 'OM SYSTEM DIGITAL CAMERA', 5, 15706, 'stock'),
+    ('photo-with-no-text-read', None, 5, 15706, ('now', 0)),
+]
+
+
+def run_pbfilm(emu, build, out, card0):
+    """cr_pbk1 with the tag read stood in for PBFILM_TEXT (pb_fn; the stock registers kept), once with the real tag read
+    (om-emu: no photo Exif, so pb_fn 0xff), then the picture getter for PBFILM_LABELS."""
+    d = out / PBFILM
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    fn = f"{sym.get('pb_fn', 0):#x}"
+    tag = f'{PBFILM_TAG:#x}'
+    regs0 = {'d0': '4', 'd1': '0x11', 'd3': '0xd3d3d3d3', 'a1': '0xa1a1a1a1', 'a2': 'B+0x300', 'a3': 'B+0x302'}
+    def note(name, text, stand_in=True):
+        mem = [['B', 'dc'], ['B+1', f"={sym.get('cr_pbk1', 0):#x}-B"], ['B+0x300', '00140008'],   # 5120 x 2048: no crop
+               ['SP+2844', '78563412']]
+        restore = []
+        if stand_in:
+            mem += [[tag, 'fcdc'], [f'{PBFILM_TAG + 2:#x}', '=B+0x400' if text is not None else '00000000'],
+                    [f'{PBFILM_TAG + 6:#x}', 'dff050']]
+            if text is not None:
+                mem.append(['B+0x400', text.encode('ascii').hex() + '00'])
+            restore = [[tag, PBFILM_TAG_STOCK]]
+        return {'name': name, 'pc': 'B', 'stop': ['0x61113424'], 'max': 200000, 'mem': mem, 'regs': regs0,
+                'read': [[fn, 1]], 'restore': restore}
+    def label(name, cls, pic):
+        return {'name': name, 'pc': 'B', 'stop': ['B+7'], 'max': 2000000,
+                'mem': [['B', 'dd'], ['B+1', '=0x610f5611-B'], ['B+5', '0000'], ['W(0x603713a4)', f'{cls:02x}']],
+                'regs': {'d0': str(pic)}, 'read': [['P+832', 4], ['W(P+832)+112', 16], ['0x60379740', 4], [fn, 1]],
+                'restore': [['W(0x603713a4)', '01']]}
+    spec = [{'name': 'stock', 'pc': 'B', 'stop': ['B'], 'read': [['W(0x603713a4)', 2], [tag, 9]]}]
+    spec += [note(f'note {t!r}', t) for t in PBFILM_TEXT]
+    spec.append(note('note with the real tag read', None, stand_in=False))
+    for name, text, cls, pic, _ in PBFILM_LABELS:
+        if text != '-':
+            spec.append(note(f'before {name}', text))
+        spec.append(label(name, cls, pic))
+    res = run_ncall(emu, build, d, card0, f's1 wait wait {PICK_FILM_2} s1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return PBFILM, [res]
+    errors = []
+    reg = lambda r, k: int(r['regs'][k], 16)
+    byte = lambda r, i: int(r['mem'][i][:2], 16) if not r['mem'][i].startswith('ERR') else None
+    word = lambda h, i=0: int.from_bytes(bytes.fromhex(h[8 * i:8 * i + 8]), 'little')
+    mem = res['stock']['mem']
+    if bytes.fromhex(mem[0])[0] != 1:
+        errors.append(f'the GUI state at the calls is {mem[0]}, not shooting (class 1): the restore would be wrong')
+    if mem[1] != PBFILM_TAG_STOCK:
+        errors.append(f'{tag} is {mem[1]}, not the stock {PBFILM_TAG_STOCK}: the stand-in would not put it back')
+    want_regs = (4, 0x11, 0x12345678, 0xd3d3d3d3, 78, 0xa1a1a1a1)
+    for t, want in [*PBFILM_TEXT.items(), ('real', 0xff)]:
+        r = res[f'note {t!r}' if t != 'real' else 'note with the real tag read']
+        if r['steps'] >= 200000:
+            errors.append(f'cr_pbk1 with text {t!r}: did not reach 0x61113424')
+            continue
+        got = tuple(reg(r, k) for k in ('d0', 'd1', 'd2', 'd3', 'a0', 'a1'))
+        if got != want_regs:
+            errors.append(f'cr_pbk1 with text {t!r}: d0 d1 d2 d3 a0 a1 {[hex(x) for x in got]}, not as stock')
+        if reg(r, 'a3') != reg(r, 'a2') + 2 or reg(r, 'a2') & 0xff:
+            errors.append(f'cr_pbk1 with text {t!r}: a2 / a3 {r["regs"]["a2"]} / {r["regs"]["a3"]}, not B + 0x300 / 0x302')
+        if byte(r, 0) != want:
+            errors.append(f'the photo text {t!r}: pb_fn {r["mem"][0]}, not {want:#04x}')
+    for name, _, cls, pic, want in PBFILM_LABELS:
+        r = res[name]
+        if r['steps'] >= 2000000:
+            errors.append(f'{name}: the picture getter did not return')
+            continue
+        a0, blk, table = reg(r, 'a0'), word(r['mem'][0]), word(r['mem'][2])
+        drawn = [word(r['mem'][1], k) for k in range(4)]
+        if want == 'stock':
+            if a0 != (table + 4 * pic) & 0xffffffff:
+                errors.append(f'{name}: picture {pic} gives {a0:#x}, not the camera\'s own ({table + 4 * pic:#x})')
+            continue
+        k = want[1]
+        if a0 != blk + 4 * k:
+            errors.append(f'{name}: picture {pic} gives {a0:#x}, not our picture {k} ({blk + 4 * k:#x})')
+        elif want[0] == 'ours' and drawn[k] != want[2]:
+            errors.append(f'{name}: our picture {k} is drawn as {drawn[k]:#x}, not the photo\'s FILM {want[2]}')
+        elif want[0] == 'now' and drawn[k] & 0xff != 2:
+            errors.append(f'{name}: our picture {k} is drawn as {drawn[k]:#x}, not COLOR 1\'s film now (FILM 2)')
+    if byte(res['shooting-screen-after-playback'], 3) != 0xff:
+        errors.append('the shooting screen\'s label did not forget the photo\'s film (pb_fn '
+                      f"{res['shooting-screen-after-playback']['mem'][3]})")
+    return PBFILM, errors
+
+
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
-DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield}
+DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
+          PBFILM: run_pbfilm}
 
 
 def newest_looks():

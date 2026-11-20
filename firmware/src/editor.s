@@ -7822,6 +7822,33 @@ fl_lvp:
  mov d0,(12,sp)
  mov mdr,d0
  mov d0,(8,sp)
+ call pb_lbl,[],4                 /* #93: playback labels a photo by its own film (playfilm.s): d0 n, 0 none, -1 here */
+ cmp 0,d0
+ blt 77f
+ beq 80f                          /* a photo taken with no film: the camera's own "COLOR k" */
+ mov d0,(20,sp)                   /* N, the photo's "FILM n" (no star: the photo does not say) */
+ mov (12,sp),d2
+ add -15706,d2
+ and 3,d2
+ mov d2,(16,sp)
+ mov fl_LVL,d0
+ mov d0,(24,sp)
+ mov LV_SLOT,d0
+ mov d0,(28,sp)
+ mov LVB,d0
+ mov d0,(32,sp)
+ PVAL 80f
+ mov (TORG,a2),d0
+ cmp 0,d0
+ beq 80f
+ mov a2,a0
+ add LVB,a0
+ mov (a0),d0                      /* the block */
+ cmp 0,d0
+ beq 80f
+ mov (20,sp),d3
+ jmp fl_pdw
+77:
  call lv_chk,[],4                 /* #54: no picture while the dial's mode is not the one whose films are in */
  cmp 0,d0
  beq 78f
@@ -7896,6 +7923,7 @@ fl_pcp:
  or 0x100,d3                      /* the drawn key: N | star << 8 */
  mov (4,sp),d0
  mov d0,(24,sp)
+fl_pdw:                           /* #93: fl_lvp's photo label joins here (a2 P, d3 N, frame as above) */
 6:
  mov (32,sp),d0
  mov a2,a0
@@ -22877,3 +22905,5 @@ bl_v:                             /* the value */
  .include "fwver.s"               /* our version on the camera's Firmware Version screen (ext13) */
 
  .include "newfilms.s"            /* #86: a new film set made again in every mode (ext13) */
+
+ .include "playfilm.s"            /* #93: playback labels a photo by the film in its own Exif (ext13) */
