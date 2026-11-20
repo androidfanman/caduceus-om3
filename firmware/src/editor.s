@@ -12385,10 +12385,12 @@ pt_mx:                            /* the longest (us) */
  * The picture is the same byte for byte (only when the pass runs changes). research/NOTES.md, "glow-shots-2". */
  .set HL_YUS, 300000              /* r1: the photo's sleeps stop once they add up to 0.3 s (us, hl_yus) */
  .balign 8
-rz_pay2:                          /* r4: the Halation Radius strip cells that rz_pay (.ext14) has no room for (build.py) */
- .space 3776
+rz_pay2:                          /* r4: the Halation Radius cells that rz_pay (.ext14) has no room for (build.py) */
+ .space 4352
 rz_pend2:
  .balign 2
+.section .ext11,"ax"               /* r5: hl_ga .. hl_c2 moved here from .ext13 (room for rz_pay2) */
+ .balign 4
 /* hl_ga (speed-1, 2026-11-19): `call hl_ga,[d2],8`, d0 = bytes -> a0 = a 64-byte aligned buffer of at least that many
  * bytes, through its cached alias, or 0. malloc gives the uncached heap (0xa...; every access ~50 ns on the camera):
  * hl_run's grids are now used through the cached alias, as tg_fill's work buffer. The buffer is malloc(d0 + HL_GA)
@@ -12554,6 +12556,7 @@ tg_spv:
  .long 0
 hl_c2:                            /* pass C reached on this photo */
  .byte 0
+.section .ext13,"ax"
  .balign 64
 hl_hp:                            /* 1 while the shutter button is half-pressed (lg_pr): written and read through the
                                    * uncached alias only, alone in its 64-byte line (no cached neighbour's write-back

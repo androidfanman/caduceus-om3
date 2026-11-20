@@ -243,7 +243,7 @@ lg_rzw:
  .balign 4
 
  .balign 8
-rz_pay:                           /* the row's four left cells and the first strip cells (mkicons PICTURES[15..]; build.py packs
-                                     them here, then into rz_pay2 in .ext13: ic_pay had no room for them) */
- .space 11008
+rz_pay:                           /* the row's left and strip cells (mkicons PICTURES[15..22]; build.py picks the set that fills
+                                     this best, the rest go to rz_pay2 in .ext13: ic_pay had no room for them) */
+ .space 11264
 rz_pend:

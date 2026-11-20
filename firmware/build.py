@@ -565,13 +565,23 @@ def build(defaults, testfile, out):
     # 11389 -> our "HSL"
     assert struct.unpack_from('<HH', m, o(0x6154be9c)) == (3, 11389)
     struct.pack_into('<H', m, o(0x6154be9c) + 2, sy['IC_HSL'])
+    # Halation Radius (pictures 15..22): r5, the set of cells that fills rz_pay (.ext14) best goes there (the first such
+    # set in this fixed order), the rest into rz_pay2 (.ext13), each area in picture order
+    import itertools
+    rk = range(15, len(pics))
+    al = {k: (len(pics[k][2]) + 7) & ~7 for k in rk}
+    cap = sy['rz_pend'] - sy['rz_pay']
+    first = max((c for r in range(len(rk) + 1) for c in itertools.combinations(rk, r) if sum(al[k] for k in c) <= cap),
+                key=lambda c: sum(al[k] for k in c))
+    place, at2 = {}, {0: sy['rz_pay'], 1: sy['rz_pay2']}
+    for k in rk:
+        a_ = 0 if k in first else 1
+        place[k], at2[a_] = at2[a_], at2[a_] + al[k]
+    assert at2[0] <= sy['rz_pend'] and at2[1] <= sy['rz_pend2'], (hex(at2[0]), hex(at2[1]))
     at, end = sy['ic_pay'], sy['ic_pend']
-    more = [(sy['rz_pay2'], sy['rz_pend2'])]    # r4: where the Halation Radius cells go once rz_pay is full
     for k, (w, h, st) in enumerate(pics):
-        if k == 15:                              # Halation Radius: its cells in .ext14 (rz_pay), then .ext13 (rz_pay2)
-            at, end = sy['rz_pay'], sy['rz_pend']
-        if k > 15 and at + len(st) > end and more:
-            at, end = more.pop(0)
+        if k >= 15:
+            at, end = place[k], place[k] + len(st)
         assert at % 8 == 0 and at + len(st) <= end, (k, len(st))
         m[o(at):o(at) + len(st)] = st
         d = sy['ic_d%d' % k]

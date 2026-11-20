@@ -632,15 +632,17 @@ def radius_patch(kind, pw, ph, s=1.0):
 
 def radius_cell(kind, strip=False):
     """the row's cell, as the camera's Grain Size pictures: left column 82 x 62 (patch 36 x 30, the word cap 19,
-    baseline 54), strip 100 x 76 (patch 42 x 31, cap 23, baseline 64); the word in our lettering, a 2 px dark edge
-    round all"""
+    baseline 54), strip 100 x 76 (patch 42 x 31, cap 23, baseline 64); the word in our lettering with its own 2 px dark
+    edge, as Grain Size's words (r5, owner: "it should match the camera and grain"; r4 put a second ring round the
+    word too, a black box behind it), and a 2 px dark edge round the patch"""
     w, h, pw, ph, py, cap, base = (100, 76, 42, 31, 5, 23, 64) if strip else (82, 62, 36, 30, 2, 19, 54)
     px = picture([(kind, cap, base)], w, h, *STYLE.get(10, ()))
     p = radius_patch(kind, pw, ph, s=pw / 36)
     x0 = (w - pw) // 2
-    sub = px[py:py + ph, x0:x0 + pw]
-    sub[p > 0] = p[p > 0]
-    ring = ndimage.binary_dilation(px > 0, structure=np.ones((3, 3)), iterations=2) & (px == 0)
+    pm = np.zeros(px.shape, bool)
+    pm[py:py + ph, x0:x0 + pw] = p > 0
+    px[pm] = p[p > 0]
+    ring = ndimage.binary_dilation(pm, structure=np.ones((3, 3)), iterations=2) & (px == 0)
     px[ring] = 7
     return px
 
