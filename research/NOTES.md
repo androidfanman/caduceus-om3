@@ -9406,3 +9406,17 @@ named only CRT, ART, COLOR, MONO); live view's colour; photos; whether the camer
 write over a power-off (#88 saw one written at a half-press lost once in om-emu); timing of up to 26 setting writes
 at a dial turn (usually 1-3 differ); M's tail after +0x3FE78 being unused by the camera (as the other records'
 places: analysis + the mp1 probe for the tail in general); the camera's own WB menu outside the panel.
+
+## fixes2: fix91-1 + fix97-1 + fix99-1 fitted together (2026-11-20; emulator, camera test pending; branch try/v0.40.3-fixes2)
+- **fix97-1 camera-tested 2026-11-20** (main chat, owner: "it worked well"; log "crop round 15", zoom reads given the
+  base 734; test-builds/2026-11-20-fix97/camera-results): Magnify in the crops works on the camera.
+- The merge of fix/99-wb-shift-base (41a166a, VERSION v0.40.3-f3) did not link: `.ext6` 672 / 608 B (fix97-1's
+  cr_za1 / cr_za2 / cr_zm / cr_szr / cr_zn 125 B, fix99-1's fw_msv 92 B). 7c1a569 moves two fix97-1 pieces, code
+  unchanged: **cr_zm (34 B) to the section-4 tail ext4** (loaded before section 6, whose zoom code, cr_za1 / cr_za2, is
+  its only caller; its counter cr_zn stays in ext6) and **cr_szr (51 B) to ext14** (section 6's extension, loaded with
+  section 6, before the section-7 GUI code of hook_cz3 that jumps there). The calls to cr_zm are now 32-bit (7 B).
+  Now ext6 592 / 608 B, ext4 1772 / 1776, ext14 16368 / 16384; ext1, ext11, ext12 and ext13 full or nearly. Static
+  checks pass (hook-list and changed-bytes as fix97-1, section-order); the 136 KB reserve is not used.
+- **Suite** (build of 7c1a569 = the package, om-emu 0819080): **130 pass**, exit 0 (123 + #97's two + #99's five).
+  Both builds of 7c1a569 the same byte for byte. Package `test-builds/2026-11-20-fixes2/1-test-build` (private folder):
+  E1479999.BIN `fc80a4af…2d58`, GUIDES.BIN `4a50fe07…ad46d`; go-back fix97-1 `0b5fb287…beed` / `3172384d…8a07`.
