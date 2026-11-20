@@ -581,6 +581,21 @@ def CROP_SAVES(memory, put_back, tag):           # crop83-3: saves of M from mem
             rf'{put_back}\), after a menu \d+, last tag written {tag}')
 
 
+# #97: Custom Menu > Button Settings > Button Function (photo) > Delete (the 11th row) -> Magnify (two rows up from Off
+# in its picker, first column), back to shooting. om-emu's AF-ON and Fn keys do not reach the button functions; Delete does.
+DELETE_MAGNIFY = 'menu left left left left left ok ok' + ' down' * 10 + ' ok wait up up left ok wait menu wait menu wait'
+# #97: Shooting Menu 1 > Image Aspect (the menu opens on the Setup tab's first page: seven pages on), its own screen
+OPEN_IMAGE_ASPECT = 'menu' + ' right' * 7 + ' down down down ok wait'
+# #97: on that screen, the row names (RAW, Large ...) left of the sizes (rear screen 900 x 600)
+ASPECT_ROW_NAMES = 'expect:ink:90,290,180,320'
+# #97: CapThr_ThroughImage::getZoomArea after its ratio -> row chain (a3 = the row: 0 4:3, 2 16:9); its miss jumps away
+ZOOM_ROW = '60c154c3'
+
+
+def CROP_ZOOM_MAPPED():                          # #97: zoom table reads given the crop's base (cr_zm), at least one
+    return r'^CROP MODES \(crop round \d+\w*\): .*; zoom reads given the base [1-9]\d*'
+
+
 def CROP_SET_AGAIN(n):                           # crop83-2: times cr_chk set the crop again after its start-up restore
     return rf'^CROP MODES \(crop round \d+\w*\): .*\), set again {n};'
 
@@ -1042,6 +1057,22 @@ TESTS = {
     'crop-af-target-drawn-at-xpan': [
         Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait left wait wait main-1 wait '
              'expect:pxdiff:2,300,10,300 expect:pxdiff:506,300,500,300 menu wait s1 wait wait poweroff'),
+    ],
+    # #97: Magnify (Delete = Magnify) at XPan: the live view's zoom area lookup (getZoomArea) finds 16:9's row (a3 2);
+    # before, its chain had no row for 5 / 6 / 7 and it gave no area (0), whose limits adjustCoordinates then read from
+    # address 0 (camera: black screen, a click, the camera stuck). After a power-off, at 5:4: 4:3's row (a3 0).
+    'crop-magnify-finds-its-zoom-area': [
+        Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait {DELETE_MAGNIFY} s1 wait wait hit:{ZOOM_ROW}:a3=2 delete wait '
+             'expect:hit delete wait s1 wait wait poweroff', expect=[CROP_NOW(6), CROP_ZOOM_MAPPED()]),
+        Boot(f'wait wait {CROP_ASPECT_IS(6)} s1 wait wait {SCP_ASPECT(-1)} {CROP_ASPECT_IS(5)} s1 wait wait '
+             f'hit:{ZOOM_ROW}:a3=0 delete wait expect:hit delete wait s1 wait wait poweroff', expect=[CROP_NOW(5), CROP_ZOOM_MAPPED()]),
+    ],
+    # #97: the Image Aspect screen on XPan and 21:9 (after the first half-press: their sizes are in the code block)
+    # shows the row names (RAW, Large ...) and a screen of its own for each; before, both kept 3:4's name and sizes and
+    # the row names went (the screen's records had 4:3, 16:9, 3:2, 1:1 and 3:4 only).
+    'crop-image-aspect-screen-shows-crop-sizes': [
+        Boot(f's1 wait wait {OPEN_IMAGE_ASPECT}' + ' down wait' * 6 + f' {ASPECT_ROW_NAMES} fhash:xpan down wait '
+             f'{ASPECT_ROW_NAMES} fhash:w21 expect:fdiff:xpan:w21 menu wait menu wait s1 wait wait poweroff'),
     ],
     # better grain g2: the Film Grain row steps 0..5 (no step past 5) and keeps the old level byte in step (5 -> High 3,
     # 2 -> Low 1); the Grain Size row (Medium -> Coarse); both kept over a power-off (the debug log's NOW line).

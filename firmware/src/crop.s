@@ -993,7 +993,7 @@ cr_owt:                           /* the task of the last write of 269 by others
 cr_gtid:
  .hword 0xffff
 cr_t1:
- .asciz "\r\n\r\nCROP MODES (crop round 14): tag "
+ .asciz "\r\n\r\nCROP MODES (crop round 15): tag "
 cr_w0:
  .asciz " (not read yet)"
 cr_w1:
@@ -1046,6 +1046,8 @@ cr_t28:
  .asciz ", last tag written "
 cr_t29:
  .asciz "; frame lines set to the crop "
+cr_t30:                           /* #97 */
+ .asciz "; zoom reads given the base "
  .balign 2
 cr_txt:                           /* `call cr_txt,[d2,d3,a2,a3],24` */
  LGS cr_t1
@@ -1133,6 +1135,9 @@ cr_txt:                           /* `call cr_txt,[d2,d3,a2,a3],24` */
  call lg_h,[],0
  LGS cr_t29                       /* framelines-1 */
  mov (cr_nfr),d0
+ LGD
+ LGS cr_t30                       /* #97 */
+ mov (cr_zn),d0
  LGD
  ret [d2,d3,a2,a3],24
 
@@ -1794,4 +1799,79 @@ cr_pqg:                           /* jmp from 0x611133cd (SimplePlayCommon: (101
 .section .hook_crr,"ax"
  jmp cr_pqg                       /* stock 0x611133cd: mov (1012,sp),d0; mov (1016,sp),d1 */
  .byte 0xcb, 0xcb, 0xcb
+.section .ext12,"ax"
+
+/* ---- #97 (2026-11-20): Magnify in a crop, and the Image Aspect screen's sizes for 5:4 / XPan / 21:9.
+ * (1) The live view's zoom (CapThr_ThroughImage, section 6) reads the ratio through its getAspectRatio 0x60c14644
+ * (Image Aspect as it is: 6 at XPan; 10 / 1 / 3 in video and some scene modes) and turns it into a table row with a
+ * compare chain for 1, 2, 3, 4, 9, 10 only. getZoomArea 0x60c15477 returns no area (0) for 5 / 6 / 7 and
+ * adjustCoordinates 0x60c14581 reads the area's four limit bytes from address 0 without a check (om-emu, Magnify on
+ * Delete at XPan: getZoomArea's miss 19 times per press); adjustZoomFrameLimitPos 0x60c13f91 takes 4:3's row. The two
+ * getAspectRatio calls in those (hook_cz1 0x60c15483, hook_cz2 0x60c13f97) come here: the stock call, then cr_zm
+ * gives the zoom tables the crop's base, 5:4 -> 4:3 (1), XPan / 21:9 -> 16:9 (3), as the AF target screen does
+ * (cr_spec). getOutputSize / getOutputAspect / getTakeAreaSize, the other readers, keep the crop (round 1's cases).
+ * Only in the zoom path (Magnify, MF assist); section 6 code into its own tail (ext6): no gate.
+ * (2) The Image Aspect screen 0x611f9572 (Shooting Menu 1 > Image Aspect) shows the sizes of the ratio under its cursor
+ * from 266-B records {u16 ratio, 11 UTF-16 sizes of 24 B} at 0x61577278, one each for 4:3, 16:9, 3:2, 1:1, 3:4: on 5:4 /
+ * XPan / 21:9 nothing matched, so the sizes stayed the last ratio's and the row names (RAW, Large ...) went. hook_cz3
+ * (0x611f965a, the loop's `add 0x61577278,a1`) hands the loop's first pass our record from the GUIDES.BIN code block
+ * (xb_szr, made by crop.size_records from the camera's own size tables) for those three ratios; no block yet (before
+ * the first half-press): the stock records, as before. Its name list is crop.py's (cr_ml0). */
+ .set XB_SZO, 152                 /* xblock.s: the code block's word +152 = the offset of xb_szr */
+.section .hook_cz1,"ax"
+ jmp cr_za1                       /* stock 0x60c15483: call 0x60c14644,[d2],16 (getZoomArea) */
+.section .hook_cz2,"ax"
+ jmp cr_za2                       /* stock 0x60c13f97: call 0x60c14644,[d2],16 (adjustZoomFrameLimitPos) */
+.section .hook_cz3,"ax"
+ jmp cr_szr                       /* stock 0x611f965a: add 0x61577278,a1 */
+ .byte 0xcb
+.section .ext6,"ax"
+cr_za1:
+ call cr_gar,[d2],16              /* the stock call */
+ call cr_zm,[],0
+ jmp cr_za1_back                  /* 0x60c15488: mov d0,d2 */
+cr_za2:
+ call cr_gar,[d2],16
+ call cr_zm,[],0
+ jmp cr_za2_back                  /* 0x60c13f9c: mov d0,d2 */
+cr_zm:                            /* d0 = the ratio -> the one the zoom tables have (d1 used: free after the call) */
+ cmp 5,d0
+ bne 1f
+ mov 1,d0                         /* 5:4 -> 4:3 */
+ bra 2f
+1:
+ cmp 6,d0
+ bcs 9f
+ cmp 8,d0
+ bcc 9f
+ mov 3,d0                         /* XPan / 21:9 -> 16:9 */
+2:
+ mov (cr_zn),d1
+ inc d1
+ mov d1,(cr_zn)
+9:
+ ret [],0
+cr_szr:                           /* jmp from .hook_cz3, the frame of 0x611f9572: a1 = index x 266, d2 = the index,
+                                   * (56,sp) = the ratio under the cursor; d0 / d1 / MDR free, a0 kept */
+ cmp 0,d2
+ bne 8f
+ mov (56,sp),d0
+ add -5,d0
+ cmp 3,d0
+ bcc 8f                           /* not 5:4 / XPan / 21:9 */
+ mov d0,d1
+ call xp,[],0                     /* a1 = the code block or 0 (uses d0, MDR) */
+ beq 8f                           /* none: a1 = 0 = index x 266 */
+ mov (XB_SZO,a1),d0               /* the block's +152: where its records are */
+ add d0,a1
+ mov 266,d0
+ mul d1,d0
+ add d0,a1                        /* our record (its ratio is the cursor's: the loop takes it) */
+ jmp cr_szb
+8:
+ add cr_szt,a1                    /* the stock instruction */
+ jmp cr_szb                       /* 0x611f9660 */
+ .balign 4
+cr_zn:                            /* zoom table reads given the crop's base (debug log) */
+ .long 0
 .section .ext12,"ax"

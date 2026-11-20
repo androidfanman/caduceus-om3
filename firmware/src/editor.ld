@@ -7,6 +7,9 @@ SECTIONS {
   .hook_crk     0x6111341e : { *(.hook_crk) }   /* crop round 9c: the single frame's info build, after its label code */
   .hook_crq     0x60c7c18a : { *(.hook_crq) }   /* crop round 10: the play component's record-mode lookup (reads only) */
   .hook_crr     0x611133cd : { *(.hook_crr) }   /* crop round 10: SimplePlayCommon's quality lookup */
+  .hook_cz1     0x60c15483 : { *(.hook_cz1) }   /* #97: live view zoom, getZoomArea's ratio read (Magnify) */
+  .hook_cz2     0x60c13f97 : { *(.hook_cz2) }   /* #97: the same read in adjustZoomFrameLimitPos */
+  .hook_cz3     0x611f965a : { *(.hook_cz3) }   /* #97: the Image Aspect screen's size record lookup */
   .hook_shutter 0x60415216 : { *(.hook_shutter) }
   .ext1         0x6031e920 : { *(.ext1) }
   .ext4         0x60a8f100 : { *(.ext4) }
@@ -287,3 +290,8 @@ cr_rc_j       = 0x60c0d35f;         /* ratioToConvertSize: mov d0,(4,a1); retf [
 cr_oa_j       = 0x60c14b95;         /* getOutputAspect: mov d0,(16,sp) */
 cr_spec_back  = 0x611cb253;         /* crop round 3: after the screen spec's ratio byte */
 cr_dhm_back   = 0x60dc4bb7;         /* crop round 5: Set_Histogram_CalcMode after its entry */
+cr_gar        = 0x60c14644;         /* #97: CapThr_ThroughImage::getAspectRatio (Image Aspect as it is; 10 / 1 / 3 in video) */
+cr_za1_back   = 0x60c15488;         /* #97: getZoomArea after its getAspectRatio call */
+cr_za2_back   = 0x60c13f9c;         /* #97: adjustZoomFrameLimitPos after the same call */
+cr_szt        = 0x61577278;         /* #97: the Image Aspect screen's size records (5 x 266 B: 4:3, 16:9, 3:2, 1:1, 3:4) */
+cr_szb        = 0x611f9660;         /* #97: its record loop after `add cr_szt,a1` (movhu (a1),d0: the record's ratio) */

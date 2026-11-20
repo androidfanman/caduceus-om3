@@ -62,6 +62,8 @@ xb_base:
  .balign 8
  jmp xb_wbc                       /* +144 v0.25: the WB grid row's left cell picture (wb_draw, `calls`) */
  .balign 8
+xb_szo:
+ .long xb_szr - xb_base           /* +152 #97: offset of the Image Aspect screen's records (crop.s cr_szr, XB_SZO) */
 xb_nrel:
  .long 0                          /* relocation count (written by the build) */
 
@@ -3126,5 +3128,12 @@ xb_wgp:                           /* per glyph: row pointer (+0), width (+20), x
  .long 0, 0, 0, 0, 0
  .long 0, 0, 0, 0, 0
  .long 0, 0, 0, 0, 0
+ .balign 4
+/* #97: the Image Aspect screen's size records for 5:4, XPan, 21:9 (266 B each, the camera's own layout at 0x61577278:
+ * u16 ratio, 11 UTF-16 sizes of 24 B), made by firmware/crop.py size_records from the camera's size tables. Data only,
+ * read by the screen through cr_szr (crop.s). */
+ .balign 2
+xb_szr:
+ .include "szr.inc"
  .balign 4
 xb_end:

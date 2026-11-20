@@ -39,6 +39,9 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_crk': (0x6111341e, bytes.fromhex('fab61c0b904e')),       # crop round 9c: SimplePlayCommon after its label code (s7)
          '.hook_crq': (0x60c7c18a, bytes.fromhex('839f394f00')),         # crop round 10: the record-mode lookup, read only (s6)
          '.hook_crr': (0x611133cd, bytes.fromhex('fab4f403fab5f803')),   # crop round 10: SimplePlayCommon's quality lookup (s7)
+         '.hook_cz1': (0x60c15483, bytes.fromhex('cdc1f18010')),         # #97: call 0x60c14644,[d2],16 in getZoomArea (s6)
+         '.hook_cz2': (0x60c13f97, bytes.fromhex('cdad068010')),         # #97: the same call in adjustZoomFrameLimitPos (s6)
+         '.hook_cz3': (0x611f965a, bytes.fromhex('fcd178725761')),       # #97: add 0x61577278,a1 (Image Aspect screen's records, s7)
          '.hook_shutter': (0x60415216, bytes.fromhex('cd2d01f024')),
          '.hook_set': (0x60b8798b, bytes.fromhex('dd04d90200f044')),
          '.hook_pmod': (0x6129ba07, bytes.fromhex('0cfcde10ec')),
@@ -424,6 +427,7 @@ def build(defaults, testfile, out):
     m[o(EXT12[0]):o(EXT12[0]) + len(blobs['.ext12'])] = blobs['.ext12']
     import crop                          # custom crop modes (feature/crop-modes): tables after the code is in place
     crop.apply(m, o, sy, log=lambda t: print(t, file=sys.stderr))
+    (out / 'szr.inc').write_text(crop.size_records(m, o))   # #97: the Image Aspect screen's crop sizes (code block)
     b13 = blobs['.ext13']                                # v0.30 test 10: the debug log (GX4-proven reserve to 0x6103f000)
     print('SIZE .ext13', len(b13), EXT13[1] - EXT13[0], file=sys.stderr)
     assert EXT13[0] + len(b13) <= EXT13[1] and set(m[o(EXT13[0]):o(EXT13[1])]) <= {0xff}, len(b13)
