@@ -9137,3 +9137,33 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
     says Wide, so two neighbouring burst frames' halos are worth one look by eye. The radius pass's rows still use
     v0.40.2's hl_lp / hl_sp (om-emu: ~12.7 M stack accesses in Wide's pass C on big5, cheap on the camera's cached
     stack but many calls) and its pass A still flushes after every group, as Bloom did before speed-1.
+
+## r4: the Halation Radius pictures, and the longest photo in the debug log (2026-11-20; emulator, camera test pending)
+- Owner, on r3's text cells: "the bloom option icons look out of place from our updated menu. Can we have something like
+  the grain icons (low, med coarse) that mabe shows the bloom, tight, ect". Preview `test-builds/2026-11-20-radius-icons/`
+  (private); owner: "Yes, build them".
+- **Pictures (mkicons.py `radius_patch` / `radius_cell`, our own drawing, no camera graphics):** a small night patch in a
+  white frame, a white light; Bloom a soft haze (dithered warm edge), Tight / Med / Wide a crisp light with a thin /
+  medium / wide orange ring (the Halation icon's oranges); the word under it. Sizes of the camera's Grain Size pictures
+  (14561.. 82 x 62, 14562.. 100 x 76, read from the stock picture table in om-emu: sizes only). Left column
+  PICTURES[15..18] (IC_RZ0..), strip PICTURES[19..22], new ids IC_RZS = 0x7fdc.. (hrrow.s `rz_l2`: type 3 pictures, were
+  the words ST_RZS in the camera's font). The pixels equal the approved preview's.
+- **Ids:** the first r4 build (c58451d) used 0x7fc8.., inside crop's labels CR_IC0 0x7fc4..0x7fcc (answered by `cr_ic`
+  before `ic_get`): om-emu's strip showed XPan / 21:9 / 5:4. Fixed in d77162a: 0x7fdc..0x7fdf, free between the body
+  diagrams (DG0 + NDG = 12 -> 0x7fdc; crop.s's comment still says 0x7fd8) and AR_IC0 0x7fe0. Picture ids in use now:
+  0x7f70..0x7fcc, 0x7fd0..0x7fdf, 0x7fe0..0x7fff; free 0x7fcd..0x7fcf.
+- **Space:** the eight streams are 14.4 KB (four left 6.4 KB, four strip 8.0 KB). rz_pay (.ext14) 8,160 -> 11,008 B holds
+  the left cells and the first two strip cells; `rz_pay2` (.ext13, 3,776 B) the other two (build.py packs them in
+  order). .ext14 16,064 / 16,384 B, .ext13 81,728 / 81,920 B (ends 0x60fbff40, below .ext14), .ext11 64,608 / 65,536 B,
+  ext12 262,072 / 262,144 B. The loader's end word unchanged (0x6101d000: the start-up copy as r3's).
+- **Debug log (log only):** the "Shot timing" line ends "; Halation's longest photo T (pass A a, map b, pass C c, pauses
+  for the camera n (s ms)); longest single pause P ms": `hl_xrec` (.ext11) at `hl_tk`'s end keeps the longest photo's
+  parts (tv0 - tv3), `hl_yld` the longest single sleep (`hl_ysx`, us). For the next 4.4 s photo.
+- **Tests:** new `halation-radius-pictures-as-drawn`: the picture hook's chain (`ar_ic`: diagrams, arrows, crop's
+  `cr_ic`, `ic_get`) for the eight ids answers ic_ent 15..22 with mkicons' sizes and bytes; c58451d's build (0x7fc8):
+  caught. The timing line's regex extended. Bloom 19 of 19 (emu_check), the radius pass 76 of 76 (emu_hr_check).
+- **Full suite on the d77162a build: 122 of 122 pass** (exit 0). Builds of d77162a twice, identical: E1479999.BIN
+  4e76915b…34b6, GUIDES.BIN bc373855…7966. Package
+  `test-builds/2026-11-20-r4/` (private), emulator screenshots of the row in `screenshots/`, go-back v0.40.2.
+- **For the owner (not built):** the approved preview's words sit on a black box (the word's own 2 px edge plus the
+  picture's ring); `option-word-outline.png` in the package shows them with the word's edge only, as Grain Size's words.
