@@ -9014,3 +9014,39 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
     a shutoff on the first photo of a sequential burst with Halation and face / eye on; the E-P7 has a 10 s watchdog
     on long passes, the OM-3's is not known). Options, not built (the owner's call: behaviour that differs from the
     release): pause only in Single drive; or cap the pauses by time (e.g. ~0.3 s a photo) instead of 800 sleeps.
+
+## try/speed-radius: speed-1 + Halation Radius (#92) (2026-11-20; emulator, camera test pending)
+- Owner (via cad): "lets keep working on the speed build. take a look at issue #92 and lets see if we can solve that
+  one and combine it into the speed build." #92 (GitHub Discussion by fernandezk26, the #91 reporter): a Halation
+  Radius row (Bloom / Tight / Medium / Wide) under Halation on COLOR 1-4; their branch as the local
+  `contrib/fernandezk26-halation-radius` (0239cc5: 493cea3, aaba3b9, a88d9f8 + a merge of v0.40.2). Their notes: 60
+  photos camera-tested (Film Grain off), suite 120 / 120.
+- `try/speed-radius` = fix/grain-halation-speed 391d09e + that branch merged (18972fc, their commits and authorship
+  kept) + VERSION "v0.40.2-r1 (speed-1 + Halation Radius, #92)" (c9a9fea; Firmware Version page "0.40.2-r1").
+- **The merge:** no text conflicts; one by meaning. speed-1 had folded `hl_lp` / `hl_sp` into Bloom's `hl_row` and
+  changed `HLA8` / `hl_x8` / `HLP`, while the radius pass (hradius.s `hr_pa`, `hr_row`) calls v0.40.2's. Kept both as
+  written: speed-1's versions renamed for Bloom (`HLA8S`, `hl_x8s`, `HLPS`), v0.40.2's `HLA8`, `hl_x8`, `hl_lp`, `HLP`,
+  `hl_sp` and `HR_WY` / `HR_DB` put back unchanged in ext12 for the radius pass. Nothing of ours added to their code.
+- **Checks asked for:** speed-1 touches neither the photo code's byte 63 nor the curves record's grain byte G (+25).
+  Byte 63: bits 0-1 are v0.28's split-tone half steps, bits 2-3 now the radius (`ex_rz`); the other `(63,..)` uses in
+  editor.s are the look records' '*' byte, another structure. G: 0x80 | size << 3 | strength (bits 0-2, 3-4, 7);
+  grain reads it masked (`and 7`, `lsr 3; and 3`), so bits 5-6 (the radius) were free. ext13 ends 0x60fbefc0, before
+  .ext14 at 0x60fc0000 (and in the same 4 KB page as speed-1). ext12 262,056 / 262,144 B; ext14 13,216 / 16,384 B.
+- **For cad's check:** their build raises the loader's end word 0x60fbf000 -> 0x6101d000 (the radius pass's static
+  work area HR_WRK 0x60fc4000 .. HR_END, inside the GX4-proven reserve to 0x6103f000): the camera's own start-up copy
+  is ~376 KB longer than v0.40.2's. No hook into the camera's code (hooks.json: Picture Mode table entries), nothing of
+  ours at start-up.
+- **om-emu:** Bloom (`hl_run` directly) 21 of 21 frames bit-exact, the two camera-sized ones in the same steps as
+  speed-1 (big5 85,719,260), every malloc'd block freed once. `emu_hr_check.py` (theirs): 76 of 76 exact (19 frames x
+  radius 0..3 through `hl_sel`), `--arg` 12 of 12, `--busy` 8 of 8 (falls back to Bloom), big5 at every radius exact.
+  Steps on big5 (Halation 5): Bloom 85.7 M, Tight 54.2 M, Medium 82.6 M, Wide 154.5 M (locks 1310 / 678 / 1033 /
+  2130).
+- **Ideas for their pass, not built (the owner's call; the same as speed-1 did for Bloom):** hr_run flushes after every
+  pass A group as Bloom did (speed-1 measured ~115 ms back on Bloom from this and the cached grids together; their grids
+  are already in a cached static work area); its rows go through v0.40.2's hl_lp / hl_sp (four calls a segment). Wide
+  is ~1.8x Bloom's work. LookLab doesn't know the radius yet (its preview stays Bloom).
+- **Full suite on the c9a9fea build: 120 of 120 pass** (exit 0; their `halation-radius-row-kept-with-grain` included).
+- Package `test-builds/2026-11-20-speed-radius/` (private): E1479999.BIN c6468b3f…9048, GUIDES.BIN 38a5d35a…f27e
+  (built from c9a9fea); go-back v0.40.2 da59432c…4d7b (the published file) + its GUIDES.BIN 5a5ff16e…9348. Camera test:
+  start-up, the row, the four radii on a lamp scene, speed-1's single shots and a burst, a burst at Wide, the log.
+- Still open with the owner, not built: Halation's pauses while a burst is held (speed-1's 4917 ms photo).
