@@ -9322,6 +9322,8 @@ gets COLOR 1's own 0 at the half-press, its standard modes A1; P: B5, its standa
 `color-gets-its-own-wb-shift-back-from-a-camera-mode`, `camera-mode-wb-shift-kept-over-a-power-off`,
 `camera-mode-wb-shift-not-known-without-a-good-record`, `custom-modes-keep-their-own-wb-shift`. Driver tokens `cdial:N`,
 `mbytes:ADDR:LEN`.
+Full suite on 358778b: 128 of 128 pass (exit 0). Package fix99-1: E1479999.BIN 9507c95c…f527, GUIDES.BIN
+c9fa1642…75eb (built twice, the same byte for byte); go-back fix91-1 6948ffdf…9323 / 958da094…d9ac.
 
 **Camera-only:** the real dial's centre position (om-emu's position 2 = family 898; the camera report of 2026-11-10
 named only CRT, ART, COLOR, MONO); live view's colour; photos; whether the camera keeps a fine-tune written at the 897
