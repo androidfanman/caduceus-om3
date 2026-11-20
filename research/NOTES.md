@@ -9191,3 +9191,68 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   v0.40.2. E1479999.BIN 306149fb…5b17; `patch.py --release v0.40.3-beta` rebuilds it byte for byte. r5 (ec78fdb9…5e41)
   differs only in the version name. Docs: CHANGELOG, README (test version line), releases/README, docs/USING.md (the
   Halation Radius row; playback shows a photo's own film).
+
+## #91: Film Grain with Low ISO Processing = Drive Priority, fix91-1 (2026-11-20; emulator + analysis, camera test pending)
+Branch `fix/91-drive-priority-grain` (from try/v0.40.3-beta ceb6d17), local.
+- **The report (camera-tested by the reporter fernandezk26 and the owner):** the camera switches itself off and stays off,
+  no photo, on the first photo of a **Sequential, JPEG-only** shot with **Film Grain on** at **ISO 1600 and below** when the
+  camera's **Low ISO Processing** is **Drive Priority**. Saves: ISO 2000+, Detail Priority, RAW+JPEG, Single. Halation not
+  needed, DEBUG.TXT changes nothing. Seen on v0.40.1, v0.40.2 and r5 (= v0.40.3-beta's firmware). The owner's repro
+  (private `issue-91/owner-repro-2026-11-20/`): COLOR 1 own settings, Film Grain 5 Coarse, JPEG only, ISO 1000, M; the
+  last log was written before the shot, the shut-down is never logged. Not known: v0.40 / v0.40-alpha / v0.30.3.
+- **Low ISO Processing in the firmware (om-emu measured unless marked):**
+  - Menu setting **1496** (menu table 0x6151a878 `{1496, string 4683 "Low ISO Processing"}`; values list 0x6151cb00:
+    **0 = Drive Priority** (string 3848), **1 = Detail Priority** (3849)); om-emu's default 0. The facade 0x603f0111 maps it
+    through 0x6062555c[1496] to **internal id 38993** (0x9851); its value byte is at 0x6295944e (getter trace).
+  - Who reads 38993 (static, then om-emu): the capture's settings snapshot 0x603e7aab -> **capture+38249**; and 0x605597ad
+    in 0x60559647 (at boot and from the menu, both its outcomes give 2: no effect seen). om-emu: no other lookup at boot,
+    half-press or menu. capture+38249 is read only by the choice below.
+  - **The per-photo choice 0x6055aa5c** (a0 = the request: +20 the capture, +186 its kind) -> **1 = Detail processing,
+    0 = Drive Priority's**. 1 when: kind 0x1003 / 0x1004 / 0x1013 (RAW+JPEG kinds? guess); 0x6055a36d / 0x6055a43f's
+    special cases; kind 0x100c with capture+38216 = 11 / 14; 0x6055a58e (capture+38216 = 19); **capture+38216 (the
+    sequence type, written at 0x603e8221..8381) = 0 (Single)**, 13, 15 or 21; capture+6140 = 13; or **capture+38249 = 1
+    (Detail Priority)**. Else 0. No ISO in it. om-emu, the function run natively on a fake request: sequence type 1 +
+    Drive -> 0, + Detail -> 1, Single -> 1 (about 360 instructions; the test below).
+  - Its two callers: **0x6054fffd** in 0x6054f8d2 -> the development parameters **+323**; each of the five request builders
+    (0x6055075e/784, 0x60557e89/eb1, 0x6055e590/5bc, 0x6055e872/8a1, 0x6055e9cf/9f7) calls the converter 0x6054f6bf
+    (0x60555e47, our xb_cap) first, then 0x6054f8d2. **0x60558041** in 0x60557f0e -> **capture+7482** (after 0x60557b8a ->
+    0x60557e57, the converter again). +323 is copied into the job's request templates (0x604b60e2 -> +184, 0x604b707d ->
+    +298, 0x604b750c -> +306) and read by seven pass set-ups (0x604c113a, 0x604c1c9d, 0x604c5b63, 0x604c848c, 0x604cc839,
+    0x604ccf2f, and the request helper 0x604ca3d5 of ~17 passes, Grainy Film's 0x604bc285 / 0x604bc5c7 among them), which
+    hand it to 0x6051ab95 with the ISO and other picks (analysis: the noise-reduction set-ups; a pass whose two picks are
+    0 is skipped). The ISO 1600 / 2000 edge is not in the choice, so it is in those tables (guess: at high ISO both
+    choices pick the same).
+  - **Why Drive Priority's processing + our grain takes the camera down: not found (analysis).** Our grain sends a COLOR
+    still down Grainy Film's work list (xb_wl) with the job key 11, so every pass is set up for COLOR; with the Drive
+    processing at low ISO some passes are set up differently. Every saving case on the camera is one where the choice is 1
+    (Single, Detail Priority; RAW+JPEG if 0x1003 / 0x1004 are its kinds) or where the picks are likely the same (ISO
+    2000+). om-emu takes no stills, so the shut-down cannot be reproduced there.
+- **fix91-1 (2950cc2): keep the grain, give such a photo the Detail processing.** Both call sites go through `fd_dec`
+  (ext11) behind section gates `fd_g1` / `fd_g2` (ext1, as mx_g: section 6's bit, else the stock call): the stock
+  choice, then 1 where it was 0 and the request's photo takes our grain texture (`fd_g`). `xb_cap` (code block) clears
+  `fd_g` for every request and sets it for a COLOR look whose slot has Grain (+53, the same stills xb_wl sends down
+  Grainy Film's list; the camera's own Art Filters never), and notes capture+38249 in `fd_lo`. So such a photo is
+  processed as with Detail Priority (what the camera itself does for Single); every other photo keeps the camera's
+  choice. Debug log, a new line after "Grain tiles": "#91 Low ISO Processing at the last photo: Drive Priority / Detail
+  Priority / none yet; grain photos given the Detail processing N (fd_n), Detail already M (fd_k)" (counts per request,
+  so a photo may count more than once).
+- **For cad's check:** new hooks **`hook_dp1` 0x6054fffd** (7 B, `call 0x6055aa5c,[d2,d3,a2,a3],40` -> `call
+  fd_g1,...`) and **`hook_dp2` 0x60558041** (5 B, the same call -> `jmp fd_g2`), stock bytes checked by build.py, added
+  to tools/test/hooks.json by hand (not --write-hooks). Both run only while a photo's requests are made: om-emu traced
+  from power-on (WBOOT) through half-presses and menus: 0 hits at both sites and at 0x6055aa5c. Nothing at start-up.
+  Space: ext1 1,592 / 1,744, ext11 65,440 / 65,536, ext13 81,856 / 81,920 (64 B left; the log call), loader end word
+  unchanged. **Behaviour that differs from v0.40.3-beta (the owner's call):** with Drive Priority, a Sequential photo
+  with our grain gets the Detail processing (noise reduction as Single / Detail Priority); bursts with grain may slow
+  down or fill the buffer sooner, as with Detail Priority (camera-only). Without grain nothing changes.
+- om-emu: new test `grain-photo-with-drive-priority-takes-detail` (the choice from both sites natively: Drive + grain 1,
+  Drive without grain 0, Detail 1, Single 1, registers / sp back, counters, the gate closed -> 0) passes;
+  `--without` the v0.40.3-beta build: **caught** (Drive + grain 0 at both sites). The shut-down is camera-only
+  (research/TESTING.md "Past regressions"). **Full suite on the 2950cc2 build: 123 of 123 pass** (exit 0); static
+  checks all pass. Builds of 2950cc2 twice, identical: E1479999.BIN 6948ffdf…9323, GUIDES.BIN 958da094…d9ac. Package
+  `test-builds/2026-11-20-fix91/` (private): TEST-STEPS (the owner's repro: Drive Priority, Sequential, JPEG only, ISO
+  1000, Film Grain 5), go-back v0.40.3-beta 306149fb…5b17 (`patch.py --release v0.40.3-beta` gives the same).
+- **If the camera still shuts off with fix91-1** (then the cause is not the processing choice): options for the owner,
+  not built: (1) no grain on those photos (Drive Priority + Sequential + JPEG only), the only sure stop; (2) a test of
+  v0.30.3 (the camera's own grain tile, the same route) and v0.40-alpha (the first with our tile) to see whether the
+  route or our tile does it. #50 (photos not saved with Film Grain in a Sequential burst, 2026-11-16, never reproduced
+  on the owner's camera, which is on Detail Priority) may be the same bug: its reporter's Low ISO Processing is not known.
