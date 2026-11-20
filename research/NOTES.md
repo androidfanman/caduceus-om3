@@ -9109,8 +9109,10 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   pass** (exit 0, pass recorded on 598a47c). Package `test-builds/2026-11-20-speed-radius-93/` (private), go-back v0.40.2.
 - Behaviour different from v0.40.2, for the owner: the Halation Radius row (rows below move down one); playback of a
   photo taken with no film shows "COLOR n"; the start-up copy is ~376 KB longer.
-- **r3 on the camera (owner's OM-3, 2026-11-20; E1479999.BIN cca13d25…9783): camera-tested, the owner's verdict to come
-  (via cad).** Log and photo list private: `test-builds/2026-11-20-speed-radius-93/camera-results/`. 57 photos, all
+- **r3 on the camera (owner's OM-3, 2026-11-20; E1479999.BIN cca13d25…9783): camera-tested.** #93 camera-tested: asked
+  "Did playback show FILM1 and FILM3 correctly?", the owner: "Yes, correct" (photo A, FILM 1, PB204573..575, and photo
+  B, FILM 3, PB204576, each showed its own film in playback). All photos saved, the radii recorded, both Wide bursts
+  complete. Log and photo list private: `test-builds/2026-11-20-speed-radius-93/camera-results/`. 57 photos, all
   saved, every photo code as set (decoded: byte 57 Halation, byte 63 bits 2-3 the radius): 8 singles on a lamp (FILM
   10, Halation 5) Bloom / Tight / Medium / Wide twice (PB204522..529; grain Off on the first four, level 3 on the
   rest); a Wide burst of 22, RAW+JPEG, drive [32], all within ~1 s (PB204530..551); a Wide burst of 21, JPEG only
