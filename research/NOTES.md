@@ -8979,3 +8979,38 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
 - **Camera-only:** the times; whether the capture task's stack is cached (the log line); bursts; #91 (a user's shutoff
   on the first photo with Grain 5 Medium + Halation 5, sequential, face / eye on; not reproduced on the owner's
   camera). speed-1 adds no memory: the grids' mallocs are 128 B larger, hl_run's context 576 B in mem1.
+- **Camera-tested (owner's OM-3, 2026-11-19; package 5cbe537a…1146): "Yes, faster".** Log (private:
+  `test-builds/2026-11-19-grain-halation-speed/camera-results/CADLOG.TXT`), build "v0.40.2-s1": 66 photos this
+  power-on, RAW+JPEG, FILM 10, nothing unusual. A 28-shot sequential burst (drive [11], 1/8000 f/1.8, PB194217..244):
+  all saved with grain and the halo (cad looked at PB194230). Grain tiles made 61, failed 0, last Coarse 336 ms.
+  Halation photos 39: last 594 ms (pass A 159, map 8, pass C 426; 1/15 f/1.8, a big glowing area), longest 4917 ms;
+  pauses for the camera 0 on the last photo. Stacks: Halation 62ED0C50, grain tile 62ED06E4.
+  - **Pass A 275 -> 159 ms, the map 54 -> 8 ms** (v0.40.2 on the lamp earlier tonight: 275 / 54; the estimate was ~160 /
+    ~6): the uncached heap grids and the FLUSH after every pass A group were the cost, as the fit said. Pass C 426 ms
+    was a different scene (larger glow) from v0.40.2's 268: no same-scene comparison yet.
+  - **The stack is cached (camera-tested):** 0x62ED.... is DRAM's cached view (0x60000000..0x77ffffff), so the capture
+    task's stack accesses are cheap, as the tile fit said (om-emu's 0xa21f.. sp is another task's). The two addresses
+    are 0x56c bytes apart in the same stack: the tile builder and hl_run most likely run in the same task (analysis).
+  - **The tile did not get faster:** Coarse 336 ms (v0.40.1 322, g6 348; v0.40.2 Coarse not timed on the camera). So
+    tg_bl's word stores (fewer stores, the same bytes) bought nothing measurable: the bus window's writes look limited
+    by bytes (~45 ns a byte), not by the number of stores. The same then holds for pass C's word stores (neutral; kept:
+    the same bytes, ~2 % more steps). Making the tile cheaper needs fewer bytes written (the 768-row tile, or keeping
+    it), both the owner's call. "made 61" for 66 photos: the burst built a tile for nearly every frame too.
+  - **The 4917 ms photo (analysis):** almost certainly the glow-shots-2 pauses during the held burst. `lg_pr` sets
+    `hl_hp` at a half-press and clears it at the release; a full press is no shutter event of ours, so while the
+    burst is held `hl_hp` stays 1 and every photo processed meanwhile sleeps after each lock group: a 20 MP photo
+    has ~486 pass A groups plus up to ~800 in pass C, so a glowing frame reaches the cap, HL_YMAX = 800 sleeps. One
+    sleep is `sdl_dly_tsk(1)`, at least one tick (1 ms, as the SDLOAD worker's 100-tick ~100 ms poll; not timed on
+    the OM-3), and it returns only when the camera's busier tasks give the CPU back. 4917 ms minus ~0.6-0.9 s of
+    work is ~4 s over at most 800 sleeps, so ~5 ms a pause: the burst's own work ran in each. A burst of 28 at ~6.5 a
+    second is ~4.3 s of holding, which fits. The same on v0.40.2 (the pause is unchanged since v0.40-beta3); its
+    45-shot burst was not in a log, and tonight's v0.40.2 log (7 photos, longest 891) had no burst.
+  - **Is the pause useful while a burst is held? (analysis):** it was made for Single with S-AF, where the next press
+    waits for the camera's AF / live view on the CPU our pass holds. A held burst fires on the camera's own clock;
+    both bursts with the pause on (v0.40.2 45 shots, speed-1 28 shots) saved every frame, and there is no camera run
+    without it to compare. What it costs there: each paused photo stays in the camera's memory up to ~4 s longer
+    before it is encoded and saved (the buffer fills sooner in a long burst), and a pass of ~5 s runs in the capture
+    task. With face / eye detection on, the CPU is busier and each pause longer (guess: worth keeping in mind for #91,
+    a shutoff on the first photo of a sequential burst with Halation and face / eye on; the E-P7 has a 10 s watchdog
+    on long passes, the OM-3's is not known). Options, not built (the owner's call: behaviour that differs from the
+    release): pause only in Single drive; or cap the pauses by time (e.g. ~0.3 s a photo) instead of 800 sleeps.
