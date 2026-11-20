@@ -2670,7 +2670,9 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set ST_RZT, 0x7f6c               /* Halation Radius: "Halation Radius", ST_RZ0 + r "Halation Radius: Bloom" .. "...: Wide", */
 .set ST_RZ0, 0x7f6d               /* ST_RZS + r the strip's "Bloom" / "Tight" / "Med" / "Wide" (rz_strs; after crop's */
 .set ST_RZS, 0x7f71               /* CR_ST0 0x7f68..0x7f6a) */
-.set IC_RZ0, 0x7f79               /* Halation Radius: "Radius" over Bloom / Tight / Med / Wide (mkicons PICTURES[15..18], ic_ent 15..18) */
+.set IC_RZ0, 0x7f79               /* Halation Radius: its left cells Bloom / Tight / Med / Wide (mkicons PICTURES[15..18], ic_ent 15..18) */
+.set IC_RZS, 0x7fc8               /* r4: its strip cells (mkicons PICTURES[19..22], ic_ent 19..22; 0x7fc4..0x7fcf were free: after
+                                   * IC_FL0 + NF, before DG0) */
 .set RG_IT, 5378                  /* rgb-curves: the RGB curves row (the H&S row's cases; rgbcurves.inc) */
 .set MX_IT, 5377                  /* colour mix: the Mix row (the H&S row's cases too; colourmix.inc) */
 .set TBB, 0x7ee0                  /* its bar ids + k (row 14) */
@@ -4363,6 +4365,88 @@ rv_chk:
 /* ic_get <- jmp from the picture lookup 0x610f5611 (`call ..,[],0`, d0 picture id -> a0 = its slot: a word holding
  * the picture's descriptor; 0 for id 0): our ids IC_BK .. IC_END - 1 -> their word in ic_ent, else as stock
  * ((0x60379740) + 4 id). */
+/* r4 (2026-11-20, debug log only): hl_xrec `call hl_xrec,[d2,d3],12` from hl_tk(3): when this Halation photo (tv0 -
+ * tv3) is the longest yet, its parts and pauses -> hl_xt .. hl_xym. lg_hlx `call lg_hlx,[d2,d3,a2,a3],20` from lg_sum:
+ * "; Halation's longest photo T (pass A a, map b, pass C c, pauses for the camera n (s ms)); longest single pause P ms"
+ * (hl_ysx, from hl_yld). After speed-1's 4388 ms photo, whose parts the log did not keep. */
+hl_xrec:
+ mov (hl_tv),d0
+ mov (hl_tv + 12),d1
+ sub d1,d0
+ call lg_ums,[],0
+ mov (hl_xt),d1
+ cmp d1,d0
+ bls 9f
+ mov d0,(hl_xt)
+ mov (hl_ma),d0
+ mov d0,(hl_xa)
+ mov (hl_mb),d0
+ mov d0,(hl_xb)
+ mov (hl_mc),d0
+ mov d0,(hl_xc)
+ mov (hl_lyn),d0
+ mov d0,(hl_xyn)
+ mov (hl_lym),d0
+ mov d0,(hl_xym)
+9:
+ ret [d2,d3],12
+lg_hlx:
+ mov hx_t1,a0
+ call lg_s,[],0
+ mov (hl_xt),d0
+ call lg_d,[d2,d3],12
+ mov hx_t2,a0
+ call lg_s,[],0
+ mov (hl_xa),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t2,a0
+ call lg_s,[],0
+ mov (hl_xb),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t3,a0
+ call lg_s,[],0
+ mov (hl_xc),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t4,a0
+ call lg_s,[],0
+ mov (hl_xyn),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t6,a0
+ call lg_s,[],0
+ mov (hl_xym),d0
+ call lg_d,[d2,d3],12
+ mov hx_t3,a0
+ call lg_s,[],0
+ mov (hl_ysx),d0
+ call lg_ums,[],0
+ call lg_d,[d2,d3],12
+ mov hx_t4,a0
+ call lg_s,[],0
+ ret [d2,d3,a2,a3],20
+ .balign 4
+hl_xt:                            /* the longest Halation photo this power-on (ms), its parts (ms), sleeps and their ms */
+ .long 0
+hl_xa:
+ .long 0
+hl_xb:
+ .long 0
+hl_xc:
+ .long 0
+hl_xyn:
+ .long 0
+hl_xym:
+ .long 0
+hl_ysx:                           /* the longest single sleep (us) */
+ .long 0
+hx_t1:
+ .asciz "; Halation's longest photo "
+hx_t2:
+ .asciz " (pass A "
+hx_t3:
+ .asciz " ms)); longest single pause "
+hx_t4:
+ .asciz " ms"
+ .balign 2
 ic_get:
  mov d0,d1
  exthu d1
@@ -4469,6 +4553,16 @@ ic_get:
  add d1,a0
  retf [],0
 24:
+ cmp IC_RZS,d1                    /* r4: the Halation Radius strip cells IC_RZS .. + 3 -> ic_ent 19..22 */
+ bcs 25f
+ cmp IC_RZS + 4,d1
+ bcc 25f
+ add 19 - IC_RZS,d1
+ asl2 d1
+ mov ic_ent,a0
+ add d1,a0
+ retf [],0
+25:
  cmp IC_BK,d1
  bcs ic_stk
  cmp IC_END,d1
@@ -5472,6 +5566,7 @@ ic_ent:                           /* the slot word of each of our pictures, in f
  .long ic_d0, ic_d1, ic_d2, ic_d3, ic_d4, ic_d5, ic_d6, ic_d7, ic_d8, ic_d9, ic_d10, ic_d11, ic_d12, ic_d13
  .long ic_d14                     /* g2: id IC_GR (ic_get) */
  .long ic_d15, ic_d16, ic_d17, ic_d18   /* Halation Radius: ids IC_RZ0 .. + 3 */
+ .long ic_d19, ic_d20, ic_d21, ic_d22   /* r4: its strip, ids IC_RZS .. + 3 */
 /* descriptors <6H3I> as the stock pictures': format 14, w, h, 8, 0, 0, size, payload, flags; build.py fills w, h,
  * size and payload (the streams from firmware/mkicons.py, packed into ic_pay, by their uncached address 0xa...) */
  .macro ICD n
@@ -5498,6 +5593,10 @@ ic_d\n:
  ICD 16
  ICD 17
  ICD 18
+ ICD 19
+ ICD 20
+ ICD 21
+ ICD 22
 .balign 8
 /* ------------------------------------------------------------------ v0.28 film WB (w3)
  * Owner: a film (and each COLOR's own settings) remembers the camera's WB last used with it, as its HSL does; one
@@ -12285,6 +12384,11 @@ pt_mx:                            /* the longest (us) */
  *   - hl_tk: the times of pass A (reading the frame), the map (blur, curve) and pass C (drawing) for the log.
  * The picture is the same byte for byte (only when the pass runs changes). research/NOTES.md, "glow-shots-2". */
  .set HL_YUS, 300000              /* r1: the photo's sleeps stop once they add up to 0.3 s (us, hl_yus) */
+ .balign 8
+rz_pay2:                          /* r4: the Halation Radius strip cells that rz_pay (.ext14) has no room for (build.py) */
+ .space 3776
+rz_pend2:
+ .balign 2
 /* hl_ga (speed-1, 2026-11-19): `call hl_ga,[d2],8`, d0 = bytes -> a0 = a 64-byte aligned buffer of at least that many
  * bytes, through its cached alias, or 0. malloc gives the uncached heap (0xa...; every access ~50 ns on the camera):
  * hl_run's grids are now used through the cached alias, as tg_fill's work buffer. The buffer is malloc(d0 + HL_GA)
@@ -12345,6 +12449,10 @@ hl_ydl:                           /* the sleep (tests stop here) */
  mov (hl_yus),d0
  add d2,d0
  mov d0,(hl_yus)
+ mov (hl_ysx),d0                  /* r4: the longest single sleep this power-on (us, debug log) */
+ cmp d0,d2
+ bls 9f
+ mov d2,(hl_ysx)
 9:
  ret [d2,d3,a2,a3],20
 
@@ -12418,6 +12526,7 @@ hl_tk:
  mov (hl_tn),d0
  inc d0
  mov d0,(hl_tn)
+ call hl_xrec,[d2,d3],12          /* r4: the longest photo's parts and pauses (debug log) */
 9:
  ret [d2,d3],12
  .balign 4
@@ -13405,6 +13514,7 @@ lg_sum:
  LGS sp1_t2
  mov (tg_spv),d0
  call lg_h,[],0
+ call lg_hlx,[d2,d3,a2,a3],20     /* r4: Halation's longest photo and longest single pause */
  LGS lg_y0                        /* now: mode, exposure, WB, picture, screen */
  call lg_new,[],0
  movbu (14,a3),d0

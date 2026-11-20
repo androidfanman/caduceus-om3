@@ -25,16 +25,18 @@ rz_l0:                            /* the title with its value */
  OPT 1, 4, ST_RZ0 + 1
  OPT 2, 4, ST_RZ0 + 2
  OPT 3, 4, ST_RZ0 + 3
-rz_l1:                            /* the left column: "Radius" over Bloom / Tight / Med / Wide (mkicons PICTURES[15..18]) */
+rz_l1:                            /* the left column: Bloom / Tight / Med / Wide (mkicons PICTURES[15..18]; r4: pictures as the
+                                     Grain Size row's, 82 x 62) */
  OPT 0, 3, IC_RZ0
  OPT 1, 3, IC_RZ0 + 1
  OPT 2, 3, IC_RZ0 + 2
  OPT 3, 3, IC_RZ0 + 3
-rz_l2:                            /* the strip: words in the camera's font */
- OPT 0, 4, ST_RZS
- OPT 1, 4, ST_RZS + 1
- OPT 2, 4, ST_RZS + 2
- OPT 3, 4, ST_RZS + 3
+rz_l2:                            /* the strip: r4, pictures (mkicons PICTURES[19..22], 100 x 76, as Grain Size's strip; were the
+                                     words ST_RZS + r in the camera's font) */
+ OPT 0, 3, IC_RZS
+ OPT 1, 3, IC_RZS + 1
+ OPT 2, 3, IC_RZS + 2
+ OPT 3, 3, IC_RZS + 3
 rz_strs:
  .long rzt_str, rz0_str, rz1_str, rz2_str, rz3_str, rzs0_str, rzs1_str, rzs2_str, rzs3_str
  .balign 2
@@ -241,7 +243,7 @@ lg_rzw:
  .balign 4
 
  .balign 8
-rz_pay:                           /* the row's four left cells (mkicons PICTURES[15..18]; build.py packs them here: ic_pay in
-                                     .ext13 had no room for them) */
- .space 8160
+rz_pay:                           /* the row's four left cells and the first strip cells (mkicons PICTURES[15..]; build.py packs
+                                     them here, then into rz_pay2 in .ext13: ic_pay had no room for them) */
+ .space 11008
 rz_pend:

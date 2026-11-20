@@ -560,15 +560,18 @@ def build(defaults, testfile, out):
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons
     pics = mkicons.streams()
-    assert len(pics) == 19 and sy['IC_END'] - sy['IC_BK'] == 14 and sy['ic_pay'] % 8 == 0 and sy['IC_RZ0'] == sy['IC_GR'] + 1   # g2: + the Film Grain icon (id IC_GR); Halation Radius: + 4 cells (IC_RZ0..)
+    assert len(pics) == 23 and sy['IC_END'] - sy['IC_BK'] == 14 and sy['ic_pay'] % 8 == 0 and sy['IC_RZ0'] == sy['IC_GR'] + 1   # g2: + the Film Grain icon (id IC_GR); Halation Radius: + 4 cells (IC_RZ0..); r4: + 4 strip cells (IC_RZS..)
     # film test 7: the Color row (item 5397) cell picture list {u16 type 3, u16 id, ptr} at 0x6154be9c: "Color / Vivid"
     # 11389 -> our "HSL"
     assert struct.unpack_from('<HH', m, o(0x6154be9c)) == (3, 11389)
     struct.pack_into('<H', m, o(0x6154be9c) + 2, sy['IC_HSL'])
     at, end = sy['ic_pay'], sy['ic_pend']
+    more = [(sy['rz_pay2'], sy['rz_pend2'])]    # r4: where the Halation Radius cells go once rz_pay is full
     for k, (w, h, st) in enumerate(pics):
-        if k == 15:                              # Halation Radius: its four cells in .ext14 (rz_pay)
+        if k == 15:                              # Halation Radius: its cells in .ext14 (rz_pay), then .ext13 (rz_pay2)
             at, end = sy['rz_pay'], sy['rz_pend']
+        if k > 15 and at + len(st) > end and more:
+            at, end = more.pop(0)
         assert at % 8 == 0 and at + len(st) <= end, (k, len(st))
         m[o(at):o(at) + len(st)] = st
         d = sy['ic_d%d' % k]

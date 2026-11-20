@@ -709,7 +709,8 @@ def log_written_off_the_shutter_task(hits):
 SHOT_TIMING_LINE = (r'^Shot timing \(ms\): our code at shutter events last \d+, longest \d+ \(event \d+\); '
                     r'log file writes last \d+, longest \d+; photos with our passes \(Halation, Border, CPU grain\) '
                     r'0, last 0, longest 0; Halation\'s last photo: pass A 0, map 0, pass C 0, pauses for the camera 0 '
-                    r'\(0 ms\); stacks at Halation [0-9A-Fa-f]{8}, grain tile [0-9A-Fa-f]{8}$')
+                    r'\(0 ms\); stacks at Halation [0-9A-Fa-f]{8}, grain tile [0-9A-Fa-f]{8}; Halation\'s longest photo 0 '
+                    r'\(pass A 0, map 0, pass C 0, pauses for the camera 0 \(0 ms\)\); longest single pause 0 ms$')
 SHOT_TIMING = ('lg_write', 'lg_ptm', 'lg_wkw', 'lg_ums')
 
 
@@ -2444,9 +2445,51 @@ def run_pbfilm(emu, build, out, card0):
     return PBFILM, errors
 
 
+
+# r4 (2026-11-20, owner: "Yes, build them"): the Halation Radius row's pictures. ic_get called directly for the left
+# cells IC_RZ0 .. + 3 and the strip cells IC_RZS .. + 3 must answer ic_ent 15..22, whose descriptors hold mkicons'
+# pictures (82 x 62 left, 100 x 76 strip, as the camera's Grain Size pictures) byte for byte. The row's own behaviour:
+# halation-radius-row-kept-with-grain.
+HLRZPICS = 'halation-radius-pictures-as-drawn'
+
+
+def run_hlrzpics(emu, build, out, card0):
+    d = out / HLRZPICS
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    pics = mkicons.streams()
+    ids = [(sym['IC_RZ0'] + k, 15 + k) for k in range(4)] + [(sym['IC_RZS'] + k, 19 + k) for k in range(4)]
+    spec = []
+    for pid, k in ids:
+        ent = sym['ic_ent'] + 4 * k
+        spec.append({'name': f'id-{pid:#x}', 'pc': 'B', 'stop': ['B+7'], 'max': 2000,
+                     'mem': [['B', 'dd'], ['B+1', f"={sym['ic_get']:#x}-B"], ['B+5', '0000']],    # call ic_get,[],0
+                     'regs': {'d0': hex(pid)},
+                     'read': [[f'W({ent:#x})', 24], [f'W(W({ent:#x})+16)', len(pics[k][2])]]})
+    res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return HLRZPICS, [res]
+    errors = []
+    for (pid, k), cs in zip(ids, spec):
+        r = res[cs['name']]
+        w, h, st = pics[k]
+        if r['steps'] >= 2000:
+            errors.append(f'{cs["name"]}: ic_get did not return (out.json)')
+            continue
+        if int(r['regs']['a0'], 16) != sym['ic_ent'] + 4 * k:
+            errors.append(f"{cs['name']}: ic_get gave {r['regs']['a0']}, not ic_ent entry {k}")
+        desc = bytes.fromhex(r['mem'][0])
+        fmt, dw, dh = struct.unpack_from('<3H', desc)
+        size = struct.unpack_from('<I', desc, 12)[0]
+        if (fmt, dw, dh, size) != (14, w, h, len(st)):
+            errors.append(f"{cs['name']}: descriptor {fmt} {dw} x {dh}, {size} B, not 14 {w} x {h}, {len(st)} B")
+        elif r['mem'][1] != st.hex():
+            errors.append(f"{cs['name']}: the picture's bytes differ from mkicons' (out.json)")
+    return HLRZPICS, errors
+
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
-          PBFILM: run_pbfilm}
+          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics}
 
 
 def newest_looks():
