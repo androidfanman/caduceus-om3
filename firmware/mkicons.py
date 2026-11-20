@@ -26,6 +26,8 @@ PICTURES = [
     ([('Glow', 20, 33)], W, H),    # v0.25: the Glow (+) / Clarity (-) slider's icon (owner: named for the + side)
     ([('Halo', 20, 33)], W, H), ([('Bal', 20, 33)], W, H),  # v0.28: the Halation and Tone Balance sliders' icons (Frame Off / On's places)
     ([('Grain', 20, 33)], W, H),   # better grain g2 (id 0x7f78): the Film Grain strength slider's icon (grain_icon)
+    ([('Radius', 15, 30), ('Bloom', 18, 60)], CW, CH), ([('Radius', 15, 30), ('Tight', 18, 60)], CW, CH),
+    ([('Radius', 15, 30), ('Med', 18, 60)], CW, CH), ([('Radius', 15, 30), ('Wide', 18, 60)], CW, CH),  # Halation Radius (ids 0x7f79..): its row's left cells, as "Noise" over its value
 ]
 STYLE = {10: (0.88, (0.20, 0.40, 0.60))}   # width, coverage thresholds (as the FILM cells, matched to the stock lettering)
 

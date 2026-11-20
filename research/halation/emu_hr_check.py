@@ -5,6 +5,7 @@
     emu_hr_check.py BUILD_DIR OUT_DIR [--only NAME ...] [--radii 0 1 2 3] [--big] [--jobs N]
 
 --own R: a fixed-radius test build (hr_rad not poked), expected radius R.
+--arg: the radius passed as the capture passes it (strength | radius << 8, hr_rad 0), not poked into hr_rad.
 --busy: another pass holds the work area, so every radius must fall back to Bloom.
 BUILD_DIR: a build of this branch (main.bin, p.elf). Needs OM3_EMU / OM3_CARD. Exit 0 when every case is exact."""
 import argparse, concurrent.futures, json, os, pathlib, subprocess, sys
@@ -30,6 +31,7 @@ def main():
     ap.add_argument('--big', action='store_true'); ap.add_argument('--jobs', type=int, default=3)
     ap.add_argument('--busy', action='store_true', help='hr_busy set: every radius must give Bloom (the fallback)')
     ap.add_argument('--own', type=int, help="a fixed-radius test build: hr_rad left as the build has it, expected this radius")
+    ap.add_argument('--arg', action='store_true', help='radius in the strength word (bits 8..9), as xb_gs passes it; hr_rad 0')
     a = ap.parse_args()
     if a.own is not None:
         a.radii = [a.own]
@@ -48,8 +50,8 @@ def main():
             k = f'{n}.r{r}'
             expect[k] = (e.tobytes(), st)
             cases.append({'name': k, 'in': str(out / f'{n}.in'), 'out': str(out / f'{k}.out'), 'W': W, 'H': H,
-                          'pitch': pitch, 'level': level,
-                          'pokes': ([] if a.own is not None else [[sy['hr_rad'], f'{r:02x}']]) + [[sy['hr_busy'], '01' if a.busy else '00']]})
+                          'pitch': pitch, 'level': level | (r << 8 if a.arg else 0),
+                          'pokes': ([] if a.own is not None else [[sy['hr_rad'], '00' if a.arg else f'{r:02x}']]) + [[sy['hr_busy'], '01' if a.busy else '00']]})
     def run(group):
         spec = out / f'spec-{group[0]["name"]}.json'; res = out / f'res-{group[0]["name"]}.json'
         spec.write_text(json.dumps({'hl_run': sy['hl_sel'], 'flush': 0x60070e69, 'lock': 0x60075f73,
@@ -73,7 +75,7 @@ def main():
         ok = o['done'] and o['regsBack'] and o['guard'] and diff.size == 0
         bad += not ok
         where = '' if not diff.size else f' first at row {diff[0] // cs["pitch"]} byte {diff[0] % cs["pitch"]}'
-        print(f'{"exact" if ok else "DIFF":6}{cs["name"]:<16} {cs["W"]}x{cs["H"]} L{cs["level"]} {st:<4} steps {o["steps"]:>12,} '
+        print(f'{"exact" if ok else "DIFF":6}{cs["name"]:<16} {cs["W"]}x{cs["H"]} L{cs["level"] & 255} {st:<4} steps {o["steps"]:>12,} '
               f'locks {o["locks"]:>5} maxlock {o["maxLock"]:>8,}' + ('' if ok else f'  [{diff.size} bytes differ{where}; '
               f'done {o["done"]} regs {o["regsBack"]} guard {o["guard"]}]'), flush=True)
         (out / f'{cs["name"]}.out').unlink()

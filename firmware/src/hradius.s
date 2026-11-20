@@ -33,9 +33,17 @@
  .set HR_END, HR_LIST + 4096
  .set HR_GAIN, 66                 /* Medium's edge glow matched to Bloom's (research tune_one.py) */
 
-/* hl_sel: `call hl_sel,[d2,d3,a2,a3],124`, as hl_run (a0 = buffer record, d0 = strength): by hr_rad. */
+/* hl_sel: `call hl_sel,[d2,d3,a2,a3],124`, as hl_run (a0 = buffer record), d0 = strength | radius << 8 (the
+ * capture passes each COLOR's Halation Radius, rz_eff). Radius 0 there: hr_rad's (0 in a release; the emulator checks
+ * and the fixed-radius test builds set it); still 0: v0.40's hl_run with the strength alone. */
  .globl hl_sel
 hl_sel:
+ mov d0,d1
+ lsr 8,d1
+ and 3,d1
+ and 0xff,d0
+ cmp 0,d1
+ bne 1f
  movbu (hr_rad),d1
  cmp 0,d1
  bne 1f
@@ -43,9 +51,15 @@ hl_sel:
 1:
  jmp hr_run
 
+/* hr_run: as hl_sel's frame, a0 = record, d0 = strength 1..5, d1 = radius 1..3. Nothing global is written before
+ * the work area is ours (hr_busy): a second pass at the same moment leaves the first one's hr_lv / hr_d / grid sizes
+ * alone and takes Bloom. (104,sp) = strength | radius << 8 until then (98 reads it). */
 hr_run:
  mov a0,(4,sp)
- mov d0,(hr_lv)
+ mov d1,d2
+ asl 8,d2
+ or d0,d2
+ mov d2,(104,sp)
  cmp 1,d0
  bcs 99f
  cmp 5,d0
@@ -96,7 +110,23 @@ hr_run:
  mov d0,(72,sp)
  cmp HR_MAXC,d0
  bhi 98f                          /* too many cells for the work area: Bloom */
- mov (12,sp),d0                   /* Bloom's 64 px grid */
+ mov (12,sp),d0                   /* Bloom's 64 px grid: GW6 x GH6 within HR_MAXC6 */
+ add 63,d0
+ lsr 6,d0
+ mov (16,sp),d1
+ add 63,d1
+ lsr 6,d1
+ mul d1,d0
+ cmp HR_MAXC6,d0
+ bhi 98f
+ mov hr_busy + 0x40000000,a0      /* the work area (and hr_run's globals): one pass at a time */
+ mov 1,d0
+ bset d0,(a0)
+ bne 98f
+ mov (104,sp),d0
+ and 0xff,d0
+ mov d0,(hr_lv)
+ mov (12,sp),d0
  add 63,d0
  lsr 6,d0
  mov d0,(hr_gw6)
@@ -106,17 +136,12 @@ hr_run:
  mov d1,(hr_gh6)
  mul d1,d0
  mov d0,(hr_c6)
- cmp HR_MAXC6,d0
- bhi 98f
  asl 16,d1
  mov (hr_gw6),d0
  or d0,d1
  mov d1,(hr_d6)                   /* GW6 | GH6 << 16 */
- mov hr_busy + 0x40000000,a0      /* the work area: one pass at a time */
- mov 1,d0
- bset d0,(a0)
- bne 98f
- movbu (hr_rad),d0                /* D for the radius (1..3; anything else: Medium) */
+ mov (104,sp),d0                  /* D for the radius (1..3; anything else: Medium) */
+ lsr 8,d0
  cmp 4,d0
  bcs 1f
  mov 2,d0
@@ -693,9 +718,10 @@ hr_run:
  movbu d0,(a0)
 99:
  ret [d2,d3,a2,a3],124
-98:                               /* Bloom for this photo */
+98:                               /* Bloom for this photo (the work area is not ours: nothing global written) */
  mov (4,sp),a0
- mov (hr_lv),d0
+ mov (104,sp),d0
+ and 0xff,d0
  jmp hl_run
 
 /* hr_pa: `call hr_pa,[d2,d3,a2,a3],24`, a0 = the row's first pair, d0 = pairs, a2 / a3 = this row's Ef / Qf cells

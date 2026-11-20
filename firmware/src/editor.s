@@ -2697,7 +2697,7 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * the colour wheel), tone (Contrast, Highlight & Shadow, Blacks, Whites), white balance
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
- .long 111, MX_IT, RG_IT, 5397, TB_IT, AB_IT, 5398, BK_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, GS_IT, SZ_IT, FR_IT   /* better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
+ .long 111, MX_IT, RG_IT, 5397, TB_IT, AB_IT, 5398, BK_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 
@@ -2741,6 +2741,12 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set SZ_IT, 5387                  /* g2: the Grain Size choice row (class 16: 0 Fine, 1 Medium, 2 Coarse) */
 .set GSB, 0x7e90                  /* g2: their bar ids + k (row 9: the films' FLB rows end at 0x7e83) */
 .set SZB, 0x7e98
+.set RZ_IT, 5376                  /* Halation Radius: the choice row (class 17: 0 Bloom, 1 Tight, 2 Medium, 3 Wide; hrrow.s) */
+.set RZB, 0x7ed8                  /* its bar ids + k (row 13, after Halation's HLB + 0..3; fl_isdef sends them to rz_def) */
+.set ST_RZT, 0x7f6c               /* Halation Radius: "Halation Radius", ST_RZ0 + r "Halation Radius: Bloom" .. "...: Wide", */
+.set ST_RZ0, 0x7f6d               /* ST_RZS + r the strip's "Bloom" / "Tight" / "Med" / "Wide" (rz_strs; after crop's */
+.set ST_RZS, 0x7f71               /* CR_ST0 0x7f68..0x7f6a) */
+.set IC_RZ0, 0x7f79               /* Halation Radius: "Radius" over Bloom / Tight / Med / Wide (mkicons PICTURES[15..18], ic_ent 15..18) */
 .set RG_IT, 5378                  /* rgb-curves: the RGB curves row (the H&S row's cases; rgbcurves.inc) */
 .set MX_IT, 5377                  /* colour mix: the Mix row (the H&S row's cases too; colourmix.inc) */
 .set TBB, 0x7ee0                  /* its bar ids + k (row 14) */
@@ -2854,6 +2860,7 @@ gs_tab:                           /* g2 */
  .long 54, GSB, 55, GSB + 1, 56, GSB + 2, 64, GSB + 3
 sz_tab:
  .long 54, SZB, 55, SZB + 1, 56, SZB + 2, 64, SZB + 3
+.section .ext14,"ax"               /* Halation Radius: the row switches and the item table moved out of the full .ext11 */
 .balign 8
 sw11_tab:                         /* the row switches 0x615511cc and 0x6155134c (16 entries, full with our rows) */
  .space 32 * 8                    /* re-hashed by build.py into 32 entries */
@@ -2876,6 +2883,8 @@ it_tab:                           /* the stock 17 item entries (filled by build.
  .long SZ_IT, sz_title, sz_l0, 3, 0, sz_l1, 3, 0, sz_l2, 3    /* g2: a choice row as Noise Filter */
  .long RG_IT, 0, 0, 0, 0x6154bd18, 0x1b, 0, 0, 0, 0             /* rgb-curves: as H&S's entry (item 5398) */
  .long MX_IT, 0, 0, 0, 0x6154bd18, 0x1b, 0, 0, 0, 0             /* colour mix: the same */
+ .long RZ_IT, rz_title, rz_l0, 4, 0, rz_l1, 4, 0, rz_l2, 4    /* Halation Radius: a choice row as Grain Size (hrrow.s) */
+.section .ext11,"ax"
 bk_title:
  .short 4, ST_BKS
  .long 0x6154b480
@@ -3052,15 +3061,25 @@ gr_lc:
  bra 9f
 13:
  cmp SZ_IT,d0                     /* g2 Grain Size */
- bne 9f
+ bne 14f
  mov sz_tab,a3
  mov 4,d2
 9:
  jmp lc_back                      /* 0x611d19b4: cmp 0,a3 */
+14:
+ cmp RZ_IT,d0                     /* Halation Radius (hrrow.s) */
+ bne 9b
+ jmp rz_lc
 
 /* st_get <- jmp from the string getter 0x610f56a6 (its frame: `call ..,[d2],8`; d0 id -> a0 the UTF-16 string):
  * our own strings, else as stock (language index 0x610f56bd, then the table lookup at 0x610f56ac). */
 st_get:
+ cmp ST_RZT,d0                    /* Halation Radius: its strings (hrrow.s rz_str) */
+ bcs 48f
+ cmp ST_RZS + 4,d0
+ bcc 48f
+ jmp rz_str
+48:
  cmp ST_GZT,d0                    /* g2: "Grain Size" .. "Coarse" (gs_strs) */
  bcs 50f
  cmp ST_CRS + 1,d0
@@ -3279,6 +3298,7 @@ lc_bw:
  bra 1f
 lc_sz:                            /* g2 Grain Size */
  mov SZ_IT,d2
+lc_go:                            /* Halation Radius: lc_rz (hrrow.s) joins here */
 1:
  mov (20,sp),a3
  mov 1,d0
@@ -3377,6 +3397,11 @@ sl_slot:
  add -SZB,d2
  cmp 4,d2
  bcs 2f
+ mov 17,d1                        /* Halation Radius */
+ mov d3,d2
+ add -RZB,d2
+ cmp 4,d2
+ bcs 2f
  mov 1,d1
  cmp 7,d3
  beq 1f
@@ -3416,6 +3441,9 @@ sl_slot:
  mov 16,d1
  cmp SZ_IT,d3
  beq 1f
+ mov 17,d1                        /* Halation Radius */
+ cmp RZ_IT,d3
+ beq 1f
  mov 13,d1                        /* v0.28 Tone Balance */
  cmp TB_IT,d3
  bne 8f
@@ -3451,6 +3479,11 @@ sl_slot:
 
 /* sl_val: d1 class, a0 slot -> d0 the row's value (Sharp -5..+2, Grain 0..3, NR -2..+1, VigFix -1..0). */
  .macro SL_VAL
+ cmp 17,d1                        /* Halation Radius 0..3 (rz_eff: the curves record's spare byte, bits 5..6) */
+ bne 79f
+ call rz_eff,[d2,d3,a2],16        /* keeps a3 */
+ bra 99f
+79:
  cmp 15,d1                        /* g2: Film Grain strength 0..5 / Grain Size 0..2 (gs_eff: the slot's level and the
                                      curves record's spare byte) */
  bcs 80f
@@ -3734,6 +3767,12 @@ sl_gb:
  exthu d2
  add -SZB,d2
  cmp 4,d2
+ bcs 90f
+ mov 17,a3                        /* Halation Radius */
+ mov d0,d2
+ exthu d2
+ add -RZB,d2
+ cmp 4,d2
  bcc \miss
 90:
  .if \p
@@ -3770,6 +3809,9 @@ sl_cnt:
  beq 6f
  mov 3,d0                         /* g2: 16 Grain Size Fine / Medium / Coarse */
  cmp 16,a3
+ beq 6f
+ mov 4,d0                         /* 17 Halation Radius Bloom / Tight / Medium / Wide */
+ cmp 17,a3
  beq 6f
  mov 11,d0                        /* v0.28: 13 Tone Balance -5..+5 */
  cmp 13,a3
@@ -3817,6 +3859,9 @@ sl_cnt:
  beq 99f
  mov 3,d1                         /* g2: 16 Grain Size 0, 3 */
  cmp 16,a3
+ beq 99f
+ mov 4,d1                         /* 17 Halation Radius 0, 4 */
+ cmp 17,a3
  beq 99f
  mov -5,d0                        /* v0.28: 13 Tone Balance -5, 11 */
  mov 11,d1
@@ -4024,11 +4069,17 @@ sl_set0:
  beq 7f
  cmp 14,a3                        /* v0.28 Blacks / Whites grid row: nothing either */
  beq 7f
+ cmp 17,a3                        /* Halation Radius -> rz_row (hrrow.s) */
+ bne 40f
+ call rz_row,[d2,d3,a2,a3],40     /* keeps d0, a0, a1, a2 -> d1 0 stored */
+ bra 42f
+40:
  cmp 15,a3                        /* g2 Film Grain strength / Grain Size -> gs_row */
  bcs 41f
  cmp 17,a3
  bcc 41f
  call gs_row,[d2,d3,a2,a3],40     /* keeps d0, a0, a1, a2 -> d1 0 stored */
+42:
  cmp 0,d1
  bne 7f
  jmp s_dirty
@@ -4483,9 +4534,9 @@ ic_get:
  add d1,a0
  retf [],0
 20:
- cmp IC_GR,d1                     /* g2: IC_GR -> ic_ent entry 14 */
+ cmp IC_GR,d1                     /* g2: IC_GR -> ic_ent entry 14; Halation Radius: IC_RZ0 .. + 3 -> 15..18 */
  bcs 24f
- cmp IC_GR + 1,d1
+ cmp IC_RZ0 + 4,d1
  bcc 24f
  add 14 - IC_GR,d1
  asl2 d1
@@ -5479,6 +5530,7 @@ ic_lend:
 ic_ent:                           /* the slot word of each of our pictures, in firmware/mkicons.py PICTURES order */
  .long ic_d0, ic_d1, ic_d2, ic_d3, ic_d4, ic_d5, ic_d6, ic_d7, ic_d8, ic_d9, ic_d10, ic_d11, ic_d12, ic_d13
  .long ic_d14                     /* g2: id IC_GR (ic_get) */
+ .long ic_d15, ic_d16, ic_d17, ic_d18   /* Halation Radius: ids IC_RZ0 .. + 3 */
 /* descriptors <6H3I> as the stock pictures': format 14, w, h, 8, 0, 0, size, payload, flags; build.py fills w, h,
  * size and payload (the streams from firmware/mkicons.py, packed into ic_pay, by their uncached address 0xa...) */
  .macro ICD n
@@ -5501,6 +5553,10 @@ ic_d\n:
  ICD 12
  ICD 13
  ICD 14
+ ICD 15
+ ICD 16
+ ICD 17
+ ICD 18
 .balign 8
 /* ------------------------------------------------------------------ v0.28 film WB (w3)
  * Owner: a film (and each COLOR's own settings) remembers the camera's WB last used with it, as its HSL does; one
@@ -8340,6 +8396,15 @@ fl_isdef:
  inc d2
  cmp 18,d2
  bcs 1b
+ mov (4,sp),d0                    /* Halation Radius: its bars -> rz_def (hrrow.s) */
+ exthu d0
+ mov d0,d1
+ add -RZB,d1
+ cmp 4,d1
+ bcc 44f
+ call rz_def,[d2,d3,a2],16
+ ret [d2,d3,a2],24
+44:
  mov (4,sp),d0                    /* g2: the Film Grain / Grain Size bars -> gs_def */
  exthu d0
  mov d0,d1
@@ -9808,7 +9873,7 @@ gs_wr:
  call gs_ga,[d2,d3,a2],16
  cmp 0,a0
  beq 9f
- movbu d3,(a0)
+ call rz_gk,[],0                  /* Halation Radius: G <- d3 with its radius bits kept (hrrow.s) */
 9:
  ret [d2,d3,a2],16
 
@@ -11778,6 +11843,7 @@ lg_now:
  LGY
  call lg_ckn,[d2,d3,a2,a3],24     /* v0.30 test 10: curves / mix */
  call lg_gsn,[d2,d3,a2,a3],24     /* better grain g2: each COLOR's Film Grain strength and Grain Size */
+ call lg_rzn,[d2,d3,a2,a3],24     /* Halation Radius: each COLOR's (hrrow.s) */
 9:
  ret [d2,d3,a2,a3],24
 
@@ -15976,7 +16042,7 @@ ex_cd1:
  movbu d0,(56,a0)
  or 2,d1
 5:
- movbu d1,(63,a0)
+ call ex_rz,[],0                  /* Halation Radius: byte 63 <- d1 | COLOR k's radius << 2 (hrrow.s) */
  mov ex_nb,a1
  clr d2
 1:
@@ -22087,3 +22153,4 @@ bl_v:                             /* the value */
  .include "newfilms.s"            /* #86: a new film set made again in every mode (ext13) */
 
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
+ .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
