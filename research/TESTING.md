@@ -88,6 +88,14 @@ The gate and the digest have unit tests that need no firmware:
 | `new-film-set-made-again-in-p` | A new film set taken in P: P keeps its selection, its COLORs are made from the new films with no '*', also after a power-off (#86) |
 | `new-film-set-taken-in-video-made-again-in-photo` | A new film set taken in video, then off: the next power-on in P and the turn to C1 make their films from the new set, no '*' (#86) |
 | `new-film-set-keeps-changes-to-films-it-left` | A new set that changes only films 19 and 20: FILM 2 on COLOR 1 keeps its Contrast change and its '*' (#86, what stays) |
+| `film-wb-mode-and-kelvin-set-on-pick` | A film with Custom WB 3200 K, picked: the camera's Kelvin (107, 1632) and the log's WB line say 3200 K (v0.28 film WB, kept as it was by #88) |
+| `film-wb-shift-set-in-the-camera-fine-tune` | Four films picked in turn (Custom WB A3 M2, Shade G4, Auto B5, Sunny none): each sets its shift as the camera's own fine-tune of its WB mode, the one with none 0 / 0, and video's fine-tune stays 0 (#88) |
+| `film-wb-shift-counts-once` | After a pick, the photo's WB reads (keys 34041 / 38521 through `wb_get`) get the film's shift once, not twice (#88) |
+| `wb-reads-add-no-film-shift` | `wb_get` called directly with each slot set-up gives the camera's own read and calls the getter once (#88; v0.21..v0.40 added the slot's shift there) |
+| `film-keeps-a-wb-shift-changed-in-the-panel` | The film's A-B changed in the super control panel's WB screen (A3 -> A4), another film, back: A4 again, and the film has a '*' (#88, owner's choice) |
+| `picture-mode-row-shows-the-panel-wb-shift` | After that change, Picture Mode opened with no half-press between: COLOR 1's slot holds A4 (#88) |
+| `picture-mode-row-wb-shift-sets-the-camera` | The WB Compensation row's fine-tune screen, A-B one step: the slot and the camera's own fine-tune both A4 (#88) |
+| `new-film-set-sets-the-film-wb` | A new set that changes the film on screen (3200 K -> 5000 K, new shift): the camera gets the new film's Kelvin and shift at once; after a power-off, leaving the film gives no '*' (#88, a v0.40 bug) |
 | `video-boot-after-photo-boot` | A video boot after a photo boot does no film or custom-mode work (#53) |
 | `debug-log-written-at-releases-only` | Three half-presses: the debug log is written at the three releases only, not at the half-presses (v0.30.3; the burst rule needs photos: camera-only) |
 | `debug-log-card-write-off-the-shutter-task` | Three half-presses with `DEBUG.TXT`: `CADLOG.TXT` is opened by the log's own writer task, never inside `lg_write` and never in the shutter's task (HLS_EVENT), and the log still says three writes (#85; the shot timing on a busy card is camera-only) |

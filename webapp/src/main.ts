@@ -942,7 +942,7 @@ function wbPanel(l: Look, changed: () => void): HTMLElement {
   });
   draw();
   const hp = helpParts('WB Compensation', [
-    'Shifts the colour of the whole photo, added to the camera\'s own white balance in every WB mode: A (amber, warmer) or B (blue, cooler) across, G (green) or M (magenta) up and down.',
+    'Shifts the colour of the whole photo: A (amber, warmer) or B (blue, cooler) across, G (green) or M (magenta) up and down. From v0.40.1 picking the film sets it as the camera\'s own WB compensation (for the film\'s WB mode), so the super control panel shows it; before, it was added on top of the camera\'s own.',
     'How to use: click or drag on the grid, or use the arrow keys; 0 or Delete centres it. The read-out shows the shift as the camera writes it (for example A2.G1).',
     fwLine('Firmware v0.26.1', 'past ±5 (up to ±7).'),
     'On the camera: Picture Mode › WB grid.']);

@@ -5,6 +5,8 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.40.2](v0.40.2/NOTES.md) | v0.40.1 plus smoother colour grain with less red-green speckle (made on every row), and the grain made faster so long bursts with Film Grain keep up | Camera-tested (as the grain colour test build, faster) |
+| [v0.40.1](v0.40.1/NOTES.md) | v0.40 plus round film grain with fewer repeats, and a film's WB Compensation as the camera's own so the super control panel shows it (#88); a new film set gives the camera the film's WB straight away | Camera-tested (as the combined test build fix #88 + grain g4) |
 | [v0.40](v0.40/NOTES.md) | v0.30.3 plus everything from the v0.40 test versions: crop modes (XPan, 21:9, 5:4) back at switch-on, a black or white Border per film at every ratio, our own film grain (1–5, Grain Size), looks in live view as you adjust them, your own choice of screen info, faster looks and Halation, Picture Mode open 30 s, focus stacking with more lenses, our version on the Firmware Version screen; fixes for #72, #85, #86 and #68 | Camera-tested (as v0.40-beta3) |
 | [v0.40-beta3](v0.40-beta3/NOTES.md) | Test version of v0.40: v0.40-beta2 plus quick single shots with the debug log (#85) or Halation on, and a new film set replacing the films cleanly in custom modes too (#86) | Test version (pre-release), camera-tested |
 | [v0.40-beta2](v0.40-beta2/NOTES.md) | Test version of v0.40: v0.40-beta plus three more screen-info rows (Subject Detection, Exposure Level Meter, Image Aspect), each hidden on its own | Test version (pre-release), camera-tested |

@@ -89,7 +89,7 @@ const shot = (file, tick = true) => {
 };
 // TRACE=PC,... (hex): log each time the code reaches a PC, with its step and d0 / a0 (trace.jsonl), from the trace record
 // itself (the debugger cannot read registers while the run is paused in the trace).
-if (process.env.TRACE) Debugger.attach(lab.sim, { lab }).traceExec((r) => fs.appendFileSync('trace.jsonl', JSON.stringify({ step: curStep, pc: r.pc.toString(16), d0: r.d0, d1: r.d1, a0: r.a0.toString(16), insns: r.insns }) + '\n'),
+if (process.env.TRACE) Debugger.attach(lab.sim, { lab }).traceExec((r) => fs.appendFileSync('trace.jsonl', JSON.stringify({ step: curStep, pc: r.pc.toString(16), d0: r.d0, d1: r.d1, a0: r.a0.toString(16), a1: r.a1.toString(16), insns: r.insns }) + '\n'),
   { pcs: process.env.TRACE.split(',').map((x) => parseInt(x, 16) >>> 0) });
 // MMIO=1: log the CPU's MMIO writes (name, address, insns) to mmio.jsonl, to time display updates against TRACE.
 if (process.env.MMIO) Debugger.attach(lab.sim, { lab }).traceMmio((r) => fs.appendFileSync(process.env.TRACE ? 'trace.jsonl' : 'mmio.jsonl', JSON.stringify({ step: curStep, name: r.name, addr: (r.addr >>> 0).toString(16), value: (r.value >>> 0).toString(16), pc: r.pc?.toString(16), insns: r.insns }) + '\n'), { dir: 'w' });
@@ -398,6 +398,28 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   else if (t.startsWith('expect:val:')) {  // expect:val:ID=V ends the run with exit 1 unless setting ID reads V (decimal)
     const [id, v] = t.slice(11).split('=').map(Number), got = getv(id);
     if (got !== v) { console.error(`expect:val ${id}: ${got}, not ${v}`); process.exit(1); }
+  }
+  else if (t.startsWith('expect:cap:')) {
+    // expect:cap:FN:KEY=V (#88) ends the run with exit 1 unless FN (hex, e.g. {wb_get}), called as the capture's WB
+    // reads call the getter 0x60063380 (`mov KEY,d0; mov 0,a0; clr d1; call FN,[d2,d3],12`), answers V (decimal):
+    // the A-B / G-M a photo gets (keys 34041 / 38521 for a preset WB, 7401 / 7417 for Auto)
+    const [fn, kv] = t.slice(11).split(':'), [key, want] = kv.split('=').map(Number), FN = parseInt(fn, 16) >>> 0;
+    const dd = Debugger.attach(lab.sim, { lab }), saved = dd.m.getRegs().slice();
+    const sp = (saved[8] - 0x800) & ~3, stub = sp - 0x100, call_at = stub + 6 + 2 + 1, rel = (FN - call_at) | 0;
+    dd.write(stub, new Uint8Array([0xfc, 0xcc, key & 255, key >> 8 & 255, 0, 0, 0x90, 0x00, 0x04, 0xdd, rel & 255,
+      rel >> 8 & 255, rel >> 16 & 255, rel >>> 24, 0xc0, 0x0c, 0xcb, 0xcb]));
+    const r = saved.slice(); r[9] = stub >>> 0; r[8] = sp >>> 0; r[14] = 0; dd.m.setRegs(r);
+    let n = 0; while ((dd.m.getRegs()[9] >>> 0) !== ((call_at + 7) >>> 0) && n < 20000) { dd.m.step(); n++; }
+    const got = n >= 20000 ? 'X' : dd.m.getRegs()[0] | 0; dd.m.setRegs(saved);
+    if (got !== want) { console.error(`expect:cap ${key}: ${got}, not ${want}`); process.exit(1); }
+  }
+  else if (t.startsWith('getv:')) {        // getv:ID,... prints GETV {ID: value} for each setting (decimal ids; #88)
+    const ids = t.slice(5).split(',').map(Number);
+    console.log('GETV ' + curStep + ' ' + JSON.stringify(Object.fromEntries(ids.map((id) => [id, getv(id)]))));
+  }
+  else if (t.startsWith('pbytes:')) {      // pbytes:OFF:LEN prints PBYTES OFF hex, the bytes at P + OFF (decimal; #88)
+    const [o, n] = t.slice(7).split(':').map(Number), at = (POOL + u16(STATE) - 1 + o) >>> 0;
+    console.log('PBYTES ' + curStep + ' ' + o + ' ' + Buffer.from(rd(at, n)).toString('hex'));
   }
   else if (t === 'pmod') {                // '*' per COLOR: stock "profile changed?" 0x6129ba07 (our ed_pmod), d0 = picture mode
     const SG = 0x6129ba07, dd = Debugger.attach(lab.sim, { lab }), saved = dd.m.getRegs().slice(), out = [];

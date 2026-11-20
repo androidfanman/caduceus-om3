@@ -104,11 +104,13 @@ SEC_NOT6, SEC_WITH6, SEC_OMEMU = 0x1f, 0x3f, 0x7f     # SEC_OMEMU: the word as o
 MX_SITE, MX_ROW = 0x6051485a, 0x605144ef               # hook_mx; the camera's row scaling it calls
 TONE_SITE = 0x605197d7                                 # hook_tone; the stock goes on at TONE_NEXT
 LV_SITE, LV_SKIP, LV_X = 0x6046b8bb, 0x6046b94f, 0x6046b8ee   # hook_lv (a COLOR request); the stock: no flags
-# grain g3 (faster tile, 2026-11-17): tg_fill called directly (FLUSH stubbed) must give every byte of
-# research/grain/tile_model.py: the band + strips tile when the whole tile is in one 128 MB window segment (Fine, Coarse),
-# the full box-filter tile (g2c's) when it is across an edge. About 40 s.
+# grain colour g6 (g4's round clumps with full-height colour grain and weaker red-green, 2026-11-19; g4 and g3 before):
+# tg_fill called directly (FLUSH stubbed) must give every byte of research/grain/tile_model.py: g6_tile (band + blocks)
+# when the whole tile is in one 128 MB window segment (Fine, Medium, Coarse), g6_full (all 768 rows the band's way)
+# when it is across an edge.
 GRAINTILE = 'grain-tile-matches-the-model'
-GRAINTILE_CASES = [('fine-fast', 1, 0xb0100000), ('coarse-fast', 3, 0xb0100000), ('medium-across-an-edge', 2, 0xaff00000)]
+GRAINTILE_CASES = [('fine-fast', 1, 0xb0100000), ('medium-fast', 2, 0xb0100000), ('coarse-fast', 3, 0xb0100000),
+                   ('medium-across-an-edge', 2, 0xaff00000)]
 REAR_DIAL = 0x9032                               # the rear dial's event (cv_ev); a1 its signed clicks
 # (name, a1): first no clicks (the value as it is), then a fast turn of 3, then one past the range.
 DIAL_CASES = [('as-is', 0), ('up-3', -3), ('down-20', 20)]
@@ -416,6 +418,35 @@ def other_set(looks, names, order, prefix=''):
     return bytes(b)
 
 
+WB_MODE_CODE = {'auto': 0, 'sunny': 1, 'shade': 2, 'cwb': 12}   # a mode's index in the camera's table 0x615d1944
+
+
+def film_wb_set(looks, films):
+    """#88: a LOOKS.BIN from the newest release's with film j's WB from films {j: (mode, Kelvin or None, A-B, G-M)}:
+    record +36 shift on, +37 / +38 the shift, +59..+62 the film WB (balanced base-11 pairs, docs/FORMATS.md); the
+    CRC (+8, over 12..) fixed."""
+    def pair(v):
+        hi = 0
+        while v > 5:
+            v, hi = v - 11, hi + 1
+        while v < -5:
+            v, hi = v + 11, hi - 1
+        return bytes([v & 255, hi & 255])
+    b = bytearray(looks)
+    for j, (mode, kelvin, ab, gm) in films.items():
+        o = 32 + 64 * j
+        b[o + 36:o + 39] = bytes([1 if ab or gm else 0, ab & 255, gm & 255])
+        b[o + 59:o + 63] = pair((kelvin - 2000) // 100 - 60 if mode == 'cwb' else 0) + pair(WB_MODE_CODE[mode])
+    struct.pack_into('<I', b, 8, zlib.crc32(bytes(b[12:])))
+    return bytes(b)
+
+
+# #88: FILM 1 Custom WB 3200 K, A-B +3 (A3), G-M -2 (M2); FILM 2 Shade, G-M +4; FILM 3 Auto, A-B -5; FILM 4 Sunny, no
+# shift. WB_NEW changes FILM 1 only (5000 K, A-B -3, G-M +1).
+FILMS_WB = {0: ('cwb', 3200, 3, -2), 1: ('shade', None, 0, 4), 2: ('auto', None, -5, 0), 3: ('sunny', None, 0, 0)}
+FILMS_WB_NEW = {**FILMS_WB, 0: ('cwb', 5000, -3, 1)}
+
+
 # v0.30 test 9: CURVES.BIN (each film's built-in curves and mix, docs/FORMATS.md), made from the newest release's
 # LOOKS.BIN. Film 1 (COLOR 1, look 2: PICK_FILM_2) gets values; B changes them; BAD has a wrong CRC.
 FIXTURES = {
@@ -428,7 +459,25 @@ FIXTURES = {
     # changed (their records swapped, names kept)
     'LOOKS_B': lambda looks, names: other_set(looks, names, range(19, -1, -1), 'B '),
     'LOOKS_ONE': lambda looks, names: other_set(looks, names, [*range(18), 19, 18]),
+    'LOOKS_WB': lambda looks, names: film_wb_set(looks, FILMS_WB),
+    'LOOKS_WB_NEW': lambda looks, names: film_wb_set(looks, FILMS_WB_NEW),
 }
+# #88: from COLOR 1 on the shooting screen, FILM 1 (the list runs COLOR 1-4, then the films); then the next film. Both
+# leave the super control panel's cursor on its Picture Mode cell.
+PICK_FILM_1 = 'ok wait ok wait right wait right wait right wait right wait ok wait wait'
+PICK_NEXT_FILM, PICK_FILM_BEFORE = 'ok wait ok wait right wait ok wait wait', 'ok wait ok wait left wait ok wait wait'
+# The camera's own WB fine-tune, from the shooting screen: the panel's WB cell (right of Picture Mode), its WB± row
+# (the third), OK, A-B one step towards A, OK (back to shooting). The panel's cursor stays on the WB cell: back with
+# PANEL_TO_PICTURE_MODE (the panel, left, OK: the Picture Mode list).
+WB_SCREEN_A_PLUS_1 = 'ok wait right wait ok wait down wait down wait ok wait right wait ok wait wait'
+PANEL_TO_PICTURE_MODE = 'ok wait left wait ok wait'
+# Picture Mode's WB Compensation row (the sixth), OK: the camera's fine-tune screen for the look; A-B one step to A
+WB_ROW_A_PLUS_1 = 'down wait ' * 5 + 'ok wait right wait'
+# Stills fine-tune ids (table 0x615d1944: A-B id, G-M = + 13): Custom WB, Shade, Auto, Sunny; movie Auto and Custom WB
+CWB_AB, CWB_GM, SHADE_AB, SHADE_GM, AUTO_AB, SUNNY_AB, SUNNY_GM = 1592, 1605, 1587, 1600, 1580, 1584, 1597
+MOVIE_AUTO_AB, MOVIE_CWB_AB = 1606, 1618
+SLOT1_AB = 58                                    # COLOR 1's slot +26 (A-B) at P + 32 + 26, for expect:p:
+WB_LINE = lambda wb: rf'^White balance: {wb} \['
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
 # borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
@@ -789,6 +838,59 @@ TESTS = {
              expect=[FILM_2_LINE, FILM_2_CHANGED, r'^New film sets taken this power-on: 1, films changed in the last 2 of 20, '
                                      r'COLORs made from the new films 0'],
              card={'LOOKS.BIN': 'LOOKS_ONE'}),
+    ],
+    # #88: picking a film sets its WB mode and Kelvin in the camera (v0.28 film WB; kept as it was).
+    'film-wb-mode-and-kelvin-set-on-pick': [
+        Boot(f's1 wait wait {PICK_FILM_1} expect:val:107=3200 expect:val:1632=3200 s1 wait wait poweroff',
+             expect=[WB_LINE('CWB 3200K')], card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #88: picking a film sets its WB Compensation as the camera's own fine-tune of the film's WB mode (the super
+    # control panel shows it); a film with no shift sets 0 / 0; video's fine-tune is left alone. v0.40 added it
+    # invisibly at the photo's reads and left the camera's at 0.
+    'film-wb-shift-set-in-the-camera-fine-tune': [
+        Boot(f's1 wait wait {PICK_FILM_1} expect:val:{CWB_AB}=3 expect:val:{CWB_GM}=-2 '
+             f'{PICK_NEXT_FILM} expect:val:{SHADE_AB}=0 expect:val:{SHADE_GM}=4 '
+             f'{PICK_NEXT_FILM} expect:val:{AUTO_AB}=-5 '
+             f'{PICK_NEXT_FILM} expect:val:{SUNNY_AB}=0 expect:val:{SUNNY_GM}=0 '
+             f'expect:val:{MOVIE_AUTO_AB}=0 expect:val:{MOVIE_CWB_AB}=0 s1 wait wait poweroff',
+             expect=[WB_LINE('Sunny')], card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #88: the photo's WB reads get the film's shift once: the camera's own fine-tune, with nothing added (v0.40 added
+    # it to a fine-tune of 0; adding it to the camera's fine-tune now would double it).
+    'film-wb-shift-counts-once': [
+        Boot(f's1 wait wait {PICK_FILM_1} expect:cap:{{wb_get}}:34041=3 expect:cap:{{wb_get}}:38521=-2 '
+             's1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #88: the film remembers a WB Compensation changed in the super control panel (owner, 2026-11-19), as it remembers
+    # its WB mode: A3 -> A4 there, FILM 2 and back to FILM 1: A4 again, and FILM 1 has a '*'.
+    'film-keeps-a-wb-shift-changed-in-the-panel': [
+        Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} expect:val:{CWB_AB}=4 {PANEL_TO_PICTURE_MODE} '
+             f'right wait ok wait wait expect:val:{SHADE_GM}=4 {PICK_FILM_BEFORE} expect:val:{CWB_AB}=4 '
+             's1 wait wait poweroff',
+             expect=[r'^Picture mode: COLOR 1, FILM 1\b', r'^Films with changes \(a \* in the camera\): 1$'],
+             card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #88: Picture Mode's WB Compensation row shows a change made in the super control panel at once (no half-press
+    # between): the look's A-B is the camera's when Picture Mode opens.
+    'picture-mode-row-shows-the-panel-wb-shift': [
+        Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} {PANEL_TO_PICTURE_MODE} expect:p:{SLOT1_AB}=04 '
+             'menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #88: the WB Compensation row (the fine-tune screen it opens) changes the camera's own fine-tune too.
+    'picture-mode-row-wb-shift-sets-the-camera': [
+        Boot(f's1 wait wait {PICK_FILM_1} ok wait ok wait {WB_ROW_A_PLUS_1} expect:p:{SLOT1_AB}=04 '
+             f'expect:val:{CWB_AB}=4 menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #88 (bug in v0.40, om-emu): a new film set that changes the film on screen gives the camera that film's WB (mode,
+    # Kelvin and shift), and leaving the film after a power-off gives it no '*'. v0.40 left the old film's WB in the
+    # camera, and leaving the film stored it into the new one with a '*'.
+    'new-film-set-sets-the-film-wb': [
+        Boot(f's1 wait wait {PICK_FILM_1} s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+        Boot(f'wait wait s1 wait wait expect:val:107=5000 expect:val:{CWB_AB}=-3 expect:val:{CWB_GM}=1 '
+             's1 wait wait poweroff', expect=[WB_LINE('CWB 5000K'), NO_FILM_CHANGES],
+             card={'LOOKS.BIN': 'LOOKS_WB_NEW'}),
+        Boot(f'wait wait s1 wait wait expect:val:{CWB_AB}=-3 {PICK_NEXT_FILM} s1 wait wait poweroff',
+             expect=[WB_LINE('Shade'), NO_FILM_CHANGES]),
     ],
     # borders: the Border row steps -5..+5 (2026-11-18: - black, + white; right / left, no step past either end) into
     # COLOR 1's slot +50, and the value is kept over a power-off (saved at the half-press).
@@ -1696,7 +1798,7 @@ def run_graintile(emu, build, out, card0):
     sym = elf_symbols(build / 'p.elf')
     tg = f"{sym['tg_sb']:#x}"                        # tg_sb, tg_n, tg_nb, tg_ms, tg_nf; tg_own, tg_bad, tg_w
     spec = [{'name': name, 'pc': 'B', 'stop': ['B+7'], 'max': 100000000,
-             'mem': [['B', 'dd'], ['B+1', f"={sym['tg_fill']:#x}-B"], ['B+5', 'f078'],    # call tg_fill,[..],120
+             'mem': [['B', 'dd'], ['B+1', f"={sym['tg_fill']:#x}-B"], ['B+5', 'f028'],    # call tg_fill,[..],40
                      [f"{sym['FLUSH']:#x}", 'dfc010'], [f"{sym['tg_own']:#x}", f'{w:02x}'],
                      [f"{sym['tg_bad']:#x}", '00']],
              'regs': {'d0': hex(bus)}, 'read': [[hex(bus), 1536 * 3072], [tg, 23]]}
@@ -1720,7 +1822,7 @@ def run_graintile(emu, build, out, card0):
             errors.append(f"{name}: made {'the full way' if fast else 'the fast way'}, not "
                           f"{'the fast way' if fast else 'the full way'} (tg_nf {nf})")
         nf0 = nf
-        want = (tm.fast_tile if fast else tm.full_tile)(w, sb)
+        want = (tm.g6_tile if fast else tm.g6_full)(w, sb)
         if not np.array_equal(tile, want):
             rows = sorted(set(np.nonzero(tile != want)[0].tolist()))
             errors.append(f'{name}: {int((tile != want).sum())} bytes differ from the model, rows {rows[:12]}')
@@ -1870,7 +1972,7 @@ def run_gates(emu, build, out, card0):
     return GATES, errors
 
 
-WB_KEYS = {'A-B': 34041, 'G-M': 38521}           # wb_get's reads, shifted by slot +26 and +27
+WB_KEYS = {'A-B': 34041, 'G-M': 38521}           # the capture's WB fine-tune reads (wb_get)
 CALL_REGS_D2_D3 = 0xc0                           # a call's register list [d2,d3]
 
 
@@ -1883,18 +1985,18 @@ def call_spec(name, fn, imm, d0, mem=(), count=()):
 
 
 s8 = lambda v: v - 256 if v > 127 else v
-# wb_get adds the active COLOR's slot +26 (A-B) or +27 (G-M) to the stock read when its +25 & 0x81 == 1, clamped to
-# -7..7. Each case: slot +25..+27 for COLOR 1..4. The test camera is on COLOR 1.
+# v0.21..v0.40: wb_get added the active COLOR's slot +26 (A-B) / +27 (G-M) to the stock read when its +25 & 0x81 == 1.
+# #88: the film's shift is the camera's own fine-tune now, so wb_get gives the stock read alone, whatever the slots
+# hold. Each case: slot +25..+27 for COLOR 1..4. The test camera is on COLOR 1.
 WB_CASES = [('none', [(0, 0, 0)] * 4),
             ('color-1', [(1, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
             ('color-1-off', [(0x81, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
             ('color-2-only', [(0, 0, 0), (1, 5, 5), (0, 0, 0), (0, 0, 0)])]
-WB = 'wb-shift-reads-follow-the-look'
+WB = 'wb-reads-add-no-film-shift'
 
 
 def run_wb(emu, build, out, card0):
-    """wb_get on each WB_KEYS read, per WB_CASES look: the stock value, plus the shift when COLOR 1 (active) has one.
-    With no slot's shift on, the stock read is wb_get's only getter call."""
+    """wb_get on each WB_KEYS read, per WB_CASES look: the stock value and one getter call, shift or not (#88)."""
     d = out / WB
     d.mkdir(parents=True, exist_ok=True)
     sym = elf_symbols(build / 'p.elf')
@@ -1910,16 +2012,14 @@ def run_wb(emu, build, out, card0):
         return WB, [f"the camera is not on COLOR 1 (getter 63153: {res['mode']['regs']['d0']}, out.json)"]
     errors = []
     for name, slots in WB_CASES:
-        flag, ab, gm = slots[0]
-        for i, k in enumerate(WB_KEYS):
-            stock = s8(int(res[f'stock:{k}']['regs']['d0'], 16) & 255)
-            want = max(-7, min(7, stock + s8((ab, gm)[i]))) if flag & 0x81 == 1 else stock
+        for k in WB_KEYS:
+            want = s8(int(res[f'stock:{k}']['regs']['d0'], 16) & 255)
             got = s8(int(res[f'{name}:{k}']['regs']['d0'], 16) & 255)
             if got != want:
-                errors.append(f'{name} {k}: wb_get gives {got}, want {want} (out.json)')
-            calls, shift = res[f'{name}:{k}']['count'][0], any(f & 0x81 == 1 for f, _, _ in slots)
-            if (calls > 1) != shift:
-                errors.append(f'{name} {k}: wb_get calls the getter {calls} times, want {"more than " if shift else ""}1 (out.json)')
+                errors.append(f'{name} {k}: wb_get gives {got}, the camera\'s own read {want} (out.json)')
+            calls = res[f'{name}:{k}']['count'][0]
+            if calls != 1:
+                errors.append(f'{name} {k}: wb_get calls the getter {calls} times, want 1 (out.json)')
     return WB, errors
 
 

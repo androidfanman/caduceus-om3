@@ -1,6 +1,6 @@
 # Using Caduceus for OM-3
 
-This page is for **v0.40**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
+This page is for **v0.40.2**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
 
 > [!NOTE]
 > Caduceus works on the **COLOR** profiles (COLOR 1–4) and your **films** (FILM 1–20). The Monochrome profiles keep
@@ -46,7 +46,7 @@ The rows under Picture Mode change the film (or the COLOR) you're on, straight a
 | **RGB** | A tone curve for each of red, green and blue, five points from black to white: the front dial picks the point, the rear dial moves it (−7 to +7); **INFO** picks the colour. Photos only. |
 | **Color wheel (HSL)** | The colour wheel: change each colour's saturation, hue and brightness, and split toning (see below). |
 | **Split Tone Balance** | Where the split toning's two colours meet, −5 to +5: minus lets the shadow colour reach further up, plus the highlight colour further down. Only does something when the film has a split tone. |
-| **WB Compensation** | Shifts the colour balance: A–B (amber to blue) and G–M (green to magenta), −7 to +7. Works in every white balance mode, Auto included. Press **OK** to open the camera's own grid; **MENU** or **OK** brings you back. |
+| **WB Compensation** | Shifts the colour balance: A–B (amber to blue) and G–M (green to magenta), −7 to +7. It is the camera's own WB compensation for the film's white balance mode, so the super control panel's White Balance screen shows the same value. Press **OK** to open the camera's own grid; **MENU** or **OK** brings you back. |
 | **Highlight & Shadow** | The camera's own tone curve: brighter or darker shadows, midtones and highlights. |
 | **B/W** | Blacks and Whites on one grid, −7 to +7 each: left / right for Blacks, up / down for Whites. Plus lifts the blacks or brightens the whites; minus deepens or softens them. Press **OK** to open the grid; the row shows the values under its icon (e.g. +3/−2). |
 | **Contrast** | The camera's own contrast. |
@@ -57,7 +57,7 @@ The rows under Picture Mode change the film (or the COLOR) you're on, straight a
 | **Glow Effect** | +1 to +5 adds a soft glow. −1 to −5 adds Clarity (crisper local contrast). 0 = off. |
 | **Halation Effect** | 0 to 5: a red-orange glow around bright lights, as on cinema film (CineStill). Works with or without Glow; fades out in bright daylight scenes. The halo fades away from the light. Saving takes a little longer with it on (much less since v0.30.3, and less again since v0.40-beta3). |
 | **Film Grain Effect** | Off, Low, Med or High. Added in colour, with no extra wait after the photo. From v0.40-alpha: our own colour grain, Off and 1 to 5 (a film's Low / Med / High become 2 / 3 / 5); highlights stay white and Halation keeps its glow. |
-| **Grain Size** | From v0.40-alpha: Fine, Medium or Coarse, for Film Grain. |
+| **Grain Size** | From v0.40-alpha: Fine, Medium or Coarse, for Film Grain. From v0.40.1 the clumps are round, with fewer repeats; from v0.40.2 the colour speckle is smoother, with less red-green. |
 | **Border** | From v0.40-alpha: a white border, 0 (off) to 5, the same width on every side; from v0.40-beta the row runs from −5 to +5: minus is black, plus is white. JPEG only: the photo keeps its size and the border covers its outer edge; RAW is untouched. In live view a thin frame line shows where its inner edge will be (from the first half-press; not in video). |
 
 The rows come five to a page in this order, as the camera works on a photo: the film and its colour, then white
@@ -118,9 +118,13 @@ Both are in the camera's **Button Function** menu, with the other buttons.
 
 ## The film's white balance
 
-Each film and COLOR remembers the white balance you last used with it (any mode, Custom WB with its Kelvin), as it
-keeps its HSL. Picking the film brings that white balance back; one that never had its own gets Auto. Set a film's
-white balance in LookLab, or just change it on the camera while you're on that film.
+Each film and COLOR remembers the white balance you last used with it (any mode, Custom WB with its Kelvin, and its
+WB compensation), as it keeps its HSL. Picking the film brings that white balance back; one that never had its own
+gets Auto with no compensation. Set a film's white balance in LookLab, or just change it on the camera while you're on
+that film: a change in the super control panel's White Balance screen goes into the film (it gets a "*"), and
+resetting the film brings its own back. The camera keeps one compensation per white balance mode, so if you switch
+the mode by hand, that mode's own compensation applies. The camera's own picture modes (Natural, Vivid, ...) keep the
+white balance the last film left.
 
 ## The film in your photos
 

@@ -77,6 +77,8 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 
 | Feature | Released |
 |---|---|
+| **Smoother colour grain** with less red-green speckle, made faster (long bursts with grain keep up) | v0.40.2 (2026-11-19) |
+| **Round film grain** with fewer repeats; a film's **WB Compensation shown in the super control panel** ([#88](https://github.com/androidfanman/caduceus-om3/issues/88)) | v0.40.1 (2026-11-19) |
 | **Crop modes XPan, 21:9 and 5:4** (crops back at switch-on, [#83](https://github.com/androidfanman/caduceus-om3/issues/83)), a **black or white Border** per film at every ratio, **our own grain** with Grain Size, **looks in live view** as you adjust them, **your own choice of screen info**, our version on the Firmware Version screen, Picture Mode open 30 s ([#76](https://github.com/androidfanman/caduceus-om3/pull/76), by crombach), faster looks ([#82](https://github.com/androidfanman/caduceus-om3/pull/82), by crombach), faster Halation, focus stacking with more lenses ([#79](https://github.com/androidfanman/caduceus-om3/pull/79), by Bensonson), LookLab matched to the camera | v0.40 (2026-11-19) |
 | **Fast-switching reboot fixed** ([#72](https://github.com/androidfanman/caduceus-om3/issues/72)); the colour wheel's label names the page ([#70](https://github.com/androidfanman/caduceus-om3/pull/70)); our looks stay out of video ([#73](https://github.com/androidfanman/caduceus-om3/pull/73)), both by crombach | v0.40 (2026-11-19) |
 | **Faster Halation** with a smoother fade; faster dial clicks and saves ([#69](https://github.com/androidfanman/caduceus-om3/pull/69), by crombach) | v0.30.3 (2026-11-17) |

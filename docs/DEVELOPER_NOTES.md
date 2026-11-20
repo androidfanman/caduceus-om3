@@ -394,6 +394,36 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - The looks are only as good as the preview model (`src/preview.ts`) is of the camera; check a film on the camera
   before trusting it for anything critical.
 
+## v0.40.2 release (feature/grain-colour: main 69e3438 (v0.40.1) + grain colour g6 811d96d + faster tile 21e0916; 2026-11-19)
+
+- Firmware: the camera-tested test build's sources (E1479999.BIN 218b018a…e22f, "v0.40.1gc2 (grain colour, faster)",
+  owner 2026-11-19: "That works really well") with `firmware/VERSION` "v0.40.2". E1479999.BIN da59432c…4d7b;
+  `patch.py --release v0.40.2` makes it byte for byte. The shorter version name moves the code after `lg_ver` (ext13)
+  by 24 bytes; nothing else differs.
+- Grain colour g6 (editor.s `tg_bnd`, `tg_vt`, `tg_h6c`, `tg_g4p`; model `research/grain/tile_model.py` G6_C, g6_tile):
+  Cb / Cr made on every band row (g4: every other row, each serving two pixel rows), vertical taps on full rows (Fine /
+  Medium 1-1, Coarse 1-3-3-1), horizontal on the 2-px samples (Fine / Medium 1, Coarse 1-6-1); Cr sigma 9 (Cb 16). Y
+  as v0.40.1 byte for byte. Cb / Cr rings of 3 rows: work buffer 15,832 B.
+- Faster tile (21e0916, same bytes): crossfaded strip rows made in the work buffer (W and W2 = V's room) and blended
+  once into the tile; 16-byte copy loops (`tg_cp`, `tg_rc`); two outputs a turn in the filters (TGH); one-compare clamps
+  (TGCL). om-emu steps a tile Fine / Medium / Coarse 8.5 / 16.5 / 22.9 M (v0.40.1 9.5 / 18.7 / 24.2 M). ext12 261,984 B,
+  ext13 75,904 B, loader end word unchanged (0x60fbf000).
+- LookLab: the grain preview's colour planes at full height with the g6 taps and Cr sigma 9.
+
+## v0.40.1 release (release/v0.40.1 = try/fix88-grain4 4b0c363: main b4b3161 + fix/88-film-wb 1182a7b + feature/better-grain-g4 42e7626; 2026-11-19)
+
+- Firmware: the combined test build's sources (E1479999.BIN 4f7393a5…3ecd, camera-tested 2026-11-19) with
+  `firmware/VERSION` "v0.40.1". E1479999.BIN 0df560d2…fd41; `patch.py --release v0.40.1` makes it byte for byte.
+- Grain g4 (editor.s `tg_fill` and friends, ext12 / ext13; model `research/grain/tile_model.py` G4_SIZE): round
+  separable filters (Fine 1, Medium 1-3-1, Coarse 1-3-3-1; Cb / Cr at half size, Coarse 1-3-1) instead of the w x w
+  box, and rows 128..767 from 40 x 128 px blocks of the 128-row band (some upside down, joins crossfaded) instead of
+  full-width strips. Same tile format and levels. Loader end word 0x60fbf000 (GX4-proven reserve).
+- #88 (editor.s `fw_*`, ext13): a film's A-B / G-M is written as the camera's stills WB fine-tune for the film's WB
+  mode (table 0x615d1944) when the film is picked (`fw_apply` -> `fw_ft`), kept back into the film when it is left
+  (`fw_keep` -> `fw_kft`), synced at each half-press (`fw_sync`, the first one of a power-on writes) and when
+  Picture Mode opens (`fw_pm`); `wb_get` no longer adds it. A new film set re-applies the on-screen film's WB (`fw_nf`).
+- LookLab: the grain preview's tile uses the g4 filters; the WB Compensation help text. Extras as v0.40.
+
 ## v0.40 release (release/v0.40 = try/v0.40-beta v0.40-beta3 ad6c7a5 + main + feature/looklab-camera-match + feature/tour-v040; 2026-11-19)
 
 - Firmware: v0.40-beta3's sources with `firmware/VERSION` "v0.40" (the only firmware change; the Firmware Version page

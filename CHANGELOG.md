@@ -8,6 +8,8 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.40.2](#v0402) | 2026-11-19 | Smoother colour grain with less red-green speckle; grain made faster, so long bursts with Film Grain keep up |
+| [v0.40.1](#v0401) | 2026-11-19 | Round film grain with fewer repeats; a film's WB Compensation shows in the super control panel (#88) |
 | [v0.40](#v040) | 2026-11-19 | Crop modes XPan, 21:9 and 5:4; a black or white Border per film at every ratio; our own film grain (1–5, Grain Size); looks in live view as you adjust them; your own choice of screen info; faster looks and Halation; quick single shots (#85); new film sets in custom modes (#86); focus stacking with more lenses; LookLab knows all of it |
 | [v0.40-beta3](#v040-beta3-test-version) | 2026-11-19 (test version) | Quick single shots with the debug log (#85) or Halation on; a new film set replaces the films cleanly in custom modes too (#86) |
 | [v0.40-beta2](#v040-beta2-test-version) | 2026-11-18 (test version) | Three more screen-info rows: Subject Detection, Exposure Level Meter and Image Aspect, each hidden on its own |
@@ -46,6 +48,32 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.40.2
+2026-11-19. v0.40.1 plus smoother colour grain, made faster; camera-tested (the build before its release name).
+- **Smoother colour grain:** the grain's colour speckle is now made on every row instead of every other row, so it has
+  no 2-row steps (they showed as faint bands in Coarse's colour, also in camera photos), and at Coarse the colour
+  specks are the size of the brightness clumps, a little finer than before.
+- **Less red-green:** the red-green colour speckle is about half as strong as the blue-yellow, as in real colour film
+  (measured on public-domain 35 mm scans). The brightness grain, its strength and the sizes are unchanged.
+- **Faster grain:** the camera makes the grain picture for each photo with about 17 to 25 % less work than the first
+  test of this grain, and 5 to 12 % less than v0.40.1 (emulator count). A long fast burst with Film Grain had rebooted
+  the camera with that first test; with this build it worked (camera-tested).
+- **LookLab:** the grain preview has the new colour grain.
+  Details: [release notes](releases/v0.40.2/NOTES.md).
+
+## v0.40.1
+2026-11-19. v0.40 plus two changes, camera-tested together (the build before its release name).
+- **Round film grain:** Medium and Coarse were built from little squares (fine horizontal and vertical lines up close);
+  the clumps are now round and soft and the grain repeats about five times less. Strength, colour and the Fine size
+  are unchanged; Coarse is a touch bigger and softer.
+- **A film's WB Compensation is the camera's own** (#88, reported by novaldemar): picking a film sets it, so the super
+  control panel shows it; a change made there stays with the film (with a "*"), and resetting the film brings its own
+  back. The camera keeps one compensation per WB mode, and its own picture modes (Natural, Vivid…) keep what the last
+  film set.
+- **Fixed:** a new film set that changed the film on screen left the old film's white balance in the camera (#88).
+- **LookLab:** the grain preview uses the round grain; the WB Compensation help explains the change.
+  Details: [release notes](releases/v0.40.1/NOTES.md).
 
 ## v0.40
 2026-11-19. Everything from the v0.40 test versions below (alpha, beta, beta2, beta3) and v0.30.4-alpha, camera-tested

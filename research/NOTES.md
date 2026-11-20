@@ -8540,3 +8540,345 @@ Assign C4, Set B, Assign C5: C4 showed Set B's films, and Set A again is ignored
   alone is new (as for earlier releases).
 - LookLab's Halation preview back to h7 (BLUR3 / WIDE removed), as the firmware since beta3; vitest 76 pass.
 - Tour pictures remade with `research/showcase/make.sh` on the release build (WHEEL_IMG = a v0.30.3 build).
+
+## v0.40 grain on the camera: square clumps and repeats (2026-11-19; camera photos, analysis)
+- Owner's OM-3, v0.40-beta3 firmware (= v0.40), a colour chart, ISO 1000, 10 JPEGs: grain Off, then Fine / Medium /
+  Coarse at 1, 3 and 5 (private folder, never in the repo). A Discord tester saw in Coarse "slightly slanted vertical
+  lines, and then 1 px stripes (horizontal and vertical)".
+- **Square clumps (measured):** the Coarse photos' power spectrum has the 3 x 3 box filter's zeros at 1/3 cycle / px
+  on both axes and its side lobes beyond, so the clumps are little squares with straight horizontal and vertical
+  edges. Neighbour correlation 0.64 sideways and down, 0.41 diagonally (box 3: 0.67 / 0.44); Medium 0.48 / 0.23; Fine
+  about 0. Row and column means vary as much as the clump shape predicts (Coarse 1.4..1.7 x the white-noise value,
+  box 3: 1.73), so no extra whole-row / whole-column stripes. Same image geometry as the tile (no shear seen).
+- **Repeats (measured):** the grain photos have repeat peaks of 0.04..0.10 (autocorrelation, 640 x 640 grey area;
+  grain Off 0.018); the exact model (`tile_model.py`) gives g3's fast tile 0.05..0.09 and g2c's full tile 0.01..0.02.
+  So they come from g3's band and strips (each of the 128 band rows used about 6 times a tile, turned sideways).
+- **Slanted lines: not found as a pattern.** Energy by direction (0.04..0.30 cycle / px) within +-10 % at every angle,
+  as in the no-grain photo and both models. They may be the repeats as the eye picks them up, or the zoom: the
+  shared pictures were 2x nearest-neighbour, which keeps the square edges hard (analysis).
+- Possible fixes (owner's call; not started): rounder clumps (box twice, or the two-size "film-like variant" above:
+  about 2-3x tg_fill's work) for the straight edges; a longer band or more varied strips for the repeats (speed cost).
+
+## #88: a film's WB Compensation is the camera's own WB fine-tune (2026-11-19; emulator only, fix88-1, camera test pending)
+
+Branch `fix/88-film-wb` (from main b4b3161 = v0.40 firmware), worktree `caduceus-fix88`. Issue #88 (novaldemar,
+v0.40-beta): a film's WB Compensation does not show in the super control panel's WB screen, and the look seems wrong
+until the same compensation is set there by hand.
+
+**Reproduction (om-emu 0819080, v0.40 1e039ee2… and v0.40-beta f5771793…, both rebuilt byte for byte).** Films from
+the release's 20 with FILM 1 Custom WB 3200 K A3 M2, FILM 2 Shade G4, FILM 3 Auto B5, FILM 4 Sunny none; a second set
+with FILM 1 at 5000 K B3 G1.
+- Picking a film sets its WB mode and Kelvin in the camera (1578, 107 = 1632), on both builds.
+- The film's A-B / G-M never reaches the camera's own fine-tune: the stills ids 1580..1605 stay 0 after every pick.
+  It lives in slot +25..+27 and was added at the capture reads (`wb_get`, v0.21): by design, invisible in the panel.
+- **Bug, v0.40:** a new `LOOKS.BIN` that changes the film on screen gives the slot the new film (5000 K, B3 G1), but
+  the camera stays on 3200 K. Picking another film then stores the camera's 3200 K into it (fw_keep): a '*', and the
+  new film's Kelvin is lost. (#86's remake, nf_post, writes the slot and the 18 settings, not the WB.)
+- **v0.40-beta (the reporter's):** the new set leaves the old film's rows in the slot, WB included, with a '*' = #86
+  (fixed in beta3). Likely part of the report. Whether `wb_get`'s addition reached live view is unknown (analysis
+  said "most likely at once"); the reporter's "the look doesn't seem correct" may be live view. Camera-only.
+- The camera's own fine-tune per WB mode: table 0x615d1944 {mode, stills A-B id, movie id}: Auto 1580, Underwater
+  1581, Fluorescent 1582, Incandescent 1583, Sunny 1584, Flash 1585, Cloudy 1586, Shade 1587, one-touch 1588..1591,
+  Custom WB 1592; stills G-M = A-B + 13 (1593..1605); movie 1606..1618 (G-M + 13). Same directions as the slot (the
+  WB screen shows slot A3 M2 as "A3, M2"). om-emu: the WB screen's fine-tune writes only 1592 through the manager
+  (handle 0x6242c3d0, mode 0), as our writes do; the capture read (getter, key 34041 / 38521) follows the setting at once.
+  Setting 1578 itself hangs om-emu's getter from the driver (as noted 2026-11-12): the WB mode comes from the debug log.
+
+**Owner's decisions (2026-11-19, this session):** (1) the film's compensation becomes the camera's own fine-tune,
+set when the film is picked ("if we shift it in the film sim it should shift on the super control panel"); (2) a
+change made in the panel goes back into the film, as its WB mode does; (3) only the film's own WB mode gets it; (4)
+the camera's own picture modes keep what the film left; (5) video left alone.
+
+**Built (fix88-1, `firmware/src/editor.s`, ".. #88 film WB Compensation" block in `.ext13`):**
+- `fw_apply` (pick) -> `fw_ft`: slot's shift (0 / 0 when off) -> the fine-tune of the slot's own WB mode.
+- `fw_keep` (leaving) -> `fw_kft`: the camera's fine-tune of its WB mode now -> the slot left (+26, +27; +25 bit 0
+  on when either is not 0, bit 7 off; off when both 0).
+- `gx_map` (Picture Mode 0x0418 opens) -> `fw_pm`, and `ex_live` (each half-press) -> `fw_sync`: the COLOR on screen's
+  shift <- the camera's (P+DIRTY on a change), so the row, the '*' and the photo code (ex_rec) follow the panel.
+- The first `ex_live` of a power-on (`fw_done` 0) puts the slot's shift into the camera instead (`fw_put`, handle
+  rc_in): a v0.40 film keeps its shift after the update, and **om-emu: a fine-tune written at a half-press or in
+  rc_go (not from the camera's menus) came back with its old value after a power-off once** (107 written in the same
+  call stayed; fix88's first try, out-f88-1). Not understood; the later build kept it. Before `fw_done`, nothing is
+  taken from the camera (`fw_kft` returns at once): the early load (films from memory, no `nm_ex`) gives a valid P
+  before the first half-press. Writes only where the camera's value differs (`fw_wr`).
+- The Picture Mode row's A-B / G-M (`sl_set`'s ABB / GMB path, also the fine-tune screen it opens) -> `fw_row`: the
+  camera's fine-tune of its WB mode too, when the camera is on that COLOR.
+- `nf_post` -> `fw_nf`: the film on screen made from a new set gets its WB (fw_apply).
+- `wb_get` = `jmp getter` (the 21 patched read sites stay pointing at it; no addition, no double shift).
+- A film reset (hold OK) goes through fl_set -> fl_sw -> fw_apply, so the camera gets the built shift back (om-emu: A5
+  -> A3, no '*').
+- No new hooks, no start-up work: fl_set (a pick), the half-press (HLS task), gx_map after the films are in, rc_go;
+  none while a mode-dial switch waits (rc_pend). Stills ids only.
+- Sizes: .ext1 1536 / 1744 (wb_get's body gone), .ext11 65376, .ext12 262048, .ext13 74304 / 81920.
+
+**Tests (emu_test.py):** `film-wb-mode-and-kelvin-set-on-pick`, `film-wb-shift-set-in-the-camera-fine-tune`,
+`film-wb-shift-counts-once`, `wb-reads-add-no-film-shift` (replaces `wb-shift-reads-follow-the-look`),
+`film-keeps-a-wb-shift-changed-in-the-panel`, `picture-mode-row-shows-the-panel-wb-shift`,
+`picture-mode-row-wb-shift-sets-the-camera`, `new-film-set-sets-the-film-wb`. Full suite on 1ab6f1b's firmware: 119 of
+119 pass (exit 0). `--without` v0.40: six caught; the
+mode-on-pick and counts-once guards pass on v0.40 too (v0.40 had both right). Driver: `expect:cap:FN:KEY=V`
+(a capture WB read), `getv:IDS`, `pbytes:OFF:LEN`, `a1` in TRACE lines.
+
+**Behaviour that differs from v0.40 (told to the owner):** Natural / Vivid / ... now shoot with the compensation
+the last film left (before: none of the film's shift); a WB mode changed by hand no longer carries the film's shift
+(that mode's own applies); RAW Data Edit may now use the camera's compensation rather than the film's (analysis,
+not checked).
+
+Package fix88-1 (VERSION "v0.40-dev fix88-1 (#88: film WB shift in the camera)", commit 1ab6f1b): E1479999.BIN
+59147a14…6c4b, GUIDES.BIN 7f14900f…dca2; go-back v0.40 1e039ee2…1c37. Optional film sets for the camera test: the owner's
+current set with FILM 14 Custom WB 3200 K A3 M2 and FILM 15 Shade G3, and the same set back (om-emu: FILM 14 on
+screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3; back: Auto A1 G1; no '*').
+
+## Better grain g4: round clumps and fewer repeats (2026-11-19; branch feature/better-grain-g4; emulator only)
+- **Owner (2026-11-19): "lets work on better grain"**, after v0.40's chart photos (the section above: square clumps at
+  Coarse, repeat peaks 0.04..0.10). Kept: the tile format and levels (1536 x 1536 YCbYCr, Y 48 / Cb, Cr 128, sigma 16,
+  seamless, row y + 768 = row y), so xb_c1e's gains / offsets and Film Grain 1..5 are unchanged; no new hook; nothing
+  at start-up.
+- **Look approved from a Mac preview (owner, 2026-11-19: "Looks good, build it").** The preview (exact model, v0.40 next
+  to g4, Fine / Medium / Coarse at 100 % and 300 %; flat grey at Film Grain 5, the public-domain `portrait.jpg` at 3,
+  added as xb_c1e intends) is in the private package folder `test-builds/2026-11-19-grain-g4/preview/`. It was made
+  with 32-row strips; the build uses 40 (same filters, so the same look; repeats 0.016..0.017 -> 0.017..0.018).
+- **Design (model: `research/grain/tile_model.py` `g4_tile` / `g4_full`; measures: `research/grain/g4_measure.py`):**
+  - Round filters on uniform random bytes instead of the w x w box, the same both ways: Fine 1 (single pixels, as
+    before), Medium 1-3-1, Coarse 1-3-3-1; Cb / Cr at half width and half height as before, Fine and Medium 1, Coarse
+    1-3-1. K = round(16 / (73.9 sum h^2) 65536), add = (mid << 16) + 32768 - ((255 (sum h)^2 K) >> 1), value =
+    max((K s + add) >> 16, 0). Random bytes per plane row from tg_seed(row, plane) (xorshift32 words; word g = pixels
+    4g, 4g + 1, 4g + 2, 4g + 3 from bytes 0, 2, 1, 3, so `x & 0x00ff00ff` and `x >> 8 & 0x00ff00ff` are two pixels each,
+    in order). Picked from candidates by neighbour correlation (Medium ~ box 2's 0.5, Coarse ~ box 3's 0.67) and
+    look: 1-4-1 / 1-3-1 / 1-2-1 / 1-3-3-1 / 1-2-2-1 / 1-2-3-2-1 (box-like kernels such as 1-2-2-1 and 1-2-3-2-1 keep
+    side lobes along the axes).
+  - The band: 128 rows (period 128) made that way. Rows 128..767: 16 strips of 40 rows, each 12 blocks of 128 px from
+    a random x0 (tg_seed(k, 3)); block j (tg_seed(k << 4 | j, 4)): band rows from sy (even), upside down for half the
+    blocks (rows sy + 1 - i, so chroma row pairs stay together), turned sideways by sx (even px). Each block's first
+    G groups of 2 px crossfaded from the block before going on (Y per pixel over 2G steps, Cb / Cr per group over G;
+    Medium G 2, Coarse 3), each strip's first Bh rows from the strip before going on (Medium 4, Coarse 6; strip 0 from
+    the band going on), and at the end rows 0..Bh - 1 from the last strip (the wrap; read from the tile as it is then).
+    Weights round(256 cos / sin ((i + 1) 90 / (B + 1) degrees)) as g3. Fine needs no crossfades (white noise). Across
+    a 128 MB window edge: all 768 rows the band's way (period 768), rows by tg_put.
+- **Model, seed 0x12345678 (another seed the same within 0.01):**
+
+  | | Y mean / sigma | neighbours side / down / diagonal | box mark (axes / diagonals, 0.35..0.45 cycle / px) | repeats: tile / 640 x 640 |
+  |---|---|---|---|---|
+  | Fine g3 / g4 | 48.0 / 16.0 both | 0 / 0 / 0 both | 0.98 / 1.00 | 0.044 / 0.051 -> 0.007 / 0.014 |
+  | Medium g3 / g4 | 47.9 / 16.0 -> 48.0 / 16.0 | 0.50 / 0.50 / 0.25 -> 0.55 / 0.54 / 0.29 | 0.64 / 1.07 | 0.047 / 0.052 -> 0.009 / 0.015 |
+  | Coarse g3 / g4 | 47.9 / 16.0 -> 48.0 / 15.95 | 0.67 / 0.66 / 0.44 -> 0.75 / 0.75 / 0.56 | 14.6 / 0.42 | 0.048 / 0.055 -> 0.011 / 0.018 |
+
+  g2c's full tile (no reuse) for comparison: repeats 0.005..0.010 / 0.007..0.013. The box mark >> 1 is the box filter's
+  side lobes along the axes (the straight edges the camera photos showed); the round filters have none. Joins
+  (Medium / Coarse): the step between neighbouring rows at a strip's crossfade 1.02 / 1.04 x inside (g3 1.03), between
+  neighbouring columns at a block join at most 1.04 / 1.05 x inside (2-px weight steps gave 1.10: per-pixel Y weights
+  fixed it). Coarse with Bh 4 instead of 6: 1.07 (Y) / 1.10 (chroma), so 6 kept.
+- **Firmware (editor.s):** `tg_fill` rewritten (frame 120 -> 40; tr_ld2's call follows) with `tg_bnd` (the band; rings
+  of the last T - 1 random rows per plane, `tg_rf` / `tg_gw` fill them), `tg_vt` (vertical sums, T = 1 / 3 / 4, two
+  pixels a word), `tg_hy` / `tg_hc` (horizontal, five variants from the macro `TGH`), and in `.ext13` (ext12 is full)
+  `tg_str` (strips), `tg_tab` (a strip's 12 blocks), `tg_cmp` (a row: `tg_br`, `tg_cp`, `tg_jn`), `tg_lk` / `tg_ul` /
+  `tg_tr`, tables `tg_g4p` and the weights. Kept: tg_seed, tg_put, tg_op, tg_cl, tg_rc, tg_bl. Gone: tg_par, tg_col,
+  tg_row, tg_mix, tg_ra, tg_wi, tg_kt, tg_wt. The data after tg_bl needs its `.balign 4` (without it tg_n sat on an odd
+  address and om-emu stopped at the first half-press, in lg_sum). Work buffer one malloc of 14,280 B (row 3072, V 3080,
+  rings 4608 + 3072, two strip tables, context). Deepest stack tg_fill 40 + tg_str 40 + tg_cmp 56 + tg_cp / tg_jn 44 =
+  180 B, or via tg_lk -> tg_op -> hl_open about 148 B (g3: about 240 B). Locks a tile (analysis): Fine 208, Medium 276,
+  Coarse 310 (g3 210 / 252 / 294); the longest (estimates from the code): a Coarse crossfaded row ~85 K instructions,
+  8 other strip rows ~100 K, both under HL_LOCKN 120 K. Sizes: ext12 261,872 of 262,144 (v0.40 262,016), ext13 74,880
+  (73,664): the loader end word 0x60fbe000 -> 0x60fbf000 (the camera's boot copy 4 KB longer, inside the GX4-proven
+  reserve). Debug log: "Grain tiles (better grain g4): made N, failed N, last size S (1..3), last time (ms) T, fast N".
+  VERSION "v0.40-dev (grain g4)".
+- **om-emu** (tg_fill called directly, FLUSH stubbed): every tile equals the model byte for byte: Fine, Medium and
+  Coarse the fast way, Medium across an edge (suite test `grain-tile-matches-the-model`, now 4 cases; `--without` the
+  v0.40 build: caught, its tg_fill has the old frame and does not come back). Instructions a tile: **Fine 9.5 M,
+  Medium 18.7 M, Coarse 24.2 M** (g3 16.3 / 18.5 / 20.7 M); across an edge 49.1 M (g3's fallback 66 M). Suite on
+  6816925 (its own build): **112 of 112 pass**.
+- Package `test-builds/2026-11-19-grain-g4` (private folder): E1479999.BIN `fbaeec52…5a2a` (a second build of 6816925
+  matches) with its GUIDES.BIN `4d3eb8a0…af95`; go-back v0.40 `1e039ee2…1c37` (patch.py --release v0.40) with v0.40's
+  GUIDES.BIN `9460bf1a…4b1a`; TEST-STEPS: the chart test at Off / Fine / Medium / Coarse 1, 3, 5, Halation 5 + grain,
+  a burst of 10, the log's time line.
+- **Fourier spectra (owner asked, 2026-11-19; picture `preview/grain-fourier-v040-vs-new.png` in the package):** Y of
+  the model tiles (768 x 768, power, log scale) and of the owner's v0.40 chart photos (mid-grey patch, 512 x 512,
+  averaged over 256 x 256 windows). v0.40 Coarse, model and camera alike: dark lines at +-1/3 cycle / px on both axes
+  (the box 3's zeros) with bright side lobes beyond: the square clumps and 1 px stripes. v0.40 Medium: the box 2's
+  square edge at +-1/2. v0.40 Fine and Medium: fine vertical streaks (the full-width strips' repeats). g4: smooth
+  round spectra, no lines or streaks; at Coarse the block joins add 0.002..0.005 % of the power at |f| > 0.4 (a fresh
+  band 0.006 %, g3's box side lobes 2.8 %), faint streaks only on the log scale.
+- **Faint lines in the first spectra picture were the measurement (owner, 2026-11-19: "I see some very very faint
+  ones in medium").** That picture took a 768 x 768 corner of the 1536-wide tile: the cut edge leaks a faint streak
+  pattern into the spectrum where the grain's own spectrum is small (the far left / right, strongest at Coarse,
+  whose 1-3-3-1 has a zero at the finest detail); filtered numpy random bytes and a tile with no copies at all
+  show the same. Taken over the whole tile half (768 x 1536, seamless both ways) there are none; the corrected
+  picture replaces the first in the package (`preview/grain-fourier-v040-vs-new.png`): g4 next to fresh noise with
+  no copies looks the same at every size. Measured (log spectrum divided by its smooth shape, 4 seeds): the copies
+  leave a faint mottle, Medium 0.084 (fresh noise 0.065, v0.40 0.24), slightly elongated along fy (correlation
+  over 6 bins 0.043 / 0.024 along fy / fx; fresh about 0, v0.40 0.50 / 0.21). It follows the block shape, not the
+  crossfades (joins made in the white noise before the filter, so with no crossfade at all, gave the same numbers):
+  40 x 64 px blocks bring it to 0.077 and 0.015 / 0.020 (32 x 64: 0.075, 0.009 / 0.011), repeats down to 0.008 /
+  0.011, at an estimated 20..25 % more work for Medium and Coarse (twice the joins). Not built: **owner (2026-11-19):
+  "Keep the test build"** (40 x 128 blocks stay).
+- **Camera-only:** the time per tile (v0.40 ~270 ms; guess: Fine quicker, Coarse about the same or a little slower),
+  the look on photos (no squares, stripes or repeats), Halation with grain, bursts, start-up with the 4 KB longer boot
+  copy.
+- **g4 against real film (2026-11-19; analysis from the exact filters, not camera photos).** Sources the owner passed
+  on: a real-film measurement note (35 mm scans at 4000 dpi on a Coolscan V ED, public domain on Wikimedia Commons,
+  user Wiley.andrew.r; lags and power in camera pixels for a 35 mm frame filling 5184 px; power = the 2-D spectrum
+  along the sharp scan axis at 1/6, 1/3, ~1/2 cycle / px over the lowest frequencies), Newson, Faraj, Galerne, Delon,
+  "Realistic Film Grain Rendering", IPOL 7 (2017) (the open version of their CGF 2017 Boolean-model paper), and
+  D. Patrut, "Simple Physically-Based Film Grain Simulation: An Experiment" (2025).
+  - Clumps (lag 1 / 2 / 3; power 1/6 / 1/3 / 1/2): Ultramax 400 0.48 0.15 0.05; 0.61 0.24 0.12. Tri-X 400 0.42 0.13
+    0.04; 0.63 0.26 0.16. Ektar 100 0.59 0.24 0.11; 0.40 0.13 0.05. **g4 Medium 0.55 0.09 0; 0.66 0.16 0.04: the
+    right size, a little too smooth at the finest detail. g4 Coarse 0.75 0.30 0.05; 0.44 0.02 0**: softer than any
+    film there. Adding ~20 % (of the variance) single-pixel grain to the clumps: Medium 0.44 0.07 0; 0.67 0.20 0.09,
+    Coarse 0.60 0.24 0.04; 0.46 0.04 0.02 (closer to ISO 400 and to Ektar), still round. Fine (white) has no 35 mm
+    match at this scale (the note).
+  - Colour: real colour grain is strong and mostly blue-yellow (Cb / Y 1.04..1.25, Cr / Y 0.58..0.70: Cr about 0.56
+    of Cb), layers close to independent, as fine as the brightness grain. g4 has Cb = Cr and chroma at half height.
+  - Tone: real grain peaks at mid-grey and fades in shadows and highlights (the note's Ektar scene; the Boolean
+    model's coverage variance u (1 - u)), with bright-leaning specks at mid-grey (skew +0.4..+0.8). **Out of reach
+    for the tile:** the texture blend adds it at the same strength in every tone (camera-tested 2026-11-16). Both
+    references make the grain from the photo itself (Newson: discs at a density set by the tone, Gaussian 0.8 px,
+    2.4 s for a 512 x 512 grey on a parallel CPU; Patrut: a blue-noise texture stepped by the pixel value at 2x2..8x8
+    sub-pixels), which needs a pass over the photo (the CPU grain route took ~3 s, 2026-11-05).
+  - Strength (the note, model numbers): Film Grain 2 / 3 / 5 at Medium = 10.6 / 15.9 / 23.8 (8-bit), real Ektar 100
+    4.5 and Ultramax 400 7.6 (6.5..7.5 in a finished scan): level 1 is about ISO 100 film, 2 about ISO 400.
+  - Possible g5 (not built; the owner's call): ~20 % single-pixel grain in Medium and Coarse (a centre-tap boost in
+    the band pass), Cr weaker than Cb, chroma at full height. All three only change the band rows (the copies follow).
+    The centre-tap boost (same random bytes, 2-D kernel 1-3-1 x 1-3-1 with the centre 9 -> 12..14) gives Medium
+    lag 0.46..0.41, power 0.69..0.71 / 0.22..0.26 / 0.09..0.12, still round (axis / diagonal 0.99); Coarse (one
+    centre tap 9 -> 17..21) lag 0.65..0.58, power 0.47..0.49 / 0.04..0.06 / 0.01..0.03.
+- **g5 preview (2026-11-19; model only, owner: "Make a preview now"):** g4 with the centre tap +4 (Medium, 9 -> 13)
+  / +12 (Coarse) and Cr sigma 9 (Cb 16). K = round(sigma / (73.9 sqrt(sum k^2)) 65536) over the 2-D kernel
+  (Medium 981, Coarse 515), add from (sum k) = 29 / 76. Exact model (seed 0x12345678, whole tile): Medium lag 0.43
+  0.05 0, power 0.61 0.22 0.12 (Ultramax 400 0.48 0.15 0.05; 0.61 0.24 0.12); Coarse 0.58 0.20 0.02; 0.43 0.05 0.03;
+  Y 48 / 16, Cb 16, Cr 9; repeats tile / 640 Medium 0.008 / 0.015, Coarse 0.010 / 0.016 (g4 0.009 / 0.015, 0.011 /
+  0.018); spectra round with an even floor at the edges, no lines. With no boost and Cr 16 the model equals g4 byte
+  for byte. Full-height chroma left out: at Medium / Coarse the colour grain is already about the size of the
+  brightness grain (lag 1 about 0.5 / 0.77 against Y 0.55 / 0.75). Pictures in the private test-builds folder.
+- **Owner on the g5 preview (2026-11-19): "g5 looks worse. it looks more pixelated again"**; one grain only, compared
+  with v0.40.1 (= g4, released). So the single-pixel part (centre-tap boost) is out, whatever the real-film numbers
+  say. Next preview: v0.40.1's clumps unchanged (Y and Cb byte for byte) with Cr sigma 9 instead of 16 (less
+  red-green colour speckle); pictures in the private test-builds folder; owner's verdict pending.
+- **Fourier of the colour-only preview (2026-11-19, owner asked; model + v0.40.1 camera photos):** brightness spectra
+  identical to v0.40.1 (Y byte for byte); red-green colour the same shape at about a third of the power (Cr sigma 9).
+  Both show, in Coarse's colour only, **faint horizontal bands** (dark at |fy| ~1/4, a small rise at 0.35..0.45
+  cycle / px): the colour grain is made at half height and each colour row serves two pixel rows (g1..g4, so
+  v0.40.1 too). Camera-confirmed: the OM-3 JPEG is 4:2:2 (chroma full height), and the v0.40.1 chart photos
+  (PB194017 / 020 against grain Off PB194011, 40 flat 256 px blocks, red-green high-pass power down the rows over
+  |fy| 0.05..0.45) give Coarse 5 1.00 0.64 0.27 0.09 0.04 0.04 0.06 0.05 0.03 against the model's 1.00 0.60 0.25
+  0.08 0.03 0.04 0.06 0.06 0.03 (Medium 5 smooth, as the model). Faint (the rise is about 6 % of the coarse colour
+  power) but real. Fix if wanted: colour grain at full height with a smooth vertical filter (estimate ~10 % more
+  work a tile; the 2-px colour width is the 4:2:2 format's and stays).
+- **Colour fix preview (2026-11-19, owner: "just do the fix"; model only, not built):** v0.40.1's brightness byte for
+  byte; colour grain made at full height (own random bytes per row, tg_seed(row, 1 / 2) for rows 0..127): Fine /
+  Medium vertical 1-1, horizontal 1 (the same spectrum as before, without the 2-row grid); Coarse vertical 1-3-3-1,
+  horizontal 1-6-1 (was 1-3-1 at half height); Cb sigma 16, Cr 9. Coarse red-green down the rows (|fy| 0.05..0.45)
+  1.00 0.83 0.54 0.32 0.15 0.05 0.01 0.00 0.00 (v0.40.1 1.00 0.57 0.23 0.07 0.03 0.03 0.05 0.06 0.03): **bands gone**.
+  Coarse colour lags rows 0.75 0.30, px 0.66 0.32 (the brightness clumps' 0.75 0.30; v0.40.1 colour 0.77 0.55: the
+  colour specks a little finer, as real film's). Repeats Cr 0.008..0.012. Pictures (grey, photo, Fourier: brightness,
+  blue-yellow, red-green) in the private test-builds folder; owner's verdict pending. Firmware cost (estimate):
+  the colour band twice as many rows; Coarse uses the existing 4-tap vertical pass.
+- **Cost of the colour fix (estimate from the loops, 2026-11-19; not built):** colour band rows 64 -> 128 a channel;
+  tg_vt about 4.5 / 7.75 (a new 2-tap loop) / 10.5 / 12.75 instructions a pixel at 1 / 2 / 3 / 4 taps, tg_h1c 9,
+  tg_h3c 16 (1-6-1 about 17). Extra a tile: Fine and Medium +2.0 M, Coarse +3.2 M (om-emu v0.40.1: 9.5 / 18.7 / 24.2
+  M). At the camera's v0.40.1 rate (Coarse 322 ms for 24.2 M): Fine ~126 -> ~152 ms, Medium ~248 -> ~274 ms, Coarse
+  322 -> ~365 ms (+26 / +26 / +43 ms). Work buffer +1,536 B (Coarse's 3-row colour rings): 15,816 B. Fine and Medium
+  had no bands: keeping their colour at half height costs nothing there (only Coarse +43 ms).
+
+## Combined test: fix #88 + grain g4 (2026-11-19; branch try/fix88-grain4; emulator, on the owner's card)
+- Owner: "if possible lets test 88 with the better grain build". `fix/88-film-wb` (1182a7b) and
+  `feature/better-grain-g4` (42e7626) merged on main b4b3161; conflicts only VERSION ("v0.40-dev fix88 + grain g4
+  (test 1)") and these notes (both sections kept); editor.s merged cleanly.
+- cad's check: fix88 cleared earlier (no new hooks, nothing at start-up, stills only; rebuild = its package). Grain g4:
+  no new hook or patch site; the tile is made during the still's development as g3; work malloc 14,280 B (cap
+  16,448); locks ~85..100 K instructions (estimate, under HL_LOCKN 120 K); loader end word 0x60fbf000, inside the
+  GX4-proven reserve (to 0x6103f000, camera-tested 2026-11-12).
+- Build: ext11 65,376 / 65,536, ext12 261,904 / 262,144, ext13 75,584 / 81,920. E1479999.BIN `4f7393a5…3ecd`,
+  GUIDES.BIN `3b7819e5…70e6`. Suite: **119 of 119 pass** (exit 0, recorded on 58227b4).
+- Package `test-builds/2026-11-19-fix88-grain4` (private folder); copied to the owner's card by cad and checked by
+  sha256 (2026-11-19). Camera test pending.
+- **Camera result, grain (owner's OM-3, 2026-11-19; camera-tested).** Files in the private package folder
+  (`camera-results/`: PB194011..4039, CADLOG.TXT; never in the repo). Log: build "v0.40-dev fix88 + grain g4 (test
+  1)", "Look at: nothing unusual", **"Grain tiles (better grain g4): made 10, failed 0, last size 3, last time (ms)
+  322, fast 10"** (v0.40 about 270 ms), Halation photo 974 ms in all. Chart test PB194011..020 (Off, Fine / Medium /
+  Coarse 1, 3, 5, ISO 1000) against the morning's v0.40 set (PB193999..4008), light grey patch 384 x 384:
+  - strength and colour noise the same at every setting (Y high-pass std v0.40 / g4: Fine 5 25.2 / 25.2, Medium 5
+    24.5 / 24.4, Coarse 5 23.9 / 23.8; chroma 8.4..9.3 both);
+  - **square clumps gone:** the box filter's axis side lobes (power at |f| > 0.36 on the axes over the diagonal) Coarse
+    1 / 3 / 5 10.1 / 23.9 / 33.4 -> 1.6 / 1.6 / 1.2 (grain Off 1.9..2.0, the camera's own floor); neighbours
+    sideways / diagonal Coarse 0.64 / 0.41 -> 0.73 / 0.53 (rounder, a touch bigger);
+  - **repeats down to the floor:** the largest autocorrelation peak away from 0, Medium 0.05..0.10 -> 0.03..0.04,
+    Coarse 0.06..0.10 -> 0.04 (grain Off 0.03);
+  - Halation 5 + Film Grain 5 Coarse on a lamp (PB194021): the orange glow is there; a burst of 18 at Coarse 5
+    (PB194022..039): all saved, all grained (high-pass 24.6..25.1). The log's last write was at the burst's
+    half-press (event 68, 11 photos), so the burst's own tiles and timing are not in it.
+  - The new chart shots' greys are bluer (grey patch RGB 168 / 174 / 194 against 177 / 177 / 174): the camera's own
+    Auto WB chose more blue (WB_RBLevels 380 / 818 against 438 / 636, afternoon light); both record WB compensation
+    0 0 (exiftool WhiteBalanceBracket), so not the grain (analysis).
+- **WB (#88): no photos and no log line for it in this run;** the owner's report on the panel steps is pending.
+- **Camera result, #88 (owner's OM-3, 2026-11-19, the owner's report on the WB steps: "All looked right";
+  camera-tested by eye, no photos or log for it):** the film's WB compensation in the super control panel, a change
+  there kept by the film, and the films' WB after power-off / on as TEST-STEPS 1-5 describe. Not reported separately:
+  live view's colour per film, video's WB, the optional new film set (SETS/WB-TEST), photos comparing the shift's
+  strength with v0.40, in-camera RAW Data Edit.
+- **Fourier transform of the camera photos (owner asked, 2026-11-19; analysis):** Y high-pass (minus a Gaussian 8),
+  Hann 256 x 256, power normalised and averaged over the 24 chart patches of each photo; picture
+  `camera-results/grain-fourier-v040-vs-g4-camera.jpg` (private package folder). v0.40 Coarse 5: dark lines at
+  +-1/3 cycle / px on both axes with bright side lobes beyond (the 3 x 3 box); v0.40 Medium 5 a square outline. The
+  new grain: round spectra, Coarse falling off smoothly with no lines or side lobes, Medium round; Fine flat in both
+  (single-pixel noise). The dots in the grain-off spectra (both) are the camera's JPEG 8 x 8 blocks.
+
+## v0.40.1 release (2026-11-19; owner: "release! The! Kracken! (aka, release 40.1")
+- `release/v0.40.1` from `try/fix88-grain4` (4b0c363). Firmware: only `firmware/VERSION` changes ("v0.40.1").
+  E1479999.BIN 0df560d2…fd41; `patch.py --release v0.40.1` rebuilds it byte for byte. Camera-tested as the combined
+  test build (4f7393a5…3ecd, 2026-11-19); the release name alone is new.
+- LookLab: the grain preview's tile uses g4's round filters (`preview.ts` `G4_TAPS`; at preview size the averaged grain
+  is about 7 % (Coarse) to 14 % (Medium) stronger than with the box, as the camera's now is); the WB Compensation help
+  text says the film sets the camera's own compensation. vitest 76 pass.
+
+## Grain colour g6: full-height colour grain, weaker red-green (2026-11-19; branch feature/grain-colour; emulator only)
+- Owner: "Fix all three sizes" (after the colour preview against v0.40.1 and the cost estimate). On top of v0.40.1
+  (main 69e3438) plus feature/better-grain-g4's notes (merge 710b5bd). Firmware 811d96d.
+- **What changes:** only the colour planes of the grain tile. Brightness = v0.40.1 (g4) byte for byte. Cb / Cr made on
+  every band row (g4: every other row, each chroma row serving two pixel rows), chroma row r from tg_seed(r, 1 / 2),
+  768 samples, vertical taps on full rows: Fine / Medium 1-1 down, 1 across; Coarse 1-3-3-1 down, 1-6-1 across. Cb
+  sigma 16, Cr sigma 9. tg_g4p rows 52 B: + GP_KR / GP_AR (Cr: Fine / Medium 5644 / 6982156, Coarse 290 / 6054976;
+  Cb 10033 / 5862961 and 515 / 4218976) and GP_HC (1 or 6). tg_vt: a 2-tap path (one ring slot, no turn); tg_h6c
+  replaces tg_h3c; Cb / Cr rings 3 + 3 rows (GW_RC 6 x 768), context 80 B: TG_WORK 15,832 B (pools end at 16,448).
+  No new hook, nothing at start-up; ext12 262,000 / 262,144 B, ext13 75,584 B, loader end word unchanged
+  (0x60fbf000). VERSION "v0.40.1-gc (grain colour test)" (the Firmware Version page takes 9 letters: "0.40.1-gc").
+- **Model:** `tile_model.g6_tile` / `g6_full` (g4_tile takes the band maker); the grain-tile test compares with them.
+- **om-emu:** tile = model byte for byte (Fine / Medium / Coarse fast, Medium across an edge). Steps a tile: Fine
+  11.4 M, Medium 20.6 M, Coarse 27.6 M, across an edge 60.5 M (v0.40.1: 9.5 / 18.7 / 24.2 / 49.1 M), as estimated.
+  At v0.40.1's camera rate (Coarse 322 ms for 24.2 M) about 152 / 274 / 367 ms (analysis). `--without` the v0.40.1
+  build (0df560d2…, = the release): caught (all four cases differ).
+- **Suite on the 811d96d build: 119 of 119 pass** (exit 0).
+- Package `test-builds/2026-11-19-grain-colour/` (private): E1479999.BIN 6577b912…4c55, GUIDES.BIN 5e177bc9…a859;
+  go-back v0.40.1 0df560d2…fd41 (patch.py --release v0.40.1) + GUIDES.BIN 5a66b5ca…8fd3; preview pictures.
+- **Camera-only:** the time per tile, the look (colour speckle less red-green, no 2-row steps), Halation with grain,
+  bursts.
+- **Camera result (owner's OM-3, 2026-11-19; camera-tested): "the grain looks good"; but "on fast burst it rebooted
+  after about 30 photos. The grain is slower to save."** Files in the private package folder (`camera-results/`:
+  PB194040..050 JPG, CADLOG.TXT; never in the repo). On the card: chart test PB194040..049 (040..044 EXIF
+  "Sequential; Anti-shock", 045..049 single) and PB194050 (single), RAW+JPEG (image quality [14]); **none of the
+  burst's ~30 photos was saved** (nothing after PB194050). Log: build "v0.40.1-gc", written at event 54 with 11 photos
+  (so before the burst, or the burst's write never finished), **"Grain tiles (grain colour g6): made 10, failed 0, last
+  size 3, last time (ms) 348, fast 10"** (v0.40.1 322: +26 ms, +8 %; the estimate was +45), Halation photo 1052 ms in
+  all (v0.40.1 974; pass C 703 against 623). The reboot itself is not in any log.
+  - Not known: whether v0.40.1 reboots on the same burst. Its only camera burst was 18 shots (PB194022..039, drive [11]
+    Sequential + anti-shock, ~6 per second, RAW+JPEG, Coarse 5): all saved. A ~30-shot fast burst was never tried on
+    v0.40.1, so a reboot at the camera's buffer limit may be older than this change (guess). Next: the same burst on
+    v0.40.1 (the package's go-back), and on this build with Film Grain Off.
+- **Faster tile, same picture (2026-11-19; owner: "make the grain faster so bursts don't reboot"; emulator only).**
+  Commit 21e0916; the tile = the model byte for byte (the grain-tile test, unchanged model). om-emu steps a tile: Fine
+  8.5 M, Medium 16.5 M, Coarse 22.9 M, Medium across an edge 55.8 M (g6 11.4 / 20.6 / 27.6 / 60.5; v0.40.1 9.5 / 18.7
+  / 24.2 / 49.1). Where it came from: the crossfaded strip rows (102 at Coarse, 68 at Medium) are made in the work
+  buffer (n in W2 = V's room, free after the band; p in W) and blended once into the tile (no write-then-read-back
+  of the tile), tg_bl 4 bytes a turn with K = mid 256 + 128 - mid (c + s) folded in (about 58 K -> 38 K a row);
+  tg_cp / tg_rc copy 16 bytes a turn (tg_rc keeps shift 0 only, its one caller); TGH makes two outputs a turn; the
+  clamps take one compare in range (TGCL). ext12 261,984 B, ext13 75,904 B (loader end word unchanged). VERSION
+  "v0.40.1gc2 (grain colour, faster)". **Suite 119 of 119 pass** (pass recorded on 21e0916). Guess for the camera:
+  Coarse about 0.29 s (g6 0.348 s), if time follows the step count.
+- Package `test-builds/2026-11-19-grain-colour-faster/` (private): E1479999.BIN 218b018a…e22f, GUIDES.BIN
+  9f458270…2b67, go-back v0.40.1; **on the owner's card (2026-11-19, the owner asked; checked by sha256)**. Camera
+  question: the same ~30-shot fast burst (drive mode noted), and the log's tile time.
+- **Owner (2026-11-19), after the burst test on the faster build: "Ok. That works really well. Let's push that as
+  40.2".** The card was not in the reader, so its log and photos were not read for this note (time per tile on the
+  camera not recorded). Released as **v0.40.2**: the faster build's sources (21e0916) with `firmware/VERSION`
+  "v0.40.2"; E1479999.BIN da59432c…4d7b (`patch.py --release v0.40.2` byte for byte); the shorter name moves the code
+  after `lg_ver` in ext13 by 24 bytes, nothing else. LookLab's grain preview: colour planes at full height with the g6
+  taps, Cr sigma 9 (vitest 76 pass).

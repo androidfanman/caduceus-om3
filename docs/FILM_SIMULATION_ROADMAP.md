@@ -39,7 +39,7 @@ Efforts are estimates from what we know of the firmware today.
 | Split toning: colour by brightness | Teal shadows and warm highlights (cinema), cool shadows (Portra), green shadows (Superia). | Medium | **Done (v0.26)** | v0.28: wheels 0..10 in half steps plus a Tone Balance row; in LookLab too. |
 | Coloured glow (halation) | The red glow around lights of CineStill and other cinema film. | Medium | **Done (v0.28)** | Its own Picture Mode row, 0..5; faster with a smoother fade in v0.30.3; LookLab slider and preview. |
 | Color Mix and RGB curves | Shape colour and tone like a film lab: each colour's strength and hue, and a tone curve per channel. | Medium | **Done (v0.30)** | Two Picture Mode rows; the 20 films regraded with them; in LookLab too. |
-| Film grain: size, colour speckle, by brightness | Film grain depends on the stock: size, colour and where it shows. | Medium | **Done (v0.40)** | Our own colour grain, strength 1–5, and a Grain Size row. |
+| Film grain: size, colour speckle, by brightness | Film grain depends on the stock: size, colour and where it shows. | Medium | **Done (v0.40)** | Our own colour grain, strength 1–5, and a Grain Size row; round clumps with fewer repeats from v0.40.1; smoother colour grain with less red-green, made faster, from v0.40.2. |
 | Faster grain with Glow | Grain plus glow cost about 3 s per photo and blocked burst shooting. | Medium | **Done (v0.25)** | Grain from the image processor's texture route: as fast as no grain, with Glow / Clarity and Shading. |
 
 ## Shooting like a roll of film

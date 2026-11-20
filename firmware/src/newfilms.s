@@ -346,6 +346,8 @@ nf_post:
  inc d2
  cmp 4,d2
  bcs 31b
+ mov (4,sp),d0
+ call fw_nf,[d2,d3,a2,a3],24      /* #88: the film on screen's WB to the camera (fw_apply) */
  movbu (ss_cur),d0                /* the set now keeps them when it holds (its marks cleared) */
  cmp 6,d0
  bcc 9f
