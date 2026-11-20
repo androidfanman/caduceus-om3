@@ -2446,10 +2446,11 @@ def run_pbfilm(emu, build, out, card0):
 
 
 
-# r4 (2026-11-20, owner: "Yes, build them"): the Halation Radius row's pictures. ic_get called directly for the left
-# cells IC_RZ0 .. + 3 and the strip cells IC_RZS .. + 3 must answer ic_ent 15..22, whose descriptors hold mkicons'
-# pictures (82 x 62 left, 100 x 76 strip, as the camera's Grain Size pictures) byte for byte. The row's own behaviour:
-# halation-radius-row-kept-with-grain.
+# r4 (2026-11-20, owner: "Yes, build them"): the Halation Radius row's pictures. The picture hook's chain (ar_ic: the
+# body diagrams, the arrows, crop's labels cr_ic, then ic_get) called for the left cells IC_RZ0 .. + 3 and the strip
+# cells IC_RZS .. + 3 must answer ic_ent 15..22, whose descriptors hold mkicons' pictures (82 x 62 left, 100 x 76
+# strip, as the camera's Grain Size pictures) byte for byte. (The first r4 build put the strip at 0x7fc8, inside
+# crop's labels: the strip showed XPan / 21:9 / 5:4.) The row's own behaviour: halation-radius-row-kept-with-grain.
 HLRZPICS = 'halation-radius-pictures-as-drawn'
 
 
@@ -2463,7 +2464,7 @@ def run_hlrzpics(emu, build, out, card0):
     for pid, k in ids:
         ent = sym['ic_ent'] + 4 * k
         spec.append({'name': f'id-{pid:#x}', 'pc': 'B', 'stop': ['B+7'], 'max': 2000,
-                     'mem': [['B', 'dd'], ['B+1', f"={sym['ic_get']:#x}-B"], ['B+5', '0000']],    # call ic_get,[],0
+                     'mem': [['B', 'dd'], ['B+1', f"={sym['ar_ic']:#x}-B"], ['B+5', '0000']],     # call ar_ic,[],0
                      'regs': {'d0': hex(pid)},
                      'read': [[f'W({ent:#x})', 24], [f'W(W({ent:#x})+16)', len(pics[k][2])]]})
     res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
@@ -2474,10 +2475,10 @@ def run_hlrzpics(emu, build, out, card0):
         r = res[cs['name']]
         w, h, st = pics[k]
         if r['steps'] >= 2000:
-            errors.append(f'{cs["name"]}: ic_get did not return (out.json)')
+            errors.append(f'{cs["name"]}: the picture lookup did not return (out.json)')
             continue
         if int(r['regs']['a0'], 16) != sym['ic_ent'] + 4 * k:
-            errors.append(f"{cs['name']}: ic_get gave {r['regs']['a0']}, not ic_ent entry {k}")
+            errors.append(f"{cs['name']}: the lookup gave {r['regs']['a0']}, not ic_ent entry {k}")
         desc = bytes.fromhex(r['mem'][0])
         fmt, dw, dh = struct.unpack_from('<3H', desc)
         size = struct.unpack_from('<I', desc, 12)[0]

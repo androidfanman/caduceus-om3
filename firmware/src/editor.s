@@ -2671,8 +2671,8 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set ST_RZ0, 0x7f6d               /* ST_RZS + r the strip's "Bloom" / "Tight" / "Med" / "Wide" (rz_strs; after crop's */
 .set ST_RZS, 0x7f71               /* CR_ST0 0x7f68..0x7f6a) */
 .set IC_RZ0, 0x7f79               /* Halation Radius: its left cells Bloom / Tight / Med / Wide (mkicons PICTURES[15..18], ic_ent 15..18) */
-.set IC_RZS, 0x7fc8               /* r4: its strip cells (mkicons PICTURES[19..22], ic_ent 19..22; 0x7fc4..0x7fcf were free: after
-                                   * IC_FL0 + NF, before DG0) */
+.set IC_RZS, 0x7fdc               /* r4: its strip cells (mkicons PICTURES[19..22], ic_ent 19..22): free between the body diagrams
+                                   * (DG0 + NDG = 0x7fdc) and AR_IC0 0x7fe0; ar_ic -> cr_ic (crop's CR_IC0 0x7fc4..0x7fcc) -> ic_get */
 .set RG_IT, 5378                  /* rgb-curves: the RGB curves row (the H&S row's cases; rgbcurves.inc) */
 .set MX_IT, 5377                  /* colour mix: the Mix row (the H&S row's cases too; colourmix.inc) */
 .set TBB, 0x7ee0                  /* its bar ids + k (row 14) */
