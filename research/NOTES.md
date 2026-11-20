@@ -9167,3 +9167,18 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   `test-builds/2026-11-20-r4/` (private), emulator screenshots of the row in `screenshots/`, go-back v0.40.2.
 - **For the owner (not built):** the approved preview's words sit on a black box (the word's own 2 px edge plus the
   picture's ring); `option-word-outline.png` in the package shows them with the word's edge only, as Grain Size's words.
+
+## r5: the Radius pictures' words outlined as Grain Size's (2026-11-20; emulator, camera test pending)
+- Owner, on r4's `option-word-outline.png`: "oh I like the option way better. it should match the camera and grain. Make
+  that change then upload it to the sd card" (cad puts it on the card). Commit f04239d: `radius_cell`'s extra 2 px ring
+  goes round the patch only, the word keeps its own 2 px edge; the pixels equal the option's right side.
+- The outlined words encode bigger (15,488 B for the eight cells, were 14,424): build.py now puts the set of cells that
+  fills rz_pay best there (exhaustive over the 8: left Bloom / Med / Wide and strip Tight / Med / Wide, 11,232 of 11,264
+  B) and the rest in rz_pay2 (left Tight, strip Bloom: 4,288 of 4,352 B); `hl_ga` .. `hl_c2` (536 B of our helpers and
+  data) moved from .ext13 to .ext11 for the room (`hl_hp` stays in .ext13, alone in its 64-byte line). .ext11 65,104 /
+  65,536, .ext13 81,792 / 81,920 (ends 0x60fbff80), .ext14 16,320 / 16,384; the loader's end word unchanged. Little
+  room is left in .ext13 / .ext14 (128 / 64 B).
+- om-emu: `halation-radius-pictures-as-drawn` passes (the lookup chain, sizes and bytes); Bloom 19 of 19, the radius
+  pass 76 of 76. **Full suite on the f04239d build: 122 of 122 pass** (exit 0). Builds of f04239d twice, identical:
+  E1479999.BIN ec78fdb9…5e41, GUIDES.BIN ea9f267c…e920. Package `test-builds/2026-11-20-r5/` (private), row screenshots in
+  `screenshots/`, go-back v0.40.2.
