@@ -1834,6 +1834,13 @@ cr_za2:
  call cr_gar,[d2],16
  call cr_zm,[],0
  jmp cr_za2_back                  /* 0x60c13f9c: mov d0,d2 */
+ .balign 4
+cr_zn:                            /* zoom table reads given the crop's base (debug log) */
+ .long 0
+/* fixes2 (2026-11-20): ext6 is full with #99's code: cr_zm goes to the section-4 tail (loaded before section 6, whose
+ * zoom code is its only caller), cr_szr to section 6's ext14 (loaded with section 6, before the section-7 GUI code
+ * that jumps there). The code is fix97-1's, camera-tested. */
+.section .ext4,"ax"
 cr_zm:                            /* d0 = the ratio -> the one the zoom tables have (d1 used: free after the call) */
  cmp 5,d0
  bne 1f
@@ -1851,6 +1858,7 @@ cr_zm:                            /* d0 = the ratio -> the one the zoom tables h
  mov d1,(cr_zn)
 9:
  ret [],0
+.section .ext14,"ax"
 cr_szr:                           /* jmp from .hook_cz3, the frame of 0x611f9572: a1 = index x 266, d2 = the index,
                                    * (56,sp) = the ratio under the cursor; d0 / d1 / MDR free, a0 kept */
  cmp 0,d2
@@ -1871,7 +1879,4 @@ cr_szr:                           /* jmp from .hook_cz3, the frame of 0x611f9572
 8:
  add cr_szt,a1                    /* the stock instruction */
  jmp cr_szb                       /* 0x611f9660 */
- .balign 4
-cr_zn:                            /* zoom table reads given the crop's base (debug log) */
- .long 0
 .section .ext12,"ax"
