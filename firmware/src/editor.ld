@@ -275,6 +275,7 @@ cr_ef         = 0x60060eff;         /* the store write's first call (replayed by
 cr_sin_back   = 0x6006118b;
 cr_sb_back    = 0x60061214;
 cr_pbk1_back  = 0x61113424;         /* crop round 9b: SimplePlayCommon after mov (2844,sp),d2; mov 78,a0 */
+ex_tag        = 0x6042f92e;         /* #93: the shown photo's Exif tag text (d0 group, d1 tag, a0 copy to / 0, a1 its size) -> a0 */
 cr_pq_back    = 0x60c7c18f;         /* crop round 10: the record-mode lookup after its first three */
 cr_pqg_back   = 0x611133d5;         /* crop round 10: SimplePlayCommon's call 0x6110130d */
 cr_lr_j       = 0x60bf2d2b;         /* the live view ratio switch: mov d0,(28,sp) (the height) */

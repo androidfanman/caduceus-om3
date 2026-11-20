@@ -9062,3 +9062,37 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   76 exact on the r2 build; **full suite 120 of 120** (exit 0). The package `test-builds/2026-11-20-speed-radius/` now
   holds r2: E1479999.BIN db2aabba…, GUIDES.BIN d8c9573e… (built from 8d62048). Camera-only: the burst's photo times
   (the log's "longest").
+
+## #93: playback labels each photo by its own film (2026-11-20; branch fix/93-playback-film-name; emulator, camera test pending)
+- **Report (QuatoChang, v0.40.2):** COLOR 1 on FILM 1, photo 1 ("FILM1" in playback); COLOR 1 switched to FILM 3 in the
+  super control panel, photo 2 ("FILM3"); photo 1 then also reads "FILM3". Log: COLOR 1 FILM 3, 2 photos, nothing else.
+- **Cause (analysis):** the playback info screens' picture-mode label is the shooting screen's own pictures 15706..15709
+  ("COLOR1".."COLOR4"; the playback layouts' list of {picture, 0xffff, 7, 7} at 0x613fac48, beside the ratio label's
+  elements), picked from the photo's Exif (colorTone = COLOR k). fl_lvp (film test 9) answers those ids with COLOR k's
+  film now, in every screen.
+- **The photo's own film is reachable (analysis):** on the OM-3 the single frame's info build (SimplePlayCommon, GUI
+  task) calls OlyHfwOpePlyCom's wrapper into the play component's getStillInfo (om-emu's S-PLAYCOMP stands in for
+  exactly those wrappers), which fills its Exif info with 0x60435431: per tag `0x6042f7c7` (a number) or `0x6042f92e`
+  (text) with d0 a group, d1 the tag. Groups: 1 = IFD0 (Orientation 0x112, Rating 0x4746), 3 = Exif IFD (0x9003,
+  0xa002, 0x829a..), 4 = GPS, 10 / 12 = the maker note's CameraSettings / ImageProcessing. `0x6042f92e(d0 group, d1
+  tag, a0 copy to (0 = none), a1 its size) -> a0` the tag's text in the play module's copy of the photo shown (the
+  handle at 0x62a97038, through 0x618f7529 / 0x618e2939), 0 when there is no photo or no such tag; it takes no lock
+  (0x6040d06f / 0x6040d4b7 / 0x6040d51a / 0x6040d196 with 0x30018 are its trace points). ex_fill (v0.27) writes
+  "FILM n Name" (n = the film's slot 1..20) into each JPEG's ImageDescription (IFD0 0x010e).
+- **Fix:** no new hook. Crop's SimplePlayCommon hook (cr_pbk1 at 0x6111341e, after the label code, camera-tested in
+  round 9c) calls pb_note (firmware/src/playfilm.s, ext13): `0x6042f92e(1, 270, 0, 0)`, its own call slot below the
+  stock frame, a1 kept; pb_txt reads "FILM n" (one or two digits, then a space or the end, n 1..20) -> pb_fn n, 0 for
+  any other text, 0xff when none was read. fl_lvp asks pb_lbl first: in playback / image review (GUI class 5..7) with
+  n it draws "FILM n" (fl_LVL, no star) in COLOR k's slot of the LVB block (fl_pdw, fl_pcp's drawing); with 0 the
+  camera's own "COLOR k"; otherwise as before (lv_chk, COLOR k's film now). Outside playback pb_lbl forgets pb_fn.
+- **Behaviour against v0.40.2 (owner's call):** each photo shows its own film; a photo taken on a COLOR with no film
+  now shows the camera's "COLOR k" (before: that COLOR's film now). Not known: what RAW-only photos carry (ex_fill
+  writes the JPEG's block; the ORF's ImageDescription was never checked): if it is blank they show "COLOR k".
+- **om-emu cannot show the camera's own read:** its playback reads no photo's Exif (S-PLAYCOMP answers getStillInfo),
+  and its real `0x6042f92e` returns 0 (no photo). Test `playback-labels-a-photo-by-its-own-film`: the tag read stood
+  in (`mov TEXT,a0; ret [d2,d3,a2,a3],80`) for 12 texts through cr_pbk1 (pb_fn; the stock registers kept), the real
+  read once (0xff), then the picture getter with COLOR 1 on FILM 2: a FILM 7 photo in playback gives our picture
+  drawn as FILM 7 (also as a COLOR 2 photo, and for the starred id), the shooting screen after it FILM 2 and pb_fn
+  forgotten, FILM 20, a no-film photo the camera's own picture, no text read FILM 2. v0.40.2's build: `caught`.
+- Camera checks still open: the label right after moving between photos (the widget asks the getter at each draw,
+  crop round 9c), image review right after a shot, a RAW-only photo, a photo from another camera.

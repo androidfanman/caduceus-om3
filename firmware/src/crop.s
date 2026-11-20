@@ -1638,6 +1638,9 @@ cr_pbk1:                          /* jmp from 0x6111341e (d0 = the stock code; a
  mov 6,d2
 8:
  movbu d2,(cr_pbk)
+ add -8,sp                        /* #93: the photo's own film for its picture-mode label (playfilm.s pb_note); our */
+ call pb_note,[d2,d3,a2,a3],24    /* own call slot below SimplePlayCommon's frame */
+ add 8,sp
  mov (cr_pbsv),d0
  mov (cr_pbsv + 4),d1
  mov (2844,sp),d2                 /* the stock instructions */
