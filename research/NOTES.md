@@ -9262,3 +9262,77 @@ Branch `fix/91-drive-priority-grain` (from try/v0.40.3-beta ceb6d17), local.
   v0.30.3 (the camera's own grain tile, the same route) and v0.40-alpha (the first with our tile) to see whether the
   route or our tile does it. #50 (photos not saved with Film Grain in a Sequential burst, 2026-11-16, never reproduced
   on the owner's camera, which is on Detail Priority) may be the same bug: its reporter's Low ISO Processing is not known.
+
+## #97: Magnify and the Image Aspect screen in 5:4 / XPan / 21:9, fix97-1 (2026-11-20; emulator + analysis, camera test pending; branch fix/97-crop-magnify)
+- **Report (#97, v0.40.2, M, Image Aspect 5 = 5:4 in its log, "crop round 14"):** (1) Magnify in 5:4 / XPan / 21:9:
+  instead of the magnify frame the screen goes black, a click (as at auto power-off), focus lost, nothing more; fine in
+  the camera's own ratios. (2) Image Aspect menu: scrolling onto the crops shows "3:4" and the RAW size list on the
+  left disappears; after picking one and going back the names are right. Branch from fix/91-drive-priority-grain
+  (1970a2a = v0.40.3-beta + fix91-1, camera-tested).
+- **Magnify in om-emu:** om-emu's AF-ON / Fn keys do not reach the button functions (research/BUTTONS.md); Delete
+  does (#37). Delete = Magnify through the real menu: Custom Menu > Button Settings > Button Function (photo) > Delete
+  (11th row) > the magnifier (two rows up from Off, first column): sid 570 = 3352 (function code of LV_MAGNIFY, action
+  26; table 0x612f20a8). om-emu then draws the GUI's magnify frame and the 10x view at XPan as at 4:3 (the live view
+  picture is not emulated), and runs the live view's zoom code: getZoomArea 0x60c15477 and adjustCoordinates
+  0x60c14581 8 times per press.
+- **Cause 1 (om-emu + analysis):** CapThr_ThroughImage (section 6) reads the ratio through getAspectRatio 0x60c14644
+  (log "getAspectRatio ======== start"): Image Aspect 269 as it is (6 at XPan); 10 / 1 / 3 in video (44 = 1) and scene
+  modes 113..117. Five callers: getOutputAspect 0x60c14b3a, getOutputSize 0x60c14c8c, getTakeAreaSize 0x60c150ec (their
+  jump tables have the crops since round 1), and two that turn it into a table row with a compare chain for 1, 2, 3,
+  4, 9, 10 only:
+  - getZoomArea 0x60c15477 (log "CapThr_ThroughImage::getZoomArea aspect = %d"): row a3 = 0..5, entry = table (in the
+    CapThr object, 0x60c16f4a) + row x 80 + mode group + zoom rate (300..1400) x 4, 4 signed limit bytes; a miss
+    (0x60c154c0 -> 0x60c155dc) returns 0. selectDirectMove checks for 0 ("p_zoom_area is NULL!!"), adjustCoordinates
+    0x60c14581 does not: it reads the four limit bytes from address 0 and clamps the frame position with them.
+    om-emu, fix91-1 at XPan: the miss 19 times in one Magnify press, 0 at 4:3.
+  - adjustZoomFrameLimitPos 0x60c13f91 (log "[adjustZoomFrameLimitPos]ofs ..."): 16-B records by row (0x60c16fe6); a
+    miss takes row 0 (4:3's).
+  The black screen / click / stuck camera itself is not reproduced (om-emu runs no live view picture): analysis.
+- **Fix 1:** hook_cz1 (0x60c15483) and hook_cz2 (0x60c13f97), the two `call 0x60c14644,[d2],16` (5 B), become jumps to
+  cr_za1 / cr_za2 in ext6 (section 6's own tail: loaded with the code that jumps there, no gate): the stock call, then
+  cr_zm gives these two the crop's base, 5:4 -> 4:3 (1), XPan / 21:9 -> 16:9 (3), as the AF target screen does
+  (cr_spec, round 3), and counts it (cr_zn: the CROP MODES line, now "crop round 15", ends "; zoom reads given the base
+  N"). getOutputSize / getOutputAspect / getTakeAreaSize keep the crop. So Magnify uses 16:9's zoom areas at XPan / 21:9
+  (the frame can move above / below the strip) and 4:3's at 5:4 (left / right of it): the owner's to judge. Other LV
+  zoom code reads 269 directly (e.g. 0x60cbfc50 passes it on to a virtual call); not followed: if the camera still
+  fails, that is where to look next. MF Assist runs the same zoom code (LVZoom controller).
+- **Cause 2 (om-emu, reproduced on fix91-1):** the Image Aspect screen 0x611f9572 (Shooting Menu 1 > Image Aspect) has
+  its own lists: (a) the name under the cursor, 0x611c7785 by value from the record at 0x61577268 {u16 0, u16 6,
+  title 0x61577200, list 0x61577208 (1, 2, 3, 4, 9, 10: strings 292, 293, 291, 1792, 295, 3267), 0x61577250} (found
+  only by 0x611f9489): no entry for 5 / 6 / 7, so the name stayed the last one drawn ("3:4"); (b) the sizes, a loop
+  (0x611f9651..0x611f9792, 5 passes) over 266-B records at 0x61577278 {u16 ratio, 11 UTF-16 sizes of 24 B: RAW, Large,
+  Middle1, Middle2, Small1, Small2, then High Res Shot RAW tripod / handheld and its three JPEG sizes; setting 771
+  picks which}, records for 1, 3, 2, 4, 9: no match, so the flags that show the row names (screen +129..) stayed 0 and
+  the sizes stayed. The second loop (0x611f9793..) always takes the 4:3 record (the right-hand column). Found by an
+  execution-coverage diff in om-emu (cov tokens in a scratch driver: GUI code run on the step 1:1 -> 3:4 vs 3:4 -> 5:4).
+- **Fix 2:** (a) crop.py points the record's list at cr_ml0 (the menu's 9 entries, same strings; looked up by value)
+  and its count at 9 (patch sites 0x6157726a:1, 0x61577270:4). (b) 3 records for 5, 6, 7 (798 B: no section tail
+  has room) in the GUIDES.BIN code block, xb_szr, its offset at the block's +152 (xb_szo; xb_nrel moves to +156, read by
+  symbol). crop.size_records makes them from the photo size tables (W 0x606e60c0 / H 0x606e6270, ids 6 / 7 as round 1
+  rewrote them): each size's class is the one whose 4:3 size is the 4:3 record's; the RAW and High Res RAW sizes are
+  the full frame as in every stock record; the method is first checked against all five stock records (asserts). 5:4:
+  4864x3888, 3040x2432, 1840x1472, 1200x960, 960x768 (HR 9728x7776, 7648x6120, 5408x4320); XPan 5184x1920, 3200x1184,
+  1920x704, 1280x480, 1024x384 (HR 10368x3824, 8160x3008, 5760x2128); 21:9 5184x2224, 3200x1376, 1920x816, 1280x544,
+  1024x432 (HR 10368x4448, 8160x3504, 5760x2464). hook_cz3 (0x611f965a, the loop's `add 0x61577278,a1`, 6 B) -> cr_szr
+  (ext6): on the loop's first pass with 5 / 6 / 7 under the cursor and the block loaded (`xp`), a1 = our record (its
+  ratio matches, the loop takes it); else the stock add. The loop's setlb / Lcc are not disturbed (cr_szr and xp use
+  neither; the jump out and back is after setlb's 4 buffered bytes). Before the first half-press there is no block: the
+  names show, the sizes as before (start-up rule). om-emu: 5:4 / XPan / 21:9 each with its own name, sizes and the row
+  names; the 4:3 column unchanged.
+- **Start-up rule:** WATCH from switch-on (WBOOT, XPan restored at start-up, then half-press, menu): none of the three
+  hook sites runs; the zoom ones run only once Magnify has started (and while it is on). Section order: hook_cz1 / cz2
+  are section 6 -> ext6 (section 6); hook_cz3 is section 7 (GUI) -> ext6. `static:section-order` passes.
+- **Space:** ext6 580 / 608 B (28 B left), ext12 24 B left (the log text), GUIDES.BIN 14772 / 16448 B.
+- **Tests:** `crop-magnify-finds-its-zoom-area` (boot 1: XPan, Delete = Magnify, `hit:60c154c3:a3=2` = getZoomArea
+  takes 16:9's row, log "zoom reads given the base N > 0"; boot 2 after a power-off, 5:4 through the control panel then a
+  half-press (om-emu's Delete does nothing right after the panel), `a3=0`); `crop-image-aspect-screen-shows-crop-sizes`
+  (after a half-press, the screen on XPan and 21:9: ink at the row names x 90..180 y 290..320, the two frames differ).
+  `--without` fix91-1's build (out-f97-base = 1970a2a): both `caught`.
+- **Suite** (build of 6da4661 = the package, om-emu 0819080): **125 pass**, exit 0 (123 + the two new). `--without`
+  out-f97-base (1970a2a): both new tests `caught`. Both builds of 6da4661 the same byte for byte.
+- Package `test-builds/2026-11-20-fix97/1-test-build` (private folder): E1479999.BIN `0b5fb287…beed`, GUIDES.BIN
+  `3172384d…8a07`, VERSION "v0.40.3-f2 (fix91-1 + fix97-1: Magnify, Image Aspect, #97)"; go-back fix91-1
+  `6948ffdf…9323` / `958da094…d9ac`.
+- **Camera-only:** whether Magnify in a crop now shows the frame and the magnified view (no black screen / click /
+  stuck), what the magnified view shows at XPan (full width or the strip), MF Assist in a crop, the Image Aspect screen
+  on the camera.
