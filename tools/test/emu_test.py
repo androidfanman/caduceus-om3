@@ -704,7 +704,7 @@ def log_written_off_the_shutter_task(hits):
 SHOT_TIMING_LINE = (r'^Shot timing \(ms\): our code at shutter events last \d+, longest \d+ \(event \d+\); '
                     r'log file writes last \d+, longest \d+; photos with our passes \(Halation, Border, CPU grain\) '
                     r'0, last 0, longest 0; Halation\'s last photo: pass A 0, map 0, pass C 0, pauses for the camera 0 '
-                    r'\(0 ms\)$')
+                    r'\(0 ms\); stacks at Halation [0-9A-Fa-f]{8}, grain tile [0-9A-Fa-f]{8}$')
 SHOT_TIMING = ('lg_write', 'lg_ptm', 'lg_wkw', 'lg_ums')
 
 

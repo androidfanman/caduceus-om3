@@ -9068,6 +9068,8 @@ tr_ld2:                           /* 0x604ce6c9's frame: the builder's (4,sp) / 
  .set G4_PAR, 52
 tg_fill:
  mov d0,(4,sp)
+ mov sp,a1                        /* speed-1: this task's stack address, for the debug log */
+ mov a1,(tg_spv)
  clr d0
  mov d0,(8,sp)
  mov d0,(20,sp)
@@ -9894,8 +9896,7 @@ tg_str:
  add \k,d0
  asr 8,d0
  TGCL d0
- movbu d0,(\q,a0)
- movbu d0,(TG_HALF + \q,a0)
+ movbu d0,(\q,a1)                 /* speed-1: into p's byte (read already; W is scratch here), stored below */
  .endm
 tg_bl:
  mov d1,d3
@@ -9925,6 +9926,9 @@ tg_bl:
  TGBB 1, a2
  TGBB 2, a3
  TGBB 3, a2
+ mov (a1),d0                      /* speed-1: two word stores through the window (were eight byte stores) */
+ mov d0,(a0)
+ mov d0,(TG_HALF,a0)
  add 4,a1
  add 4,a0
  mov (4,sp),d0
@@ -12187,6 +12191,45 @@ pt_mx:                            /* the longest (us) */
  *   - hl_tk: the times of pass A (reading the frame), the map (blur, curve) and pass C (drawing) for the log.
  * The picture is the same byte for byte (only when the pass runs changes). research/NOTES.md, "glow-shots-2". */
  .set HL_YMAX, 800                /* sleeps a photo at most */
+/* hl_ga (speed-1, 2026-11-19): `call hl_ga,[d2],8`, d0 = bytes -> a0 = a 64-byte aligned buffer of at least that many
+ * bytes, through its cached alias, or 0. malloc gives the uncached heap (0xa...; every access ~50 ns on the camera):
+ * hl_run's grids are now used through the cached alias, as tg_fill's work buffer. The buffer is malloc(d0 + HL_GA)
+ * rounded up to 64 bytes, so no line it touches through the cache holds a neighbour's bytes (a write-back would
+ * otherwise put a stale copy of them back); malloc's pointer is kept in the 4 bytes before it, written uncached.
+ * Not the uncached heap (never seen): given back, 0. hl_gf: `call hl_gf,[],4`, a0 = hl_ga's buffer: free. The
+ * caller writes the lines back (FLUSH) before hl_gf. */
+ .set HL_GA, 128
+hl_ga:
+ add HL_GA,d0
+ call malloc,[],4
+ mov a0,d0
+ cmp 0,d0
+ beq 9f
+ cmp 0xa0000000,d0
+ bcs 8f
+ cmp 0xb8000000,d0
+ bcc 8f
+ mov d0,d2
+ add 64,d0
+ and -64,d0
+ mov d0,a0
+ mov d2,(-4,a0)                   /* malloc's pointer (uncached) */
+ add -0x40000000,d0
+ mov d0,a0                        /* the cached alias */
+ ret [d2],8
+8:
+ call free,[],4
+ mov 0,a0
+9:
+ ret [d2],8
+hl_gf:
+ mov a0,d0
+ add 0x40000000,d0
+ mov d0,a0
+ mov (-4,a0),a0
+ call free,[],4
+ ret [],4
+
 /* hl_yld: `call hl_yld,[d2,d3,a2,a3],20`, no lock held (capture job's task): the sleep above; counts hl_yn, hl_yus. */
 hl_yld:
  movbu (hl_hp + 0x40000000),d0    /* the uncached alias (written by lg_pr on another CPU) */
@@ -12300,6 +12343,10 @@ hl_lyn:                           /* its sleeps */
 hl_lym:                           /* their time (ms) */
  .long 0
 hl_tn:                            /* photos timed */
+ .long 0
+hl_spv:                           /* speed-1: the stack address seen by the last hl_run / tg_fill (debug log) */
+ .long 0
+tg_spv:
  .long 0
 hl_c2:                            /* pass C reached on this photo */
  .byte 0
@@ -13256,6 +13303,12 @@ lg_sum:
  mov (hl_lym),d0
  LGD
  LGS gs2_t5
+ LGS sp1_t1                       /* speed-1: where the stacks are (0x6.. cached, 0xa.. uncached) */
+ mov (hl_spv),d0
+ call lg_h,[],0
+ LGS sp1_t2
+ mov (tg_spv),d0
+ call lg_h,[],0
  LGS lg_y0                        /* now: mode, exposure, WB, picture, screen */
  call lg_new,[],0
  movbu (14,a3),d0
@@ -15222,6 +15275,10 @@ gs2_t5:
  .asciz " ms)"
 gs2_t6:
  .asciz " ("
+sp1_t1:                           /* speed-1 */
+ .asciz "; stacks at Halation "
+sp1_t2:
+ .asciz ", grain tile "
 lg_t4:
  .asciz "\r\n\r\nSTART-UP (this power-on)\r\nSettings block: "
 lg_found:
@@ -17976,6 +18033,8 @@ dg_bend:
  .set HL_C_PAIR, 44               /* h7: pass C's estimate per pair, per segment and per row (hl_sp, hl_row) */
  .set HL_C_SEG, 120
  .set HL_C_ROW, 100
+ .set HL_XB, 64 + 512             /* speed-1: hl_row's context (in mem1, just before the band's list): 64 B of values,
+                                     then this photo's copy of hl_cb / hl_cr */
 
 /* hl_run: `call hl_run,[d2,d3,a2,a3],124`, a0 = buffer record, d0 = strength 1..5 (124 = 16 for the saved registers
  * + 108 of locals; a callee's frame is likewise 16 + its locals).
@@ -17989,6 +18048,8 @@ dg_bend:
  * hl_row read these through the frame pointer. */
 hl_run:
  mov a0,(4,sp)
+ mov sp,a1                        /* speed-1: this task's stack address, for the debug log */
+ mov a1,(hl_spv)
  cmp 1,d0
  bcs 99f
  cmp 5,d0
@@ -18019,6 +18080,11 @@ hl_run:
  mov (12,sp),d0
  cmp d0,d1
  bcs 99f
+ btst 1,d1                        /* speed-1: memHw even and the buffer 4-byte aligned (word stores in pass C) */
+ bne 99f
+ mov (a0),d0
+ btst 3,d0
+ bne 99f
  add d1,d1
  mov d1,(20,sp)
  movhu (22,a0),d1                 /* H >= 64 */
@@ -18052,37 +18118,41 @@ hl_run:
  asl2 d0                          /* two lines (the list's room too) */
  add d2,d0
  add d3,d0
- add 3,d0
+ add HL_XB + 6,d0                 /* speed-1: + hl_row's context (HL_XB, 4-byte aligned) before the list */
  and -4,d0
- cmp 16384,d0
+ cmp 16384 - HL_GA,d0             /* speed-1: hl_ga adds HL_GA (the malloc cap 16448) */
  bhi 99f
- call malloc,[],4
+ call hl_ga,[d2],8                /* speed-1: 64-byte aligned, the cached alias (was malloc, the uncached heap) */
  cmp 0,a0
  beq 99f
  mov a0,(40,sp)
  mov a0,d0
  add d2,d0
- mov d0,(44,sp)                   /* the list */
+ add 3,d0
+ and -4,d0
+ add HL_XB,d0
+ mov d0,(44,sp)                   /* the list (hl_row's context, 4-byte aligned, just before it) */
  mov d2,d0
- call malloc,[],4                 /* Q / w grid */
+ call hl_ga,[d2],8                /* Q / w grid */
  cmp 0,a0
  bne 2f
  mov (40,sp),a0
- call free,[],4
+ call hl_gf,[],4
  bra 99f
 2:
  mov a0,(80,sp)
  mov d2,d0
- call malloc,[],4                 /* h4: the broad layer's copy of E */
+ call hl_ga,[d2],8                /* h4: the broad layer's copy of E */
  cmp 0,a0
  bne 4f
  mov (80,sp),a0
- call free,[],4
+ call hl_gf,[],4
  mov (40,sp),a0
- call free,[],4
+ call hl_gf,[],4
  bra 99f
 4:
  mov a0,(104,sp)
+ call FLUSH,[d2,d3],16            /* no stale lines in the window's cached view (and none for the grids') */
  mov (80,sp),a0
  mov (72,sp),d1                   /* zero both grids */
  mov (40,sp),a1
@@ -18094,7 +18164,6 @@ hl_run:
  add 2,a1
  add -1,d1
  bne 3b
- call FLUSH,[d2,d3],16            /* no stale lines in the window's cached view */
  clr d0                           /* glow-shots-2: pass A starts */
  call hl_tk,[d2,d3],12
 
@@ -18190,12 +18259,7 @@ hl_run:
  add -1,d0
  mov d0,(76,sp)
  bne 15b
- mov (60,sp),d0
- cmp 0,d0
- beq 17f
- call FLUSH,[d2,d3],16
-17:
- mov (56,sp),d0
+ mov (56,sp),d0                   /* speed-1: no FLUSH per group (pass A only reads; FLUSH after the pass) */
  call UNLOCK,[d2],8
  bra 19f
 18:                               /* a row across the window's edge: not counted (as before) */
@@ -18210,6 +18274,7 @@ hl_run:
  mov (16,sp),d1
  cmp d1,d0
  bcs 10b
+ call FLUSH,[d2,d3],16            /* speed-1: once after pass A (was after every group) */
 
  mov 1,d0                         /* glow-shots-2: pass A done */
  call hl_tk,[d2,d3],12
@@ -18377,12 +18442,14 @@ hl_run:
  mov (40,sp),a0                   /* g = (((u gmax) >> 8) sc) >> 8 */
  mov (72,sp),d3
  clr d2                           /* OR of g */
+ mov (8,sp),a1                    /* speed-1: gmax and sc in registers */
+ mov (64,sp),a2
 46:
  movhu (a0),d0
- mov (8,sp),d1
+ mov a1,d1
  mul d1,d0
  lsr 8,d0
- mov (64,sp),d1
+ mov a2,d1
  mul d1,d0
  lsr 8,d0
  movhu d0,(a0)
@@ -18394,6 +18461,17 @@ hl_run:
  call hl_tk,[d2,d3],12
  cmp 2,d2
  bcs 90f                          /* no g >= 2 anywhere: nothing changes (h7; was: all g = 0) */
+ mov (44,sp),a0                   /* speed-1: hl_cb / hl_cr (512 B) into hl_row's context, before the list */
+ add -512,a0
+ mov hl_cb,a1
+ mov 128,d1
+47:
+ mov (a1),d0
+ mov d0,(a0)
+ inc4 a0
+ inc4 a1
+ add -1,d1
+ bne 47b
 
  /* ---- C. bands of rows that share their cell rows: the top rows (y < 32: cell row 0 alone), then per cell row r0
   * the rows 32 + 64 r0 .. + 63 (r0 and r0 + 1, wy = (y - 32) & 63), then the last rows (cell row GH - 1 alone) */
@@ -18543,12 +18621,13 @@ hl_run:
 90:
  mov 3,d0                         /* glow-shots-2: the end */
  call hl_tk,[d2,d3],12
+ call FLUSH,[d2,d3],16            /* speed-1: the grids' dirty lines written back before they go back to the heap */
  mov (104,sp),a0
- call free,[],4
+ call hl_gf,[],4
  mov (80,sp),a0
- call free,[],4
+ call hl_gf,[],4
  mov (40,sp),a0
- call free,[],4
+ call hl_gf,[],4
 99:
  ret [d2,d3,a2,a3],124
 
@@ -18566,17 +18645,21 @@ hl_run:
  .endr
  cmp HL_T,d1
  bls 96f
- mov a0,a1
- add \o,a1
+ .if \o
+ add \o,a0                       /* speed-1: hl_x8 reads through a0 (a1 holds the row's end) */
+ .endif
  call hl_x8,[],0
+ .if \o
+ add -\o,a0
+ .endif
 96:
  .endm
 hl_pa:
  asl2 d0
  add a0,d0
- mov d0,(4,sp)
+ mov d0,a1                        /* speed-1: the row's end in a1 (was (4,sp)) */
 1:
- mov (4,sp),d0
+ mov a1,d0
  mov a0,d1
  sub d1,d0                        /* bytes left in the row */
  beq 9f
@@ -18590,9 +18673,7 @@ hl_pa:
  HLA8 96
  add 128,a0
  bra 6f
-5:                                /* the last column's part cell: one pair a turn */
- mov a0,a1
- add d0,a1
+5:                                /* the last column's part cell: one pair a turn (a1 = the row's end) */
 7:
  movbu (a0),d0
  mov d0,d1
@@ -18619,10 +18700,10 @@ hl_pa:
 9:
  ret [d2,d3,a2,a3],24
 
-/* hl_x8: `call hl_x8,[],0` (leaf), a1 = eight pairs: d3 += sum of max(0, Y0 - HL_T); d0 used. */
+/* hl_x8: `call hl_x8,[],0` (leaf), a0 = eight pairs: d3 += sum of max(0, Y0 - HL_T); d0 used. */
 hl_x8:
  .irp k, 0, 4, 8, 12, 16, 20, 24, 28
- movbu (\k,a1),d0
+ movbu (\k,a0),d0
  cmp HL_T,d0
  bls 95f
  add -HL_T,d0
@@ -18637,13 +18718,26 @@ hl_x8:
  * (j = GW), between the cell columns L = max(j - 1, 0) and R = min(j, GW - 1); it can glow only when g >= 2 at L or R
  * in the band's cell row A (96) or B (A + (84)): a lerp stays between its ends. Locals (0) call slot, (4) first pair,
  * (8) end. */
-hl_bd:
- mov a0,a2
- mov (44,a2),a3
+hl_bd:                            /* speed-1: hl_run's frame values (the uncached stack) copied into hl_row's context
+                                     once a band; the same list, count and estimate */
+ mov (44,a0),a3                   /* the list */
+ mov a3,a2
+ add -512,a2                      /* hl_row's context (HX_* at negative offsets) */
+ mov a0,(HX_LST,a2)               /* hl_run's frame (HX_* reused here; hl_row sets them again per row) */
+ mov (32,a0),d0
+ mov d0,(HX_GW,a2)
+ mov (28,a0),d0
+ mov d0,(HX_FP,a2)                /* pairs */
+ mov (84,a0),d0
+ mov d0,(HX_DB,a2)
+ mov (40,a0),d0
+ mov (96,a0),d1
+ add d1,d0
+ mov d0,(HX_G,a2)                 /* the grid's row A */
  clr d0
- mov d0,(100,a2)
+ mov d0,(HX_N,a2)                 /* the list's length */
  mov HL_C_ROW,d0
- mov d0,(88,a2)
+ mov d0,(HX_WY,a2)                /* the estimate */
  clr d3                           /* j */
 1:
  clr d0                           /* first pair, end */
@@ -18653,10 +18747,10 @@ hl_bd:
  mov d3,d0
  asl 5,d0
  add -16,d0
- mov (28,a2),d1                   /* pairs */
+ mov (HX_FP,a2),d1                /* pairs */
  cmp d1,d0
  bcc 9f                           /* past the row: no more segments */
- mov (32,a2),d2
+ mov (HX_GW,a2),d2
  cmp d2,d3
  bcc 4f                           /* j = GW: to the row's end */
  mov d0,d2
@@ -18665,32 +18759,28 @@ hl_bd:
  bcc 4f
  mov d2,d1
 4:
- mov d0,(4,sp)
- mov d1,(8,sp)
+ mov d0,(HX_AG,a2)
+ mov d1,(HX_AW,a2)
  mov d3,d0                        /* L */
  cmp 0,d0
  beq 5f
  add -1,d0
 5:
  add d0,d0
- mov (40,a2),a0
- mov (96,a2),d1
- add d1,a0
+ mov (HX_G,a2),a0
  add d0,a0
- mov (84,a2),d2
+ mov (HX_DB,a2),d2
  movhu (a0),d0
  movhu (d2,a0),d1
  or d1,d0
- mov (32,a2),d1                   /* R */
+ mov (HX_GW,a2),d1                /* R */
  add -1,d1
  cmp d1,d3
  bcc 6f
  mov d3,d1
 6:
  add d1,d1
- mov (40,a2),a0
- mov (96,a2),a1
- add a1,a0
+ mov (HX_G,a2),a0
  add d1,a0
  movhu (a0),d1
  or d1,d0
@@ -18698,175 +18788,77 @@ hl_bd:
  or d1,d0
  cmp 2,d0
  bcs 8f                           /* g <= 1 at both ends in both cell rows */
- mov (4,sp),d0
+ mov (HX_AG,a2),d0
  movhu d0,(a3)
- mov (8,sp),d1
+ mov (HX_AW,a2),d1
  sub d0,d1
  movhu d1,(2,a3)
  add 4,a3
- mov (100,a2),d0
+ mov (HX_N,a2),d0
  inc d0
- mov d0,(100,a2)
+ mov d0,(HX_N,a2)
  mov HL_C_PAIR,d0
  mul d1,d0
  add HL_C_SEG,d0
- mov (88,a2),d1
+ mov (HX_WY,a2),d1
  add d1,d0
- mov d0,(88,a2)
+ mov d0,(HX_WY,a2)
 8:
  inc d3
- mov (32,a2),d0
+ mov (HX_GW,a2),d0
  cmp d0,d3
  bls 1b
 9:
+ mov (HX_LST,a2),a0
+ mov (HX_N,a2),d0
+ mov d0,(100,a0)
+ mov (HX_WY,a2),d0
+ mov d0,(88,a0)
  ret [d2,d3,a2,a3],28
 
-/* hl_row (h7): `call hl_row,[d2,d3,a2,a3],72`, a0 = the row's first pair (CPU address), a1 = hl_run's frame, d2 = wy
- * (0..63; 0 in a band of one cell row). For each segment in the band's list: g and w at its ends (hl_lp; the right
- * end carried to the next segment when it follows), then hl_sp over its pairs when an end has g >= 2.
- * Locals (0) call slot, (4) frame, (8) row, (12) wy, (16) B - A bytes, (20) next entry, (24) entries left,
- * (28) previous j, (32) b_g, (36) b_w, (40) a_g, (44) a_w, (48) pairs, (52) first pair. */
- .set HR_WY, 12
- .set HR_DB, 16
-hl_row:
- mov a1,(4,sp)
- mov a0,(8,sp)
- mov d2,(12,sp)
- mov (84,a1),d0
- mov d0,(16,sp)
- mov (44,a1),d0
- mov d0,(20,sp)
- mov (100,a1),d0
- mov d0,(24,sp)
- mov -2,d0
- mov d0,(28,sp)
-1:
- mov (20,sp),a0
- movhu (a0),d3                    /* first pair */
- movhu (2,a0),d0
- add 4,a0
- mov a0,(20,sp)
- mov d0,(48,sp)
- mov d3,(52,sp)
- add 16,d3
- lsr 5,d3                         /* j */
- mov (4,sp),a1
- mov (28,sp),d0
- inc d0
- cmp d0,d3
- bne 2f
- mov (32,sp),d0                   /* follows the last one: its right end is this left end */
- mov d0,(40,sp)
- mov (36,sp),d0
- mov d0,(44,sp)
- bra 3f
-2:
- mov d3,d0                        /* L = max(j - 1, 0) */
- cmp 0,d0
- beq 21f
- add -1,d0
-21:
- add d0,d0
- mov d0,(32,sp)                   /* (2 L, for the w grid) */
- mov (40,a1),a0
- mov (96,a1),d1
- add d1,a0
- add d0,a0
- call hl_lp,[],0
- mov d0,(40,sp)
- mov (4,sp),a1
- mov (80,a1),a0
- mov (96,a1),d1
- add d1,a0
- mov (32,sp),d1
- add d1,a0
- call hl_lp,[],0
- mov d0,(44,sp)
- mov (4,sp),a1
-3:
- mov (40,sp),d0                   /* R = min(j, GW - 1); R = L (j = 0 or j = GW): b = a */
- mov d0,(32,sp)
- mov (44,sp),d0
- mov d0,(36,sp)
- cmp 0,d3
- beq 4f
- mov (32,a1),d0
- cmp d0,d3
- bcc 4f
- mov d3,d0
- add d0,d0
- mov (40,a1),a0
- mov (96,a1),d1
- add d1,a0
- add d0,a0
- call hl_lp,[],0
- mov d0,(32,sp)
- mov (4,sp),a1
- mov (80,a1),a0
- mov (96,a1),d1
- add d1,a0
- mov d3,d1
- add d1,d1
- add d1,a0
- call hl_lp,[],0
- mov d0,(36,sp)
-4:
- mov d3,(28,sp)
- mov (40,sp),d0                   /* g <= 1 at both ends: nothing changes */
- mov (32,sp),d1
- or d1,d0
- cmp 2,d0
- bcs 8f
- mov (44,sp),d2                   /* acc = (32 a_w + 16) << 16 | (32 a_g + 16), step = (b_w - a_w) << 16 + b_g - a_g */
- mov (36,sp),d3
- sub d2,d3
- asl 16,d3
- mov (32,sp),d0
- mov (40,sp),d1
- sub d1,d0
- add d0,d3
- asl 5,d2
- add 16,d2
- asl 16,d2
- asl 5,d1
- add 16,d1
- or d1,d2
- mov (52,sp),d0
- asl2 d0
- mov (8,sp),a0
- add d0,a0
- mov (48,sp),d0
- call hl_sp,[d2,d3,a2,a3],28
-8:
- mov (24,sp),d0
- add -1,d0
- mov d0,(24,sp)
- beq 9f
- jmp 1b
-9:
- ret [d2,d3,a2,a3],72
-
-/* hl_lp (h7): `call hl_lp,[],0` from hl_row (the call leaves sp as it is, so hl_row's wy and B - A are read through its
- * frame), a0 = A's value (u16) -> d0 = (64 A + (B - A) wy + 32) >> 6, B at a0 + (B - A); d1, d2 used. mul writes
- * MDR, so `ret`, not `retf`. */
-hl_lp:
+.section .ext13,"ax"               /* speed-1: hl_row moved here (ext12 is full) */
+ .balign 2
+/* hl_row (h7; speed-1 2026-11-19: the same bytes with no stack traffic per segment): `call hl_row,[d2,d3,a2,a3],72`,
+ * a0 = the row's first pair (CPU address), a1 = hl_run's frame, d2 = wy (0..63; 0 in a band of one cell row). For
+ * each segment in the band's list: g and w at its ends (HLPL; the right end carried to the next segment when it
+ * follows), then the pairs from the first with g >= 2 (the old hl_sp, inline) when an end has g >= 2.
+ * The camera's task stacks are uncached (om-emu: sp 0xa21f...; a stack access ~50 ns on the camera, from the
+ * glow-shots-2 / v0.40.2 timings), and the old hl_row / hl_lp / hl_sp made ~60 of them per segment. Now the row's
+ * values live in a context in mem1 (HL_XB bytes before the list, through the cached alias): 64 bytes of values, then
+ * this photo's copy of hl_cb / hl_cr (hl_run copies them before pass C), so a1 is the table and the context at once
+ * (the values at negative offsets, HX_*) and the per-pair loop needs no stack at all. */
+ .set HX_ROW, 0 - 64                   /* the row's first pair */
+ .set HX_WY, 4 - 64
+ .set HX_DB, 8 - 64                    /* B - A (bytes) */
+ .set HX_LST, 12 - 64                  /* the next entry */
+ .set HX_N, 16 - 64                    /* entries left */
+ .set HX_PJ, 20 - 64                   /* the previous j */
+ .set HX_BG, 24 - 64                   /* b_g, b_w (the right end, carried) */
+ .set HX_BW, 28 - 64
+ .set HX_AG, 32 - 64                   /* a_g, a_w */
+ .set HX_AW, 36 - 64
+ .set HX_G, 40 - 64                    /* the G grid's row A, the w grid's row A */
+ .set HX_W, 44 - 64
+ .set HX_GW, 48 - 64
+ .set HX_FP, 52 - 64                   /* this entry: first pair, pairs */
+ .set HX_NP, 56 - 64
+ .set HX_TE, 60 - 64                /* the segment's end */
+ .set HX_T, HX_FP                 /* HLP's staged word (HX_FP is free once the pairs start) */
+ .macro HLPL                      /* a0 = A's value (u16), a1 = the context -> d0 = (64 A + (B - A) wy + 32) >> 6 (the
+                                     old hl_lp); d1, d2 used */
  movhu (a0),d0
- mov (HR_DB,sp),d1
+ mov (HX_DB,a1),d1
  movhu (d1,a0),d1
  sub d0,d1
- mov (HR_WY,sp),d2
+ mov (HX_WY,a1),d2
  mul d2,d1
  asl 6,d0
  add d1,d0
  add 32,d0
  lsr 6,d0
- ret [],0
-
-/* hl_sp (h7): `call hl_sp,[d2,d3,a2,a3],28`, a0 = first pair, d0 = pairs >= 1, d2 = acc = (32 w + 16) << 16 |
- * (32 g + 16) at the first pair, d3 = its step per pair ((dw << 16) + dg; both parts of acc stay in 0..8191). Per
- * pair g = (acc & 0xffe0) >> 5, w = acc >> 21. The leading pairs with g <= 1 are skipped, and the segment ends at the
- * next g <= 1 (g is monotonic along it). Locals (0) call slot, (4) the end, (8) the end of the 8-pair runs. */
- .macro HLP o                     /* one pair at \o (a0 + \o): g >= 2 or out to 9f; a1 = hl_cb */
+ .endm
+ .macro HLP o                     /* one pair at \o (a0 + \o, 4-byte aligned): g >= 2 or out to 9f; a1 = hl_cb (the
+                                     context's copy) */
  mov a2,d0
  and 0xffe0,d0                    /* 32 g */
  cmp 64,d0
@@ -18883,7 +18875,9 @@ hl_lp:
  bcc 97f
  clr d3
 97:
- movbu d3,(\o+1,a0)
+ cmp HL_GY32,d0
+ bcc 95f                          /* g >= GY: all four bytes change (speed-1: one word store, below) */
+ movbu d3,(\o+1,a0)               /* g < GY: ((255 - Y) g HL_KY) >> 16 = 0, Cb and Cr only */
  add 256,d1
  movbu (d1,a1),d2                 /* Cr += (c HL_KCR) >> 8 (>= 0): hl_cr[c], clamped at 255 */
  movbu (\o+3,a0),d3
@@ -18893,8 +18887,18 @@ hl_lp:
  mov 255,d3
 98:
  movbu d3,(\o+3,a0)
- cmp HL_GY32,d0
- bcs 99f                          /* g < GY: ((255 - Y) g HL_KY) >> 16 = 0 */
+ bra 99f
+95:
+ movbu d3,(HX_T + 1,a1)           /* the new bytes staged in the context (cached), then one store to the photo */
+ add 256,d1
+ movbu (d1,a1),d2                 /* Cr */
+ movbu (\o+3,a0),d3
+ add d2,d3
+ cmp 255,d3
+ bls 93f
+ mov 255,d3
+93:
+ movbu d3,(HX_T + 3,a1)
  mov HL_KY,d2
  mul d2,d0                        /* 32 g HL_KY */
  movbu (\o,a0),d2                 /* Y0 += ((255 - Y0) 32 g HL_KY) >> 21 */
@@ -18903,41 +18907,149 @@ hl_lp:
  mul d0,d3
  lsr 21,d3
  add d3,d2
- movbu d2,(\o,a0)
+ movbu d2,(HX_T,a1)
  movbu (\o+2,a0),d2               /* Y1 */
  mov d2,d3
  xor 255,d3
  mul d0,d3
  lsr 21,d3
  add d3,d2
- movbu d2,(\o+2,a0)
+ movbu d2,(HX_T + 2,a1)
+ mov (HX_T,a1),d2
+ mov d2,(\o,a0)                   /* one store through the bus window (was four byte stores) */
 99:
  add a3,a2
  .endm
-hl_sp:
+hl_row:
+ mov (44,a1),d3
+ add -512,d3                      /* the table copy (a1 from here on) */
+ mov d3,a2
+ mov a0,(HX_ROW,a2)
+ mov d2,(HX_WY,a2)
+ mov (84,a1),d0
+ mov d0,(HX_DB,a2)
+ mov (44,a1),d0
+ mov d0,(HX_LST,a2)
+ mov (100,a1),d0
+ mov d0,(HX_N,a2)
+ mov -2,d0
+ mov d0,(HX_PJ,a2)
+ mov (96,a1),d1
+ mov (40,a1),d0
+ add d1,d0
+ mov d0,(HX_G,a2)
+ mov (80,a1),d0
+ add d1,d0
+ mov d0,(HX_W,a2)
+ mov (32,a1),d0
+ mov d0,(HX_GW,a2)
+ mov a2,a1                        /* a1 = the tables and the context */
+1:
+ mov (HX_LST,a1),a0
+ movhu (a0),d3                    /* first pair */
+ movhu (2,a0),d0
+ add 4,a0
+ mov a0,(HX_LST,a1)
+ mov d0,(HX_NP,a1)
+ mov d3,(HX_FP,a1)
+ add 16,d3
+ lsr 5,d3                         /* j */
+ mov (HX_PJ,a1),d0
+ inc d0
+ cmp d0,d3
+ bne 2f
+ mov (HX_BG,a1),d0                /* follows the last one: its right end is this left end */
+ mov d0,(HX_AG,a1)
+ mov (HX_BW,a1),d0
+ mov d0,(HX_AW,a1)
+ bra 3f
+2:
+ mov d3,d0                        /* L = max(j - 1, 0) */
+ cmp 0,d0
+ beq 21f
+ add -1,d0
+21:
+ add d0,d0
+ mov d0,a3                        /* 2 L */
+ mov (HX_G,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_AG,a1)
+ mov (HX_W,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_AW,a1)
+3:
+ mov (HX_AG,a1),d0                /* R = min(j, GW - 1); R = L (j = 0 or j = GW): b = a */
+ mov d0,(HX_BG,a1)
+ mov (HX_AW,a1),d0
+ mov d0,(HX_BW,a1)
+ cmp 0,d3
+ beq 4f
+ mov (HX_GW,a1),d0
+ cmp d0,d3
+ bcc 4f
+ mov d3,d0
+ add d0,d0
+ mov d0,a3                        /* 2 R */
+ mov (HX_G,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_BG,a1)
+ mov (HX_W,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_BW,a1)
+4:
+ mov d3,(HX_PJ,a1)
+ mov (HX_AG,a1),d0                /* g <= 1 at both ends: nothing changes */
+ mov (HX_BG,a1),d1
+ or d1,d0
+ cmp 2,d0
+ bcs 8f
+ mov (HX_AW,a1),d2                /* acc = (32 a_w + 16) << 16 | (32 a_g + 16), step = (b_w - a_w) << 16 + b_g - a_g */
+ mov (HX_BW,a1),d3
+ sub d2,d3
+ asl 16,d3
+ mov (HX_BG,a1),d0
+ mov (HX_AG,a1),d1
+ sub d1,d0
+ add d0,d3
+ asl 5,d2
+ add 16,d2
+ asl 16,d2
+ asl 5,d1
+ add 16,d1
+ or d1,d2
+ mov (HX_FP,a1),d0
+ asl2 d0
+ mov (HX_ROW,a1),a0
+ add d0,a0
+ mov (HX_NP,a1),d0
+ /* the old hl_sp: a0 = first pair, d0 = pairs >= 1, d2 = acc, d3 = step; per pair g = (acc & 0xffe0) >> 5,
+  * w = acc >> 21; the leading pairs with g <= 1 skipped, the segment ends at the next g <= 1 (g is monotonic) */
  mov d2,a2
  mov d3,a3
-1:                                /* leading pairs with g <= 1 (a rising segment's start) */
+11:
  mov a2,d1
  and 0xffc0,d1
- bne 2f
+ bne 12f
  add a3,a2
  add 4,a0
  add -1,d0
- bne 1b
+ bne 11b
  bra 9f
-2:
- mov hl_cb,a1
- asl2 d0
+12:
+ asl2 d0                          /* a1 = this photo's hl_cb / hl_cr (and the context) */
  mov a0,d1
  add d0,d1
- mov d1,(4,sp)
+ mov d1,(HX_TE,a1)
  and -32,d0
- beq 5f                           /* fewer than 8 pairs */
+ beq 15f                          /* fewer than 8 pairs */
  mov a0,d1
  add d0,d1
- mov d1,(8,sp)
-3:
+ mov d1,(HX_NP,a1)                /* the end of the 8-pair runs (pairs no longer needed) */
+13:
  HLP 0
  HLP 4
  HLP 8
@@ -18947,23 +19059,31 @@ hl_sp:
  HLP 24
  HLP 28
  add 32,a0
- mov (8,sp),d0
+ mov (HX_NP,a1),d0
  cmp d0,a0
- beq 5f
- jmp 3b
-5:
- mov (4,sp),d0
+ beq 15f
+ jmp 13b
+15:
+ mov (HX_TE,a1),d0
  cmp d0,a0
  beq 9f
-6:
+16:
  HLP 0
  add 4,a0
- mov (4,sp),d0
+ mov (HX_TE,a1),d0
  cmp d0,a0
  beq 9f
- jmp 6b
+ jmp 16b
 9:
- ret [d2,d3,a2,a3],28
+8:
+ mov (HX_N,a1),d0
+ add -1,d0
+ mov d0,(HX_N,a1)
+ beq 29f
+ jmp 1b
+29:
+ ret [d2,d3,a2,a3],72
+.section .ext12,"ax"
 
 /* hl_div: `call hl_div,[d2,d3,a2,a3],20`, d0 / d1 (unsigned, d1 > 0) -> d0, shift and subtract. */
 hl_div:
