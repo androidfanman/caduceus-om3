@@ -325,7 +325,7 @@ function planckRgb(T: number): [number, number, number] {
 /** What Halation did on the last preview: 'off' = the photo is too bright (the camera skips it too), 'none' = no bright
  *  lights, 'done', or null (not set). */
 export let lastHalation: 'off' | 'none' | 'done' | null = null;
-const HL = { T: 200, K: 900, BLUR: 3, BLUR2: 10, MIX: 128, GMAX: [0, 43, 78, 113, 156, 208], KY: 44, KCB: -40, KCR: 60, WMUL: 2, COV_U: 32, COV_LO: 8, COV_HI: 24,
+const HL = { T: 200, K: 900, BLUR: 3, BLUR2: 10, MIX: 128, GMAX: [0, 43, 78, 113, 156, 208], KY: 44, KCB: -40, KCR: 60, WMUL: 2, COV_U: 32, COV_LO: 25, COV_HI: 50,
   DLO: 60, DHI: 72, DCOV: 16 };   // DLO / DHI / DCOV: the preview's dark-photo allowance (not in the firmware)
 function om3Halation(img: Float32Array, w: number, h: number, level: number): 'off' | 'none' | 'done' {
   const sc = FULL_WIDTH / w, Wc = FULL_WIDTH, Hc = Math.round(h * sc);

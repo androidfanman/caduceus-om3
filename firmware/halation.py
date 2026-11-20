@@ -10,7 +10,10 @@ MIX = 128                          # the broad layer's share /256 (v = (tight (2
 GMAX = {1: 43, 2: 78, 3: 113, 4: 156, 5: 208}   # strength 1..5
 KY, KCB, KCR = 44, -40, 60         # the tint at full glow: red-orange (Y by the pixel, Cb / Cr by the area)
 WMUL = 2                           # h2: chroma weight = min(255, WMUL (255 - the cell's mean Y)): no speckle from grain
-COV_U, COV_LO, COV_HI = 32, 8, 24  # h2: cells with u >= COV_U: up to COV_LO % full strength, fading to none at COV_HI %
+COV_U, COV_LO, COV_HI = 32, 25, 50 # h2: cells with u >= COV_U: up to COV_LO % full strength, fading to none at COV_HI %
+                                   # 2026-11-20 (fernandezk26, camera-tested): 8 / 24 -> 25 / 50. A sunlit patch on a quarter to a
+                                   # half of the cells turned Halation off; at 25 / 50 it keeps its edge glow, and foliage against
+                                   # the sky (75 %) or a bright window (89 %) stays off (research/NOTES.md "Bright-frame limit 25 / 50")
 
 
 def curve(v):

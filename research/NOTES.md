@@ -8882,3 +8882,37 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   "v0.40.2"; E1479999.BIN da59432c…4d7b (`patch.py --release v0.40.2` byte for byte); the shorter name moves the code
   after `lg_ver` in ext13 by 24 bytes, nothing else. LookLab's grain preview: colour planes at full height with the g6
   taps, Cr sigma 9 (vitest 76 pass).
+
+## Bright-frame limit 25 / 50 (2026-11-20; fernandezk26; camera-tested on the contributor's OM-3, branch feature/halation-bright-limit)
+
+**Problem.** Halation went off when a sunlit patch filled about a quarter of the frame, though it worked when the
+same patch was half out of the frame. The cause is the bright-frame limit (`firmware/halation.py` COV_U / COV_LO /
+COV_HI = 32 / 8 / 24). It counts the 64 px cells with u ≥ 32 after the blur, gives full strength up to 8 % of the
+cells, fades to none at 24 % and skips the photo from there. The blur spreads one large patch over many cells. On the
+contributor's photos (measured with model.py on the saved JPEGs): patch at the edge 20 % (×0.23), corner 12 % (×0.77),
+patch fully in the frame 29–32 % (off).
+
+**Change.** COV_LO / COV_HI 8 / 24 → 25 / 50. Both passes read them from hl_tab.inc (hl_run's map, and hradius.s for
+the Radius radii on the branches that carry it). LookLab's preview (`webapp/src/preview.ts` HL) follows.
+
+**Why not higher.** Model renders at Halation 3 with the limit at stock, 25 / 50 and none:
+- A tree against the sky (75 % of the cells) turns its whole canopy orange with no limit. It stays off at 25 / 50.
+- A bright window (89 %) gets a faint pink cast with no limit. It stays off at 25 / 50.
+- A white dog on a dark wall (39 %) gets a slight warm cast at 25 / 50 with Bloom, and none with the 16 px radii.
+- Caduceus for the E-P7 v0.34a (cakelesscoder, HALATION_RED.md §24) raised its cap from 1/3 to 4/5 as a hard cutoff,
+  sized by worst-case time. Its count is taken after the strength, so the numbers don't map onto ours.
+
+**Camera (contributor, 56 photos on v0.40.2 + this change, and more on a v0.40.3-beta-based build).** About 30
+frames between 24 % and 47 % that v0.40.2 skipped got Halation at ×0.4–1.0: edge glows on sun patches, window blinds
+and chrome. Frames over 50 % stayed off (a tree against the sky, a window view, a sunny shelf, a yard). No freeze
+traced to the change. A large sunlit countertop at H5 came out peach all over; whether that is Halation or the warm
+sun is not known (no Halation-off frame of it).
+
+**Cost (om-emu, worst-case frames, 5184 × 3888, Halation 5).** Faint specks give every pair g ≥ 2 without counting
+as bright, and a bright top band or blocks set the share. The every-pixel-glows frame was already allowed under
+8 / 24 (467 M instructions, Bloom). The heaviest frame the new limit lets through is 470 M (+0.8 %), with the same
+lock count and the same longest lock. On the Radius branches the radii rise 8 % (their count reads a little higher,
+so they stopped earlier).
+
+**Tests.** emu_check gets two sun-patch frames: `sun3` (34 % of the cells: halation) and `sun3off` (51 %: off). With
+`EXPECT`, a case whose model result differs fails, so the 8 / 24 numbers fail `sun3`.

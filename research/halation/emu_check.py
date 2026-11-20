@@ -5,8 +5,9 @@
 
 BUILD_DIR is a firmware/build.py --out folder (main.bin, p.elf). Each case is a test frame in the camera's buffer
 format (YCbYCr 4:2:2, rows `pitch` bytes apart: the padding past 2 W bytes must stay as it is): synthetic night scenes,
-odd sizes, a frame that fades out (8..24 % bright cells), daylight (no halation), dark (no glow), chroma at the clamp
-ends, and five CC0 / public-domain sample photos from webapp/public/samples. emu_hl.mjs runs `hl_run` on each in om-emu
+odd sizes, a frame that fades out, a sun patch on a dark wall at 34 % and at 51 % of the cells bright (on / off at the
+bright-frame limit, firmware/halation.py COV_LO / COV_HI 25 / 50: EXPECT), daylight (no halation), dark (no glow), chroma
+at the clamp ends, and five CC0 / public-domain sample photos from webapp/public/samples. emu_hl.mjs runs `hl_run` on each in om-emu
 (single steps = instructions; FLUSH stubbed) and the result must equal model.halate's byte for byte, with the
 callee-saved registers, sp and a guard after the frame intact. Prints one line per case: steps, LOCK / FLUSH calls,
 the most instructions run under one lock. --profile adds steps per function (and per phase label in hl_run).
@@ -88,6 +89,15 @@ def flat(W, H, seed, lo, hi, pad=0, spots=0):
     return pack(Y, 128 + 10 * smooth(rng, H, W // 2, 41), 128 + 10 * smooth(rng, H, W // 2, 43), pad, rng)
 
 
+def sunpatch(W, H, seed, f):
+    """A sunlit patch (Y 250, f of the width and of the height) on a dark wall: the case the bright-frame limit decides."""
+    rng = np.random.default_rng(seed)
+    Y = 45 + 40 * (0.5 + 0.5 * smooth(rng, H, W, 83))
+    x0, y0 = int(W * 0.30), int(H * 0.25)
+    Y[y0:y0 + int(f * H), x0:x0 + int(f * W)] = 250
+    return pack(Y, 128 + 8 * smooth(rng, H, W // 2, 41), 128 + 8 * smooth(rng, H, W // 2, 43), 0, rng)
+
+
 def random_bytes(W, H, seed, ymax):
     rng = np.random.default_rng(seed)
     b = rng.integers(0, 256, (H, 2 * W), dtype=np.uint8)
@@ -114,6 +124,8 @@ CASES = {   # name: (frame maker, level)
     'grain4': (lambda: night(1536, 1152, 2, grain=20, pad=16, lights=4, windows=1), 4),
     'fade3': (lambda: flat(1024, 768, 3, 20, 120, spots=1), 3),
     'day5': (lambda: flat(1024, 768, 4, 150, 250), 5),
+    'sun3': (lambda: sunpatch(1024, 768, 21, 0.08), 3),
+    'sun3off': (lambda: sunpatch(1024, 768, 21, 0.14), 3),
     'dark5': (lambda: flat(1024, 768, 5, 10, 150), 5),
     'odd2': (lambda: night(1000, 700, 6, pad=24, lights=2, windows=0), 2),
     'small5': (lambda: night(320, 256, 7, lights=1, windows=0, strip=False, rmax=2), 5),
@@ -131,6 +143,9 @@ CASES = {   # name: (frame maker, level)
     'big5': (lambda: night(5184, 3888, 15, lights=12, windows=2), 5),
     'bigphoto5': (lambda: photo('bluehour.jpg', scale=2.5), 5),
 }
+# the model's result these cases must give: a sun patch on 34 % of the cells gets halation (the 8 / 24 limit skipped
+# it), one on 51 % does not; daylight stays off
+EXPECT = {'sun3': 'done', 'sun3off': 'off', 'day5': 'off'}
 BIG = ('big5', 'bigphoto5')   # camera-sized (16-20 MP): for the counts, not in the default run
 
 
@@ -202,6 +217,9 @@ def main():
         diff = np.flatnonzero(np.frombuffer(got, np.uint8) != np.frombuffer(want, np.uint8))
         changed = int((np.frombuffer(want, np.uint8) != np.frombuffer(orig, np.uint8)).sum())
         ok = o['done'] and o['regsBack'] and o['guard'] and diff.size == 0
+        if cs['name'] in EXPECT and status != EXPECT[cs['name']]:
+            ok = False
+            print(f'{cs["name"]}: the model gives {status!r}, expected {EXPECT[cs["name"]]!r} (firmware/halation.py COV_LO / COV_HI)')
         bad += not ok
         where = '' if not diff.size else f' first at row {diff[0] // cs["pitch"]} byte {diff[0] % cs["pitch"]}'
         print(f'{"exact" if ok else "DIFF":<6}{cs["name"]:<11} {cs["W"]}x{cs["H"]} L{cs["level"]} {status:<4} '
