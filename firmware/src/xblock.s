@@ -629,6 +629,14 @@ xb_gs:                           /* `calls` (0,sp) = return, a0 = job */
  mov 5,d0
 7:
  mov d0,(16,sp)
+ mov a1,(12,sp)                   /* Halation Radius: the COLOR's radius 0..3 (editor.s rz_eff; uses a0, a1) in bits 8..9 */
+ mov a1,a0                        /* of the strength word, for hl_sel; (12) is free until the setup's result */
+ call RZ_EFF,[d2,d3,a2],16
+ asl 8,d0
+ mov (16,sp),d1
+ or d0,d1
+ mov d1,(16,sp)
+ mov (12,sp),a1
 6:
  .endif
  .if XB_BD

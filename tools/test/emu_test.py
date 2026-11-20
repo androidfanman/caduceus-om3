@@ -480,9 +480,9 @@ SLOT1_AB = 58                                    # COLOR 1's slot +26 (A-B) at P
 WB_LINE = lambda wb: rf'^White balance: {wb} \['
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
-# borders: Picture Mode's Border row, the 18th (pm_list: after Film Grain and Grain Size, better grain g2); COLOR 1's
-# slot +50 is P + 82
-OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 17
+# borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
+# Radius); COLOR 1's slot +50 is P + 82
+OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 18
 # border preview (2026-11-17): with a Border on the look, the shooting screen's grid shows the border's inner edge as
 # a frame line. Rear screen 900 x 600, 4:3: the picture x 50..850, y 0..599; Border 3 is 26 px in (bd_run's width), so
 # the left line is on x 75..76 and the top one on y 25..26. Each line is checked against a point beside it on om-emu's
@@ -522,7 +522,7 @@ CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait'
 FILM_2_CHANGED = r'^Films with changes \(a \* in the camera\): 2$'
 DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
                     f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1 sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1' +
-                    ' down wait' * 9 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
+                    ' down wait' * 10 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
                     ' sub+1 wait sub+1 wait expect:p:82=01 menu wait wait s1 wait wait poweroff')
 # dial direction (2026-11-18): the same for Glow, Halation, Split Tone Balance and Film Grain. Contrast first, then
 # the row (moves from Contrast, the 9th row): right twice, the rear dial once (+1), the front dial twice (-2). The
@@ -536,11 +536,16 @@ BAR_DIAL = lambda moves, off, two, three, one: (
 GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
 HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
 BALANCE_DIAL = BAR_DIAL('up wait ' * 4, 65, '02', '03', '01')
-GRAIN_DIAL = BAR_DIAL('down wait ' * 7, 85, '01', '02', '01')
+GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
-# better grain g2: the Film Grain strength row, the 16th (Grain Size under it); COLOR 1's level byte +53 is P + 85
-OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 15
+# better grain g2: the Film Grain strength row, the 17th (Grain Size under it); COLOR 1's level byte +53 is P + 85
+OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 16
 GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
+# Halation Radius: its row, the 16th (under Halation, Film Grain under it); kept in the curves record's spare byte G
+# with the grain (the debug log's NOW lines)
+OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 15
+RADIUS_LINE = lambda r: f'^Halation Radius on COLOR 1-4: {r}, Bloom, Bloom, Bloom$'
+GRAIN_2_MEDIUM = '^Film Grain on COLOR 1-4: 2 Medium, Off, Off, Off$'
 EDIT_RGB = f'{OPEN_RGB} main+1 wait menu wait wait'
 
 
@@ -1043,6 +1048,16 @@ TESTS = {
         Boot(f's1 wait wait {OPEN_GRAIN}' + ' right wait' * 7 + ' expect:p:85=03 left wait left wait left wait'
              ' expect:p:85=01 down wait right wait menu wait wait s1 wait wait poweroff', expect=[GRAIN_2_COARSE]),
         Boot('wait wait s1 wait wait expect:p:85=01 poweroff', expect=[GRAIN_2_COARSE]),
+    ],
+    # Halation Radius: the row steps Bloom -> Tight -> Medium (a choice row: it wraps, Wide -> Bloom, as the others); a
+    # Film Grain strength set after it keeps the radius (gs_wr / rz_gk), and the radius set back to Bloom keeps the
+    # grain (rz_wr); all kept over a power-off.
+    'halation-radius-row-kept-with-grain': [
+        Boot(f's1 wait wait {OPEN_RADIUS}' + ' right wait' * 2 + ' down wait right wait right wait'
+             ' menu wait wait s1 wait wait poweroff', expect=[RADIUS_LINE('Medium'), GRAIN_2_MEDIUM]),
+        Boot('wait wait s1 wait wait poweroff', expect=[RADIUS_LINE('Medium'), GRAIN_2_MEDIUM]),
+        Boot(f'wait wait s1 wait wait {OPEN_RADIUS}' + ' left wait' * 2 + ' menu wait wait s1 wait wait poweroff',
+             expect=[RADIUS_LINE('Bloom'), GRAIN_2_MEDIUM]),
     ],
     'curves-file-kept-in-camera': [
         Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff', card={'CURVES.BIN': 'CURVES_A'},

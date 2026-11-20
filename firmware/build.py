@@ -154,6 +154,7 @@ EXT8 = (0x617e45f0, 0x617e47f0)            # section-8 tail (FF from 0x617e45e0,
 EXT11 = (0x60f49800, 0x60f59800)           # v0.23: section 6 extended by 64 KiB (loader end word 0x60045e9c raised; camera-proven GX2)
 EXT12 = (0x60f59800, 0x60f99800)           # v0.27: section 6 extended by 256 KiB more (camera-proven GX3, 2026-11-10)
 EXT13 = (0x60fac000, 0x60fc0000)           # v0.30 test 10: the debug log, after the RGB work area (GX4-proven reserve to 0x6103f000);
+EXT14 = (0x60fc0000, 0x60fc4000)           # Halation Radius: its code; then its work area HR_WRK .. HR_END (hradius.s), in the GX4-proven reserve
                                             # gentler Shading s1: + 16 KB for the vignette pass and its tables (still inside the reserve)
 EXT3 = (0x6081fe10, 0x6081fffc)            # section-3 tail (FF from 0x6081fe00, end 0x60820000)
 EXT5 = (0x60adb5b0, 0x60adb7f0)            # section-5 tail (FF from 0x60adb5a0, end 0x60adb800)
@@ -323,7 +324,7 @@ def build(defaults, testfile, out):
     subprocess.run([P.AS, '-I', out, '-I', HERE / 'src', '-o', out / 'p.o', HERE / 'src' / 'editor.s'], check=True)
     subprocess.run([P.LD, '-T', HERE / 'src' / 'editor.ld', '-o', out / 'p.elf', out / 'p.o'], check=True)
     blobs = {}
-    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13']:
+    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13', '.ext14']:
         subprocess.run([P.OBJCOPY, '-O', 'binary', '-j', s, out / 'p.elf', out / (s[1:] + '.bin')], check=True)
         blobs[s] = (out / (s[1:] + '.bin')).read_bytes()
     raw = Path(P.STOCK).read_bytes()
@@ -425,6 +426,11 @@ def build(defaults, testfile, out):
     print('SIZE .ext13', len(b13), EXT13[1] - EXT13[0], file=sys.stderr)
     assert EXT13[0] + len(b13) <= EXT13[1] and set(m[o(EXT13[0]):o(EXT13[1])]) <= {0xff}, len(b13)
     m[o(EXT13[0]):o(EXT13[0]) + len(b13)] = b13
+    b14 = blobs['.ext14']                                # Halation Radius: hr_run and its helpers
+    print('SIZE .ext14', len(b14), EXT14[1] - EXT14[0], file=sys.stderr)
+    assert EXT13[1] == EXT14[0] and EXT14[0] + len(b14) <= EXT14[1] and sy['HR_WRK'] == EXT14[1], (len(b14), hex(sy['HR_WRK']))
+    assert set(m[o(EXT14[0]):o(sy['HR_END'])]) <= {0xff}, 'Halation Radius: its code or work area is not free in the image'
+    m[o(EXT14[0]):o(EXT14[0]) + len(b14)] = b14
     # v0.23 new Picture Mode choice rows (Noise Filter, Shading Comp.): the item table (17 x 40 B at 0x6154c2a8) -> it_tab
     # (the stock 17, then our 4), at both lookups (mov table,a0 ... cmp 17,d1); the rows join the column's 9 row switches
     IT = 0x6154c2a8
@@ -432,7 +438,7 @@ def build(defaults, testfile, out):
     for a, c in ((0x611d040d, 0x611d0422), (0x611d0846, 0x611d0859)):
         assert bytes(m[o(a):o(a) + 6]) == b'\xfc\xdc' + struct.pack('<I', IT) and bytes(m[o(c):o(c) + 2]) == b'\xa5\x11', hex(a)
         struct.pack_into('<I', m, o(a) + 2, sy['it_tab'])
-        m[o(c) + 1] = 31                         # v0.25: + Glow / Clarity, Frame; v0.28 + Halation, Tone Balance; rgb-curves + RG_IT; + MX_IT; better grain g2 + GS_IT, SZ_IT
+        m[o(c) + 1] = 32                         # v0.25: + Glow / Clarity, Frame; v0.28 + Halation, Tone Balance; rgb-curves + RG_IT; + MX_IT; better grain g2 + GS_IT, SZ_IT; Halation Radius + RZ_IT
     # v0.24 film list: item 111's option lists (title / left column / strip, 48 x 12 B) -> fl_l0..2 (the stock 48, then
     # the films, written by editor.s), and setting 901's value table entry (COLOR 1-4) -> fl_rec, 4 + 20 records
     e = struct.unpack_from('<10I', m, o(sy['it_tab']))
@@ -459,6 +465,7 @@ def build(defaults, testfile, out):
     m[o(0x611c3caf)] = 8 + 20
     NR_IT, VF_IT, BK_IT, WH_IT, AB_IT, GM_IT, GL_IT, FR_IT, HL_IT, TB_IT = 5394, 5389, 5386, 5385, 5384, 5383, 5382, 5381, 5380, 5379
     GS_IT, SZ_IT = 5388, 5387                     # better grain g2: the Film Grain slider, the Grain Size choice row
+    RZ_IT = 5376                                  # Halation Radius: its choice row (editor.s, hrrow.s)
     def sw_add(base, n, item, target):
         key = item - 6
         ents = [struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)]
@@ -493,7 +500,7 @@ def build(defaults, testfile, out):
                     (0x615510cc, 32), (sy['sw11_tab'], 32), (0x6155124c, 32), (sy['sw13_tab'], 32)):
         tg = [t for k, t in (struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)) if k == 5394]
         assert len(tg) == 1, hex(base)
-        for item, pre in ((NR_IT, 'nr'), (VF_IT, 'vf'), (AB_IT, 'wg'), (BK_IT, 'bw'), (SZ_IT, 'sz')):   # v0.25: AB_IT = the WB grid row; v0.28 BK_IT the Blacks / Whites grid row (borders: FR_IT is a slider now)
+        for item, pre in ((NR_IT, 'nr'), (VF_IT, 'vf'), (AB_IT, 'wg'), (BK_IT, 'bw'), (SZ_IT, 'sz'), (RZ_IT, 'rz')):   # v0.25: AB_IT = the WB grid row; v0.28 BK_IT the Blacks / Whites grid row (borders: FR_IT is a slider now)
             t = sy[pre + '_' + OWN[base]] if base in OWN else sy['lc_' + pre] if base == 0x6155124c else tg[0]
             sw_add(base, n, item, t)
         # Blacks / Whites: slider rows, as item 7's case (key 1) except the bar object's id (f2c) and the left column
@@ -553,14 +560,16 @@ def build(defaults, testfile, out):
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons
     pics = mkicons.streams()
-    assert len(pics) == 15 and sy['IC_END'] - sy['IC_BK'] == 14 and sy['ic_pay'] % 8 == 0   # g2: + the Film Grain icon (id IC_GR)
+    assert len(pics) == 19 and sy['IC_END'] - sy['IC_BK'] == 14 and sy['ic_pay'] % 8 == 0 and sy['IC_RZ0'] == sy['IC_GR'] + 1   # g2: + the Film Grain icon (id IC_GR); Halation Radius: + 4 cells (IC_RZ0..)
     # film test 7: the Color row (item 5397) cell picture list {u16 type 3, u16 id, ptr} at 0x6154be9c: "Color / Vivid"
     # 11389 -> our "HSL"
     assert struct.unpack_from('<HH', m, o(0x6154be9c)) == (3, 11389)
     struct.pack_into('<H', m, o(0x6154be9c) + 2, sy['IC_HSL'])
-    at = sy['ic_pay']
+    at, end = sy['ic_pay'], sy['ic_pend']
     for k, (w, h, st) in enumerate(pics):
-        assert at + len(st) <= sy['ic_pend']
+        if k == 15:                              # Halation Radius: its four cells in .ext14 (rz_pay)
+            at, end = sy['rz_pay'], sy['rz_pend']
+        assert at % 8 == 0 and at + len(st) <= end, (k, len(st))
         m[o(at):o(at) + len(st)] = st
         d = sy['ic_d%d' % k]
         assert struct.unpack_from('<6H', m, o(d)) == (14, 0, 0, 8, 0, 0)
@@ -882,6 +891,9 @@ def build(defaults, testfile, out):
     # v0.30 test 10: the debug log (.ext13, written with ext11 / ext12) right after the work area, loaded too
     assert EXT13[0] == vf_end
     vf_end = (EXT13[0] + len(blobs['.ext13']) + 0xfff) & ~0xfff
+    # Halation Radius: its code (.ext14) and work area, loaded too (GX4-proven reserve to 0x6103f000)
+    assert vf_end <= EXT14[0], hex(vf_end)
+    vf_end = (sy['HR_END'] + 0xfff) & ~0xfff
     assert vf_end <= 0x6103f000, hex(vf_end)
     struct.pack_into('<I', m, o(0x60045e9c), vf_end)
     print('BUILT IN: GUIDES, LABELS, TONES at 0x%x..0x%x, loader end word 0x%x' % (EXT12[1], at, vf_end))
@@ -920,7 +932,7 @@ def make_xblock(out, sy, xtag):
                STATE=sy['STATE'], HMAX=sy['HMAX'], POOL=sy['POOL'], MAGIC=sy['MAGIC'], BUFIDX=0x604afdf9, SF_ENT=0x604be2aa, LOCK=0x60075f73, UNLOCK=0x60075fbc, WINMAP=0x60071018, FLUSH=0x60070e69, free=0x6002409a,
                SEL=0x6052cf39, fwrite=0x608d4da9, PF_CAPTO=sy['pf_capto'], PF_CAP=sy['pf_cap'], E_LK=sy['e_lk'], E_RET=sy['e_ret'], E_RST=sy['e_rst'], REFRESH=0x611b20ea, XT_TAB=sy['xt_tab'], EMARK=680, EMAGIC=0x45334d4f,
                FL_HAS=sy['fl_has'], FACADE=0x60b8696a, AGET=0x603f039d, TXGET=0x604cd921, TXATT=0x604bc0cf, TXPF=0x604b77fb, TWO=sy['TWO'], TW_LEN=sy['TW_LEN'], FV0=sy['FV0'],
-               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'], HL_RUN=sy['hl_run'], BD_RUN=sy['bd_run'], TYPEMAP=0x60555b58,
+               WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'], HL_RUN=sy['hl_sel'], RZ_EFF=sy['rz_eff'], BD_RUN=sy['bd_run'], TYPEMAP=0x60555b58,
                TG_OWN=sy['tg_own'], TG_BAD=sy['tg_bad'], GS_EFF=sy['gs_eff'],
                VG_RUN=sy['vg_run'], VG_LVL=sy['vg_lvl'], VG_NT=sy['vg_nt'], VG_ND=sy['vg_nd'],
                PT_N=sy['pt_n'], PT_US=sy['pt_us'], PT_MX=sy['pt_mx'])    # glow-shots-1: our passes' timing (log)
