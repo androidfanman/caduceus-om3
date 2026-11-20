@@ -96,6 +96,11 @@ The gate and the digest have unit tests that need no firmware:
 | `picture-mode-row-shows-the-panel-wb-shift` | After that change, Picture Mode opened with no half-press between: COLOR 1's slot holds A4 (#88) |
 | `picture-mode-row-wb-shift-sets-the-camera` | The WB Compensation row's fine-tune screen, A-B one step: the slot and the camera's own fine-tune both A4 (#88) |
 | `new-film-set-sets-the-film-wb` | A new set that changes the film on screen (3200 K -> 5000 K, new shift): the camera gets the new film's Kelvin and shift at once; after a power-off, leaving the film gives no '*' (#88, a v0.40 bug) |
+| `camera-mode-gets-its-own-wb-shift-back` | The Creative Dial from a film to the camera's standard modes: their own Auto A1 comes back, and Custom WB 0 / 0 that a film the list passed had changed (#99; v0.40.1..v0.40.3 kept the films') |
+| `color-gets-its-own-wb-shift-back-from-a-camera-mode` | From the standard modes (own A1) back to COLOR 1 with no film: its own 0, and its slot keeps 0; a film (B5) gets its B5 back after a turn away and back, no '*' (#99) |
+| `camera-mode-wb-shift-kept-over-a-power-off` | Off on a film (B5), on, the turn to the standard modes: their own A1 from camera memory (record 'OM3W'), back to COLOR: B5 (#99, the owner's choice: kept as the stock camera keeps it) |
+| `camera-mode-wb-shift-not-known-without-a-good-record` | The same with the record's CRC broken before the first look: nothing kept, the turn gives 0 / 0 (#99: a missing or bad record means nothing saved yet) |
+| `custom-modes-keep-their-own-wb-shift` | P's standard modes A1 assigned to C1, P's own then A2, a film in P (B5); in C1: COLOR 1's own 0, C1's standard modes A1; back in P: B5, P's standard modes A2 (#99: each shooting mode keeps its own) |
 | `video-boot-after-photo-boot` | A video boot after a photo boot does no film or custom-mode work (#53) |
 | `debug-log-written-at-releases-only` | Three half-presses: the debug log is written at the three releases only, not at the half-presses (v0.30.3; the burst rule needs photos: camera-only) |
 | `debug-log-card-write-off-the-shutter-task` | Three half-presses with `DEBUG.TXT`: `CADLOG.TXT` is opened by the log's own writer task, never inside `lg_write` and never in the shutter's task (HLS_EVENT), and the log still says three writes (#85; the shot timing on a busy card is camera-only) |

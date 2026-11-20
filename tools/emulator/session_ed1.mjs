@@ -118,6 +118,9 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   const m = /^(main|sub)([+-]\d+)$/.exec(t);
   if (t.startsWith('pset:')) { console.error('pset', pset(PHOTO_VIDEO_SWITCH, parseInt(t.slice(5), 10))); continue; }
   if (t.startsWith('mode:')) { s.switch_input('mode_dial', parseInt(t.slice(5), 10)); if (s.camapp) s.camapp.pump(); continue; }
+  // cdial:N (#99) turns the creative dial to om-emu's position N (E147: 0 MONO, 1 COLOR, 2 the standard picture modes
+  // (setting 897 = 898), 3 ART, 4 CRT; src/fw/models.mjs creative_dial)
+  if (t.startsWith('cdial:')) { s.switch_input('creative_dial', parseInt(t.slice(6), 10)); if (s.camapp) s.camapp.pump(); continue; }
   if (m) { s.dial_input(m[1], parseInt(m[2], 10)); s.camapp.pump(); }
   else if (t.startsWith('dump:')) {
     const parts = []; for (const [lo, hi] of [[0x60000000, 0x63000000], [0xa2000000, 0xa6000000]]) { for (let a = lo; a < hi; a += 0x100000) parts.push(Buffer.from(rd(a, 0x100000))); }
@@ -416,6 +419,10 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   else if (t.startsWith('getv:')) {        // getv:ID,... prints GETV {ID: value} for each setting (decimal ids; #88)
     const ids = t.slice(5).split(',').map(Number);
     console.log('GETV ' + curStep + ' ' + JSON.stringify(Object.fromEntries(ids.map((id) => [id, getv(id)]))));
+  }
+  else if (t.startsWith('mbytes:')) {      // mbytes:ADDR:LEN prints MBYTES ADDR hex, LEN bytes at ADDR (hex; decimal LEN; #99)
+    const [ad, n] = t.slice(7).split(':'), at = parseInt(ad, 16) >>> 0;
+    console.log('MBYTES ' + curStep + ' ' + ad + ' ' + Buffer.from(rd(at, Number(n))).toString('hex'));
   }
   else if (t.startsWith('pbytes:')) {      // pbytes:OFF:LEN prints PBYTES OFF hex, the bytes at P + OFF (decimal; #88)
     const [o, n] = t.slice(7).split(':').map(Number), at = (POOL + u16(STATE) - 1 + o) >>> 0;

@@ -9336,3 +9336,73 @@ Branch `fix/91-drive-priority-grain` (from try/v0.40.3-beta ceb6d17), local.
 - **Camera-only:** whether Magnify in a crop now shows the frame and the magnified view (no black screen / click /
   stuck), what the magnified view shows at XPan (full width or the strip), MF Assist in a crop, the Image Aspect screen
   on the camera.
+- **Camera-tested 2026-11-20 (the owner's OM-3, fix97-1): works** (owner: "it worked well"); the log: "crop round 15",
+  aspect 5 (5:4), zoom reads given the base 734, nothing unusual.
+
+## #99: the camera's own picture modes get their own WB shift back (2026-11-20; emulator only, fix99-1, camera test pending)
+
+Branch `fix/99-wb-shift-base` (from `fix/91-drive-priority-grain` 1970a2a = v0.40.3-beta + the #91 fix). Issue #99
+(crombach, v0.40.2): with a film or COLOR that has a WB shift, turning the Creative Dial to its centre (the camera's
+own picture modes) keeps the shift on those photos; v0.40.1's notes listed it under "Differences to know".
+
+**Reproduction (om-emu 0819080, the base build 6948ffdf… = fix91-1 byte for byte):** a film with Auto B5 picked, then
+the dial to om-emu's position 2 (driver token `cdial:N`; E147 positions 0 MONO, 1 COLOR, 2 the standard picture modes,
+3 ART, 4 CRT): the camera writes only **897 = 898** (the picture-mode family) through the manager, nothing of ours
+runs, and the stills fine-tune (1580 Auto) stays -5. Back to COLOR writes only 897 = 901, and the Picture Mode page
+opens (state 0x0418). Also on the base: from the standard modes (own Auto A1) back to COLOR 1 without a film, Picture
+Mode's opening copied the camera mode's A1 into COLOR 1's slot (#88's fw_pm / fw_sync), so COLOR 1 took it.
+
+**Owner (2026-11-20):** "Yes, restore it": leaving a film for a camera picture mode gives back the compensation that
+was there before the film set it (per WB mode); films keep theirs and stay editable in the panel (#88 stays); a change
+on a camera mode is that mode's own, kept for next time. Open points (through cad): COLOR 1-4 with no film act like
+films; **after a power-off: kept, "like the stock camera", and each custom mode keeps its own**; video unchanged.
+
+**Built (fix99-1, `firmware/src/editor.s`, ".. #99" block):**
+- State (ext13): `fw_on` (0 the camera mode's compensation is in the camera, 1 a COLOR's, 2 a COLOR's due, 0xff not
+  known), `fw_bs` the camera mode's 13 stills fine-tunes (A-B, G-M by the index in table 0x615d1944), `fw_bv`,
+  `fw_grp` (the mode group, `cm_gnow`: C1..C5 = 0..4, P / A / S / M / B = 5), `fw_mpd`.
+- The 897 write: `sl_set0` (the stock path, after sx_set's Creative Dial mapping) -> `fw_897j` -> `fw_fam`, before the
+  camera's own write. To 901 from a camera mode: `fw_snap` (the 13 pairs through sget), fw_on 2. To 898 / 899 / 900 /
+  988 from a COLOR: `fw_out` writes each pair back through the manager where it differs (0 / 0 when not known).
+  Nothing on the 897 write that comes with a new mode group: **om-emu: at a mode-dial turn the camera writes 897
+  before it puts the new group's own WB back**, so an early fix99 took P's film's values as C1's own.
+- `fw_chk` at Picture Mode opening (`fw_pm`) and each half-press (`ex_live`, before `fw_sync`): on a camera mode ->
+  fw_out; on COLOR k with fw_on 0 / 2 -> (fw_snap when 0) then `fw_ft` (COLOR k's shift into its own WB mode, as a
+  pick). A pick (`fw_apply` -> `fw_ent`): from a camera mode, fw_snap first. `fw_kft` (camera -> a film's slot) only
+  while fw_on is 1, so a film never takes a camera mode's compensation.
+- **Kept per mode group in camera memory:** record 'OM3W' at M + 0x3FE80 (180 B, after 'OM3S' which ends at
+  +0x3FE78, before the image's end at +0x40000): magic, u16 version 1, u16 length 180, CRC-32 of 12.., then 6 entries
+  of 28 B {1 = the camera mode's own are kept here and a COLOR's are in the camera, 0 = the camera mode's own are in
+  the camera; 0; 26 B}. Written at fw_snap and at fw_out's restore (`fw_msv` under LOCK, both M aliases, UB_DIRTY: the
+  camera saves M at the next return to shooting or power-off; held back while it saves M, `fw_mpd`, retried at the next
+  fw_st). Read at a new group (`fw_st` -> `fw_mld`, after the first look of a power-on): a good record -> fw_on / fw_bv
+  / fw_bs from the group's entry; **missing or bad (magic, version, length, CRC) -> not known** (fw_on 0xff: on COLOR it
+  counts as a COLOR's, and leaving it gives 0 / 0). Nothing read or written at start-up.
+- Guards: after the first look (`cm_init`), not while a mode-dial switch waits (`rc_pend`), photo modes only
+  (`ss_photo`): nothing at start-up, nothing in video. Writes: stills fine-tune ids 1580..1605 (handle rc_in, mode 0, as
+  rc_put) and the record. No new hooks.
+- Space (sections ≤ 6 where the half-press path reaches: static:section-order walks from hook_shutter through
+  ex_live): `.ext4` fw_st, fw_bid, fw_snap, fw_out, fw_chk (1740 / 1776); `.ext6` fw_msv (548 / 608); `.ext11` fw_mput
+  (65536 / 65536, full); `.ext1` fw_mok, fw_ment, fw_mld (1744 / 1744, full); `.ext13` the state (81920 / 81920,
+  full); `.ext8` fw_897j, fw_fam, fw_ent (sl_set's paths only). A first try with SEC_READY gates for sections 8 / 9 was
+  dropped: om-emu's word is 0x7f (sections 1..7), so the gates skipped the code there, and the camera may never set
+  those bits either. The 136 KB reserve was not needed.
+- The Firmware Version page shows at most 9 letters: VERSION "v0.40.3-wb (...)".
+
+**om-emu (fix99-1):** standard modes' own Auto A1 -> COLOR 1 (0) -> FILM 3 (B5; the list passed FILM 1, Custom WB A3
+M2) -> standard: Auto A1, Custom WB 0 / 0 -> COLOR: B5, no '*'. Off on FILM 3, on, standard: A1 (record kept); with
+the record's CRC broken before the first look: 0 / 0. P's standard A1 assigned to C1, P's own A2, a film in P: C1
+gets COLOR 1's own 0 at the half-press, its standard modes A1; P: B5, its standard modes A2.
+
+**Tests (emu_test.py, all five caught on the base for the right value):** `camera-mode-gets-its-own-wb-shift-back`,
+`color-gets-its-own-wb-shift-back-from-a-camera-mode`, `camera-mode-wb-shift-kept-over-a-power-off`,
+`camera-mode-wb-shift-not-known-without-a-good-record`, `custom-modes-keep-their-own-wb-shift`. Driver tokens `cdial:N`,
+`mbytes:ADDR:LEN`.
+Full suite on 358778b: 128 of 128 pass (exit 0). Package fix99-1: E1479999.BIN 9507c95c…f527, GUIDES.BIN
+c9fa1642…75eb (built twice, the same byte for byte); go-back fix91-1 6948ffdf…9323 / 958da094…d9ac.
+
+**Camera-only:** the real dial's centre position (om-emu's position 2 = family 898; the camera report of 2026-11-10
+named only CRT, ART, COLOR, MONO); live view's colour; photos; whether the camera keeps a fine-tune written at the 897
+write over a power-off (#88 saw one written at a half-press lost once in om-emu); timing of up to 26 setting writes
+at a dial turn (usually 1-3 differ); M's tail after +0x3FE78 being unused by the camera (as the other records'
+places: analysis + the mp1 probe for the tail in general); the camera's own WB menu outside the panel.

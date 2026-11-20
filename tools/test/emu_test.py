@@ -478,6 +478,17 @@ CWB_AB, CWB_GM, SHADE_AB, SHADE_GM, AUTO_AB, SUNNY_AB, SUNNY_GM = 1592, 1605, 15
 MOVIE_AUTO_AB, MOVIE_CWB_AB = 1606, 1618
 SLOT1_AB = 58                                    # COLOR 1's slot +26 (A-B) at P + 32 + 26, for expect:p:
 WB_LINE = lambda wb: rf'^White balance: {wb} \['
+# #99: the Creative Dial (cdial:N, om-emu's positions: 1 COLOR, 2 the camera's standard picture modes, family 898).
+# On the standard modes, the camera's own Auto WB compensation one step to A (the panel's cursor on Picture Mode); then
+# COLOR, whose Picture Mode page opens at the turn: FILM 3 (Auto, B5 in LOOKS_WB) six films on from COLOR 1.
+TO_STANDARD, TO_COLOR = 'cdial:2 wait wait', 'cdial:1 wait wait'
+STANDARD_OWN_A1 = f's1 wait wait {TO_STANDARD} {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=1'
+PAGE_TO_FILM_3 = 'right wait ' * 6 + 'ok wait wait'
+# Shooting menu 1 > Custom Mode > C1 > Assign > Set, from the shooting screen (as BOOT1_ASSIGN_C1), and the camera's
+# own WB screen again with the panel's cursor still on the WB cell.
+ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wait ok wait menu wait menu wait menu wait wait'
+WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
+FWM_CRC = 0x62960588                              # #99: record 'OM3W' (M + 0x3FE80), its CRC word
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
 # borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
@@ -907,6 +918,49 @@ TESTS = {
              card={'LOOKS.BIN': 'LOOKS_WB_NEW'}),
         Boot(f'wait wait s1 wait wait expect:val:{CWB_AB}=-3 {PICK_NEXT_FILM} s1 wait wait poweroff',
              expect=[WB_LINE('Shade'), NO_FILM_CHANGES]),
+    ],
+    # #99 (bug in v0.40.1..v0.40.3, om-emu): turning the Creative Dial from a film to the camera's own picture modes
+    # gives the camera back their own WB compensation, in every WB mode the films changed: Auto A1 (FILM 3 had put B5
+    # there) and Custom WB 0 / 0 (FILM 1 had put A3 M2 there as the list passed it). v0.40.3 kept the films'.
+    'camera-mode-gets-its-own-wb-shift-back': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 expect:val:{CWB_AB}=3 '
+             f'{TO_STANDARD} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 expect:val:{CWB_GM}=0 s1 wait wait poweroff',
+             card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #99: back on COLOR, the COLOR (here COLOR 1, no film: its own compensation 0) gets its own again, not the camera
+    # mode's A1 (v0.40.3 left A1 in the camera and copied it into COLOR 1 when Picture Mode opened); and a film (FILM 3)
+    # gets its B5 back after a turn to the camera's modes and back.
+    'color-gets-its-own-wb-shift-back-from-a-camera-mode': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} expect:val:{AUTO_AB}=0 expect:p:{SLOT1_AB}=00 {PAGE_TO_FILM_3} '
+             f'{TO_STANDARD} {TO_COLOR} expect:val:{AUTO_AB}=-5 expect:p:{SLOT1_AB}=fb s1 wait wait poweroff',
+             expect=[r'^Films with changes \(a \* in the camera\): none$'], card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # #99 (owner, 2026-11-20: "Keep it, like the stock camera"): the camera modes' own compensation is kept in camera
+    # memory (record 'OM3W'): switched off on a film (B5), on again, the turn to the standard modes gives their own A1.
+    'camera-mode-wb-shift-kept-over-a-power-off': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
+             card={'LOOKS.BIN': 'LOOKS_WB'}),
+        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} expect:val:{AUTO_AB}=1 {TO_COLOR} '
+             f'expect:val:{AUTO_AB}=-5 s1 wait wait poweroff'),
+    ],
+    # #99: a record that is not valid (here its CRC broken before the first look; a camera that never ran this build
+    # has none) means nothing is kept: the turn to the standard modes gives 0 / 0, nothing is taken from it.
+    'camera-mode-wb-shift-not-known-without-a-good-record': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
+             card={'LOOKS.BIN': 'LOOKS_WB'}),
+        Boot(f'poke:{FWM_CRC:x}=00000000 wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} '
+             f'expect:val:{AUTO_AB}=0 s1 wait wait poweroff'),
+    ],
+    # #99: each shooting mode keeps its own (as the stock camera keeps the compensation per custom mode). P's standard
+    # modes A1 assigned to C1, P's own then A2, a film in P (B5). The turn to C1 (the dial still on COLOR): at the
+    # half-press COLOR 1's own 0 (no film there); C1's standard modes: C1's own A1; back to COLOR: 0. The turn to P:
+    # the film's B5; P's standard modes: P's own A2 (kept over the turns).
+    'custom-modes-keep-their-own-wb-shift': [
+        Boot(f'{STANDARD_OWN_A1} {ASSIGN_C1} {WB_SCREEN_AGAIN_A_PLUS_1} expect:val:{AUTO_AB}=2 {TO_COLOR} '
+             f'{PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait mode:{MODE_DIAL_C1} wait wait wait s1 wait wait '
+             f'expect:val:{AUTO_AB}=0 {TO_STANDARD} expect:val:{AUTO_AB}=1 {TO_COLOR} expect:val:{AUTO_AB}=0 '
+             f'mode:{MODE_DIAL_P} wait wait wait expect:val:{AUTO_AB}=-5 s1 wait wait {TO_STANDARD} '
+             f'expect:val:{AUTO_AB}=2 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
     # borders: the Border row steps -5..+5 (2026-11-18: - black, + white; right / left, no step past either end) into
     # COLOR 1's slot +50, and the value is kept over a power-off (saved at the half-press).
