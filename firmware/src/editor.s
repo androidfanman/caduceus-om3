@@ -9202,6 +9202,109 @@ tr_ld2:                           /* 0x604ce6c9's frame: the builder's (4,sp) / 
  mov (32,sp),d1
  ret [d2,d3,a2,a3],24
 
+/* ---- #91 fix91-1 (2026-11-20): Film Grain with Low ISO Processing = Drive Priority (research/NOTES.md "#91").
+ * The camera turns Low ISO Processing (menu setting 1496 = internal id 38993, copied per photo to capture+38249: 0 Drive
+ * Priority, 1 Detail Priority) into one choice per photo request, 0x6055aa5c (a0 = the request) -> 1 = the Detail
+ * processing, 0 = Drive Priority's: 1 for Single (capture+38216 = 0), some special modes and request kinds, and with
+ * Detail Priority; else 0. Its two callers keep it: 0x6054fffd in the development parameters +323 (the passes' noise
+ * reduction set-ups 0x6051ab95 read it with the ISO), 0x60558041 in capture+7482. On the camera (#91) a sequential JPEG
+ * with our grain at ISO 1600 and below shut the camera off with Drive Priority and saved with Detail Priority. fd_dec
+ * answers 1 where the camera chose 0 for a photo that takes our grain texture (fd_g: the code block's xb_cap sets it for
+ * this request, just before): such a photo is processed as with Detail Priority, as the camera does for Single shots.
+ * Every other photo keeps the camera's own choice. Runs only while a photo's requests are made: nothing at start-up. */
+.section .hook_dp1,"ax"
+ call fd_g1,[d2,d3,a2,a3],40      /* stock 0x6054fffd: call 0x6055aa5c,[d2,d3,a2,a3],40 */
+
+.section .hook_dp2,"ax"
+ jmp fd_g2                        /* stock 0x60558041: call 0x6055aa5c,[d2,d3,a2,a3],40 */
+
+.section .ext1,"ax"
+/* Section gates (as mx_g / tn_g): both sites are in section 2 and fd_dec is in section 6; until section 6 is ready (never
+ * the case while a photo is made, but the rule holds) the stock call. d0 is free at both (the choice is made from a0). */
+fd_g1:                            /* `call fd_g1,[d2,d3,a2,a3],40` from .hook_dp1: the stock choice's frame */
+ mov (SEC_READY),d0
+ and 0x20,d0
+ beq 1f
+ jmp fd_dec
+1:
+ jmp FD_DEC                       /* the stock 0x6055aa5c in this call's frame */
+fd_g2:                            /* jmp from .hook_dp2, in its function's frame */
+ mov (SEC_READY),d0
+ and 0x20,d0
+ beq 1f
+ call fd_dec,[d2,d3,a2,a3],40
+ jmp FD2_BACK
+1:
+ call FD_DEC,[d2,d3,a2,a3],40     /* the stock 0x60558041 */
+ jmp FD2_BACK
+
+.section .ext11,"ax"
+fd_dec:                           /* the stock choice's frame and a0 (the request) */
+ call FD_DEC,[d2,d3,a2,a3],40
+ exthu d0
+ movbu (fd_g),d1
+ cmp 0,d1
+ beq 9f                           /* not a photo with our grain: the camera's choice */
+ cmp 0,d0
+ bne 8f
+ mov (fd_n),d1                    /* Drive Priority's processing chosen: Detail instead */
+ inc d1
+ mov d1,(fd_n)
+ mov 1,d0
+ bra 9f
+8:
+ mov (fd_k),d1                    /* the camera chose Detail itself */
+ inc d1
+ mov d1,(fd_k)
+9:
+ ret [d2,d3,a2,a3],40
+fd_log:                           /* `call fd_log,[d2,d3],12` from the debug log's report (uses d0, d1, a0, a1, MDR) */
+ mov fd_l1,a0
+ call lg_s,[],0
+ movbu (fd_lo),d0
+ mov fd_dr,a0
+ cmp 0,d0
+ beq 1f
+ mov fd_de,a0
+ cmp 1,d0
+ beq 1f
+ mov fd_no,a0
+1:
+ call lg_s,[],0
+ mov fd_l2,a0
+ call lg_s,[],0
+ mov (fd_n),d0
+ call lg_d,[d2,d3],12
+ mov fd_l3,a0
+ call lg_s,[],0
+ mov (fd_k),d0
+ call lg_d,[d2,d3],12
+ ret [d2,d3],12
+fd_l1:
+ .asciz "\r\n#91 Low ISO Processing at the last photo: "
+fd_l2:
+ .asciz "; grain photos given the Detail processing "
+fd_l3:
+ .asciz ", Detail already "
+fd_dr:
+ .asciz "Drive Priority"
+fd_de:
+ .asciz "Detail Priority"
+fd_no:
+ .asciz "none yet"
+ .balign 4
+fd_n:                             /* #91: requests of photos with our grain whose Drive Priority processing became Detail */
+ .long 0
+fd_k:                             /* #91: the same with the camera's own Detail choice */
+ .long 0
+fd_g:                             /* #91: 1 = this request's photo takes our grain texture (the code block's xb_cap) */
+ .byte 0
+fd_lo:                            /* #91: the last photo's Low ISO Processing as the camera copied it (capture+38249):
+                                   * 0 Drive Priority, 1 Detail Priority, 0xff none yet */
+ .byte 0xff
+ .balign 4
+
+.section .ext12,"ax"
 /* tg_fill: `call tg_fill,[d2,d3,a2,a3],40`, d0 = the tile buffer's 32-bit bus address. Our tile (1536 x 1536, YCbYCr,
  * 3072 B a row): Y = 48 + noise (sigma 16), Cb / Cr = 128 + noise (sigma 16), seamless, rows y and y + 768 the same.
  * g4 (2026-11-19, owner: "lets work on better grain"; research/NOTES.md "Better grain g4"; exact model
@@ -13445,6 +13548,7 @@ lg_sum:
  LGS tg_l5                        /* g3: tiles made the fast way */
  mov (tg_nf),d0
  LGD
+ call fd_log,[d2,d3],12           /* #91: Low ISO Processing and the photos given the Detail processing (ext4) */
  LGS vg_l1                        /* gentler Shading s1: our vignettes */
  mov (vg_n),d0
  LGD

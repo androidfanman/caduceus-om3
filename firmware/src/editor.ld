@@ -20,6 +20,8 @@ SECTIONS {
   .hook_wl      0x604b8d91 : { *(.hook_wl) }
   .hook_trs     0x604cf156 : { *(.hook_trs) }
   .hook_trl     0x604cf1a4 : { *(.hook_trl) }
+  .hook_dp1     0x6054fffd : { *(.hook_dp1) }     /* #91: the per-photo Detail / Drive Priority choice (development parameters +323) */
+  .hook_dp2     0x60558041 : { *(.hook_dp2) }     /* #91: the same choice for capture+7482 */
   .hook_tone    0x605197d7 : { *(.hook_tone) }
   .hook_fx      0x60555e50 : { *(.hook_fx) }
   .hook_lv      0x6046b8bb : { *(.hook_lv) }
@@ -156,6 +158,8 @@ FLUSH         = 0x60070e69;
 RES_SZ        = 0x601d7546;   /* better grain g1: the grain tile's size (resource 0x8001) */
 RES_LD        = 0x604ce6c9;   /* its load into the texture builder's buffer */
 TLD_BACK      = 0x604cf1a9;   /* after that call in the builder 0x604cf0b9 */
+FD_DEC        = 0x6055aa5c;   /* #91: the camera's per-photo choice, a0 = request -> 1 Detail processing, 0 Drive Priority's */
+FD2_BACK      = 0x60558046;   /* #91: after its call at 0x60558041 */
 OS_FOPEN      = 0x608d4d22;
 OS_FCLOSE     = 0x608d4d2b;
 OS_FSEEK      = 0x608d4fb1;

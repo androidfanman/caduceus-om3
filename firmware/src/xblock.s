@@ -128,6 +128,12 @@ xb_cap:
  movbu d0,(xb_ownf)
  clr d0
  movbu d0,(xb_gt)                 /* no camera grain unless a plain COLOR look with Grain below */
+ movbu d0,(FD_G)                  /* #91: not a photo with our grain unless a COLOR look with Grain below */
+ mov 38249,a1                     /* #91: this photo's Low ISO Processing as the camera copied it (debug log) */
+ add a3,a1
+ movbu (a1),d0
+ movbu d0,(FD_LO)
+ clr d0
  .if XB_SH
  movbu d0,(VG_LVL)                /* gentler Shading: no vignette unless this still's Shading is taken over below */
  .endif
@@ -142,6 +148,13 @@ xb_cap:
  call xb_slot,[d2,d3],12
  cmp 0,a1
  beq 7f
+ movbu (53,a1),d0                 /* #91: Grain on this COLOR -> its photo takes our grain texture (xb_wl): the editor's
+                                     fd_dec gives it the Detail processing where the camera chose Drive Priority's */
+ cmp 0,d0
+ beq 33f
+ mov 1,d0
+ movbu d0,(FD_G)
+33:
  mov (a2),d1                      /* (data registers only: `movbu (d8,An),Am` misread on the camera) */
  .if XB_FX
  call xb_own,[],0                 /* v0.25: COLOR k's own Glow / Art Effect (no film) are not used: no row for them */

@@ -2488,9 +2488,79 @@ def run_hlrzpics(emu, build, out, card0):
             errors.append(f"{cs['name']}: the picture's bytes differ from mkicons' (out.json)")
     return HLRZPICS, errors
 
+# #91 (fernandezk26; owner's camera, 2026-11-20): a sequential JPEG with Film Grain at ISO 1600 and below shut the
+# camera off with Low ISO Processing = Drive Priority, and saved with Detail Priority. The camera's per-photo choice
+# 0x6055aa5c (a0 = the request: +20 the capture, +186 its kind; capture+38216 the sequence type, 0 Single;
+# capture+38249 Low ISO Processing, 0 Drive / 1 Detail) -> 1 Detail processing, 0 Drive Priority's. fix91-1 (fd_dec,
+# behind the section gates fd_g1 / fd_g2) answers 1 for a photo with our grain (fd_g, set by xb_cap) where the camera
+# chose 0, at both of its call sites (0x6054fffd, 0x60558041). Run natively from the hook sites on a fake request, so a
+# build without the fix (the stock call there) answers 0 for Drive Priority + grain. The crash itself needs a still:
+# camera-only (research/TESTING.md, "Past regressions").
+FDDRIVE = 'grain-photo-with-drive-priority-takes-detail'
+FDDRIVE_SITES = {1: (0x6054fffd, 0x60550004), 2: (0x60558041, 0x60558046)}
+FDDRIVE_CASES = [   # name, site, sequence type (capture+38216), Low ISO Processing (+38249), our grain (fd_g), choice
+    ('drive-grain', 1, 1, 0, 1, 1), ('drive-no-grain', 1, 1, 0, 0, 0), ('detail-grain', 1, 1, 1, 1, 1),
+    ('single-no-grain', 1, 0, 0, 0, 1), ('drive-grain-site-2', 2, 1, 0, 1, 1), ('drive-no-grain-site-2', 2, 1, 0, 0, 0)]
+
+
+def run_fddrive(emu, build, out, card0):
+    """The hook sites of the camera's Detail / Drive Priority choice on FDDRIVE_CASES: the choice in d0, the caller's
+    d2 / d3 / a2 / a3 and sp back, fd_n / fd_k counted once per changed / kept choice; last, section 6 not ready (the
+    gate): the camera's own choice."""
+    d = out / FDDRIVE
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    g = f"{sym['fd_g']:#x}" if 'fd_g' in sym else 'B+0x300'      # a build without the fix: a flag nobody reads
+    cap = 'B+0x100-38216'                                      # capture+38216 / +38249 at B+0x100 / B+0x121
+    keep = {'d2': '0x11111111', 'd3': '0x22222222', 'a2': '0x33333333', 'a3': '0x44444444'}
+    def case(name, site, seq, low, grain, extra=()):
+        pc, stop = FDDRIVE_SITES[site]
+        mem = [['B+0x200', '00' * 192], ['B+0x214', f'={cap}'], ['B+0x2ba', '0010'],        # request: kind 0x1000
+               [f'{cap}+6140', '00000000'], ['B+0x100', f'{seq:02x}'], ['B+0x121', f'{low:02x}'], [g, f'{grain:02x}'],
+               *extra]
+        read = [[f"{sym[k]:#x}", 4] for k in ('fd_n', 'fd_k') if k in sym]
+        return {'name': name, 'pc': f'{pc:#x}', 'stop': [f'{stop:#x}'], 'max': 200000, 'mem': mem,
+                'regs': {'a0': 'B+0x200', **keep}, 'read': read}
+    spec = [case(n, site, seq, low, grain) for n, site, seq, low, grain, _ in FDDRIVE_CASES]
+    spec.append(case('gate-closed', 1, 1, 0, 1, extra=([f'{0xa32de58c:#x}', '1f000000'],)))  # sections 1..5 only
+    res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return FDDRIVE, [res]
+    sp = json.loads((d / 'out.json').read_text())['SP']
+    want = {n: v for n, *_, v in FDDRIVE_CASES}
+    want['gate-closed'] = 0
+    errors, before = [], (0, 0)                              # a fresh boot: no photo, no choice yet
+    for o in spec:
+        r = res[o['name']]
+        if r['steps'] >= 200000:
+            errors.append(f"{o['name']}: the choice did not return (out.json)")
+            continue
+        got = int(r['regs']['d0'], 16) & 0xffff
+        if got != want[o['name']]:
+            errors.append(f"{o['name']}: choice {got} (1 Detail, 0 Drive Priority's), not {want[o['name']]}")
+        for k, v in keep.items():
+            if int(r['regs'][k], 16) != int(v, 16):
+                errors.append(f"{o['name']}: {k} {r['regs'][k]}, not {v[2:]}")
+        if r['regs']['sp'] != sp:
+            errors.append(f"{o['name']}: sp {r['regs']['sp']}, not {sp}")
+        if r['mem']:
+            counts = tuple(int.from_bytes(bytes.fromhex(m), 'little') for m in r['mem'])
+            if before is not None and o['name'] != 'gate-closed':
+                n, k = counts[0] - before[0], counts[1] - before[1]
+                grain = next(c[4] for c in FDDRIVE_CASES if c[0] == o['name'])
+                stock = 1 if o['name'].startswith(('detail', 'single')) else 0
+                wn, wk = (1, 0) if grain and not stock else (0, 1) if grain else (0, 0)
+                if (n, k) != (wn, wk):
+                    errors.append(f"{o['name']}: fd_n / fd_k went up by {n} / {k}, not {wn} / {wk}")
+            before = counts
+    if 'fd_g' not in sym:
+        errors.append('no fd_g in this build (fix91-1 not in it)')
+    return FDDRIVE, errors
+
+
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
-          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics}
+          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive}
 
 
 def newest_looks():

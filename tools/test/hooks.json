@@ -84,6 +84,14 @@
    "addr": "0x611d10fb",
    "len": 8
   },
+  "hook_dp1": {
+   "addr": "0x6054fffd",
+   "len": 7
+  },
+  "hook_dp2": {
+   "addr": "0x60558041",
+   "len": 5
+  },
   "hook_ex": {
    "addr": "0x60457578",
    "len": 8

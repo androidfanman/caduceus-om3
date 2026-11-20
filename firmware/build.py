@@ -87,6 +87,8 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_wl': (0x604b8d91, bytes.fromhex('f1ecf000fa08e814')),
          '.hook_trs': (0x604cf156, bytes.fromhex('ddf083d0ffe010')),   # better grain g1: the grain tile's size (texture builder)
          '.hook_trl': (0x604cf1a4, bytes.fromhex('cd25f5f018')),
+         '.hook_dp1': (0x6054fffd, bytes.fromhex('dd5faa0000f028')),   # #91: call 0x6055aa5c,[d2,d3,a2,a3],40 (the Detail / Drive Priority choice -> development parameters +323)
+         '.hook_dp2': (0x60558041, bytes.fromhex('cd1b2af028')),       # #91: the same call (-> capture+7482)
          '.hook_bga': (0x6123825e, bytes.fromhex('dd9156ecfff01c')),   # border preview: grid builder 0x612380bf's grid read (call 0x610fd8ef,[d2,d3,a2,a3],28)
          '.hook_bgb': (0x611cb433, bytes.fromhex('ddbc24f3fff01c')),   # the same in grid builder 0x611cb359
          '.hook_bgc': (0x611e44d7, bytes.fromhex('dd1894f1fff01c')),   # the same in grid builder 0x611e4221
@@ -946,7 +948,7 @@ def make_xblock(out, sy, xtag):
                SEL=0x6052cf39, fwrite=0x608d4da9, PF_CAPTO=sy['pf_capto'], PF_CAP=sy['pf_cap'], E_LK=sy['e_lk'], E_RET=sy['e_ret'], E_RST=sy['e_rst'], REFRESH=0x611b20ea, XT_TAB=sy['xt_tab'], EMARK=680, EMAGIC=0x45334d4f,
                FL_HAS=sy['fl_has'], FACADE=0x60b8696a, AGET=0x603f039d, TXGET=0x604cd921, TXATT=0x604bc0cf, TXPF=0x604b77fb, TWO=sy['TWO'], TW_LEN=sy['TW_LEN'], FV0=sy['FV0'],
                WB_V=sy['wb_v'], wb_wtk=sy['wb_wtk'], wb_wem=sy['wb_wem'], HL_RUN=sy['hl_sel'], RZ_EFF=sy['rz_eff'], BD_RUN=sy['bd_run'], TYPEMAP=0x60555b58,
-               TG_OWN=sy['tg_own'], TG_BAD=sy['tg_bad'], GS_EFF=sy['gs_eff'],
+               TG_OWN=sy['tg_own'], TG_BAD=sy['tg_bad'], GS_EFF=sy['gs_eff'], FD_G=sy['fd_g'], FD_LO=sy['fd_lo'],
                VG_RUN=sy['vg_run'], VG_LVL=sy['vg_lvl'], VG_NT=sy['vg_nt'], VG_ND=sy['vg_nd'],
                PT_N=sy['pt_n'], PT_US=sy['pt_us'], PT_MX=sy['pt_mx'])    # glow-shots-1: our passes' timing (log)
     sys.path.insert(0, str(ROOT / 'firmware'))
