@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.40.3-beta4](#v0403-beta4-test-version) | 2026-11-21 (test version) | WB compensation kept apart for films and the camera's own picture modes: no half-press needed, the camera's own setting never written by us |
 | [v0.40.3-beta3](#v0403-beta3-test-version) | 2026-11-21 (test version) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99); Delete's long press (#101). Replaces beta2 |
 | [v0.40.3-beta2](#v0403-beta2-test-version) | 2026-11-20 (test version, withdrawn) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99) |
 | [v0.40.3-beta](#v0403-beta-test-version) | 2026-11-20 (test version) | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26); faster Halation; burst photos with Halation save sooner; playback shows each photo's own film (#93) |
@@ -51,6 +52,17 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.40.3-beta4 (test version)
+A test version (a GitHub pre-release; v0.40.2 stays the current version). v0.40.3-beta3 with separate WB shifts,
+camera-tested 2026-11-21 (test build w1, the build before its release name).
+- **WB compensation (A-B / G-M) kept apart:** each film and COLOR has its own shift, and the camera's own picture modes
+  keep the camera's own. On a film, the super control panel, the WB screen and Picture Mode's WB row show the film's
+  shift, a change there goes into the film, and live view and photos use it. The camera's own setting is never
+  written by us. No half-press is needed, and nothing of ours runs at a Creative Dial turn or a film pick for it. This
+  replaces beta3's switch at the half-press (#99) and v0.40.1's film shift in the camera's own fine-tune (#88).
+- After updating, set the centre's WB compensation once (the camera may still hold a film's shift from before).
+- The Firmware Version screen shows "0.40.3-b4".
 
 ## v0.40.3-beta3 (test version)
 A test version (a GitHub pre-release; v0.40.2 stays the current version). v0.40.3-beta plus four fixes, camera-tested

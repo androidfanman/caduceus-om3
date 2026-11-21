@@ -9760,3 +9760,10 @@ Branch `try/v0.40.3-beta3` = `fix/101-long-press` (f9: fixes2 + the boot-loop fi
   photos were taken with w1), and whether live view's preview shows it (the owner said nothing on it).
 - **Camera (owner, 2026-11-21, w1, via the main chat): "yes, the live view showed the shift".** So live view on a film
   shows the film's WB shift (camera-tested). Still not checked on the camera: a photo taken on a film with a shift.
+
+## v0.40.3-beta4 (2026-11-21; camera-tested as w1)
+Branch `try/v0.40.3-beta4` = `fix/wb-separate-shift` (w1: v0.40.3-beta3 + separate WB shifts, camera-tested
+2026-11-21, owner: "it worked really well", "yes, the live view showed the shift") + VERSION "v0.40.3-b4 (beta 4:
+separate WB shifts, films and modes)". E1479999.BIN 7be6725d…8f16 (GUIDES / LABELS / TONES built in);
+`patch.py --release v0.40.3-beta4` rebuilds it byte for byte. Card files as v0.40.3-beta3. Suite on the release build: 129 pass, exit 0. Owner: "Yes, make beta4".
+Still not checked on the camera: a photo on a film with a shift (live view shows it).
