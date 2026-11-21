@@ -9583,3 +9583,10 @@ places: analysis + the mp1 probe for the tail in general); the camera's own WB m
 - **Camera-only:** start-ups with the longer section-6 copy (about ten); the restart steps (many rounds); the kept
   change in the real super control panel and WB screen (and whether the camera's MENU there undoes a step); live view;
   photos.
+
+## fix99-4 camera-tested (2026-11-20)
+The owner's OM-3, v0.40.3-f7 (84b45c19…0a93: fixes2 + the boot-loop fix + fix99-3 + fix99-4, loader end word
+0x6103f000): "No, all good": about ten starts with the 136 KB longer section-6 copy, many rounds of the restart steps
+(centre, back to a film, a film change; CRT / MONO), no restart and no loop; a WB change on the centre kept at the
+half-press. Last log (event 36, "nothing unusual") in the private test-builds folder. So, camera-tested: the boot loop
+(f3) and the restarts (f4 / f5) are gone with #99's writes only at the half-press.
