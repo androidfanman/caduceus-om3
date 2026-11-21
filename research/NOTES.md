@@ -9692,3 +9692,10 @@ half-press. Last log (event 36, "nothing unusual") in the private test-builds fo
 - **Build (dce4fc1, VERSION "v0.40.3-f9 (f8 + #101: long press on Delete)"):** E1479999.BIN 59949f70…7ef1, GUIDES.BIN
   d8f8e359…47f3; built twice, the same byte for byte. Package `test-builds/2026-11-21-fix101` (private), with f8 to go
   back to.
+
+## fix101 camera-tested (2026-11-21)
+The owner's OM-3, v0.40.3-f9 (59949f70…7ef1, GUIDES.BIN d8f8e359…47f3): the test steps (Keystone on Delete and
+AF-ON, short and long press; other functions on Delete; the arrows as before; Delete erasing in playback; a few
+starts; the #99 restart steps once): "It works". Last log (event 18, "nothing unusual") in the private test-builds
+folder. So, camera-tested: Delete's long press runs the function's long-press step as AF-ON's does. The arrows still
+get no long press (the camera posts none for them; not changed).
