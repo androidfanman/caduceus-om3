@@ -9451,3 +9451,9 @@ places: analysis + the mp1 probe for the tail in general); the camera's own WB m
 - **om-emu (the fix):** the three start-up 897 writes go to the stock path, `fw_897j` first runs at a Creative Dial turn
   after the first look. Test `section-8-code-waits-for-the-first-look` (fixes2's build `caught`: "fw_897j ran 3 times
   before the first look").
+- **Suite** (build of 94cd8c4 = the package, om-emu 0819080): **131 pass**, exit 0 (fixes2's 130 + the new one); static
+  checks pass. Package `test-builds/2026-11-20-bootloop-fix/1-test-build` (private folder): E1479999.BIN
+  `801e9623…b240`, GUIDES.BIN `a8788ffb…108e`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **v0.40.3-beta2 (published, fixes2's firmware with its own VERSION) has the same path**: for the owner.
+- Not done (follow-up): `static:section-order` walks only from hooks in sections 1..5; a walk from the hooks in
+  sections 6 / 7 into sections 8..10 (with the released paths behind STATE listed) would have flagged fw_897j.
