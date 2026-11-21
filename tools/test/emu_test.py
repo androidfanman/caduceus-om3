@@ -671,6 +671,23 @@ def watch_hit_seen(hits):
     return [] if hits else ['no getter hit']
 
 
+def section8_waits_for_the_first_look(hits):
+    """Boot-loop fix (2026-11-20): #99's fw_897j is in .ext8 (section 8), which the camera copies after its application
+    starts; the camera's settings task writes 897 three times while it starts (om-emu, as the camera's bp1 probe). None of
+    those may reach fw_897j: it runs only after the first look (cm_go), and a Creative Dial turn after it still does."""
+    names = [h[0] for h in hits]
+    first = names.index('cm_go') if 'cm_go' in names else len(names)
+    errors = []
+    if 'fw_897j' in names[:first]:
+        errors.append(f"fw_897j (section 8) ran {names[:first].count('fw_897j')} times before the first look "
+                      '(while the camera starts, section 8 may not be copied yet)')
+    if 'cm_go' not in names:
+        errors.append('no first look (cm_go)')
+    elif 'fw_897j' not in names[first:]:
+        errors.append('fw_897j did not run at the Creative Dial turns after the first look')
+    return errors
+
+
 def no_card_file_reads(hits):
     """fopen hits: DEBUG.TXT asked (so the probe sees fopen), BUNDLES.BIN and EDITS.BIN never."""
     paths = [s or '' for _, s in hits]
@@ -922,6 +939,12 @@ TESTS = {
     # #99 (bug in v0.40.1..v0.40.3, om-emu): turning the Creative Dial from a film to the camera's own picture modes
     # gives the camera back their own WB compensation, in every WB mode the films changed: Auto A1 (FILM 3 had put B5
     # there) and Custom WB 0 / 0 (FILM 1 had put A3 M2 there as the list passed it). v0.40.3 kept the films'.
+    # Boot-loop fix (2026-11-20, fixes2 on the owner's camera): the start-up 897 writes leave #99's section-8 code alone
+    # until the first look; Creative Dial turns after it reach it as before.
+    'section-8-code-waits-for-the-first-look': [
+        Boot(f'wait wait s1 wait wait {TO_STANDARD} {TO_COLOR} poweroff', watch=('cm_go', 'fw_897j'),
+             hits=section8_waits_for_the_first_look),
+    ],
     'camera-mode-gets-its-own-wb-shift-back': [
         Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 expect:val:{CWB_AB}=3 '
              f'{TO_STANDARD} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 expect:val:{CWB_GM}=0 s1 wait wait poweroff',

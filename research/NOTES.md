@@ -9423,3 +9423,31 @@ places: analysis + the mp1 probe for the tail in general); the camera's own WB m
 - **Suite** (build of 7c1a569 = the package, om-emu 0819080): **130 pass**, exit 0 (123 + #97's two + #99's five).
   Both builds of 7c1a569 the same byte for byte. Package `test-builds/2026-11-20-fixes2/1-test-build` (private folder):
   E1479999.BIN `fc80a4af…2d58`, GUIDES.BIN `4a50fe07…ad46d`; go-back fix97-1 `0b5fb287…beed` / `3172384d…8a07`.
+
+## The fixes2 boot loop: #99's section-8 code at the start-up 897 writes (2026-11-20; analysis + emulator; branch fix/bootloop-897-section8)
+- **Camera (owner, via the main chat):** fixes2 (7c1a569, also released as v0.40.3-beta2) passed its test ("It
+  works!!"), then later, card unchanged, the camera boot-looped; CADLOG.TXT was not written again (it died before our
+  log). v0.40.3-beta flashed back: it starts, on the same camera memory. The last good log: A, FILM 1, XPan saved with
+  its tag (43520006), the custom-mode record held back. Not known: the loop without a card, what was done in between.
+- **Cause (analysis + emulator; not seen on the camera):** fix99-1 put `sl_set0`'s 897 branch (`jmp fw_897j`) in
+  section 6's ext11, and `fw_897j` / `fw_fam` / `fw_ent` in `.ext8` = **section 8**. The camera's settings task writes
+  897 (the Creative Dial family) through the facade at every start-up (bp1 probe, camera: once, then twice more before
+  any key), and the camera application starts once sections 6 and 7 are in, while 8..10 are still being copied
+  (USTART5; "Section order audit"). So every start-up jumped into section 8 three times with nothing checking it was
+  there: a race, the pattern of v0.20 test 1 (section-8 code at start-up: boot loop) and crop round 7. om-emu (WATCH
+  from the lab's start, fixes2's build): `sl_set0` with 897 three times during the start, each running `fw_897j`, all
+  before the first look (`cm_go` at the half-press). fw_897j's work did nothing then anyway (`fw_st` waits for
+  `cm_init`). Why the race was lost only after the passing test is not known (timing: card, the state saved in M).
+- **Other paths checked:** a walk (static_check's `_walk`) from every hook in sections 6 and 7 into sections 8..10,
+  fixes2 against fix97-1 (camera-tested): only two new paths, both #99's: `fw_897j` (above) and `fw_ent` from
+  `fw_apply`, whose callers (`fl_set` behind PVAL, `fw_nf` from rc_go) run only with the films in (STATE: all ten
+  sections copied). #97's moved pieces stay in sections 4 and 6. `static:section-order` only walks from hooks in sections
+  1..5, which is why it passed.
+- **Fix (fw_g8):** `sl_set0`'s `jmp fw_897j` (ext11 is full: same 5 bytes) now goes to `fw_g8` in section 3's tail
+  (`.ext3`, copied before section 6; 20 B, ext3 487 / 492): `movbu (cm_init),d2; cmp 0,d2; beq` stock `sl_set0b`, else
+  `jmp fw_897j`. `cm_init` is set only by `cm_go` with the films in, so section 8 is in by then; before it fw_897j did
+  nothing, so #99 behaves as in fixes2. d2 is free there (sl_set0b sets it from MDR), MDR untouched. VERSION
+  "v0.40.3-f4 (fixes2 + the boot-loop fix for #99)".
+- **om-emu (the fix):** the three start-up 897 writes go to the stock path, `fw_897j` first runs at a Creative Dial turn
+  after the first look. Test `section-8-code-waits-for-the-first-look` (fixes2's build `caught`: "fw_897j ran 3 times
+  before the first look").

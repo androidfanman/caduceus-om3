@@ -2573,6 +2573,20 @@ g_sf:                             /* grain: the Soft Focus blend setup (work-lis
  jmp (a1)
 9:
  jmp sf_stock                     /* film test 9: a linker symbol (a bare number assembled as a relative jump) */
+/* fw_g8 <- jmp from sl_set0 when d0 = 897 (boot-loop fix, 2026-11-20). fw_897j is in .ext8 = section 8, which the
+ * camera copies after its application has started (USTART5), and the camera's settings task writes 897 while it starts
+ * (bp1 probe: at every power-on, then twice more before any key). fixes2 jumped there at once: a boot loop on the
+ * owner's camera, as v0.20 test 1's section-8 code did. fw_897j's work waits for the first look anyway (fw_st: cm_init),
+ * which comes only with the films in (STATE: all ten sections copied), so the jump waits for it too; before it, the
+ * stock path (sl_set0b), as fw_st would have done nothing. d2 is free here (sl_set0b sets it from MDR); MDR untouched.
+ * Section 3's tail: copied before section 6, whose sl_set0 jumps here. */
+fw_g8:
+ movbu (cm_init),d2
+ cmp 0,d2
+ beq 1f
+ jmp fw_897j
+1:
+ jmp sl_set0b
 
 .section .ext8,"ax"
 s_cap:                            /* a3 = capture, a2 = params+12 (flags), (-4,a2) = key */
@@ -3982,7 +3996,7 @@ sl_set:
 sl_set0:
  cmp 897,d0                       /* #99: a picture-mode family write: the camera modes' own WB shift (fw_897j) */
  bne sl_set0b
- jmp fw_897j
+ jmp fw_g8                        /* boot-loop fix: fw_897j (section 8) only after the first look */
 sl_set0b:
  mov mdr,d2                       /* v0.25 grid: the WB grid's ids -> our A-B / G-M bars (gr_id; MDR kept) */
  mov d2,a3
