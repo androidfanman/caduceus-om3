@@ -9506,3 +9506,43 @@ places: analysis + the mp1 probe for the tail in general); the camera's own WB m
   GUIDES.BIN `4c5fbd63…ef42`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
 - **Camera-only:** whether the restart is gone (the owner's steps, several rounds, other films, the CRT / MONO
   positions mapped to COLOR, which om-emu has unset); live view; photos.
+
+## fix99-3: #99 writes and saves only at the half-press (2026-11-20; analysis + emulator; branch fix/99-shift-at-half-press)
+- **Camera (owner, via the main chat; v0.40.3-f5 = fix99-2):** "it rebooted once. I am struggling to reproduce it
+  consistently." No step or film known. The last log (event 22, "nothing unusual"): FILM 3 -> FILM 2 -> the centre
+  (events 13-16) -> FILM 2 -> Picture Mode, FILM 5 picked -> shooting; possibly before or after the restart.
+- **What #99 still did outside the half-press on fix99-2 (re-read; which can race, analysis):**
+  - the Creative Dial's 897 write (task 165, inside the camera's own SetValue, before its write): `fw_out` at a turn
+    to a camera mode (26 reads, the differing fine-tunes written, then `fw_msv`), at a turn to COLOR `fw_snap` (26
+    reads, `fw_msv`) and fix99-2's `fw_in` (2 writes). The camera's GUI task acts on the same turn (its own manager
+    write at once, Picture Mode opening); on two CPUs it can run while task 165 is still inside the store's write,
+    and our nested writes make that window longer. **Most likely of the remaining** (analysis; it ran without trouble
+    at most turns on f4 / f5, so the chance per turn is small);
+  - `fw_msv` (the 'OM3W' save) from task 165 or at a pick: under LOCK, which holds dispatch on one CPU only, so the
+    UB_BUSY check and the write are not one step against the camera's own save of M on the other CPU. Possible;
+  - `fw_ent` at a pick (GUI task, or task 165 by a mapped dial position): 26 reads (no harm seen in reads) and
+    `fw_snap`'s save; `fw_st`'s retry of a held-back save from any caller. Rare.
+  None of them seen on the camera; the restart is rare and was not reproduced, so which one it is (if any) is not known.
+- **The change (fix99-3):** nothing of #99 at the 897 write: `sl_set0` as before #99 (fix91-1); `fw_g8` (.ext3),
+  `fw_897j`, `fw_fam` (.ext8) and `fw_in` (.ext9) removed. `fw_ent` (a pick) only reads: from a camera mode `fw_snap`
+  keeps its own, the save due (`fw_mpd` now means "a save is due"). `fw_st` no longer retries a save. `fw_chk` (each
+  half-press, ex_live, HLS task) does every write and the save: what the camera is on (`fw_cur`) and `fw_on` decide it
+  (a camera mode with a COLOR's in: `fw_out`; COLOR from a camera mode: `fw_snap` + `fw_ft`), then a due save
+  (`fw_msv`). Picture Mode opening reads only (fix99-2). #88's own writes at a pick (`fw_apply`: the film's WB mode,
+  Kelvin and shift) stay, as in v0.40.1. Section tails: ext3 467 / 492, ext8 320 / 512, ext9 257 / 384, ext11 14 B
+  free; ext4 1772 / 1776 as before. The section 6 / 7 -> 8..10 walk: #99's only crossing left is `fw_apply -> fw_ent`
+  (picks, with the films in). VERSION "v0.40.3-f6 (f5 + fix99-3: #99 writes at half-press only)".
+- **Behaviour that differs from fix99-1 / -2 (the owner's call):** after a Creative Dial turn the camera keeps the old
+  WB shift until the next half-press (the panel and live view show the film's at the camera modes, the camera modes'
+  on a film), and a WB change made at a camera mode before that half-press is replaced by their kept one. Keeping such
+  a change would need a note of the film's values at the turn plus compare code in the half-press path (about 60 B in
+  sections <= 6, where 4..16 B are left per tail): not done.
+- **Tests:** #99's tests check the shift after the next half-press (`HP`); `wb-shift-written-at-the-half-press-only`
+  replaces fix99-2's (WATCH ex_live, fl_set, fw_pm, fw_wr, fw_msv with task ids: every save and every WB write in the
+  HLS task, except #88's at a pick). fix99-2's build `caught` (on its first value check, the shift at the turn; the
+  write check alone: 91 WB writes in task 165 at the turns). `section-8-code-waits-for-the-first-look` watches fw_ent.
+- **Suite** (build of 11748f9 = the package, om-emu 0819080): **132 pass**, exit 0; static checks pass (no new hook or
+  patch site). Both builds the same byte for byte. Package `test-builds/2026-11-20-fix99-3/1-test-build` (private
+  folder): E1479999.BIN `d123c024…956e`, GUIDES.BIN `5a22edaa…cc90`; go-back v0.40.3-beta `306149fb…5b17` /
+  `64030659…504c`.
+- **Camera-only:** whether the restart is gone (rare: many rounds of turns and picks, fast and slow); live view; photos.
