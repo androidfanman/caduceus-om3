@@ -9590,3 +9590,42 @@ The owner's OM-3, v0.40.3-f7 (84b45c19…0a93: fixes2 + the boot-loop fix + fix9
 (centre, back to a film, a film change; CRT / MONO), no restart and no loop; a WB change on the centre kept at the
 half-press. Last log (event 36, "nothing unusual") in the private test-builds folder. So, camera-tested: the boot loop
 (f3) and the restarts (f4 / f5) are gone with #99's writes only at the half-press.
+
+## fix99-5: a film pick does no #99 work; a film's WB change before the half-press stays with it (2026-11-20; emulator only; branch fix/99-pick-reads-nothing)
+- **Camera (owner, via the main chat; v0.40.3-f7 = fix99-4, first round "No, all good"):** a restart every time after:
+  a film's WB changed, the Creative Dial to the centre, a WB change there, back to the film, another film picked.
+  Log `test-builds/2026-11-20-fix99-4/camera-results/repro-2` (event 10, at the centre, "nothing unusual"; the log is
+  written at each half-press release): FILM 1 (Poolside) -> centre (5-6) -> FILM 1, a half-press with edits waiting
+  (7-8) -> centre, one half-press (9-10) -> (the centre change, back, the pick, no half-press) -> restart.
+- **om-emu (f7's build):** no restart in 11 variants: with and without half-presses between the steps, the film's
+  change from the super control panel and from Picture Mode's WB row, a WB mode change as the centre's change, the
+  pick in Picture Mode (arrows, front dial) and from the panel. WATCH with task ids: the film change and the centre
+  change through sl_set0 -> fw_ued (GUI task 168, about 2.8 KB down its 16 KB stack); the pick fl_set -> fw_keep ->
+  fw_apply -> fw_ent -> fw_snap (26 reads, task 168) when fw_on was 0. Every route into sl_set0 keeps the manager's
+  frame, so fw_ued's MDR from (68,sp) is right; fw_pre / fw_msk indexes 0..25 (range-checked), table ids 1580..1605;
+  frames and locals as their calls. **No fault found; the restart's cause is not known** (camera-only: two CPUs,
+  live view, timing).
+- **Found on that path (om-emu, a data bug of fix99-3 / -4):** a film's WB changed right after the turn back (fw_on 0,
+  before the half-press; the owner's log has exactly that at events 7-8) was taken as the camera mode's own at the
+  half-press (fw_snap read it) and the film's old shift was put back over it (fw_ft); the centre then got the film's
+  change. And the pick read 26 settings inside the GUI's SetValue(901), the only #99 work left at a pick.
+- **The change:** the camera modes' own are kept while the camera is on them: `fw_kcm` (.ext15, from fw_chk after
+  fw_out at each half-press there) reads them into fw_bs with fw_bk 1 (fw_bv and the save left as they were: nothing to
+  keep in camera memory while their own are in the camera), and fw_uen puts each change the camera's screens write there
+  into fw_bs (fw_pos). A pick (fw_ent -> `fw_ownk`) only takes fw_bs as kept (fw_bv 1, the save due): nothing read
+  (fw_snap only when not seen since power-on or a new group, corrected with fw_pre for changes noted on the film).
+  fw_uen also notes a change on COLOR 1-4 while the camera mode's own are still in the camera (fw_on 0): at the
+  half-press `fw_cin` keeps the own (fw_ownk) and `fw_ftn` leaves the film's WB mode alone when its A-B or G-M was
+  changed (#88's fw_sync then puts it into the film, its '*'); after a turn back with no half-press fw_kcm puts the
+  camera mode's own back for such a change (`fw_rbit`). fw_bk is dropped when a COLOR's shift goes in (fw_chk, a
+  pick), at a new group (fw_st) and at power-on. Writes and saves still only at the half-press; nothing at the 897
+  write. Not handled: when only one of A-B / G-M is changed on the film, the other also stays as the camera had it.
+- Space: ext4 1640 / 1776, ext8 332 / 512, **ext15 844 / 139,264**; the others as fix99-4. Section 6 / 7 -> 8..10 walk:
+  no new path. VERSION "v0.40.3-f8 (f7 + fix99-5: a film pick reads nothing)".
+- **Test** `wb-film-change-then-the-standard-modes-then-a-pick` (the owner's steps, with value checks and WATCH fl_set /
+  ex_live / fw_snap: no reads at a pick); f7 `caught` ("1580: -5, not 2").
+- **Suite** (build of d2d2ef2 = the package, om-emu 0819080): **136 pass**, exit 0; static checks pass. Both builds the
+  same byte for byte. Package `test-builds/2026-11-20-fix99-5/1-test-build` (private folder): E1479999.BIN
+  `c1ac25b4…a22f`, GUIDES.BIN `7eba5f7e…f510`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **Camera-only:** whether the restart is gone. If it is not: the same steps on v0.40.3-beta (no #99) say whether #99
+  is involved at all (TEST-STEPS step 3).
