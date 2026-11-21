@@ -6086,9 +6086,11 @@ fw_sync:
  ret [d2,d3,a2,a3],20
 /* fw_pm: `call fw_pm,[d2,d3,a2,a3],20` from gx_map as Picture Mode (0x0418) opens (GUI task): with the films in, on
  * COLOR k, no mode-dial switch waiting -> fw_sync for it, so the Picture Mode row and the films' '*' show the
- * camera's fine-tune (changed in the super control panel's WB screen, say). Keeps nothing (gx_map saves its own). */
+ * camera's fine-tune (changed in the super control panel's WB screen, say). Keeps nothing (gx_map saves its own).
+ * Reads only, as in v0.40.1 (fix99-2): fix99-1 called fw_chk here, which wrote the film's WB shift from inside the
+ * GUI's state change as Picture Mode opened after a turn back from the camera's own modes; the owner's camera
+ * restarted at the film change that came next (2026-11-20). That shift now goes in at the turn itself (fw_in). */
 fw_pm:
- call fw_chk,[d2,d3,a2,a3],24     /* #99: a camera mode's own shift back, or the film's in, as the camera is now */
  movbu (fw_done),d0               /* not before the first half-press (fw_sync from ex_live puts the shift in then) */
  cmp 0,d0
  beq 9f
@@ -6175,8 +6177,9 @@ fw_bs:
  * its own. A group's entry: 1 = the camera holds a COLOR's compensation and fw_bs the camera mode's own; 0 = the
  * camera mode's own are in the camera. No record (a camera that never ran this build) or a bad one: not known, and
  * leaving a film then sets 0 / 0 (no compensation) in every stills WB mode. Where it runs: the 897 write (sl_set0 -> fw_897j -> fw_fam, before the
- * camera's own write), a pick (fw_apply -> fw_ent), Picture Mode opening (fw_pm) and each half-press (ex_live) ->
- * fw_chk; all only after the first look of a power-on (cm_init), in photo modes (ss_photo): nothing at start-up,
+ * camera's own write; fw_in for the film's shift at a turn to COLOR), a pick (fw_apply -> fw_ent) and each
+ * half-press (ex_live -> fw_chk); never as Picture Mode opens (fix99-2: the owner's camera restarted after fix99-1
+ * wrote there, GUI task, mid state change); all only after the first look of a power-on (cm_init), in photo modes (ss_photo): nothing at start-up,
  * nothing in video. Writes: stills fine-tune ids only, through the manager where the camera's value differs (fw_wr,
  * handle rc_in, mode 0 as rc_put). */
 .section .ext4,"ax"
@@ -6310,8 +6313,7 @@ fw_out:
  call fw_msv,[d2,d3,a2,a3],24     /* the entry no longer holds a camera mode's own: they are in the camera */
 9:
  ret [d2,d3,a2,a3],24
-/* fw_chk: `call fw_chk,[d2,d3,a2,a3],24` from ex_live (each half-press, HLS task) and fw_pm (Picture Mode opens, GUI
- * task): what the camera is on now (fw_cur). A camera mode: fw_out. COLOR k: from a camera mode (fw_on 0) its own
+/* fw_chk: `call fw_chk,[d2,d3,a2,a3],24` from ex_live (each half-press, HLS task; fix99-1 also from fw_pm): what the camera is on now (fw_cur). A camera mode: fw_out. COLOR k: from a camera mode (fw_on 0) its own
  * compensation kept (fw_snap); then (fw_on 0 / 2) COLOR k's shift into the fine-tune of its own WB mode (fw_ft, as a
  * pick); fw_on 1. Local (4) k. */
 fw_chk:
@@ -6499,8 +6501,9 @@ fw_897j:
  mov d2,mdr
  jmp sl_set0b
 /* fw_fam: `call fw_fam,[d2,d3,a2,a3],28` from fw_897j, d1 = the picture-mode family about to be written: COLOR (901)
- * from a camera mode (fw_on 0): its own compensation kept (fw_snap), fw_on 2 (the film's goes in at fw_chk: Picture
- * Mode opens at the turn, or the half-press); not known: fw_on 1. Another family: fw_out. Nothing when this write
+ * from a camera mode (fw_on 0): its own compensation kept (fw_snap), then the film's in now (fw_in, fw_on 1), as the
+ * turn to a camera mode puts theirs back here (fw_out); fw_on 2 when it could not (the half-press, fw_chk, does it).
+ * Not known: fw_on 1. Another family: fw_out. Nothing when this write
  * came with a new mode group (om-emu: at a mode-dial turn 897 comes before the camera has put the group's own WB
  * back; C1 took P's film's as its own). Locals (4) the family, (8) the group before. */
 fw_fam:
@@ -6523,6 +6526,7 @@ fw_fam:
  call fw_snap,[d2,d3,a2,a3],32
  mov 2,d0
  movbu d0,(fw_on)
+ call fw_in,[d2,d3,a2,a3],20      /* fix99-2: the film's shift at the turn (task 165), not as Picture Mode opens */
  bra 9f
 2:
  cmp 0xff,d0
@@ -6545,6 +6549,29 @@ fw_ent:
  bne 1f
  call fw_snap,[d2,d3,a2,a3],32
 1:
+ mov 1,d0
+ movbu d0,(fw_on)
+9:
+ ret [d2,d3,a2,a3],20
+.section .ext9,"ax"                /* fix99-2: fw_fam's helper (section 9, which is copied before section 8's code can
+                                     run: fw_897j only after the first look, fw_g8) */
+/* fw_in: `call fw_in,[d2,d3,a2,a3],20` from fw_fam at a Creative Dial turn from a camera picture mode to COLOR (the
+ * 897 write, task 165, before the camera's own write; fw_snap has kept the camera mode's own): the COLOR the camera
+ * turns to (901 keeps the COLOR choice while another family is on) -> its shift into the fine-tune of its own WB mode
+ * (fw_ft, handle rc_in, mode 0, as fw_out's writes at the turn to a camera mode), fw_on 1. 901 not on COLOR 1-4, or
+ * no films: nothing (fw_on stays 2; fw_chk at the half-press puts it in). */
+fw_in:
+ mov 901,d0
+ call sget,[],4
+ call fl_k,[],0
+ cmp 0,d0
+ blt 9f
+ mov d0,d2                        /* k (PVAL uses d3 / a2) */
+ PVAL 9f
+ mov d2,d0
+ mov (rc_in),a0
+ mov 0,a1
+ call fw_ft,[d2,d3,a2,a3],36
  mov 1,d0
  movbu d0,(fw_on)
 9:

@@ -688,6 +688,26 @@ def section8_waits_for_the_first_look(hits):
     return errors
 
 
+def wb_shift_in_at_the_dial_turn(hits):
+    """fix99-2 (2026-11-20): a turn of the Creative Dial back from the camera's own picture modes to a film puts the
+    film's WB shift into the camera at the dial's 897 write (fw_897j, the Creative Dial's task), as the turn to the
+    camera's modes puts theirs back there. Nothing is written as Picture Mode opens (fw_pm, GUI task, inside its state
+    change): fix99-1 wrote the film's shift there, and the owner's camera restarted at the film change that came next.
+    hits: fw_897j, fw_pm, fl_set (where a write comes from) and fw_wr (each WB fine-tune write we ask for)."""
+    errors, last, at_pm, at_dial = [], None, 0, 0
+    for name, *_ in hits:
+        if name == 'fw_wr':
+            at_pm += last == 'fw_pm'
+            at_dial += last == 'fw_897j'
+        else:
+            last = name
+    if at_pm:
+        errors.append(f'{at_pm} WB settings written as Picture Mode opened (GUI task), not 0')
+    if not at_dial:
+        errors.append('no WB setting written at the Creative Dial turns')
+    return errors
+
+
 def no_card_file_reads(hits):
     """fopen hits: DEBUG.TXT asked (so the probe sees fopen), BUNDLES.BIN and EDITS.BIN never."""
     paths = [s or '' for _, s in hits]
@@ -944,6 +964,15 @@ TESTS = {
     'section-8-code-waits-for-the-first-look': [
         Boot(f'wait wait s1 wait wait {TO_STANDARD} {TO_COLOR} poweroff', watch=('cm_go', 'fw_897j'),
              hits=section8_waits_for_the_first_look),
+    ],
+    # fix99-2 (the owner's camera, v0.40.3-f4, 2026-11-20: the centre, back to a film, a film change -> it restarted):
+    # back on COLOR from the standard modes, FILM 3's B5 goes into the camera at the dial turn itself, nothing as
+    # Picture Mode opens; then a film change in Picture Mode (the owner's step) and a half-press.
+    'wb-shift-goes-in-at-the-dial-turn-not-as-picture-mode-opens': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait {TO_STANDARD} '
+             f'expect:val:{AUTO_AB}=1 s1 wait wait {TO_COLOR} expect:val:{AUTO_AB}=-5 right wait ok wait wait '
+             f's1 wait wait {TO_STANDARD} expect:val:{AUTO_AB}=1 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
+             watch=('fw_897j', 'fw_pm', 'fl_set', 'fw_wr'), hits=wb_shift_in_at_the_dial_turn),
     ],
     'camera-mode-gets-its-own-wb-shift-back': [
         Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 expect:val:{CWB_AB}=3 '
