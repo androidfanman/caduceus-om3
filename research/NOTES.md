@@ -9711,3 +9711,44 @@ Branch `try/v0.40.3-beta3` = `fix/101-long-press` (f9: fixes2 + the boot-loop fi
 2026-11-21, owner: "It works") + `try/v0.40.3-beta2` merged for its record (beta2 withdrawn) + VERSION "v0.40.3-b3
 (beta 3: fixes for #91, #97, #99 and #101)". E1479999.BIN 8614c121…d37e (GUIDES / LABELS / TONES built in);
 `patch.py --release v0.40.3-beta3` rebuilds it byte for byte. Card files as v0.40.3-beta. Suite on the release build: 137 pass, exit 0. Owner: "Yes, make beta3", "Release it once the suite passes".
+
+## Separate WB shifts for films and the camera's own modes, w1 (2026-11-21; emulator only, camera test pending; branch fix/wb-separate-shift from v0.40.3-beta3)
+- **Owner (2026-11-21):** the half-press way (fix99-3..5, in v0.40.3-beta3) is "cumbersome and unintuitive". Wanted: a
+  shift set on a film is the film's at once; at the centre another shift, the camera's at once; back on the film its
+  shift is still there; no half-press. Chosen: a film's shift in place of the camera's (a shift at the centre does not
+  reach films); one shift per film whatever the WB mode; the WB mode stays shared as before; COLOR 1-4 like films.
+- **Why the old way could not do it (review of #88 / #99):** the camera has one fine-tune per WB mode. #88 (v0.40.1) made
+  the film's shift that setting so the panel showed it; #99 then needed the film's and the camera modes' own swapped at
+  every change, and each moment tried for the swap outside the half-press restarted the owner's camera (the 897
+  write, Picture Mode opening, a pick; om-emu never showed it).
+- **The design: nothing is swapped.** The camera's own stills fine-tunes (1580..1605) are never written by us. The
+  film's shift stays in its slot (+25 flag, +26 A-B, +27 G-M), as to v0.40.
+  - Photos: `wb_get` (ext1, behind the section-6 gate) -> `fw_wbg` (.ext15): on a COLOR profile (getter 38017 / 40209 =
+    11, profile 63153) the slot's shift in place of the stock value, 0 when its flag is off; keys 34041 / 38521 and
+    Auto's 7401 / 7433 / 7417 / 7449. v0.21..v0.40 added the slot's to the stock value (camera-proven sites).
+  - The camera's screens read a fine-tune through the facade GetValue (om-emu, beta3: the super control panel from
+    0x611b2139 / 0x611d2876 / 0x611d28c2, the WB screen 0x611b43ad; GUI task): `sl_get`'s chain, for 1580..1605, ->
+    `fw_get` (.ext15): on COLOR k (`fw_cs`: PVAL, fw_cur) the slot's shift (`fw_sv`), else on to vf_get as before.
+  - Their writes come through `sl_set0` -> `fw_ued`: on COLOR k (not in the Picture Mode row's own screen, gr_flag,
+    whose path stores it as before) the value into the slot, flag on, then `s_dirty` (P+DIRTY; the manager gets the
+    camera's own value back unchanged, as the row's writes have done since v0.25).
+  - Removed: #88's fw_ft / fw_put / fw_kft / fw_sync / fw_pm / fw_row / fw_wr / fw_sh / fw_tab / fw_done and all of #99
+    (fw_chk, fw_out, fw_snap, fw_ent, fw_st, the 'OM3W' record's code, fix99-4 / -5's notes). Kept: fw_keep / fw_apply
+    (the film's WB mode and Kelvin, v0.28), fw_cur, fw_nf. No hook or patch site added or removed.
+- **Space:** ext1 1608 / 1744, ext4 1308 / 1776, ext6 500 / 608, ext8 279 / 512, ext11 65408 / 65536, ext12 262096 /
+  262144, ext13 81280 / 81920, ext15 460 / 139264.
+- **Not handled:** a camera coming from v0.40.1..beta3 may hold a film's shift in its own fine-tunes (and beta3's kept
+  values sit unused in 'OM3W'): the centre shows it until the user sets it (TEST-STEPS says so; a one-time restore from
+  'OM3W' at a half-press is possible, the owner's call). Live view: whether its preview uses the hooked reads is not
+  known (om-emu runs none).
+- **Tests** (11 on WB; driver tokens `last:PC` / `expect:last:PC:D1=V`): `wb-shift-separate-for-a-film-and-the-camera-modes`
+  (the owner's four steps, no half-press: what the WB screen is given at `fw_gv`, the slot, the camera's own value),
+  `camera-modes-wb-shift-untouched-by-films` (beta3 `caught`: "1580: -5, not 1"),
+  `photo-wb-reads-take-the-film-shift-in-place-of-the-cameras`, `wb-reads-give-the-film-shift-on-color`,
+  `film-wb-shift-stays-in-the-film`, `film-wb-code-waits-for-the-first-look`, and the #88 tests turned to the slot.
+  #99's tests are gone with its code.
+- **Suite** (build of 1c4fdff = the package, om-emu 0819080): **129 pass**, exit 0; static checks pass. Both builds the
+  same byte for byte. Package `test-builds/2026-11-21-wb-separate-1/1-test-build` (private folder): E1479999.BIN
+  `ab3db69a…a2cb`, GUIDES.BIN `907ae295…5b14`; go-back v0.40.3-beta3 `8614c121…d37e`. VERSION "v0.40.3-w1 (beta3 +
+  separate WB shifts: film / camera)".
+- **Camera-only:** the panel and WB screen on the real camera; photos; live view's colour; the old restart steps.
