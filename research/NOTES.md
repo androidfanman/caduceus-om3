@@ -9546,3 +9546,40 @@ places: analysis + the mp1 probe for the tail in general); the camera's own WB m
   folder): E1479999.BIN `d123c024…956e`, GUIDES.BIN `5a22edaa…cc90`; go-back v0.40.3-beta `306149fb…5b17` /
   `64030659…504c`.
 - **Camera-only:** whether the restart is gone (rare: many rounds of turns and picks, fast and slow); live view; photos.
+
+## fix99-4: the GX4 reserve opened as .ext15; a WB change on a camera mode before the half-press kept (2026-11-20; emulator only; branch fix/99-keep-wb-change)
+- **Owner (via the main chat):** "could we find more space?", then "open the space"; fix99-3 cleared by cad (rebuild
+  d123c024…956e). Wanted: keep a WB change made at the camera's own modes before the half-press (fix99-3 replaced it
+  with their kept one), the code in the new space, everything else as fix99-3.
+- **The space:** `.ext15` = 0x6101d000 (Halation Radius's HR_END) .. 0x6103f000 (section 7's start; static_check's
+  EXT_SPACE_LIMIT), 139,264 B, the rest of the GX4-proven reserve (camera, 2026-11-12: 4K video, photos, RAW+JPEG and
+  grain + Glow bursts, the stretch loaded and intact). build.py: EXT15, its blob sized and checked FF in the image,
+  after ext14; **the loader's end word 0x6101d000 -> 0x6103f000** (the GX4 probe's own end word); editor.ld places it.
+  static_check counts it as section 6. The camera's start-up copy of section 6 is 136 KiB longer (FF bytes).
+- **The change:** `sl_set0` (ext11, the 14 B fix99-3 freed) sends a stills fine-tune id (1580..1605) written through
+  the facade (the camera's WB screens) to `fw_ued` (.ext15), which calls `fw_uen` and goes on at sl_set0b (MDR from
+  (68,sp)). `fw_uen` (reads only): after the first look, photo mode, no mode-dial switch (fw_st), on a camera mode
+  (fw_cur), a COLOR's shift still in the camera (fw_on 1 / 2): the first change of that id since the turn sets its
+  `fw_msk` bit and keeps the camera's value then (the film's) in `fw_pre`. `fw_out` (moved from ext4 to .ext15) writes
+  through `fw_wu`: a noted id whose value is no longer fw_pre's is left as the user set it; the next turn to COLOR
+  keeps it as the camera mode's own (fw_snap). A change undone gets the camera mode's own. fw_chk clears the notes after
+  each half-press, fw_st at a new mode group. Nothing at the 897 write, no write or save outside the half-press (as
+  fix99-3). Our own writes go to the manager directly, not through the facade, so they are never noted.
+- om-emu: in the WB fine-tune screen the camera writes the value at each step; MENU there keeps the stepped value (it
+  does not undo it; if the camera undoes it, that counts as set back).
+- Not handled (as fix99-3): a change at a camera mode, then back to a film with no half-press in between: the change
+  stays in the camera on the film for that WB mode.
+- **Space after (build of the package):** ext1 0 / 1744, ext2 7, ext3 25, ext4 96 (1680 / 1776), ext5 4, ext6 16,
+  ext7 2, ext8 192, ext9 127, ext10 44, ext11 6, ext12 and ext13 full (as before), ext14 16, **ext15 138,916 free**
+  (348 / 139,264). Section 6 / 7 -> 8..10 walk: no new path (#99's only one, fw_apply -> fw_ent, behind the films).
+- **Tests:** `wb-change-on-a-camera-mode-before-the-half-press-kept` (fix99-3 `caught`: "1580: 1, not -4"),
+  `wb-change-undone-on-a-camera-mode-gets-their-own-back`, `ext15-code-waits-for-the-first-look` (from switch-on:
+  nothing in .ext15 before cm_go; fw_ued at the WB change, fw_out at the half-press). VERSION "v0.40.3-f7 (f6 +
+  fix99-4: a WB change kept; ext15 opened)". docs/USING.md: the camera modes' shift comes with the half-press.
+- **Suite** (build of daabec1 = the package; firmware as 700fbf0; om-emu 0819080): **135 pass**, exit 0 (fix99-3's 132
+  + the three new ones); static checks pass (loader-end with the new word; no new hook or patch site). Both builds the
+  same byte for byte. Package `test-builds/2026-11-20-fix99-4/1-test-build` (private folder): E1479999.BIN
+  `84b45c19…0a93`, GUIDES.BIN `ccf4af07…5053`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **Camera-only:** start-ups with the longer section-6 copy (about ten); the restart steps (many rounds); the kept
+  change in the real super control panel and WB screen (and whether the camera's MENU there undoes a step); live view;
+  photos.
