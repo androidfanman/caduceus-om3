@@ -6203,6 +6203,7 @@ fw_st:
  movbu d0,(fw_on)
  clr d0
  mov d0,(fw_msk)                  /* fix99-4: changes noted in the old group are not this one's */
+ movbu d0,(fw_bk)                 /* fix99-5: nor the camera mode's own as last seen */
  call fw_mld,[d2,d3,a2,a3],20     /* that group's kept entry, when camera memory has the record */
 1:
  mov 1,d0
@@ -6272,6 +6273,7 @@ fw_chk:
  cmp 0,d0
  bge 1f
  call fw_out,[d2,d3,a2,a3],24
+ call fw_kcm,[d2,d3,a2,a3],32     /* fix99-5: then the camera mode's own as they are now (fw_bk) */
  bra 8f
 1:
  mov d0,(4,sp)
@@ -6280,18 +6282,13 @@ fw_chk:
  beq 8f
  cmp 0xff,d0
  beq 3f
- cmp 0,d0
- bne 2f
- call fw_snap,[d2,d3,a2,a3],32
-2:
- PVAL 3f
  mov (4,sp),d0
- mov (rc_in),a0
- mov 0,a1
- call fw_ft,[d2,d3,a2,a3],36
+ call fw_cin,[d2,d3,a2,a3],24     /* fix99-5: the camera mode's own kept, COLOR k's shift in (.ext15) */
 3:
  mov 1,d0
  movbu d0,(fw_on)
+ clr d0
+ movbu d0,(fw_bk)                 /* fix99-5: a COLOR's shift in: fw_bs is the kept own now (fw_bv), not the seen one */
 8:
  clr d0                           /* fix99-4: the user's changes noted since the last half-press are dealt with */
  mov d0,(fw_msk)
@@ -6440,8 +6437,8 @@ fw_mld:
                                      half-press (static:section-order) */
  .balign 2
 /* fw_ent: `call fw_ent,[d2,d3,a2,a3],20` from fw_apply (a pick, or a new set's film), before the film's WB goes in:
- * from a camera mode (fw_on 0) its own compensation is kept first (fw_snap: reads only, the save at the next
- * half-press); fw_on 1. */
+ * from a camera mode (fw_on 0) its own compensation is kept first (fw_ownk: as last seen there, fix99-5, so a pick
+ * reads nothing; fw_snap only when not seen yet), the save at the next half-press; the notes dropped; fw_on 1. */
 fw_ent:
  call fw_st,[d2,d3,a2,a3],20
  cmp 0,d0
@@ -6449,8 +6446,11 @@ fw_ent:
  movbu (fw_on),d0
  cmp 0,d0
  bne 1f
- call fw_snap,[d2,d3,a2,a3],32
+ call fw_ownk,[d2,d3,a2,a3],20    /* fix99-5: the camera mode's own as last seen there (fw_bk): nothing read here */
 1:
+ clr d0
+ mov d0,(fw_msk)                  /* fix99-5: notes made before the pick are no longer the camera's */
+ movbu d0,(fw_bk)                 /* the kept own now (fw_bv), not the seen one */
  mov 1,d0
  movbu d0,(fw_on)
 9:
@@ -6472,6 +6472,10 @@ fw_msk:                           /* bit (id - 1580): a stills fine-tune the use
  .long 0
 fw_pre:                           /* by id - 1580: its value before the first such change (the film's), -7..7 */
  .space 26
+fw_bk:                            /* fix99-5: 1 = fw_bs holds the camera mode's own as last seen on it (fw_kcm at a
+                                     half-press there, fw_uen at each change there), while their own are in the camera
+                                     (fw_on 0); a pick then reads nothing. 0 at power-on, a new group, a COLOR's in */
+ .byte 0
  .balign 2
 /* fw_ued <- jmp from sl_set0 (the settings manager's frame: its return address at (68,sp)) for a stills WB
  * fine-tune id, d2 = id - 1580 (0..25), d0 the id, d1 the value, a0 / a1 the SetValue's: fw_uen notes it, then on at
@@ -6482,7 +6486,7 @@ fw_ued:
  mov d1,(8,sp)
  mov a0,(12,sp)
  mov a1,(16,sp)
- call fw_uen,[d2,d3,a2,a3],24
+ call fw_uen,[d2,d3,a2,a3],28      /* d0 id, d1 value */
  mov (4,sp),d0
  mov (8,sp),d1
  mov (12,sp),a0
@@ -6491,24 +6495,33 @@ fw_ued:
  mov (68,sp),d2                   /* MDR = the setter's return address again, as sl_set0b reads it */
  mov d2,mdr
  jmp sl_set0b
-/* fw_uen: `call fw_uen,[d2,d3,a2,a3],24`, d0 = a stills fine-tune id about to be written by the camera's screens:
- * after the first look, in a photo mode (fw_st), on one of the camera's own picture modes (fw_cur) while a COLOR's
- * shift is still in the camera (fw_on 1 / 2: the restore due at the next half-press), the first time since then:
- * fw_msk bit, fw_pre <- the camera's value now. Reads only. Local (4) id. */
+/* fw_uen: `call fw_uen,[d2,d3,a2,a3],28`, d0 = a stills fine-tune id, d1 = the value the camera's screens are about to
+ * write; after the first look, in a photo mode (fw_st). On one of the camera's own picture modes while a COLOR's shift
+ * is still in the camera (fw_on 1 / 2; fix99-4), or on COLOR 1-4 while the camera mode's own still is (fw_on 0, a
+ * film changed before the half-press; fix99-5): the first time since then, fw_msk bit and fw_pre <- the camera's
+ * value now. On a camera mode with its own in the camera (fw_on 0) and seen (fw_bk; fix99-5): fw_bs <- the new
+ * value, so a pick or a half-press on COLOR keeps it without reading. Notes only. Locals (4) id, (8) value. */
 fw_uen:
  mov d0,(4,sp)
+ mov d1,(8,sp)
  call fw_st,[d2,d3,a2,a3],20
  cmp 0,d0
  beq 9f
- movbu (fw_on),d0
- cmp 1,d0
+ call fw_cur,[d2,d3,a2,a3],20
+ movbu (fw_on),d1
+ cmp 0,d0
+ blt 5f
+ cmp 0,d1                         /* COLOR k */
+ bne 9f                           /* a COLOR's shift in: #88 keeps the change with the film */
+ bra 1f
+5:
+ cmp 0,d1                         /* a camera mode */
+ beq 7f
+ cmp 1,d1
  beq 1f
- cmp 2,d0
+ cmp 2,d1
  bne 9f
 1:
- call fw_cur,[d2,d3,a2,a3],20
- cmp 0,d0
- bge 9f
  mov (4,sp),d2
  add -1580,d2
  mov 1,d3
@@ -6527,8 +6540,191 @@ fw_uen:
  mov fw_pre,a0
  add d1,a0
  movbu d0,(a0)
+ bra 9f
+7:
+ movbu (fw_bk),d0
+ cmp 0,d0
+ beq 9f
+ mov (4,sp),d0
+ call fw_pos,[d2,d3],12
+ cmp 0,a0
+ beq 9f
+ mov (8,sp),d0
+ FWCL d0
+ movbu d0,(a0)
+9:
+ ret [d2,d3,a2,a3],28
+/* fw_pos: `call fw_pos,[d2,d3],12`, d0 = a stills fine-tune id -> a0 = its byte in fw_bs (by table 0x615d1944's
+ * order: A-B, G-M), 0 when not a table id. Uses d0, d1. */
+fw_pos:
+ mov d0,d3
+ clr d2
+1:
+ call fw_bid,[],4
+ cmp d3,d0
+ beq 8f
+ add 13,d0
+ cmp d3,d0
+ bne 2f
+ inc a0
+ bra 8f
+2:
+ inc d2
+ cmp 13,d2
+ bcs 1b
+ mov 0,a0
+8:
+ ret [d2,d3],12
+/* fw_ownk: `call fw_ownk,[d2,d3,a2,a3],20` (a pick, fw_ent, or the half-press on COLOR, fw_cin, with fw_on 0): the
+ * camera mode's own compensation is kept: as last seen on it (fw_bk: fw_bs as fw_kcm and fw_uen keep it; no read),
+ * else read now (fw_snap; a fine-tune changed on the film before this keeps its value before the change, fw_pre).
+ * fw_bv 1, the save due. */
+fw_ownk:
+ movbu (fw_bk),d0
+ cmp 0,d0
+ beq 1f
+ mov 1,d0
+ movbu d0,(fw_bv)
+ movbu d0,(fw_mpd)
+ ret [d2,d3,a2,a3],20
+1:
+ call fw_snap,[d2,d3,a2,a3],32
+ mov (fw_msk),d0                  /* changed on the film before this (fw_on 0): the value before, not the change */
+ cmp 0,d0
+ beq 9f
+ clr d2
+2:
+ call fw_bid,[],4
+ call fw_ppre,[d2,d3,a2,a3],20    /* A-B (keeps d2) */
+ call fw_bid,[],4
+ add 13,d0
+ inc a0
+ call fw_ppre,[d2,d3,a2,a3],20    /* G-M */
+ inc d2
+ cmp 13,d2
+ bcs 2b
+9:
+ ret [d2,d3,a2,a3],20
+/* fw_ppre: `call fw_ppre,[d2,d3,a2,a3],20`, d0 = a stills fine-tune id, a0 = its byte in fw_bs: when fw_msk has it,
+ * the byte <- fw_pre's (its value before the change). */
+fw_ppre:
+ add -1580,d0
+ mov (fw_msk),d1
+ lsr d0,d1
+ btst 1,d1
+ beq 9f
+ mov fw_pre,a1
+ add d0,a1
+ movbu (a1),d1
+ movbu d1,(a0)
+9:
+ ret [d2,d3,a2,a3],20
+/* fw_cin: `call fw_cin,[d2,d3,a2,a3],24` from fw_chk (the half-press) on COLOR k (d0) with fw_on 0 or 2: from a camera
+ * mode (fw_on 0) its own kept (fw_ownk), then COLOR k's shift in (fw_ftn). fw_chk sets fw_on 1. Local (4) k. */
+fw_cin:
+ mov d0,(4,sp)
+ movbu (fw_on),d0
+ cmp 0,d0
+ bne 1f
+ call fw_ownk,[d2,d3,a2,a3],20
+1:
+ PVAL 9f
+ mov (4,sp),d0
+ call fw_ftn,[d2,d3,a2,a3],24
 9:
  ret [d2,d3,a2,a3],24
+/* fw_ftn: `call fw_ftn,[d2,d3,a2,a3],24`, d0 = k, a2 = P: fw_ft (COLOR k's shift -> the fine-tune of its own WB mode,
+ * handle rc_in, mode 0), unless that mode's A-B or G-M was changed on COLOR k before this half-press (fw_msk, made with
+ * fw_on 0): then the camera keeps the user's value, and #88's fw_sync puts it into the film (its '*'). Local (4) k. */
+fw_ftn:
+ mov d0,(4,sp)
+ asl 6,d0
+ add 32,d0
+ mov a2,a0
+ add d0,a0                        /* COLOR k's slot */
+ movbu (36,a0),d0
+ extb d0
+ movbu (37,a0),d1
+ extb d1
+ FWDEC                            /* its WB mode code (as fw_ft) */
+ cmp 1,d0
+ blt 1f
+ cmp 13,d0
+ blt 2f
+1:
+ clr d0                           /* none: Auto */
+2:
+ mov d0,d2
+ call fw_bid,[],4                 /* d0 = its A-B id */
+ add -1580,d0
+ mov (fw_msk),d1
+ lsr d0,d1
+ btst 1,d1
+ bne 9f                           /* A-B changed on the film: kept */
+ btst 0x2000,d1
+ bne 9f                           /* G-M (A-B id + 13) */
+ mov (4,sp),d0
+ mov (rc_in),a0
+ mov 0,a1
+ call fw_ft,[d2,d3,a2,a3],36
+9:
+ ret [d2,d3,a2,a3],24
+/* fw_kcm: `call fw_kcm,[d2,d3,a2,a3],32` from fw_chk (the half-press) on a camera mode, after fw_out (fw_on 0 then):
+ * fw_bs <- the camera mode's own as they are now (fw_snap), fw_bk 1 (fw_bv and the save as they were: nothing to keep
+ * in camera memory while its own are in the camera). Before that, a change noted on COLOR before the half-press and
+ * the turn back here since (fw_msk with fw_on 0, fw_bk): those fine-tunes get the camera mode's own back (fw_rbit).
+ * Locals (8) fw_bv, (12) fw_mpd as they were. */
+fw_kcm:
+ movbu (fw_on),d0
+ cmp 0,d0
+ bne 9f
+ movbu (fw_bk),d0
+ cmp 0,d0
+ beq 4f
+ mov (fw_msk),d0
+ cmp 0,d0
+ beq 4f
+ clr d2
+1:
+ call fw_bid,[],4
+ call fw_rbit,[d2,d3,a2,a3],20    /* A-B (keeps d2) */
+ call fw_bid,[],4
+ add 13,d0
+ inc a0
+ call fw_rbit,[d2,d3,a2,a3],20    /* G-M */
+ inc d2
+ cmp 13,d2
+ bcs 1b
+4:
+ movbu (fw_bv),d0
+ mov d0,(8,sp)
+ movbu (fw_mpd),d0
+ mov d0,(12,sp)
+ call fw_snap,[d2,d3,a2,a3],32
+ mov (8,sp),d0
+ movbu d0,(fw_bv)
+ mov (12,sp),d0
+ movbu d0,(fw_mpd)
+ mov 1,d0
+ movbu d0,(fw_bk)
+9:
+ ret [d2,d3,a2,a3],32
+/* fw_rbit: `call fw_rbit,[d2,d3,a2,a3],20`, d0 = a stills fine-tune id, a0 = its byte in fw_bs: when fw_msk has it,
+ * fw_wr (handle rc_in, mode 0) of that byte. */
+fw_rbit:
+ mov d0,d2
+ add -1580,d2
+ mov (fw_msk),d1
+ lsr d2,d1
+ btst 1,d1
+ beq 9f
+ movbu (a0),d1
+ extb d1
+ mov (rc_in),a0
+ mov 0,a1
+ call fw_wr,[d2,d3,a2,a3],36
+9:
+ ret [d2,d3,a2,a3],20
 /* fw_wu: `call fw_wu,[d2,d3,a2,a3],28` from fw_out, d0 = a stills fine-tune id, d1 = the camera mode's own value:
  * fw_wr (handle rc_in, mode 0), unless the user changed it on the camera mode since the turn (fw_msk) and the
  * camera's value is no longer the one before that change (fw_pre): then it is left as the user set it.

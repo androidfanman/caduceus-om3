@@ -736,6 +736,21 @@ def ext15_waits_for_the_first_look(hits):
     return errors
 
 
+def wb_pick_reads_nothing(hits):
+    """fix99-5 (2026-11-20): a film pick does no #99 reads (no fw_snap between a pick, fl_set, and the next half-press,
+    ex_live): the camera mode's own compensation is kept as last seen on it (fw_bk)."""
+    errors, last, picks = [], None, 0
+    for name, *_ in hits:
+        if name in ('fl_set', 'ex_live'):
+            last = name
+            picks += name == 'fl_set'
+        elif name == 'fw_snap' and last == 'fl_set':
+            errors.append('fw_snap (26 reads) at a film pick')
+    if not picks:
+        errors.append('no film pick (fl_set)')
+    return errors[:3]
+
+
 def no_card_file_reads(hits):
     """fopen hits: DEBUG.TXT asked (so the probe sees fopen), BUNDLES.BIN and EDITS.BIN never."""
     paths = [s or '' for _, s in hits]
@@ -1009,6 +1024,19 @@ TESTS = {
     # fix99-4 (owner, 2026-11-20): a WB change made on the camera's own modes before the half-press is kept. FILM 3
     # (B5) -> the standard modes: the camera still has B5; the WB screen there, one step to B4; the half-press keeps B4
     # (fix99-3 put the standard modes' kept A1 back); back on COLOR the film's B5; the standard modes again: B4, theirs now.
+    # fix99-5 (the owner's steps that restarted f7 every time, 2026-11-20): the standard modes' own A1; FILM 3 (B5);
+    # the standard modes (A1); back to FILM 3 and, before the half-press, its WB one step (the camera had A1 there: A2);
+    # the half-press keeps A2 with the film (fix99-4 took A2 as the standard modes' own and put B5 back); the standard
+    # modes: their A1 (not A2); a change there (A2); back on COLOR, another film picked (FILM 4, Sunny: Auto left
+    # alone); the standard modes: A2, theirs. No #99 reads at any pick.
+    'wb-film-change-then-the-standard-modes-then-a-pick': [
+        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} {HP} '
+             f'expect:val:{AUTO_AB}=1 {TO_COLOR} ok wait wait {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=2 {HP} '
+             f'expect:val:{AUTO_AB}=2 expect:p:{SLOT1_AB}=02 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 '
+             f'{WB_SCREEN_AGAIN_A_PLUS_1} expect:val:{AUTO_AB}=2 {TO_COLOR} right wait ok wait wait {HP} {TO_STANDARD} {HP} '
+             f'expect:val:{AUTO_AB}=2 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
+             watch=('fl_set', 'ex_live', 'fw_snap'), hits=wb_pick_reads_nothing),
+    ],
     'wb-change-on-a-camera-mode-before-the-half-press-kept': [
         Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} '
              f'expect:val:{AUTO_AB}=-5 {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=-4 {HP} expect:val:{AUTO_AB}=-4 '
