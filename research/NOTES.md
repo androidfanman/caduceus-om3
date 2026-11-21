@@ -9752,3 +9752,9 @@ Branch `try/v0.40.3-beta3` = `fix/101-long-press` (f9: fixes2 + the boot-loop fi
   `ab3db69a…a2cb`, GUIDES.BIN `907ae295…5b14`; go-back v0.40.3-beta3 `8614c121…d37e`. VERSION "v0.40.3-w1 (beta3 +
   separate WB shifts: film / camera)".
 - **Camera-only:** the panel and WB screen on the real camera; photos; live view's colour; the old restart steps.
+- **Camera-tested 2026-11-21 (the owner's OM-3, w1, E1479999 ab3db69a…a2cb, via the main chat):** asked whether anything
+  was odd (a restart, a freeze, a wrong value): "no. it worked really well." Log (last power-on only: 8 events, no
+  photos, at the centre with the WB screen open at event 5, FILM 1 with a '*'; start-up normal, 54 ms at event 1):
+  nothing unusual. So on the camera: the panel and WB screen show and change a film's and the centre's shift apart,
+  no half-press, no restart. **Still not camera-confirmed:** that a photo taken on a film has the film's shift (no
+  photos were taken with w1), and whether live view's preview shows it (the owner said nothing on it).
