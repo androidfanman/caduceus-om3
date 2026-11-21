@@ -9407,6 +9407,9 @@ write over a power-off (#88 saw one written at a half-press lost once in om-emu)
 at a dial turn (usually 1-3 differ); M's tail after +0x3FE78 being unused by the camera (as the other records'
 places: analysis + the mp1 probe for the tail in general); the camera's own WB menu outside the panel.
 
+- **Camera-tested 2026-11-20 (the owner's OM-3, fixes2 = fix91-1 + fix97-1 + fix99-1, v0.40.3-f3): works** (owner:
+  "It works!!"): the camera modes' own WB shift back from a film, kept over a power-off; Magnify at XPan still fine.
+
 ## fixes2: fix91-1 + fix97-1 + fix99-1 fitted together (2026-11-20; emulator, camera test pending; branch try/v0.40.3-fixes2)
 - **fix97-1 camera-tested 2026-11-20** (main chat, owner: "it worked well"; log "crop round 15", zoom reads given the
   base 734; test-builds/2026-11-20-fix97/camera-results): Magnify in the crops works on the camera.
