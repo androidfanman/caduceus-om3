@@ -9758,3 +9758,5 @@ Branch `try/v0.40.3-beta3` = `fix/101-long-press` (f9: fixes2 + the boot-loop fi
   nothing unusual. So on the camera: the panel and WB screen show and change a film's and the centre's shift apart,
   no half-press, no restart. **Still not camera-confirmed:** that a photo taken on a film has the film's shift (no
   photos were taken with w1), and whether live view's preview shows it (the owner said nothing on it).
+- **Camera (owner, 2026-11-21, w1, via the main chat): "yes, the live view showed the shift".** So live view on a film
+  shows the film's WB shift (camera-tested). Still not checked on the camera: a photo taken on a film with a shift.
