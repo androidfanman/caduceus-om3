@@ -9705,3 +9705,9 @@ AF-ON, short and long press; other functions on Delete; the arrows as before; De
 starts; the #99 restart steps once): "It works". Last log (event 18, "nothing unusual") in the private test-builds
 folder. So, camera-tested: Delete's long press runs the function's long-press step as AF-ON's does. The arrows still
 get no long press (the camera posts none for them; not changed).
+
+## v0.40.3-beta3 (2026-11-21; camera-tested as f9)
+Branch `try/v0.40.3-beta3` = `fix/101-long-press` (f9: fixes2 + the boot-loop fix + fix99-2..5 + #101, camera-tested
+2026-11-21, owner: "It works") + `try/v0.40.3-beta2` merged for its record (beta2 withdrawn) + VERSION "v0.40.3-b3
+(beta 3: fixes for #91, #97, #99 and #101)". E1479999.BIN 8614c121…d37e (GUIDES / LABELS / TONES built in);
+`patch.py --release v0.40.3-beta3` rebuilds it byte for byte. Card files as v0.40.3-beta. Suite on the release build: 137 pass, exit 0. Owner: "Yes, make beta3", "Release it once the suite passes".

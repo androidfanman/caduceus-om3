@@ -1,5 +1,8 @@
 # Caduceus for OM-3 v0.40.3-beta2 (test version)
 
+**Withdrawn (2026-11-20):** on some start-ups the camera could get stuck restarting (a boot loop), and a film change
+after the Creative Dial's centre could restart it. Use [v0.40.3-beta3](../v0.40.3-beta3/NOTES.md), which fixes both.
+
 **Three fixes on top of v0.40.3-beta.** A test version (a GitHub pre-release): v0.40.2 stays the current version.
 Camera-tested on an OM-3 (2026-11-20) as test build fixes2; this package is that build under its release name.
 

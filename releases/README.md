@@ -5,7 +5,8 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
-| [v0.40.3-beta2](v0.40.3-beta2/NOTES.md) | Test version: v0.40.3-beta plus fixes for a shut-down with Film Grain on Drive Priority (#91), Magnify and the Image Aspect screen in the crop modes (#97), and the camera's own picture modes keeping their own WB compensation (#99) | Test version (pre-release), camera-tested |
+| [v0.40.3-beta3](v0.40.3-beta3/NOTES.md) | Test version: v0.40.3-beta plus fixes for a shut-down with Film Grain on Drive Priority (#91), Magnify and the Image Aspect screen in the crop modes (#97), the camera's own picture modes keeping their own WB compensation (#99), and Delete's long press (#101); replaces beta2 | Test version (pre-release), camera-tested |
+| [v0.40.3-beta2](v0.40.3-beta2/NOTES.md) | Test version: v0.40.3-beta plus fixes for a shut-down with Film Grain on Drive Priority (#91), Magnify and the Image Aspect screen in the crop modes (#97), and the camera's own picture modes keeping their own WB compensation (#99) | Withdrawn (a boot loop at some start-ups, a restart after the dial's centre): use v0.40.3-beta3 |
 | [v0.40.3-beta](v0.40.3-beta/NOTES.md) | Test version: v0.40.2 plus Halation Radius (by fernandezk26), faster Halation, burst photos with Halation saving sooner, and playback showing each photo's own film (#93) | Test version (pre-release), camera-tested |
 | [v0.40.2](v0.40.2/NOTES.md) | v0.40.1 plus smoother colour grain with less red-green speckle (made on every row), and the grain made faster so long bursts with Film Grain keep up | Camera-tested (as the grain colour test build, faster) |
 | [v0.40.1](v0.40.1/NOTES.md) | v0.40 plus round film grain with fewer repeats, and a film's WB Compensation as the camera's own so the super control panel shows it (#88); a new film set gives the camera the film's WB straight away | Camera-tested (as the combined test build fix #88 + grain g4) |
@@ -61,5 +62,5 @@ the launchers never copy them to the card.
 **v0.28-alpha** is a test version: it is published by hand as a GitHub pre-release from `feature/v0.28-halation`
 (not from `main`), and the launchers in its download make it by default. **v0.29-beta** is published the same way from
 `feature/films-in-camera`; it has no card files (they are built into the firmware). **v0.30.4-alpha** likewise from
-`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`, **v0.40.3-beta** from `try/v0.40.3-beta`, and **v0.40.3-beta2** from `try/v0.40.3-beta2`.
+`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`, **v0.40.3-beta** from `try/v0.40.3-beta`, **v0.40.3-beta2** from `try/v0.40.3-beta2`, and **v0.40.3-beta3** from `try/v0.40.3-beta3`.
 See [CHANGELOG.md](../CHANGELOG.md) for the full history.

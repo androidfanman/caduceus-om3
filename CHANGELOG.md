@@ -8,7 +8,8 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
-| [v0.40.3-beta2](#v0403-beta2-test-version) | 2026-11-20 (test version) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99) |
+| [v0.40.3-beta3](#v0403-beta3-test-version) | 2026-11-21 (test version) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99); Delete's long press (#101). Replaces beta2 |
+| [v0.40.3-beta2](#v0403-beta2-test-version) | 2026-11-20 (test version, withdrawn) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99) |
 | [v0.40.3-beta](#v0403-beta-test-version) | 2026-11-20 (test version) | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26); faster Halation; burst photos with Halation save sooner; playback shows each photo's own film (#93) |
 | [v0.40.2](#v0402) | 2026-11-19 | Smoother colour grain with less red-green speckle; grain made faster, so long bursts with Film Grain keep up |
 | [v0.40.1](#v0401) | 2026-11-19 | Round film grain with fewer repeats; a film's WB Compensation shows in the super control panel (#88) |
@@ -51,7 +52,27 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## v0.40.3-beta3 (test version)
+A test version (a GitHub pre-release; v0.40.2 stays the current version). v0.40.3-beta plus four fixes, camera-tested
+2026-11-21 (test build f9, the build before its release name). It replaces v0.40.3-beta2 (withdrawn).
+- **#91 (found by fernandezk26):** no more shut-down with Film Grain + Sequential + JPEG only at ISO 1600 and below on
+  Low ISO Processing: Drive Priority. Photos with Film Grain get the camera's Detail processing (as Single does); long
+  grain bursts on Drive Priority may slow a little sooner. The debug log shows the setting and the count.
+- **#97 (reported by 6pwnbvfdcb-collab):** Magnify and MF Assist work in 5:4 / XPan / 21:9 (no black screen or stuck
+  camera): 5:4 uses 4:3's magnify area, XPan / 21:9 use 16:9's. The Image Aspect screen shows the crops' names and
+  sizes (from the first half-press).
+- **#99 (reported by crombach):** the camera's own picture modes get their own WB compensation back when you leave a
+  film, kept over a power-off and per custom mode, like the camera's own settings. Films keep theirs; video unchanged.
+  The switch happens at the first half-press after a Creative Dial turn; a WB change made before it stays where it was
+  made. beta2's boot loop at some start-ups and its restart on a film change after the dial's centre are fixed.
+- **#101 (reported by ourparhelion-collab):** a function on Delete does on a long press what it does on AF-ON (for
+  example, Keystone Compensation turns off). The arrows still get no long press: the camera never reports one for them.
+- The Firmware Version screen shows "0.40.3-b3".
+
 ## v0.40.3-beta2 (test version)
+**Withdrawn (2026-11-20):** on some start-ups the camera could get stuck restarting (a boot loop), and a film change
+after the Creative Dial's centre could restart it. Use v0.40.3-beta3, which fixes both.
+
 A test version (a GitHub pre-release; v0.40.2 stays the current version). v0.40.3-beta plus three fixes, camera-tested
 2026-11-20 (test build fixes2, the build before its release name).
 - **#91 (found by fernandezk26):** no more shut-down with Film Grain + Sequential + JPEG only at ISO 1600 and below on
