@@ -10,7 +10,7 @@ import { History } from './history';
 import { fromLibrary, libraryOrigin, resetLook } from './reset';
 import { ASPECTS, cropRect, lastHalation, renderLook } from './preview';
 import { makeZip } from './zip';
-import { curvesBin } from './curvesbin';
+import { applyCurvesBin, curvesBin, readCurvesBin } from './curvesbin';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
 import {
@@ -216,7 +216,7 @@ function shell() {
           ['Reset looks to standard', () => newBank('library')],
           ['Empty looks', () => newBank('empty')],
         ]),
-        h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN, or a looks file saved from this tool' }, 'Open…'),
+        h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN (pick its CURVES.BIN with it to keep each film\'s curves and colour mix), a looks file, or one look\'s .json' }, 'Open…'),
         h('button', { onclick: () => om3FilmPicker(), title: 'Add film simulations to your films' }, 'Film sims'),
         h('button', { onclick: () => $<HTMLInputElement>('#grade').click(), title: 'Make a film from your own .cube LUT or Lightroom preset (.xmp, .lrtemplate)' }, 'From LUT / preset…'),
         h('button', { onclick: pasteDialog, title: 'Open a shared look or looks link' }, 'Paste link'),
@@ -233,7 +233,7 @@ function shell() {
         h('a', { href: '../' }, 'Tour'), h('a', { href: '../pages/install/' }, 'Install'), h('a', { href: '../pages/faq/' }, 'FAQ'),
         h('a', { href: './samples/CREDITS.md', target: '_blank', rel: 'noopener' }, 'Image credits'))),
     h('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }),
-    h('input', { type: 'file', id: 'file', accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),
+    h('input', { type: 'file', id: 'file', multiple: true, accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),
     h('input', { type: 'file', id: 'photo', accept: 'image/*', hidden: true, onchange: onPhoto }),
     h('input', { type: 'file', id: 'grade', accept: '.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnGradeFile }));
   buildPreview();
@@ -1616,14 +1616,20 @@ function replaceBank(bank: Bank, msg: string, name?: string) {
   toast(probs.length ? `${msg}. ${probs.length} problem(s) to fix before export.` : msg, probs.length ? 'err' : 'ok');
 }
 async function om3OnFile(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0];
-  (e.target as HTMLInputElement).value = '';
-  if (!f) return;
+  const input = e.target as HTMLInputElement, files = [...(input.files ?? [])];
+  input.value = '';
+  // Several files at once (the card's LOOKS.BIN with its CURVES.BIN): the looks first, then the curves and mix on them.
+  const read = await Promise.all(files.map(async (f) => ({ f, bytes: new Uint8Array(await f.arrayBuffer()) })));
+  const isCurves = (b: Uint8Array) => b.length >= 4 && String.fromCharCode(...b.subarray(0, 4)) === 'OM3K';
+  read.sort((a, b) => Number(isCurves(a.bytes)) - Number(isCurves(b.bytes)));
+  for (const { f, bytes } of read) await om3OpenOne(f, bytes);
+}
+async function om3OpenOne(f: File, bytes: Uint8Array) {
   if (/\.(cube|xmp|lrtemplate)$/i.test(f.name)) { await gradeDialog(f); return; }
-  const bytes = new Uint8Array(await f.arrayBuffer());
   const magic = bytes.length >= 4 ? String.fromCharCode(...bytes.subarray(0, 4)) : '';
   try {
     if (magic === 'OM3P') { const bk = readProfiles(bytes, om3Fw28()); replaceBank(bk, `Opened ${f.name} (${bk.flat().filter(Boolean).length} looks)`); return; }
+    if (magic === 'OM3K') { om3OpenCurves(bytes, f.name); return; }
     if (magic === 'OM3N') { toast('That is NAMES.BIN (the name pictures). Open LOOKS.BIN instead: it holds the names too.', 'err'); return; }
     if (bytes[0] === 0xff && bytes[1] === 0xd8) {                                  // v0.27: a JPEG from the camera: its om3.1. code
       const txt = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 262144)));
@@ -1633,8 +1639,20 @@ async function om3OnFile(e: Event) {
     }
     const j = JSON.parse(new TextDecoder().decode(bytes));
     if (j && j.schema === BANK_SCHEMA) { const b = parseBank(j, parseLook); replaceBank(b.bank, `Opened "${b.name}"`, b.name); return; }
+    if (isOneLook(j)) { placeLook({ look: parseLook(j, f.name), changed: [], dropped: [] }); return; }
     throw new Error('not an OM-3 file');
-  } catch (err) { toast(`Not an OM-3 LOOKS.BIN or looks file: ${(err as Error).message}`, 'err'); }
+  } catch (err) { toast(`Not an OM-3 LOOKS.BIN, CURVES.BIN or looks file: ${(err as Error).message}`, 'err'); }
+}
+/** One look's JSON (a look as it leaves the tool, schema caduceus-om3-look/N, or the same fields without the schema). */
+const isOneLook = (j: unknown): j is Record<string, unknown> => !!j && typeof j === 'object' && !Array.isArray(j)
+  && typeof (j as Record<string, unknown>).name === 'string' && Array.isArray((j as Record<string, unknown>).hue)
+  && ((j as Record<string, unknown>).schema === undefined || /^caduceus-om3-look\//.test(String((j as Record<string, unknown>).schema)));
+/** CURVES.BIN (firmware v0.30): each film's curves and colour mix, back on the looks of the LOOKS.BIN it was saved with. */
+function om3OpenCurves(bytes: Uint8Array, name: string) {
+  const { matched, looks } = applyCurvesBin(O.bank, readCurvesBin(bytes));
+  if (!matched) { toast(`${name} was saved for other looks: none of these ${looks} matches it. Open the LOOKS.BIN saved with it first, or both together.`, 'err'); return; }
+  save(); renderAll();
+  toast(`Curves and colour mix from ${name} on ${matched} of ${looks} looks${matched < looks ? ' (the others were changed since, or come from another set)' : ''}`);
 }
 
 async function om3OnGradeFile(e: Event) {
@@ -1735,6 +1753,24 @@ async function gradeDialog(f: File) {
     h('div', { class: 'modal-actions' }, h('button', { onclick: () => dlg.close() }, 'Cancel'), add));
 }
 
+/** Put a look in the first free place (the selected one when it is empty), or ask to replace the selected one when
+ *  all 20 are in use. */
+function placeLook(c: { look: Look; changed: string[]; dropped: string[] }): boolean {
+  let k = O.k, v = O.v;
+  if (O.bank[k][v]) {
+    const free = O.bank[k].findIndex((x) => !x);
+    if (free >= 0) v = free;
+    else {
+      const any = O.bank.flat().findIndex((x) => !x);
+      if (any >= 0) { k = Math.floor(any / PER); v = any % PER; }
+      else if (!confirm(`All 20 looks are in use. Replace ${at(O.k, O.v)} ("${O.bank[k][v]!.name}") with "${c.look.name}"?`)) return false;
+    }
+  }
+  O.bank[k][v] = c.look; O.k = k; O.v = v;
+  save(); renderAll();
+  toast(`Added "${c.look.name}" as ${at(k, v)}${om3Changes(c)}${minFw(c.look) > 20 ? ` · needs Caduceus v${FW_NAME[minFw(c.look)]} or later` : ''}`);
+  return true;
+}
 async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
   try {
     if (isOm3Code(t, OB_PREFIX)) {
@@ -1748,20 +1784,7 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
     if (!fromPhoto && !isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_) or a photo\'s om3.1. code.');
     const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: fromPhoto ? lookFromPhotoCode(t) : parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
     if (!c.look) throw new Error('That link holds no look.');
-    let k = O.k, v = O.v;
-    if (O.bank[k][v]) {
-      const free = O.bank[k].findIndex((x) => !x);
-      if (free >= 0) v = free;
-      else {
-        const any = O.bank.flat().findIndex((x) => !x);
-        if (any >= 0) { k = Math.floor(any / PER); v = any % PER; }
-        else if (!confirm(`All 20 looks are in use. Replace ${at(O.k, O.v)} ("${O.bank[k][v]!.name}") with "${c.look.name}"?`)) return false;
-      }
-    }
-    O.bank[k][v] = c.look; O.k = k; O.v = v;
-    save(); renderAll();
-    toast(`Added "${c.look.name}" as ${at(k, v)}${om3Changes(c)}${minFw(c.look) > 20 ? ` · needs Caduceus v${FW_NAME[minFw(c.look)]} or later` : ''}`);
-    return true;
+    return placeLook(c as { look: Look; changed: string[]; dropped: string[] });
   } catch (e) {
     importCodeMsg((e as Error).message);
     return false;
@@ -1802,6 +1825,9 @@ async function om3ShareProfile(l: Look) {
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
     ...recipeCodes(l),
+    h('div', { class: 'ex-row' },
+      h('div', {}, h('b', {}, 'Look file (.json)'), h('p', { class: 'help' }, 'This look with everything in it, including its RGB curves and colour mix. Open… it here later (it is added to your list) or send it to someone.')),
+      h('button', { onclick: () => download(`${rrName(l.name)}.om3look.json`, JSON.stringify(exportLook(l), null, 1), 'application/json') }, 'Download')),
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'RapidRAW preset'), h('p', { class: 'help' }, 'This look as a .rrpreset for RapidRAW (Presets › Import), for ORF files. An approximation of the camera look.')),
       h('button', { onclick: () => download(`${rrName(l.name)}.rrpreset`, rrpreset(bankPack([l]), 0), 'application/json') }, 'Download'))));
@@ -1916,7 +1942,7 @@ function om3ExportDialog() {
       h('div', {}, h('b', {}, 'Card folder (.zip)'), h('p', { class: 'help' }, 'OM3MOD/LOOKS.BIN, OM3MOD/NAMES.BIN, OM3MOD/CURVES.BIN (v0.28 or later) and the looks file. Unzip at the card root (never into DCOLYMP/).')),
       zip),
     h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'Single files'), h('p', { class: 'help' }, 'LOOKS.BIN: the 20 looks. NAMES.BIN: their names as the camera shows them under the wheel ("Empty" for unused numbers). CURVES.BIN (v0.30): each film\'s RGB curves and colour mix, made for this LOOKS.BIN: save them together. All go in OM3MOD/. Still on firmware v0.17–v0.18? It reads the same looks as PROFILES.BIN.')),
+      h('div', {}, h('b', {}, 'Single files'), h('p', { class: 'help' }, 'LOOKS.BIN: the 20 looks. NAMES.BIN: their names as the camera shows them under the wheel ("Empty" for unused numbers). CURVES.BIN (v0.30): each film\'s RGB curves and colour mix, made for this LOOKS.BIN: save them together. To bring a card\'s films back here with their curves and mix, Open… its LOOKS.BIN and CURVES.BIN together. All go in OM3MOD/. Still on firmware v0.17–v0.18? It reads the same looks as PROFILES.BIN.')),
       h('div', { class: 'ex-btns' },
         h('button', { disabled: probs.length > 0, onclick: () => download('LOOKS.BIN', looksBin()) }, 'LOOKS.BIN'),
         h('button', { disabled: probs.length > 0 || fw < 28, title: 'Firmware v0.30: the films\' RGB curves and colour mix, for the LOOKS.BIN above', onclick: () => download('CURVES.BIN', curvesBin(looksBin(), O.bank)) }, 'CURVES.BIN'),
