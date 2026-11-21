@@ -160,6 +160,8 @@ EXT11 = (0x60f49800, 0x60f59800)           # v0.23: section 6 extended by 64 KiB
 EXT12 = (0x60f59800, 0x60f99800)           # v0.27: section 6 extended by 256 KiB more (camera-proven GX3, 2026-11-10)
 EXT13 = (0x60fac000, 0x60fc0000)           # v0.30 test 10: the debug log, after the RGB work area (GX4-proven reserve to 0x6103f000);
 EXT14 = (0x60fc0000, 0x60fc4000)           # Halation Radius: its code; then its work area HR_WRK .. HR_END (hradius.s), in the GX4-proven reserve
+EXT15 = (0x6101d000, 0x6103f000)           # fix99-4 (owner, 2026-11-20: "open the space"): the rest of the GX4-proven reserve, after
+                                           # Halation Radius's work area (HR_END) to section 7's start; loaded with section 6 (end word 0x6103f000)
                                             # gentler Shading s1: + 16 KB for the vignette pass and its tables (still inside the reserve)
 EXT3 = (0x6081fe10, 0x6081fffc)            # section-3 tail (FF from 0x6081fe00, end 0x60820000)
 EXT5 = (0x60adb5b0, 0x60adb7f0)            # section-5 tail (FF from 0x60adb5a0, end 0x60adb800)
@@ -329,7 +331,7 @@ def build(defaults, testfile, out):
     subprocess.run([P.AS, '-I', out, '-I', HERE / 'src', '-o', out / 'p.o', HERE / 'src' / 'editor.s'], check=True)
     subprocess.run([P.LD, '-T', HERE / 'src' / 'editor.ld', '-o', out / 'p.elf', out / 'p.o'], check=True)
     blobs = {}
-    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13', '.ext14']:
+    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13', '.ext14', '.ext15']:
         subprocess.run([P.OBJCOPY, '-O', 'binary', '-j', s, out / 'p.elf', out / (s[1:] + '.bin')], check=True)
         blobs[s] = (out / (s[1:] + '.bin')).read_bytes()
     raw = Path(P.STOCK).read_bytes()
@@ -437,6 +439,11 @@ def build(defaults, testfile, out):
     assert EXT13[1] == EXT14[0] and EXT14[0] + len(b14) <= EXT14[1] and sy['HR_WRK'] == EXT14[1], (len(b14), hex(sy['HR_WRK']))
     assert set(m[o(EXT14[0]):o(sy['HR_END'])]) <= {0xff}, 'Halation Radius: its code or work area is not free in the image'
     m[o(EXT14[0]):o(EXT14[0]) + len(b14)] = b14
+    b15 = blobs['.ext15']                                # fix99-4: section 6's last extension, after the radius work area
+    print('SIZE .ext15', len(b15), EXT15[1] - EXT15[0], file=sys.stderr)
+    assert sy['HR_END'] <= EXT15[0] and EXT15[0] + len(b15) <= EXT15[1], (hex(sy['HR_END']), len(b15))
+    assert set(m[o(EXT15[0]):o(EXT15[1])]) <= {0xff}, 'ext15: the reserve is not free in the image'
+    m[o(EXT15[0]):o(EXT15[0]) + len(b15)] = b15
     # v0.23 new Picture Mode choice rows (Noise Filter, Shading Comp.): the item table (17 x 40 B at 0x6154c2a8) -> it_tab
     # (the stock 17, then our 4), at both lookups (mov table,a0 ... cmp 17,d1); the rows join the column's 9 row switches
     IT = 0x6154c2a8
@@ -913,6 +920,11 @@ def build(defaults, testfile, out):
     # Halation Radius: its code (.ext14) and work area, loaded too (GX4-proven reserve to 0x6103f000)
     assert vf_end <= EXT14[0], hex(vf_end)
     vf_end = (sy['HR_END'] + 0xfff) & ~0xfff
+    # fix99-4 (owner, 2026-11-20: "open the space"): .ext15 after it, to the end of the GX4-proven reserve; the loader's
+    # end word 0x6101d000 -> 0x6103f000 (the GX4 probe's own end word, camera-tested 2026-11-12: 4K video, photos,
+    # RAW+JPEG and grain + Glow bursts, the stretch loaded and intact); the camera's start-up copy of section 6 is 136 KiB longer
+    assert vf_end <= EXT15[0], hex(vf_end)
+    vf_end = EXT15[1]
     assert vf_end <= 0x6103f000, hex(vf_end)
     struct.pack_into('<I', m, o(0x60045e9c), vf_end)
     print('BUILT IN: GUIDES, LABELS, TONES at 0x%x..0x%x, loader end word 0x%x' % (EXT12[1], at, vf_end))
@@ -936,7 +948,7 @@ def build(defaults, testfile, out):
     syms = {l.split()[2]: int(l.split()[0], 16) for l in nm.splitlines() if len(l.split()) == 3}
     rep = dict(source_sha256=source_digest(ROOT), package_sha256=hashlib.sha256(pkg).hexdigest(), main_sha256=hashlib.sha256(bytes(m)).hexdigest(),
                main_bytes_changed=sum(x != y for x, y in zip(m, mc['dec'])),
-               ext1=dict(addr=hex(EXT1[0]), bytes=len(blobs['.ext1'])), ext4=dict(addr=hex(EXT4[0]), bytes=len(blobs['.ext4'])), ext10=dict(addr=hex(EXT10[0]), bytes=len(blobs['.ext10'])), ext6=dict(addr=hex(EXT6[0]), bytes=len(blobs['.ext6'])), ext5=dict(addr=hex(EXT5[0]), bytes=len(blobs['.ext5'])), ext3=dict(addr=hex(EXT3[0]), bytes=len(blobs['.ext3'])), ext8=dict(addr=hex(EXT8[0]), bytes=len(blobs['.ext8'])), ext9=dict(addr=hex(EXT9[0]), bytes=len(blobs['.ext9'])),
+               ext1=dict(addr=hex(EXT1[0]), bytes=len(blobs['.ext1'])), ext4=dict(addr=hex(EXT4[0]), bytes=len(blobs['.ext4'])), ext10=dict(addr=hex(EXT10[0]), bytes=len(blobs['.ext10'])), ext6=dict(addr=hex(EXT6[0]), bytes=len(blobs['.ext6'])), ext5=dict(addr=hex(EXT5[0]), bytes=len(blobs['.ext5'])), ext3=dict(addr=hex(EXT3[0]), bytes=len(blobs['.ext3'])), ext8=dict(addr=hex(EXT8[0]), bytes=len(blobs['.ext8'])), ext9=dict(addr=hex(EXT9[0]), bytes=len(blobs['.ext9'])), ext15=dict(addr=hex(EXT15[0]), bytes=len(blobs['.ext15'])),
                bundles_bin_sha256=hashlib.sha256(test).hexdigest(), defaults_sha256=hashlib.sha256(dflt).hexdigest(),
                symbols={k: hex(v) for k, v in syms.items() if k.startswith(('hl_', 'pr_', 'sd_', 'ext', 'ed_', 'k_', 't_', 'gd_', 'wb_', 'lk_', 'rd_'))})
     (out / 'build.json').write_text(json.dumps(rep, indent=1))

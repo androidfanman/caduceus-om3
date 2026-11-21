@@ -80,6 +80,7 @@ SECTIONS {
   .ext12        0x60f59800 : { *(.ext12) }
   .ext13        0x60fac000 : { *(.ext13) }   /* v0.30 test 10: the debug log, after the RGB work area */
   .ext14        0x60fc0000 : { *(.ext14) }   /* Halation Radius: its code (16 KiB), then its work area (GX4-proven reserve) */
+  .ext15        0x6101d000 : { *(.ext15) }   /* fix99-4: after the radius work area (HR_END) to 0x6103f000, the GX4-proven reserve's end */
 }
 color_builder = 0x60518381;
 si_get44      = 0x610fd8ef;   /* screen info: the shooting-screen updater's settings getter (d0 id, a0 out) */

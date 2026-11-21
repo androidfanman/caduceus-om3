@@ -989,6 +989,22 @@ TESTS = {
              f'expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}, tids=True,
              watch=('ex_live', 'fl_set', 'fw_pm', 'fw_wr', 'fw_msv'), hits=wb_written_at_the_half_press_only),
     ],
+    # fix99-4 (owner, 2026-11-20): a WB change made on the camera's own modes before the half-press is kept. FILM 3
+    # (B5) -> the standard modes: the camera still has B5; the WB screen there, one step to B4; the half-press keeps B4
+    # (fix99-3 put the standard modes' kept A1 back); back on COLOR the film's B5; the standard modes again: B4, theirs now.
+    'wb-change-on-a-camera-mode-before-the-half-press-kept': [
+        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} '
+             f'expect:val:{AUTO_AB}=-5 {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=-4 {HP} expect:val:{AUTO_AB}=-4 '
+             f'{TO_COLOR} {HP} expect:val:{AUTO_AB}=-5 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=-4 {HP} poweroff',
+             card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # fix99-4: a change undone before the half-press (one step and back to the film's B5) is no change: the half-press
+    # gives the standard modes their own A1, as fix99-3.
+    'wb-change-undone-on-a-camera-mode-gets-their-own-back': [
+        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} '
+             f'{WB_SCREEN_A_PLUS_1.removesuffix(" ok wait wait")} left wait ok wait wait expect:val:{AUTO_AB}=-5 {HP} '
+             f'expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
     'camera-mode-gets-its-own-wb-shift-back': [
         Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 expect:val:{CWB_AB}=3 '
              f'{TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 expect:val:{CWB_GM}=0 s1 wait wait poweroff',
