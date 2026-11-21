@@ -719,6 +719,23 @@ def wb_written_at_the_half_press_only(hits):
     return errors[:4] + ([f'... {len(errors) - 4} more'] if len(errors) > 4 else [])
 
 
+def ext15_waits_for_the_first_look(hits):
+    """fix99-4 (2026-11-20): .ext15 (0x6101d000.., the GX4-proven reserve opened as section 6's last extension) is
+    loaded with section 6, and nothing of ours runs from it while the camera starts: from switch-on (WATCH from the
+    lab's start) none of its code before the first look (cm_go); its note (fw_ued) at a WB change and fw_out at a
+    half-press after it."""
+    names = [h[0] for h in hits]
+    first = names.index('cm_go') if 'cm_go' in names else len(names)
+    early = [n for n in names[:first] if n != 'cm_go']
+    errors = [f'.ext15 code ran before the first look: {sorted(set(early))}'] if early else []
+    if 'cm_go' not in names:
+        errors.append('no first look (cm_go)')
+    for n in ('fw_ued', 'fw_out'):
+        if n not in names[first:]:
+            errors.append(f'{n} (.ext15) did not run after the first look')
+    return errors
+
+
 def no_card_file_reads(hits):
     """fopen hits: DEBUG.TXT asked (so the probe sees fopen), BUNDLES.BIN and EDITS.BIN never."""
     paths = [s or '' for _, s in hits]
@@ -1004,6 +1021,12 @@ TESTS = {
         Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} '
              f'{WB_SCREEN_A_PLUS_1.removesuffix(" ok wait wait")} left wait ok wait wait expect:val:{AUTO_AB}=-5 {HP} '
              f'expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    ],
+    # fix99-4: from switch-on, nothing in .ext15 runs before the first look; its note runs at a WB change at the
+    # standard modes, fw_out at the half-press.
+    'ext15-code-waits-for-the-first-look': [
+        Boot(f'wait wait s1 wait wait {TO_STANDARD} {HP} {WB_SCREEN_A_PLUS_1} {HP} poweroff',
+             watch=('cm_go', 'fw_ued', 'fw_uen', 'fw_wu', 'fw_out'), hits=ext15_waits_for_the_first_look),
     ],
     'camera-mode-gets-its-own-wb-shift-back': [
         Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 expect:val:{CWB_AB}=3 '
