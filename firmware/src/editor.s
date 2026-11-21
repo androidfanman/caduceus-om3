@@ -17523,16 +17523,17 @@ dl_lv:                            /* live view's Delete press handler (a0, a1 as
 1:
  jmp dl_fn
 dl_look:                          /* .hook_dl (a3 = found, a2 = its handler, d0 = the event, a1 = the block's end,
-                                   * d1 = its length): a shooting state with no entry for a Delete press / release
-                                   * walks its block again for AF-ON's, so Delete leaves a function's state as AF-ON
-                                   * does. Playback (0x57xx) keeps its own. */
+                                   * d1 = its length): a shooting state with no entry for a Delete press / release /
+                                   * long press walks its block again for AF-ON's, so Delete leaves a function's state
+                                   * as AF-ON does. #101: the long press too (AF-ON's runs the function's long-press
+                                   * step, e.g. Keystone off, by the pressed button's own setting). Playback (0x57xx)
+                                   * keeps its own. */
  cmp 0,a3
  bne 8f
- cmp DL_PRESS,d0
- beq 1f
- cmp DL_PRESS + 1,d0
- bne 9f
-1:
+ cmp DL_PRESS,d0                  /* d0 = DL_PRESS .. DL_PRESS + 2 (press, release, long press); d0 kept otherwise */
+ bcs 9f
+ cmp DL_PRESS + 3,d0
+ bcc 9f
  mov (40,sp),a0                   /* the state machine; (188) = the current state */
  mov (188,a0),d2
  add -0x5100,d2

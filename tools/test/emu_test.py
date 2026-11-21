@@ -597,6 +597,11 @@ def CROP_SAVES(memory, put_back, tag):           # crop83-3: saves of M from mem
 # #97: Custom Menu > Button Settings > Button Function (photo) > Delete (the 11th row) -> Magnify (two rows up from Off
 # in its picker, first column), back to shooting. om-emu's AF-ON and Fn keys do not reach the button functions; Delete does.
 DELETE_MAGNIFY = 'menu left left left left left ok ok' + ' down' * 10 + ' ok wait up up left ok wait menu wait menu wait'
+# #101: the same row -> Keystone Comp. (its picker is 4 wide: from Off, 7 rows up and one right). Held, Delete posts
+# its long press (om-emu: while Keystone is open); the camera's long-press handler for a Keystone state (0x610a4327, AF-ON's
+# long press there) runs the function's long-press step by the pressed button's setting: for Keystone, KEYSTONE_LONG.
+DELETE_KEYSTONE = 'menu left left left left left ok ok' + ' down' * 10 + ' ok wait' + ' up' * 7 + ' right ok wait menu wait menu wait'
+KEYSTONE_LONG = '61083d86'
 # #97: Shooting Menu 1 > Image Aspect (the menu opens on the Setup tab's first page: seven pages on), its own screen
 OPEN_IMAGE_ASPECT = 'menu' + ' right' * 7 + ' down down down ok wait'
 # #97: on that screen, the row names (RAW, Large ...) left of the sizes (rear screen 900 x 600)
@@ -1250,6 +1255,13 @@ TESTS = {
     # #97: Magnify (Delete = Magnify) at XPan: the live view's zoom area lookup (getZoomArea) finds 16:9's row (a3 2);
     # before, its chain had no row for 5 / 6 / 7 and it gave no area (0), whose limits adjustCoordinates then read from
     # address 0 (camera: black screen, a click, the camera stuck). After a power-off, at 5:4: 4:3's row (a3 0).
+    # #101: Delete = Keystone. A short press opens Keystone and runs no long-press step; held, Delete's long press goes
+    # down the Keystone state's AF-ON long-press entry, as AF-ON's does, and the camera's Keystone long-press step runs
+    # once (the Keystone screen closes). Before, the long press found no entry and nothing ran.
+    'delete-long-press-runs-the-function-long-press': [
+        Boot(f's1 wait wait {DELETE_KEYSTONE} s1 wait wait count:{KEYSTONE_LONG}:* delete wait '
+             f'expect:count:{KEYSTONE_LONG}=0 hold:delete wait expect:count:{KEYSTONE_LONG}=1 s1 wait wait poweroff'),
+    ],
     'crop-magnify-finds-its-zoom-area': [
         Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait {DELETE_MAGNIFY} s1 wait wait hit:{ZOOM_ROW}:a3=2 delete wait '
              'expect:hit delete wait s1 wait wait poweroff', expect=[CROP_NOW(6), CROP_ZOOM_MAPPED()]),
