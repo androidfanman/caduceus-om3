@@ -9641,3 +9641,54 @@ half-press. Last log (event 36, "nothing unusual") in the private test-builds fo
 - So, camera-tested: with a film pick doing no #99 work, the restart on those steps is gone. Its exact cause stays
   unknown (om-emu never reproduced it; the emu-coverage write rule flagged nothing on f7): analysis points at #99's
   reads of the 26 WB fine-tunes at the pick, which f8 removed.
+
+## #101: the long press on Delete and the arrows, fix101 = v0.40.3-f9 (2026-11-21; emulator + analysis, camera test pending; branch fix/101-long-press)
+- **Issue #101 (v0.40.2):** with a function on ▲ ▼ ◀ ▶ or Delete through our Button Function rows, the short press
+  works and the long press does nothing. Keystone Comp.: on AF-ON a short press opens it and a long press turns it off;
+  on the five buttons the long press does nothing.
+- **Key events (static):** each key has press / release / long press / repeat (event table `0x612f3100`, phase 0..3).
+  Delete 0x01000026..29, AF-ON 0x01000032..35; AF-ON's long press has UI code 1 (none), so it acts only through state
+  blocks.
+- **Where Keystone runs (om-emu, f8):** Delete = Keystone Comp. (code 682, action 35). A short press opens Keystone
+  (screen with the two correction bars); the state block walked then is our `ar_blk` copy of state **0x5911** (34 + 2
+  entries, `firmware/build.py` adds ▲ / ◀ releases there since v0.27). Stock 0x5911 and 0x593a list AF-ON's release
+  `0x610a4209` and AF-ON's long press **`0x610a4327`**, and the same two handlers for ▼ / ▶ release (0x0f / 0x17) and
+  long press (0x10 / 0x18). `0x610a4327` copies the event, asks the dispatcher `0x61083022` for the pressed key's
+  action and runs that action's long-press step: 35 (Keystone, trace string `longPressCustomKeySubAppModuleDigitalShift`:
+  `0x610963bc`, then `0x61083d86`), 40 (Flicker Scan), 22 / 23 / 24, 36.
+- **Delete's cause (om-emu):** held, Delete posts 0x01000028 while Keystone is open. 0x5911 has no entry for it;
+  `dl_look` (#37 step 3) re-walked only Delete's press and release for AF-ON's (+12), so the long press found nothing
+  there or in the global block, and nothing ran. Keystone stayed open.
+- **Fix (f9):** `dl_look` takes Delete's press, release **and long press** (0x01000026..28) to AF-ON's entries, with the
+  same state range (0x5100..0x56ff, 0x5800..0x5bff; playback 0x57xx keeps its own). Repeat (..29) stays out: AF-ON's
+  repeat entries (0x5306, 0x5a02..0x5a0d) have no handler. Two compare-and-branch pairs changed, same size (ext12 as
+  full as before), no new hook or patch site.
+- **AF-ON's long-press handlers Delete now reaches (static):** `0x610a4327` (0x5911, 0x593a), `0x610a444a` (0x5300,
+  Flicker Scan only), `0x610b03d3` (0x5a02, `longPressCustomKey`), `0x610b0553` (0x5a08) and `0x610af980` (0x5a0b),
+  `0x610b5a42` (0x580b): each reads the pressed key's function through `0x610848f2` and the dispatcher, so Delete's own
+  setting decides. The bracketing states' `0x610a83bb` (0x590d), `0x610a6857`, `0x610a6b7d`, `0x610a6c45`,
+  `0x610a6d0d`, `0x610a7724`, `0x610a6e4c` (0x592b..0x593e) do the bracketing step without a key check, as AF-ON's
+  long press does there (Delete's release already reached those states' AF-ON release handlers since #37 d5). AF-ON's
+  {.., 1, 1, 0} long-press entries (0x5306, 0x5a03..0x5a0d) only consume it.
+- **om-emu (f9):** Delete = Keystone: short press opens Keystone, no long-press step; held, `0x610a4327` then
+  `0x61083d86` run once and the Keystone screen closes (f8: neither ran, Keystone stayed). Delete = Magnify: held,
+  the frame opens on the press, then AF-ON's Magnify long press `0x610b03d3` runs and the frame closes. That is new for
+  Delete (as AF-ON on the camera, by the same handler): the owner's call. In plain live view no key posts a long press
+  in om-emu (Delete unset, ▲, ▼, OK), so Delete = Off is unchanged.
+- **The arrows (om-emu + static, not changed):** with ✥ = ▲◀▶▼ and ▼ = Keystone, ▼ opens Keystone (0x5911 copy) but a
+  held ▼ posts no long press (0x0100000e / 0f only), on f8 and f9, although the stock 0x5911 block would send ▼'s long
+  press to `0x610a4327`. So for the arrows the long-press event itself is never made; the issue's ▼ / ▶ result on the
+  camera fits that. Scratch probes on f8 (not kept), each with a held ▼ in Keystone: ▼'s press on the full-button list
+  (`dl_full`, in Delete's place): its events became 0x010000cc / cd (in menus too), no long press; ▼'s key record
+  `full` = 1 (Delete's is 1, the arrows' 0): no long press; ▼'s press / release in 0x5100 through AF-ON's handlers
+  `0x610a2407` / `0x610a2dec`: no long press. The per-key switch is earlier, in the key driver (names `KeyCtrl::
+  setLongPressKey`, `getLongPressKeyID` in the API name table at `0x60367d58`, events reach the camera application at
+  `0x61081800..`); not found. Changing how the arrows' events are made would touch their own meaning (AF point,
+  menus, every state's navigation codes), so it stops here: no arrow function gets its long press, Keystone
+  included (and Magnify, Multi Function, HDR, Live ND, High Res still do not fully work on an arrow, 2026-11-10).
+- **Tests:** new `delete-long-press-runs-the-function-long-press` (f8 `caught`, f9 pass). Full suite on dce4fc1's build: 137 pass, 0 known, 0 FAIL. The emu-coverage
+  checks from `feature/emu-coverage` f61562e on f9: `staged-start-up-runs-no-code-of-a-section-not-in-yet`,
+  `busy-user-short-walk`, `writes-only-in-proven-patterns` pass.
+- **Build (dce4fc1, VERSION "v0.40.3-f9 (f8 + #101: long press on Delete)"):** E1479999.BIN 59949f70…7ef1, GUIDES.BIN
+  d8f8e359…47f3; built twice, the same byte for byte. Package `test-builds/2026-11-21-fix101` (private), with f8 to go
+  back to.
