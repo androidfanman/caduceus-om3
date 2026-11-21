@@ -119,17 +119,16 @@ Both are in the camera's **Button Function** menu, with the other buttons.
 
 ## The film's white balance
 
-Each film and COLOR remembers the white balance you last used with it (any mode, Custom WB with its Kelvin, and its
-WB compensation), as it keeps its HSL. Picking the film brings that white balance back; one that never had its own
-gets Auto with no compensation. Set a film's white balance in LookLab, or just change it on the camera while you're on
-that film: a change in the super control panel's White Balance screen goes into the film (it gets a "*"), and
-resetting the film brings its own back. The camera keeps one compensation per white balance mode, so if you switch
-the mode by hand, that mode's own compensation applies. The camera's own picture modes (Natural, Vivid, ...) keep the
-white balance mode the last film left, but get their own WB compensation back: after you turn the Creative Dial from a
-film to them, at your next half-press each white balance mode's compensation is back as it was there before (until
-then the camera still shows the film's), and a change you make there, before or after that half-press, is theirs.
-Turning back to a film, its own compensation comes back at the next half-press too (or at once when you pick a film).
-Like the camera's own settings, this is kept over a power-off, and each custom mode (C1–C5) keeps its own.
+Each film and COLOR remembers the white balance mode you last used with it (any mode, Custom WB with its Kelvin), as it
+keeps its HSL. Picking the film brings that mode back; one that never had its own gets Auto. The camera's own picture
+modes (Natural, Vivid, ...) keep the white balance mode the last film left.
+
+WB compensation (the A-B / G-M shift) is kept apart for films and for the camera's own picture modes. Each film and
+COLOR has one shift of its own: on a film, the super control panel's White Balance screen shows the film's shift, a
+change you make there goes into the film at once (it gets a "*"; resetting the film brings its own back), and your
+photos use the film's shift in place of the camera's. Turn the Creative Dial to the camera's own picture modes and the
+camera's own compensation is there, as you left it; a change there is the camera's and never reaches a film. No
+half-press is needed in between. Set a film's shift in LookLab too.
 
 ## The film in your photos
 

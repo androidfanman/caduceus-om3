@@ -85,16 +85,11 @@ bytes: COLOR 1–4's slots now (4), EDITS record r's (24), then the same 28 for 
 bit 0 its curves follow its film's built-in, bit 1 its mix does, bit 7 the flags are set; 0 from older firmware, whose
 all-zero parts then follow), byte 7 zero. Not in LOOKS.BIN, EDITS.BIN or the photo code yet.
 
-## The camera modes' own WB compensation (#99, fix99-1, not released)
+## The `OM3W` record (v0.40.3-beta2 / beta3 only, no longer used)
 
-While a film or COLOR 1–4 is on, its WB compensation is the camera's own (#88); the compensation the camera's own
-picture modes had is kept in a record of its own in the same store, at image offset 0x3FE80 (180 bytes, after `OM3S`),
-so older firmware never reads it: `OM3W` | u16 version 1 | u16 length 180 | CRC-32 of bytes 12.. | at 12: 6 entries of
-28 bytes, one per shooting-mode group (C1, C2, C3, C4, C5, then P / A / S / M / B): byte 0 = 1 when the entry holds the
-camera modes' own compensation (a film's or COLOR's is in the camera), 0 when theirs are in the camera; byte 1 zero; 26
-bytes = A-B, G-M (−7..+7) for each of the camera's 13 stills WB modes, in the order of the camera's WB table (Auto,
-Sunny, Shade, Cloudy, Incandescent, Fluorescent, Underwater, Flash, one-touch 1–4, Custom WB). A missing record or one
-that fails the magic, version, length or CRC check means nothing is kept yet.
+Those two test versions kept the camera modes' own WB compensation in a record `OM3W` at image offset 0x3FE80 of the
+same store (180 bytes, after `OM3S`) while a film's was in the camera. Later firmware keeps a film's shift in the film
+and never reads or writes this record; what an earlier version left there is ignored.
 
 ## CURVES.BIN v1 (432 bytes, v0.30)
 

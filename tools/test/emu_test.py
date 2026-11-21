@@ -476,13 +476,12 @@ WB_ROW_A_PLUS_1 = 'down wait ' * 5 + 'ok wait right wait'
 # Stills fine-tune ids (table 0x615d1944: A-B id, G-M = + 13): Custom WB, Shade, Auto, Sunny; movie Auto and Custom WB
 CWB_AB, CWB_GM, SHADE_AB, SHADE_GM, AUTO_AB, SUNNY_AB, SUNNY_GM = 1592, 1605, 1587, 1600, 1580, 1584, 1597
 MOVIE_AUTO_AB, MOVIE_CWB_AB = 1606, 1618
-SLOT1_AB = 58                                    # COLOR 1's slot +26 (A-B) at P + 32 + 26, for expect:p:
+SLOT1_AB, SLOT1_GM = 58, 59                      # COLOR 1's slot +26 (A-B) / +27 (G-M) at P + 32 + 26, for expect:p:
 WB_LINE = lambda wb: rf'^White balance: {wb} \['
 # #99: the Creative Dial (cdial:N, om-emu's positions: 1 COLOR, 2 the camera's standard picture modes, family 898).
 # On the standard modes, the camera's own Auto WB compensation one step to A (the panel's cursor on Picture Mode); then
 # COLOR, whose Picture Mode page opens at the turn: FILM 3 (Auto, B5 in LOOKS_WB) six films on from COLOR 1.
 TO_STANDARD, TO_COLOR = 'cdial:2 wait wait', 'cdial:1 wait wait'
-# fix99-3: #99 writes at the half-press only, so a turn's shift comes with the next half-press (HP)
 HP = 's1 wait wait'
 STANDARD_OWN_A1 = f's1 wait wait {TO_STANDARD} {HP} {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=1'
 PAGE_TO_FILM_3 = 'right wait ' * 6 + 'ok wait wait'
@@ -490,7 +489,6 @@ PAGE_TO_FILM_3 = 'right wait ' * 6 + 'ok wait wait'
 # own WB screen again with the panel's cursor still on the WB cell.
 ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wait ok wait menu wait menu wait menu wait wait'
 WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
-FWM_CRC = 0x62960588                              # #99: record 'OM3W' (M + 0x3FE80), its CRC word
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
 # borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
@@ -678,82 +676,21 @@ def watch_hit_seen(hits):
     return [] if hits else ['no getter hit']
 
 
-def section8_waits_for_the_first_look(hits):
-    """Boot-loop fix (2026-11-20): #99's fw_897j is in .ext8 (section 8), which the camera copies after its application
-    starts; the camera's settings task writes 897 three times while it starts (om-emu, as the camera's bp1 probe). None of
-    those may reach fw_897j: it runs only after the first look (cm_go), and a Creative Dial turn after it still does.
-    fix99-3: fw_897j is gone (nothing of #99 at the 897 write); #99's section-8 code left is fw_ent, at a film pick:
-    never before the first look, and at a pick after it."""
+def film_wb_code_waits_for_the_first_look(hits):
+    """Separate WB shifts (2026-11-21): from switch-on (WATCH from the lab's start), nothing answers or stores a film's
+    WB shift before the first look (cm_go: the films in): no fw_gv (a film's shift given to the camera's screens), no
+    fw_sv (a slot's shift read, also for a photo), no fw_ued (a change by the camera's screens caught). After it they
+    run: the WB screen on a film reads and writes the film's shift."""
     names = [h[0] for h in hits]
     first = names.index('cm_go') if 'cm_go' in names else len(names)
-    errors = []
-    if 'fw_ent' in names[:first]:
-        errors.append(f"fw_ent (section 8) ran {names[:first].count('fw_ent')} times before the first look "
-                      '(while the camera starts, section 8 may not be copied yet)')
+    early = sorted({n for n in names[:first] if n != 'cm_go'})
+    errors = [f'ran before the first look: {early}'] if early else []
     if 'cm_go' not in names:
         errors.append('no first look (cm_go)')
-    elif 'fw_ent' not in names[first:]:
-        errors.append('fw_ent did not run at the film pick after the first look')
-    return errors
-
-
-def wb_written_at_the_half_press_only(hits):
-    """fix99-3 (2026-11-20): #99 writes the camera's WB fine-tunes and saves its record ('OM3W', fw_msv) only at a
-    half-press, in the HLS_EVENT task (ex_live -> fw_chk), the path #88's first-half-press write has used since v0.40.1.
-    Not at a Creative Dial turn (fix99-1 / -2: fw_out, fw_snap's save and fix99-2's fw_in inside the dial's 897 write,
-    another task), not as Picture Mode opens (fix99-1), not at a pick. Writes in another task are #88's own at a pick
-    (fl_set -> fw_apply, as v0.40.1). hits: (symbol, s, task id, the HLS_EVENT task's id)."""
-    errors, last, hls_wr, hls_sv = [], {}, 0, 0
-    for name, _, tid, hls in hits:
-        if name in ('ex_live', 'fl_set', 'fw_pm'):
-            last[tid] = name
-        elif name == 'fw_msv':
-            if tid == hls:
-                hls_sv += 1
-            else:
-                errors.append(f'the record saved in task {tid} after {last.get(tid)}, not at a half-press')
-        elif name == 'fw_wr':
-            if tid == hls:
-                hls_wr += 1
-            elif last.get(tid) != 'fl_set':
-                errors.append(f'a WB setting written in task {tid} after {last.get(tid)}, not at a half-press or a pick')
-    if not hls_wr:
-        errors.append('no WB setting written at a half-press')
-    if not hls_sv:
-        errors.append('the record never saved at a half-press')
-    return errors[:4] + ([f'... {len(errors) - 4} more'] if len(errors) > 4 else [])
-
-
-def ext15_waits_for_the_first_look(hits):
-    """fix99-4 (2026-11-20): .ext15 (0x6101d000.., the GX4-proven reserve opened as section 6's last extension) is
-    loaded with section 6, and nothing of ours runs from it while the camera starts: from switch-on (WATCH from the
-    lab's start) none of its code before the first look (cm_go); its note (fw_ued) at a WB change and fw_out at a
-    half-press after it."""
-    names = [h[0] for h in hits]
-    first = names.index('cm_go') if 'cm_go' in names else len(names)
-    early = [n for n in names[:first] if n != 'cm_go']
-    errors = [f'.ext15 code ran before the first look: {sorted(set(early))}'] if early else []
-    if 'cm_go' not in names:
-        errors.append('no first look (cm_go)')
-    for n in ('fw_ued', 'fw_out'):
+    for n in ('fw_gv', 'fw_ued'):
         if n not in names[first:]:
-            errors.append(f'{n} (.ext15) did not run after the first look')
+            errors.append(f'{n} did not run after the first look')
     return errors
-
-
-def wb_pick_reads_nothing(hits):
-    """fix99-5 (2026-11-20): a film pick does no #99 reads (no fw_snap between a pick, fl_set, and the next half-press,
-    ex_live): the camera mode's own compensation is kept as last seen on it (fw_bk)."""
-    errors, last, picks = [], None, 0
-    for name, *_ in hits:
-        if name in ('fl_set', 'ex_live'):
-            last = name
-            picks += name == 'fl_set'
-        elif name == 'fw_snap' and last == 'fl_set':
-            errors.append('fw_snap (26 reads) at a film pick')
-    if not picks:
-        errors.append('no film pick (fl_set)')
-    return errors[:3]
 
 
 def no_card_file_reads(hits):
@@ -956,29 +893,30 @@ TESTS = {
         Boot(f's1 wait wait {PICK_FILM_1} expect:val:107=3200 expect:val:1632=3200 s1 wait wait poweroff',
              expect=[WB_LINE('CWB 3200K')], card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: picking a film sets its WB Compensation as the camera's own fine-tune of the film's WB mode (the super
-    # control panel shows it); a film with no shift sets 0 / 0; video's fine-tune is left alone. v0.40 added it
-    # invisibly at the photo's reads and left the camera's at 0.
-    'film-wb-shift-set-in-the-camera-fine-tune': [
-        Boot(f's1 wait wait {PICK_FILM_1} expect:val:{CWB_AB}=3 expect:val:{CWB_GM}=-2 '
-             f'{PICK_NEXT_FILM} expect:val:{SHADE_AB}=0 expect:val:{SHADE_GM}=4 '
-             f'{PICK_NEXT_FILM} expect:val:{AUTO_AB}=-5 '
-             f'{PICK_NEXT_FILM} expect:val:{SUNNY_AB}=0 expect:val:{SUNNY_GM}=0 '
+    # Separate WB shifts (2026-11-21, in place of #88's and #99's swapping): picking films leaves the camera's own WB
+    # fine-tunes alone (0 here, stills and video); each film's shift is in its slot (FILM 1 A3 M2, FILM 2 G4, FILM 3 B5).
+    'film-wb-shift-stays-in-the-film': [
+        Boot(f's1 wait wait {PICK_FILM_1} expect:p:{SLOT1_AB}=03 expect:p:{SLOT1_GM}=fe expect:val:{CWB_AB}=0 '
+             f'expect:val:{CWB_GM}=0 {PICK_NEXT_FILM} expect:p:{SLOT1_GM}=04 expect:val:{SHADE_GM}=0 '
+             f'{PICK_NEXT_FILM} expect:p:{SLOT1_AB}=fb expect:val:{AUTO_AB}=0 '
              f'expect:val:{MOVIE_AUTO_AB}=0 expect:val:{MOVIE_CWB_AB}=0 s1 wait wait poweroff',
-             expect=[WB_LINE('Sunny')], card={'LOOKS.BIN': 'LOOKS_WB'}),
+             expect=[WB_LINE('Auto')], card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: the photo's WB reads get the film's shift once: the camera's own fine-tune, with nothing added (v0.40 added
-    # it to a fine-tune of 0; adding it to the camera's fine-tune now would double it).
-    'film-wb-shift-counts-once': [
-        Boot(f's1 wait wait {PICK_FILM_1} expect:cap:{{wb_get}}:34041=3 expect:cap:{{wb_get}}:38521=-2 '
-             's1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    # The photo's WB reads (7401: Auto's A-B; 34041 / 38521: the WB mode's): at the standard modes the camera's own
+    # shift (A1); on FILM 3 the film's B5 in its place
+    # (not A1 + B5: v0.21..v0.40 added them); on FILM 4 (no shift) none, though the camera's own Auto shift is A1.
+    'photo-wb-reads-take-the-film-shift-in-place-of-the-cameras': [
+        Boot(f'{STANDARD_OWN_A1} expect:cap:{{wb_get}}:7401=1 {TO_COLOR} {PAGE_TO_FILM_3} '
+             f'expect:cap:{{wb_get}}:7401=-5 expect:cap:{{wb_get}}:34041=-5 expect:cap:{{wb_get}}:38521=0 '
+             f'expect:val:{AUTO_AB}=1 {PICK_NEXT_FILM} expect:cap:{{wb_get}}:7401=0 {TO_STANDARD} '
+             f'expect:cap:{{wb_get}}:7401=1 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: the film remembers a WB Compensation changed in the super control panel (owner, 2026-11-19), as it remembers
-    # its WB mode: A3 -> A4 there, FILM 2 and back to FILM 1: A4 again, and FILM 1 has a '*'.
+    # The film remembers a WB Compensation changed in the super control panel (owner, 2026-11-19): A3 -> A4 there (into
+    # the film; the camera's own stays 0), FILM 2 and back to FILM 1: A4 again, and FILM 1 has a '*'.
     'film-keeps-a-wb-shift-changed-in-the-panel': [
-        Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} expect:val:{CWB_AB}=4 {PANEL_TO_PICTURE_MODE} '
-             f'right wait ok wait wait expect:val:{SHADE_GM}=4 {PICK_FILM_BEFORE} expect:val:{CWB_AB}=4 '
-             's1 wait wait poweroff',
+        Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} expect:p:{SLOT1_AB}=04 expect:val:{CWB_AB}=0 '
+             f'{PANEL_TO_PICTURE_MODE} right wait ok wait wait expect:p:{SLOT1_GM}=04 expect:p:{SLOT1_AB}=00 '
+             f'{PICK_FILM_BEFORE} expect:p:{SLOT1_AB}=04 expect:val:{CWB_AB}=0 s1 wait wait poweroff',
              expect=[r'^Picture mode: COLOR 1, FILM 1\b', r'^Films with changes \(a \* in the camera\): 1$'],
              card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
@@ -988,119 +926,50 @@ TESTS = {
         Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} {PANEL_TO_PICTURE_MODE} expect:p:{SLOT1_AB}=04 '
              'menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: the WB Compensation row (the fine-tune screen it opens) changes the camera's own fine-tune too.
-    'picture-mode-row-wb-shift-sets-the-camera': [
+    # The WB Compensation row (the fine-tune screen it opens) changes the film's shift, not the camera's own.
+    'picture-mode-row-wb-shift-stays-in-the-film': [
         Boot(f's1 wait wait {PICK_FILM_1} ok wait ok wait {WB_ROW_A_PLUS_1} expect:p:{SLOT1_AB}=04 '
-             f'expect:val:{CWB_AB}=4 menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+             f'expect:val:{CWB_AB}=0 menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
     # #88 (bug in v0.40, om-emu): a new film set that changes the film on screen gives the camera that film's WB (mode,
-    # Kelvin and shift), and leaving the film after a power-off gives it no '*'. v0.40 left the old film's WB in the
+    # Kelvin; its shift in its slot), and leaving the film after a power-off gives it no '*'. v0.40 left the old film's WB in the
     # camera, and leaving the film stored it into the new one with a '*'.
     'new-film-set-sets-the-film-wb': [
         Boot(f's1 wait wait {PICK_FILM_1} s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
-        Boot(f'wait wait s1 wait wait expect:val:107=5000 expect:val:{CWB_AB}=-3 expect:val:{CWB_GM}=1 '
-             's1 wait wait poweroff', expect=[WB_LINE('CWB 5000K'), NO_FILM_CHANGES],
+        Boot(f'wait wait s1 wait wait expect:val:107=5000 expect:p:{SLOT1_AB}=fd expect:p:{SLOT1_GM}=01 '
+             f'expect:val:{CWB_AB}=0 s1 wait wait poweroff', expect=[WB_LINE('CWB 5000K'), NO_FILM_CHANGES],
              card={'LOOKS.BIN': 'LOOKS_WB_NEW'}),
-        Boot(f'wait wait s1 wait wait expect:val:{CWB_AB}=-3 {PICK_NEXT_FILM} s1 wait wait poweroff',
+        Boot(f'wait wait s1 wait wait expect:p:{SLOT1_AB}=fd {PICK_NEXT_FILM} s1 wait wait poweroff',
              expect=[WB_LINE('Shade'), NO_FILM_CHANGES]),
     ],
-    # #99 (bug in v0.40.1..v0.40.3, om-emu): turning the Creative Dial from a film to the camera's own picture modes
-    # gives the camera back their own WB compensation, in every WB mode the films changed: Auto A1 (FILM 3 had put B5
-    # there) and Custom WB 0 / 0 (FILM 1 had put A3 M2 there as the list passed it). v0.40.3 kept the films'.
-    # Boot-loop fix (2026-11-20, fixes2 on the owner's camera): the start-up 897 writes leave #99's section-8 code alone
-    # until the first look; Creative Dial turns after it reach it as before.
-    # fix99-3: no #99 code at the 897 write at all; the section-8 code left is fw_ent (a pick, with the films in).
-    'section-8-code-waits-for-the-first-look': [
-        Boot(f'wait wait s1 wait wait {TO_STANDARD} {TO_COLOR} {PAGE_TO_FILM_3} {HP} poweroff', watch=('cm_go', 'fw_ent'),
-             hits=section8_waits_for_the_first_look, card={'LOOKS.BIN': 'LOOKS_WB'}),
+    # Separate WB shifts (owner, 2026-11-21: "a half press isn't needed"; #99's cure in place of fix99-1..5): the
+    # owner's four steps, no half-press between them. FILM 3 (B5): the WB screen shows B5, one step: B4 in the film,
+    # the camera's own still 0. The standard modes: the screen shows the camera's own (nothing of a film given), one
+    # step: A1 there, the film still B4. Back on the film: the screen shows B4, a step: B3 in the film, the camera's own
+    # still A1. The standard modes again: A1.
+    'wb-shift-separate-for-a-film-and-the-camera-modes': [
+        Boot(f's1 wait wait {TO_STANDARD} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=0 expect:p:{SLOT1_AB}=fb '
+             f'last:{{fw_gv}} {WB_SCREEN_A_PLUS_1} expect:last:{{fw_gv}}:0=-5 expect:val:{AUTO_AB}=0 '
+             f'expect:p:{SLOT1_AB}=fc {TO_STANDARD} last:{{fw_gv}} {WB_SCREEN_AGAIN_A_PLUS_1} '
+             f'expect:last:{{fw_gv}}:0=none expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fc {TO_COLOR} ok wait wait '
+             f'{WB_SCREEN_A_PLUS_1} expect:last:{{fw_gv}}:0=-4 expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fd '
+             f'{TO_STANDARD} expect:val:{AUTO_AB}=1 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
+             expect=[r'^Films with changes \(a \* in the camera\): 3$']),
     ],
-    # fix99-3 (the owner's camera restarted on fix99-1 and once on fix99-2, 2026-11-20): #99 writes the camera's
-    # settings and saves its record only at the half-press (ex_live, HLS task). After a Creative Dial turn the camera
-    # keeps what it had until the next half-press: at the standard modes the film's B5, on COLOR the standard modes'
-    # A1; a pick from the standard modes keeps their A1 first (fw_ent reads), and #88 puts the film's B5 in (as v0.40.1).
-    # The last pick is FILM 4 (Sunny 0 / 0): Auto keeps the standard modes' A1 on it.
-    'wb-shift-written-at-the-half-press-only': [
-        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} expect:val:{AUTO_AB}=1 {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} '
-             f'{TO_STANDARD} expect:val:{AUTO_AB}=-5 {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} expect:val:{AUTO_AB}=1 '
-             f'right wait ok wait wait {HP} {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} {HP} '
-             f'expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}, tids=True,
-             watch=('ex_live', 'fl_set', 'fw_pm', 'fw_wr', 'fw_msv'), hits=wb_written_at_the_half_press_only),
+    # The camera modes' own shift (A1) is never touched by films: through a turn to COLOR, the Picture Mode list past
+    # FILM 1 (Custom WB A3 M2) to FILM 3 (B5), half-presses, a power-off on the film and the turn back.
+    'camera-modes-wb-shift-untouched-by-films': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 '
+             f'expect:val:{CWB_GM}=0 {HP} expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fb {TO_STANDARD} {HP} '
+             f'expect:val:{AUTO_AB}=1 {TO_COLOR} {HP} expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fb s1 wait wait poweroff',
+             expect=[NO_FILM_CHANGES]),
     ],
-    # fix99-4 (owner, 2026-11-20): a WB change made on the camera's own modes before the half-press is kept. FILM 3
-    # (B5) -> the standard modes: the camera still has B5; the WB screen there, one step to B4; the half-press keeps B4
-    # (fix99-3 put the standard modes' kept A1 back); back on COLOR the film's B5; the standard modes again: B4, theirs now.
-    # fix99-5 (the owner's steps that restarted f7 every time, 2026-11-20): the standard modes' own A1; FILM 3 (B5);
-    # the standard modes (A1); back to FILM 3 and, before the half-press, its WB one step (the camera had A1 there: A2);
-    # the half-press keeps A2 with the film (fix99-4 took A2 as the standard modes' own and put B5 back); the standard
-    # modes: their A1 (not A2); a change there (A2); back on COLOR, another film picked (FILM 4, Sunny: Auto left
-    # alone); the standard modes: A2, theirs. No #99 reads at any pick.
-    'wb-film-change-then-the-standard-modes-then-a-pick': [
-        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} {HP} '
-             f'expect:val:{AUTO_AB}=1 {TO_COLOR} ok wait wait {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=2 {HP} '
-             f'expect:val:{AUTO_AB}=2 expect:p:{SLOT1_AB}=02 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 '
-             f'{WB_SCREEN_AGAIN_A_PLUS_1} expect:val:{AUTO_AB}=2 {TO_COLOR} right wait ok wait wait {HP} {TO_STANDARD} {HP} '
-             f'expect:val:{AUTO_AB}=2 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
-             watch=('fl_set', 'ex_live', 'fw_snap'), hits=wb_pick_reads_nothing),
-    ],
-    'wb-change-on-a-camera-mode-before-the-half-press-kept': [
-        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} '
-             f'expect:val:{AUTO_AB}=-5 {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=-4 {HP} expect:val:{AUTO_AB}=-4 '
-             f'{TO_COLOR} {HP} expect:val:{AUTO_AB}=-5 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=-4 {HP} poweroff',
-             card={'LOOKS.BIN': 'LOOKS_WB'}),
-    ],
-    # fix99-4: a change undone before the half-press (one step and back to the film's B5) is no change: the half-press
-    # gives the standard modes their own A1, as fix99-3.
-    'wb-change-undone-on-a-camera-mode-gets-their-own-back': [
-        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} {TO_STANDARD} '
-             f'{WB_SCREEN_A_PLUS_1.removesuffix(" ok wait wait")} left wait ok wait wait expect:val:{AUTO_AB}=-5 {HP} '
-             f'expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
-    ],
-    # fix99-4: from switch-on, nothing in .ext15 runs before the first look; its note runs at a WB change at the
-    # standard modes, fw_out at the half-press.
-    'ext15-code-waits-for-the-first-look': [
-        Boot(f'wait wait s1 wait wait {TO_STANDARD} {HP} {WB_SCREEN_A_PLUS_1} {HP} poweroff',
-             watch=('cm_go', 'fw_ued', 'fw_uen', 'fw_wu', 'fw_out'), hits=ext15_waits_for_the_first_look),
-    ],
-    'camera-mode-gets-its-own-wb-shift-back': [
-        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 expect:val:{CWB_AB}=3 '
-             f'{TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 expect:val:{CWB_GM}=0 s1 wait wait poweroff',
-             card={'LOOKS.BIN': 'LOOKS_WB'}),
-    ],
-    # #99: back on COLOR, the COLOR (here COLOR 1, no film: its own compensation 0) gets its own again, not the camera
-    # mode's A1 (v0.40.3 left A1 in the camera and copied it into COLOR 1 when Picture Mode opened); and a film (FILM 3)
-    # gets its B5 back after a turn to the camera's modes and back.
-    'color-gets-its-own-wb-shift-back-from-a-camera-mode': [
-        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} expect:p:{SLOT1_AB}=00 {HP} expect:val:{AUTO_AB}=0 expect:p:{SLOT1_AB}=00 '
-             f'{TO_STANDARD} {TO_COLOR} {PAGE_TO_FILM_3} {TO_STANDARD} {HP} {TO_COLOR} {HP} expect:val:{AUTO_AB}=-5 '
-             f'expect:p:{SLOT1_AB}=fb s1 wait wait poweroff',
-             expect=[r'^Films with changes \(a \* in the camera\): none$'], card={'LOOKS.BIN': 'LOOKS_WB'}),
-    ],
-    # #99 (owner, 2026-11-20: "Keep it, like the stock camera"): the camera modes' own compensation is kept in camera
-    # memory (record 'OM3W'): switched off on a film (B5), on again, the turn to the standard modes gives their own A1.
-    'camera-mode-wb-shift-kept-over-a-power-off': [
-        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
-             card={'LOOKS.BIN': 'LOOKS_WB'}),
-        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} '
-             f'{HP} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff'),
-    ],
-    # #99: a record that is not valid (here its CRC broken before the first look; a camera that never ran this build
-    # has none) means nothing is kept: the turn to the standard modes gives 0 / 0, nothing is taken from it.
-    'camera-mode-wb-shift-not-known-without-a-good-record': [
-        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
-             card={'LOOKS.BIN': 'LOOKS_WB'}),
-        Boot(f'poke:{FWM_CRC:x}=00000000 wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} {HP} '
-             f'expect:val:{AUTO_AB}=0 s1 wait wait poweroff'),
-    ],
-    # #99: each shooting mode keeps its own (as the stock camera keeps the compensation per custom mode). P's standard
-    # modes A1 assigned to C1, P's own then A2, a film in P (B5). The turn to C1 (the dial still on COLOR): at the
-    # half-press COLOR 1's own 0 (no film there); C1's standard modes: C1's own A1; back to COLOR: 0. The turn to P:
-    # the film's B5; P's standard modes: P's own A2 (kept over the turns).
-    'custom-modes-keep-their-own-wb-shift': [
-        Boot(f'{STANDARD_OWN_A1} {ASSIGN_C1} {WB_SCREEN_AGAIN_A_PLUS_1} expect:val:{AUTO_AB}=2 {TO_COLOR} '
-             f'{PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait mode:{MODE_DIAL_C1} wait wait wait s1 wait wait '
-             f'expect:val:{AUTO_AB}=0 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} {HP} expect:val:{AUTO_AB}=0 '
-             f'mode:{MODE_DIAL_P} wait wait wait expect:val:{AUTO_AB}=-5 s1 wait wait {TO_STANDARD} {HP} '
-             f'expect:val:{AUTO_AB}=2 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    # From switch-on, nothing answers or stores a film's WB shift before the first look; afterwards the WB screen on a
+    # film reads and writes it (.ext15).
+    'film-wb-code-waits-for-the-first-look': [
+        Boot(f'wait wait s1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
+             watch=('cm_go', 'fw_gv', 'fw_sv', 'fw_ued'), hits=film_wb_code_waits_for_the_first_look),
     ],
     # borders: the Border row steps -5..+5 (2026-11-18: - black, + white; right / left, no step past either end) into
     # COLOR 1's slot +50, and the value is kept over a power-off (saved at the half-press).
@@ -2218,41 +2087,37 @@ def call_spec(name, fn, imm, d0, mem=(), count=()):
 
 
 s8 = lambda v: v - 256 if v > 127 else v
-# v0.21..v0.40: wb_get added the active COLOR's slot +26 (A-B) / +27 (G-M) to the stock read when its +25 & 0x81 == 1.
-# #88: the film's shift is the camera's own fine-tune now, so wb_get gives the stock read alone, whatever the slots
-# hold. Each case: slot +25..+27 for COLOR 1..4. The test camera is on COLOR 1.
-WB_CASES = [('none', [(0, 0, 0)] * 4),
-            ('color-1', [(1, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
-            ('color-1-off', [(0x81, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
-            ('color-2-only', [(0, 0, 0), (1, 5, 5), (0, 0, 0), (0, 0, 0)])]
-WB = 'wb-reads-add-no-film-shift'
+# Separate WB shifts (2026-11-21): on a COLOR profile wb_get gives the profile's slot shift (+26 A-B / +27 G-M when
+# +25 & 0x81 == 1, else 0) in place of the camera's own read (v0.21..v0.40 added it; #88 gave the stock read alone).
+# Each case: slot +25..+27 for COLOR 1..4 and what the reads give. The test camera is on COLOR 1.
+WB_CASES = [('none', [(0, 0, 0)] * 4, (0, 0)),
+            ('color-1', [(1, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)], (3, -2)),
+            ('color-1-off', [(0x81, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)], (0, 0)),
+            ('color-1-out-of-range', [(1, 9, 0xf0), (0, 0, 0), (0, 0, 0), (0, 0, 0)], (0, 0)),
+            ('color-2-only', [(0, 0, 0), (1, 5, 5), (0, 0, 0), (0, 0, 0)], (0, 0))]
+WB = 'wb-reads-give-the-film-shift-on-color'
 
 
 def run_wb(emu, build, out, card0):
-    """wb_get on each WB_KEYS read, per WB_CASES look: the stock value and one getter call, shift or not (#88)."""
+    """wb_get on each WB_KEYS read, per WB_CASES look: COLOR 1's slot shift, 0 when it has none."""
     d = out / WB
     d.mkdir(parents=True, exist_ok=True)
     sym = elf_symbols(build / 'p.elf')
     spec = [call_spec('mode', sym['getter'], 12, 63153)]
-    spec += [call_spec(f'stock:{k}', sym['getter'], 12, key) for k, key in WB_KEYS.items()]
-    for name, slots in WB_CASES:
+    for name, slots, _ in WB_CASES:
         mem = [[f'P+{32 + 64 * k + 25}', bytes(s).hex()] for k, s in enumerate(slots)]
-        spec += [call_spec(f'{name}:{k}', sym['wb_get'], 12, key, mem, [sym['getter']]) for k, key in WB_KEYS.items()]
+        spec += [call_spec(f'{name}:{k}', sym['wb_get'], 12, key, mem) for k, key in WB_KEYS.items()]
     res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
     if isinstance(res, str):
         return WB, [res]
     if int(res['mode']['regs']['d0'], 16) & 255 != 1:
         return WB, [f"the camera is not on COLOR 1 (getter 63153: {res['mode']['regs']['d0']}, out.json)"]
     errors = []
-    for name, slots in WB_CASES:
-        for k in WB_KEYS:
-            want = s8(int(res[f'stock:{k}']['regs']['d0'], 16) & 255)
+    for name, slots, wants in WB_CASES:
+        for k, want in zip(WB_KEYS, wants):
             got = s8(int(res[f'{name}:{k}']['regs']['d0'], 16) & 255)
             if got != want:
-                errors.append(f'{name} {k}: wb_get gives {got}, the camera\'s own read {want} (out.json)')
-            calls = res[f'{name}:{k}']['count'][0]
-            if calls != 1:
-                errors.append(f'{name} {k}: wb_get calls the getter {calls} times, want 1 (out.json)')
+                errors.append(f'{name} {k}: wb_get gives {got}, want {want} (out.json)')
     return WB, errors
 
 

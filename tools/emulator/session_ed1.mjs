@@ -96,6 +96,7 @@ if (process.env.MMIO) Debugger.attach(lab.sim, { lab }).traceMmio((r) => fs.appe
 // SHOTAT=PC,... (hex): during a frames: token, also shoot the screen as it stands when the code reaches each PC
 // (at_PC_N.png, no scene tick first), the state the camera's display can show mid-update.
 let shotArm = false, shotN = 0; let kept = 0;   // keep: checks passed
+const lasts = new Map();    // last: / expect:last: (PC -> d1 -> the last d0)
 const counts = new Map();   // count: / expect:count: (PC -> { any, d0, n })
 let hits_n = 0;                                 // hit: matches
 if (process.env.SHOTAT) Debugger.attach(lab.sim, { lab }).traceExec((r) => { if (shotArm) shot('at_' + r.pc.toString(16) + '_' + shotN++ + '.png', false); },
@@ -275,6 +276,18 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     dh.traceExec(() => { const g = dh.regs(); if (want.every(([reg, v]) => (g[reg] >>> 0) === v)) hits_n++; }, { pcs: [P] });
   }
   else if (t === 'expect:hit') { if (!hits_n) { console.error('expect:hit: no hit: match'); process.exit(1); } }
+  else if (t.startsWith('last:') || t.startsWith('expect:last:')) {
+    // last:PC (separate WB shifts) notes, from here, d0 each time the code reaches PC (hex), by its d1;
+    // expect:last:PC:D1=V ends the run with exit 1 unless the last d0 noted with d1 = D1 (decimal) is V (signed
+    // decimal; "none" when there was none). At fw_gv: d1 = a stills fine-tune id - 1580, d0 = the film's shift the
+    // camera's screen was given for it.
+    const ex = t.startsWith('expect:'), [pc, rest] = t.slice(ex ? 12 : 5).split(':'), PC = parseInt(pc, 16) >>> 0;
+    let c = lasts.get(PC);
+    if (!c) { c = new Map(); lasts.set(PC, c); Debugger.attach(lab.sim, { lab }).traceExec((r) => { c.set(r.d1 | 0, r.d0 | 0); }, { pcs: [PC] }); }
+    if (ex) { const [d1, want] = rest.split('='), got = c.has(parseInt(d1, 10)) ? String(c.get(parseInt(d1, 10))) : 'none';
+      if (got !== want) { console.error(`expect:last ${pc} ${d1}: ${got}, not ${want}`); process.exit(1); } }
+    else c.clear();
+  }
   else if (t.startsWith('expect:isdef:')) {
     // expect:isdef:FN:ID=V ends the run with exit 1 unless FN (hex, an "is at default" entered as the stock one,
     // `call FN,[d2,d3,a2],24`, d0 id -> d0 1 default) answers V (0 or 1) for ID (hex): a row's '*' is V = 0.
