@@ -9629,3 +9629,15 @@ half-press. Last log (event 36, "nothing unusual") in the private test-builds fo
   `c1ac25b4…a22f`, GUIDES.BIN `7eba5f7e…f510`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
 - **Camera-only:** whether the restart is gone. If it is not: the same steps on v0.40.3-beta (no #99) say whether #99
   is involved at all (TEST-STEPS step 3).
+
+## fix99-5 camera-tested (2026-11-21)
+- **v0.40.3-beta check first (camera):** the steps that restarted f7 (a WB change on a film, the centre, a WB change
+  there, back to the film position, another film) did not restart v0.40.3-beta, which has #88 but no #99 ("I couldn't
+  force a restart"; its log: one power-on, 56 shutter events, films 2 and 3 changed, film and centre several times).
+  So the f7 restart came from #99's work, not from #88's older film WB code.
+- **fix99-5 (camera):** the owner's OM-3, v0.40.3-f8 (c1ac25b4…a22f, GUIDES.BIN 7eba5f7e…f510): the test steps
+  (the restart steps many times, the earlier steps, the #99 checks, about ten starts, Magnify at XPan): "No restarts".
+  Last log (event 14, "nothing unusual", Magnify used) in the private test-builds folder.
+- So, camera-tested: with a film pick doing no #99 work, the restart on those steps is gone. Its exact cause stays
+  unknown (om-emu never reproduced it; the emu-coverage write rule flagged nothing on f7): analysis points at #99's
+  reads of the 26 WB fine-tunes at the pick, which f8 removed.
