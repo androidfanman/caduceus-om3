@@ -9457,3 +9457,52 @@ places: analysis + the mp1 probe for the tail in general); the camera's own WB m
 - **v0.40.3-beta2 (published, fixes2's firmware with its own VERSION) has the same path**: for the owner.
 - Not done (follow-up): `static:section-order` walks only from hooks in sections 1..5; a walk from the hooks in
   sections 6 / 7 into sections 8..10 (with the released paths behind STATE listed) would have flagged fw_897j.
+
+## fix99-2: the restart after the centre, back to a film and a film change (2026-11-20; analysis + emulator; branch fix/99-film-change-reboot)
+- **Camera (owner, via the main chat; v0.40.3-f4 = fixes2 + the boot-loop fix, E1479999 801e9623…b240):** "no loops,
+  but it does have a reboot": Creative Dial to the centre, back to a creative position, then a film change -> the
+  camera restarted; it left no log. The last log (event 20, at the centre, "nothing unusual") shows the same steps
+  passing once before: FILM 2 -> the centre (events 7-10) -> COLOR, FILM 3 picked in Picture Mode (event 11); then FILM
+  3 -> the centre (19-20) -> back, a film change -> the restart. The owner's Creative Dial rows: CRT COLOR, ART Normal,
+  COLOR COLOR, MONO COLOR.
+- **om-emu (f4's build, the owner's steps three times over, LOOKS_WB):** no restart (as #72's never showed there). With
+  WATCH + task ids, where each #99 write comes from: the turn to the centre, task 165 (the dial's 897 write): fw_897j ->
+  fw_fam -> fw_out (26 reads, the differing fine-tunes written) -> fw_msv, then the camera's own 897; the turn back:
+  task 165 fw_fam -> fw_snap -> fw_msv, then **task 168 (GUI) gx_map -> fw_pm -> fw_chk -> fw_ft -> the manager
+  (1580 / 1593) inside the state dispatcher, as Picture Mode (0x0418) opens**; a film change: task 168 fl_set -> fw_keep,
+  fl_sw, fw_apply -> fw_ent (fw_on 1: nothing) -> fw_ft (as v0.40.1). GUI stack at those writes about 0x300 B deep
+  (16 KB task), no nested dispatch.
+- **Cause (analysis, not seen on the camera):** the writes as Picture Mode opens are the one place where #99 changes
+  settings that v0.40.1 does not (#88's fw_pm only read: fw_sync -> fw_kft); they come from inside the GUI's state
+  dispatcher, mid change, while the dial's task may still be in the camera's own 897 write (the camera has two CPUs,
+  om-emu runs one and no live view). fw_wr writes only where the film's shift differs from the camera mode's, which
+  fits the first round passing and the second restarting, if the owner's FILM 2 has no shift and FILM 3 one (not known:
+  the owner's films live in camera memory). The other #99 moments of that sequence ran on the camera without trouble:
+  the turn to the centre (fw_out's writes and fw_msv in task 165) twice, film picks in Picture Mode (v0.40.1).
+- **Checked, not the cause:** frames and locals of fw_897j / fw_fam / fw_out / fw_snap / fw_msv / fw_mput / fw_ent / fw_st
+  (each call slot at (0,sp), locals below the saved registers, `[],0` / `[],4` callees as they return); MDR: fw_897j
+  sets it from (68,sp) before sl_set0b, fl_set and ed_set before `jmp manager`; LOCK = dispatch held, as cm_wr; the M
+  record within M's unused tail; byte access only on fw_bs. A walk (static_check `_walk`) from every hook in sections 6
+  and 7 into sections 8..10: against f4 only fw_fam -> fw_in (below, section 9, reached only through fw_g8's cm_init
+  gate); the rest are released paths (pf_put / pf_put1, ed_pmod, ed_isdef, gd_set / gd_load, xt_tab) and #99's two
+  already checked (fw_g8 -> fw_897j, fw_apply -> fw_ent).
+- **Fix (fix99-2):** fw_pm no longer calls fw_chk (it reads only, as in v0.40.1). At a turn from a camera mode to COLOR,
+  fw_fam (task 165, the 897 write, before the camera's own write, where the turn to a camera mode already writes)
+  calls `fw_in` right after fw_snap: 901's value (the COLOR choice, kept while another family is on) -> fl_k -> PVAL ->
+  fw_ft (handle rc_in, mode 0) -> fw_on 1; not COLOR 1-4 or no films: fw_on stays 2 (fw_chk at the half-press, HLS
+  task). `fw_in` is in `.ext9` (section 9, 40 B left; ext8 454 / 512). The value written at the 897 write stays over
+  the camera's own write (om-emu: Auto -5 after the turn). Behaviour as fix99-1. VERSION "v0.40.3-f5 (f4 + fix99-2: WB
+  shift in at the dial turn)".
+- Not changed: an M write (fw_msv) from the GUI still happens at a pick when fw_on is 0 (fw_ent -> fw_snap: a turn by a
+  mapped dial position whose remembered film equals the one already on, then a pick) and fw_st's retry of a held-back
+  save; neither is on the owner's path in om-emu.
+- **Test** `wb-shift-goes-in-at-the-dial-turn-not-as-picture-mode-opens` (the owner's steps: standard modes' own A1 ->
+  COLOR, FILM 3 (B5) -> the centre (A1) -> COLOR (B5) -> a film change in Picture Mode -> the centre (A1); WATCH
+  fw_897j, fw_pm, fl_set, fw_wr): no fine-tune write right after fw_pm, some at the dial turns. f4's build `caught`
+  ("4 WB settings written as Picture Mode opened (GUI task), not 0"); passes on the fix.
+- **Suite** (build of dd467ad = the package, om-emu 0819080): **132 pass**, exit 0 (f4's 131 + the new one); the static
+  checks pass (hook-list and changed-bytes as f4: no new hook or patch site). Both builds of dd467ad the same byte for
+  byte. Package `test-builds/2026-11-20-fix99-2/1-test-build` (private folder): E1479999.BIN `45fbac77…251b`,
+  GUIDES.BIN `4c5fbd63…ef42`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **Camera-only:** whether the restart is gone (the owner's steps, several rounds, other films, the CRT / MONO
+  positions mapped to COLOR, which om-emu has unset); live view; photos.
