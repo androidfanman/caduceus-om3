@@ -482,7 +482,9 @@ WB_LINE = lambda wb: rf'^White balance: {wb} \['
 # On the standard modes, the camera's own Auto WB compensation one step to A (the panel's cursor on Picture Mode); then
 # COLOR, whose Picture Mode page opens at the turn: FILM 3 (Auto, B5 in LOOKS_WB) six films on from COLOR 1.
 TO_STANDARD, TO_COLOR = 'cdial:2 wait wait', 'cdial:1 wait wait'
-STANDARD_OWN_A1 = f's1 wait wait {TO_STANDARD} {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=1'
+# fix99-3: #99 writes at the half-press only, so a turn's shift comes with the next half-press (HP)
+HP = 's1 wait wait'
+STANDARD_OWN_A1 = f's1 wait wait {TO_STANDARD} {HP} {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=1'
 PAGE_TO_FILM_3 = 'right wait ' * 6 + 'ok wait wait'
 # Shooting menu 1 > Custom Mode > C1 > Assign > Set, from the shooting screen (as BOOT1_ASSIGN_C1), and the camera's
 # own WB screen again with the panel's cursor still on the WB cell.
@@ -674,38 +676,47 @@ def watch_hit_seen(hits):
 def section8_waits_for_the_first_look(hits):
     """Boot-loop fix (2026-11-20): #99's fw_897j is in .ext8 (section 8), which the camera copies after its application
     starts; the camera's settings task writes 897 three times while it starts (om-emu, as the camera's bp1 probe). None of
-    those may reach fw_897j: it runs only after the first look (cm_go), and a Creative Dial turn after it still does."""
+    those may reach fw_897j: it runs only after the first look (cm_go), and a Creative Dial turn after it still does.
+    fix99-3: fw_897j is gone (nothing of #99 at the 897 write); #99's section-8 code left is fw_ent, at a film pick:
+    never before the first look, and at a pick after it."""
     names = [h[0] for h in hits]
     first = names.index('cm_go') if 'cm_go' in names else len(names)
     errors = []
-    if 'fw_897j' in names[:first]:
-        errors.append(f"fw_897j (section 8) ran {names[:first].count('fw_897j')} times before the first look "
+    if 'fw_ent' in names[:first]:
+        errors.append(f"fw_ent (section 8) ran {names[:first].count('fw_ent')} times before the first look "
                       '(while the camera starts, section 8 may not be copied yet)')
     if 'cm_go' not in names:
         errors.append('no first look (cm_go)')
-    elif 'fw_897j' not in names[first:]:
-        errors.append('fw_897j did not run at the Creative Dial turns after the first look')
+    elif 'fw_ent' not in names[first:]:
+        errors.append('fw_ent did not run at the film pick after the first look')
     return errors
 
 
-def wb_shift_in_at_the_dial_turn(hits):
-    """fix99-2 (2026-11-20): a turn of the Creative Dial back from the camera's own picture modes to a film puts the
-    film's WB shift into the camera at the dial's 897 write (fw_897j, the Creative Dial's task), as the turn to the
-    camera's modes puts theirs back there. Nothing is written as Picture Mode opens (fw_pm, GUI task, inside its state
-    change): fix99-1 wrote the film's shift there, and the owner's camera restarted at the film change that came next.
-    hits: fw_897j, fw_pm, fl_set (where a write comes from) and fw_wr (each WB fine-tune write we ask for)."""
-    errors, last, at_pm, at_dial = [], None, 0, 0
-    for name, *_ in hits:
-        if name == 'fw_wr':
-            at_pm += last == 'fw_pm'
-            at_dial += last == 'fw_897j'
-        else:
-            last = name
-    if at_pm:
-        errors.append(f'{at_pm} WB settings written as Picture Mode opened (GUI task), not 0')
-    if not at_dial:
-        errors.append('no WB setting written at the Creative Dial turns')
-    return errors
+def wb_written_at_the_half_press_only(hits):
+    """fix99-3 (2026-11-20): #99 writes the camera's WB fine-tunes and saves its record ('OM3W', fw_msv) only at a
+    half-press, in the HLS_EVENT task (ex_live -> fw_chk), the path #88's first-half-press write has used since v0.40.1.
+    Not at a Creative Dial turn (fix99-1 / -2: fw_out, fw_snap's save and fix99-2's fw_in inside the dial's 897 write,
+    another task), not as Picture Mode opens (fix99-1), not at a pick. Writes in another task are #88's own at a pick
+    (fl_set -> fw_apply, as v0.40.1). hits: (symbol, s, task id, the HLS_EVENT task's id)."""
+    errors, last, hls_wr, hls_sv = [], {}, 0, 0
+    for name, _, tid, hls in hits:
+        if name in ('ex_live', 'fl_set', 'fw_pm'):
+            last[tid] = name
+        elif name == 'fw_msv':
+            if tid == hls:
+                hls_sv += 1
+            else:
+                errors.append(f'the record saved in task {tid} after {last.get(tid)}, not at a half-press')
+        elif name == 'fw_wr':
+            if tid == hls:
+                hls_wr += 1
+            elif last.get(tid) != 'fl_set':
+                errors.append(f'a WB setting written in task {tid} after {last.get(tid)}, not at a half-press or a pick')
+    if not hls_wr:
+        errors.append('no WB setting written at a half-press')
+    if not hls_sv:
+        errors.append('the record never saved at a half-press')
+    return errors[:4] + ([f'... {len(errors) - 4} more'] if len(errors) > 4 else [])
 
 
 def no_card_file_reads(hits):
@@ -961,30 +972,35 @@ TESTS = {
     # there) and Custom WB 0 / 0 (FILM 1 had put A3 M2 there as the list passed it). v0.40.3 kept the films'.
     # Boot-loop fix (2026-11-20, fixes2 on the owner's camera): the start-up 897 writes leave #99's section-8 code alone
     # until the first look; Creative Dial turns after it reach it as before.
+    # fix99-3: no #99 code at the 897 write at all; the section-8 code left is fw_ent (a pick, with the films in).
     'section-8-code-waits-for-the-first-look': [
-        Boot(f'wait wait s1 wait wait {TO_STANDARD} {TO_COLOR} poweroff', watch=('cm_go', 'fw_897j'),
-             hits=section8_waits_for_the_first_look),
+        Boot(f'wait wait s1 wait wait {TO_STANDARD} {TO_COLOR} {PAGE_TO_FILM_3} {HP} poweroff', watch=('cm_go', 'fw_ent'),
+             hits=section8_waits_for_the_first_look, card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # fix99-2 (the owner's camera, v0.40.3-f4, 2026-11-20: the centre, back to a film, a film change -> it restarted):
-    # back on COLOR from the standard modes, FILM 3's B5 goes into the camera at the dial turn itself, nothing as
-    # Picture Mode opens; then a film change in Picture Mode (the owner's step) and a half-press.
-    'wb-shift-goes-in-at-the-dial-turn-not-as-picture-mode-opens': [
-        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait {TO_STANDARD} '
-             f'expect:val:{AUTO_AB}=1 s1 wait wait {TO_COLOR} expect:val:{AUTO_AB}=-5 right wait ok wait wait '
-             f's1 wait wait {TO_STANDARD} expect:val:{AUTO_AB}=1 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
-             watch=('fw_897j', 'fw_pm', 'fl_set', 'fw_wr'), hits=wb_shift_in_at_the_dial_turn),
+    # fix99-3 (the owner's camera restarted on fix99-1 and once on fix99-2, 2026-11-20): #99 writes the camera's
+    # settings and saves its record only at the half-press (ex_live, HLS task). After a Creative Dial turn the camera
+    # keeps what it had until the next half-press: at the standard modes the film's B5, on COLOR the standard modes'
+    # A1; a pick from the standard modes keeps their A1 first (fw_ent reads), and #88 puts the film's B5 in (as v0.40.1).
+    # The last pick is FILM 4 (Sunny 0 / 0): Auto keeps the standard modes' A1 on it.
+    'wb-shift-written-at-the-half-press-only': [
+        Boot(f'{STANDARD_OWN_A1} {HP} {TO_COLOR} expect:val:{AUTO_AB}=1 {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 {HP} '
+             f'{TO_STANDARD} expect:val:{AUTO_AB}=-5 {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} expect:val:{AUTO_AB}=1 '
+             f'right wait ok wait wait {HP} {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} {HP} '
+             f'expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}, tids=True,
+             watch=('ex_live', 'fl_set', 'fw_pm', 'fw_wr', 'fw_msv'), hits=wb_written_at_the_half_press_only),
     ],
     'camera-mode-gets-its-own-wb-shift-back': [
         Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 expect:val:{CWB_AB}=3 '
-             f'{TO_STANDARD} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 expect:val:{CWB_GM}=0 s1 wait wait poweroff',
+             f'{TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 expect:val:{CWB_GM}=0 s1 wait wait poweroff',
              card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
     # #99: back on COLOR, the COLOR (here COLOR 1, no film: its own compensation 0) gets its own again, not the camera
     # mode's A1 (v0.40.3 left A1 in the camera and copied it into COLOR 1 when Picture Mode opened); and a film (FILM 3)
     # gets its B5 back after a turn to the camera's modes and back.
     'color-gets-its-own-wb-shift-back-from-a-camera-mode': [
-        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} expect:val:{AUTO_AB}=0 expect:p:{SLOT1_AB}=00 {PAGE_TO_FILM_3} '
-             f'{TO_STANDARD} {TO_COLOR} expect:val:{AUTO_AB}=-5 expect:p:{SLOT1_AB}=fb s1 wait wait poweroff',
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} expect:p:{SLOT1_AB}=00 {HP} expect:val:{AUTO_AB}=0 expect:p:{SLOT1_AB}=00 '
+             f'{TO_STANDARD} {TO_COLOR} {PAGE_TO_FILM_3} {TO_STANDARD} {HP} {TO_COLOR} {HP} expect:val:{AUTO_AB}=-5 '
+             f'expect:p:{SLOT1_AB}=fb s1 wait wait poweroff',
              expect=[r'^Films with changes \(a \* in the camera\): none$'], card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
     # #99 (owner, 2026-11-20: "Keep it, like the stock camera"): the camera modes' own compensation is kept in camera
@@ -992,15 +1008,15 @@ TESTS = {
     'camera-mode-wb-shift-kept-over-a-power-off': [
         Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
              card={'LOOKS.BIN': 'LOOKS_WB'}),
-        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} expect:val:{AUTO_AB}=1 {TO_COLOR} '
-             f'expect:val:{AUTO_AB}=-5 s1 wait wait poweroff'),
+        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} '
+             f'{HP} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff'),
     ],
     # #99: a record that is not valid (here its CRC broken before the first look; a camera that never ran this build
     # has none) means nothing is kept: the turn to the standard modes gives 0 / 0, nothing is taken from it.
     'camera-mode-wb-shift-not-known-without-a-good-record': [
         Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait poweroff',
              card={'LOOKS.BIN': 'LOOKS_WB'}),
-        Boot(f'poke:{FWM_CRC:x}=00000000 wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} '
+        Boot(f'poke:{FWM_CRC:x}=00000000 wait wait s1 wait wait expect:val:{AUTO_AB}=-5 {TO_STANDARD} {HP} '
              f'expect:val:{AUTO_AB}=0 s1 wait wait poweroff'),
     ],
     # #99: each shooting mode keeps its own (as the stock camera keeps the compensation per custom mode). P's standard
@@ -1010,8 +1026,8 @@ TESTS = {
     'custom-modes-keep-their-own-wb-shift': [
         Boot(f'{STANDARD_OWN_A1} {ASSIGN_C1} {WB_SCREEN_AGAIN_A_PLUS_1} expect:val:{AUTO_AB}=2 {TO_COLOR} '
              f'{PAGE_TO_FILM_3} expect:val:{AUTO_AB}=-5 s1 wait wait mode:{MODE_DIAL_C1} wait wait wait s1 wait wait '
-             f'expect:val:{AUTO_AB}=0 {TO_STANDARD} expect:val:{AUTO_AB}=1 {TO_COLOR} expect:val:{AUTO_AB}=0 '
-             f'mode:{MODE_DIAL_P} wait wait wait expect:val:{AUTO_AB}=-5 s1 wait wait {TO_STANDARD} '
+             f'expect:val:{AUTO_AB}=0 {TO_STANDARD} {HP} expect:val:{AUTO_AB}=1 {TO_COLOR} {HP} expect:val:{AUTO_AB}=0 '
+             f'mode:{MODE_DIAL_P} wait wait wait expect:val:{AUTO_AB}=-5 s1 wait wait {TO_STANDARD} {HP} '
              f'expect:val:{AUTO_AB}=2 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
     # borders: the Border row steps -5..+5 (2026-11-18: - black, + white; right / left, no step past either end) into
