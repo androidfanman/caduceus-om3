@@ -9424,6 +9424,12 @@ places: analysis + the mp1 probe for the tail in general); the camera's own WB m
   Both builds of 7c1a569 the same byte for byte. Package `test-builds/2026-11-20-fixes2/1-test-build` (private folder):
   E1479999.BIN `fc80a4af…2d58`, GUIDES.BIN `4a50fe07…ad46d`; go-back fix97-1 `0b5fb287…beed` / `3172384d…8a07`.
 
+## v0.40.3-beta2 (2026-11-20; camera-tested as fixes2)
+Branch `try/v0.40.3-beta2` = `try/v0.40.3-fixes2` (fix91-1 + fix97-1 + fix99-1, camera-tested 2026-11-20, owner: "It
+works!!") + VERSION "v0.40.3-b2 (beta 2: fixes for #91, #97 and #99)". E1479999.BIN 977b25dd…4945 (GUIDES / LABELS /
+TONES built in); `patch.py --release v0.40.3-beta2` rebuilds it byte for byte. Card files as v0.40.3-beta. Published
+as a GitHub pre-release on the owner's OK ("Yes, release it"); v0.40.2 stays Latest.
+
 ## The fixes2 boot loop: #99's section-8 code at the start-up 897 writes (2026-11-20; analysis + emulator; branch fix/bootloop-897-section8)
 - **Camera (owner, via the main chat):** fixes2 (7c1a569, also released as v0.40.3-beta2) passed its test ("It
   works!!"), then later, card unchanged, the camera boot-looped; CADLOG.TXT was not written again (it died before our
