@@ -282,6 +282,19 @@ SDESC_IS = lambda width, size: f'expect:mem:{SDESC + 2:x}={U16(width)} expect:me
 WHEEL_SAT_GUIDES = (f'{OPEN_WHEEL} expect:mem:{GDESC + 12:x}={U32(SATURATION_GUIDE)} {SDESC_IS(175, SAT_ALL_GUIDE)} '
                     f'sub+1 wait expect:val:2197=255 {SDESC_IS(175, SAT_ALL_GUIDE)} sub-1 wait '
                     f'info wait {SDESC_IS(175, SAT_ALL_GUIDE)} info wait {SDESC_IS(180, SDESC_STOCK_SIZE)} poweroff')
+# wheel-hsl-view: on the Color (one colour), Hue and Luminance pages GDESC holds the H / S / L bar of the colour under
+# the cursor, byte for byte as card/mkhbar.py draws it (the page's field framed). Shadows gets its own guide back, and
+# the half-press the camera's.
+import mkguides, mkhbar  # noqa: E402
+_HB = mkhbar.pieces()
+HBAR_IS = lambda h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 12:x}={U32(len(b))} expect:mem:{GDESC:x}+10*={b.hex()}')(
+    mkhbar.stream(h, s, l, axis, _HB))
+SHADOWS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Shadows').flatten()), 175, 50))
+WHEEL_HSL_BAR = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {HBAR_IS(0, 3, 0, 0)} '
+                 f'info wait info wait {HBAR_IS(0, 3, 0, 2)} main+1 wait main+1 wait {HBAR_IS(2, 3, 0, 2)} '
+                 f'sub-1 wait {HBAR_IS(0, 0, 0, 2)} sub+1 wait info wait main-1 wait {HBAR_IS(2, 3, -1, 1)} '
+                 f'info wait expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
+                 f's1 wait expect:mem:{GDESC + 12:x}={U32(4022)}{U32(0xa49ebe40)} poweroff')
 # On Hue, ed_get calls the label code (vl_s). Its caller gets a2 back as it was. v0.20..v0.30.3 handed back the call's
 # return address in a2: the call wrote it over ed_get's saved a2.
 WHEEL_READOUT_KEEPS_A2 = f'keep:{{ed_get}}:{{g_ret}}:a2 {OPEN_WHEEL} info wait info wait wait expect:kept poweroff'
@@ -1247,6 +1260,9 @@ TESTS = {
     ],
     'color-wheel-tone-readout-keeps-the-callers-a2': [
         Boot(TONE_READOUT_KEEPS_A2),
+    ],
+    'color-wheel-hsl-bar-shows-the-colour': [
+        Boot(WHEEL_HSL_BAR),
     ],
     'color-wheel-saturation-guide-names-the-page': [
         Boot(WHEEL_SAT_GUIDES),

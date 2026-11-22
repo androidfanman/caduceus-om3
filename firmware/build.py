@@ -258,6 +258,10 @@ def build(defaults, testfile, out):
     wl += b''.join(s + bytes(-len(s) % 4) for s in wls)
     assert len(wl) % 4 == 0                       # fl_mk copies wl_tab a word at a time (ub_cpy)
     (out / 'wheel.inc').write_text('.balign 4\nwl_tab:\n' + db(bytes(wl)) + ' .balign 4\nfl_sagd:\n' + db(sagd) + ' .balign 4\n')
+    import mkhbar                                 # wheel-hsl-view: the H / S / L bar's pieces (hbar.s)
+    hb = mkhbar.inc()
+    assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 4096    # hbar.s HB_BUF
+    (out / 'hbar.inc').write_text(hb)
     (out / 'wheeldef.inc').write_text(f'.set XL_N, {len(mklabels.LABELS)}\n.set WLL, {len(wl)}\n.set XL_W0, {w0}\n.set SAS, {len(sagd)}\n'
                                       + ''.join(f'.set XL_{t.upper()}, {mklabels.LABELS.index(t)}\n' for t in ('Sat', 'Lum', 'Hue', 'Tint')))
     fwp, fwi, boxes, dw = mkicons.sp_parts()     # the quick menu's "FILM n" (fl_sp draws it)

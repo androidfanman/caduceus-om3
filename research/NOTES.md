@@ -9840,3 +9840,38 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
   boxed, updated on every click and colour change; grey sliders if they fit. Emulator first (screenshots + the click's
   instruction count), then the owner's camera. Part 2 only after that, starting with a probe that proves our code runs
   in the wheel renderer (for example: draw the stock wheel, then one extra dot) before any real drawing.
+
+## The H / S / L bar under the colour wheel, test 1 (2026-11-22; emulator only, camera test pending; branch experiment/wheel-hsl-view)
+- Owner (after the report above): "Yes, build the bar". Part 1 only; the wheel drawing (part 2) untouched.
+- **What it shows:** on the wheel's Color (one colour), Hue and Luminance pages the guide picture under the wheel (GDESC,
+  175 x 50, where "Saturation [INFO]" / "Hue [INFO]" / "Luminance [INFO]" were) reads "H+2  S+3  L±0" for the colour
+  under the cursor, each with a small slider (-5 .. +5: a white mark on a grey line with a centre tick), the page's
+  field in a white frame. Color All, Shadows and Highlights keep their guides; the half-press puts the camera's back.
+  The page name stays in the dial label (Sat / Hue / Lum); the "[INFO]" hint is gone on those three pages.
+- **Pictures:** card/mkhbar.py (DejaVu, the camera's outline style, palette 0 / 7 / 9 / 10 / 11 / 12; no camera
+  graphics). A field = its content (letter + value: text and slider, rows 6..43, cols 9..w-10) and, on the page's
+  field, a frame that never touches the content. Every row part is encoded once at build time (runs stop at the
+  part's edge, as the camera's own pictures stop at a row's end; 11,558 tokens, hbar.inc in .ext15).
+- **Firmware (hbar.s, .ext15; no new hook):**
+  - ed_get (ext1), on a readout id 916 + slice after PVAL: `mov mdr,d3; call hb_rd; mov d3,mdr` (16 B). The readout
+    is read on every redraw before the screen's pictures (om-emu trace: dial step -> SetValue, the readout 916 + slice,
+    the wheel's 12 reads, then the 23 pictures, GDESC last), so the bar is current on the same click.
+  - hb_rd: pages 0..2, EDK < 4, GDESC the camera's 14 / 175 x 50 / 8 descriptor holding the stock guide or one of ours
+    (GUIDES.BIN, the Saturation block, the bar). h / l from the slot (P + 32 + 64k + slice, + 12), s through aget
+    (0x603f039d, the wheel drawing's own read: the camera's saturation on every page). Nothing changed (key) and the
+    bar on screen: done. Else hb_join packs the 150 row parts (rows x H, S, L x left / content / right) into the buffer
+    not on screen, then GDESC size + payload -> it.
+  - Two 4 KB heap buffers (worst stream 3,820 B, build.py checks < 4096), allocated once at the end of fl_mk (its
+    `ret` -> `jmp hb_alloc`, which ends with the same ret). Pictures in flash blank the menu (2026-11-16): heap only.
+  - gd_set's `call gd_sel` -> `call hb_gsel` (same frame): a bar in GDESC -> the camera's guide first, so gd_set's
+    checks and its page pictures (Shadows / Highlights, the half-press's -1) work as before.
+- **Cost (om-emu, the instructions up to GDESC's draw on the same steps, v0.40.3-beta4 -> this):** a Hue click
+  631,909 -> 695,418 (+63.5k, +10 %); a Saturation click 990,784 -> 1,054,651; a colour step 633,018 -> 697,777; INFO
+  to Hue 1,293,707 -> 1,357,598. A first try drew pixels and encoded them at each click: +258k (+40 %), dropped.
+- **Space:** ext1 1624 / 1744, ext15 31,680 / 139,264; ext10 / ext11 unchanged.
+- **Test** `color-wheel-hsl-bar-shows-the-colour`: Saturation +3 -> bar (0, 3, 0) with S framed; Hue -> H framed;
+  Hue +2; the next colour (0, 0, 0); Luminance -1 -> (2, 3, -1) with L framed; each GDESC byte for byte as
+  mkhbar.stream; Shadows -> its own guide; half-press -> the camera's (4022 B, 0xa49ebe40). On v0.40.3-beta4: caught.
+- **Not known (camera only):** whether the camera shows a guide picture rewritten at each click cleanly (two buffers,
+  switched after the write), whether the letters are big enough on the camera's screen (cap height 19 px against the
+  camera's guide words' 31), and whether a click feels slower.

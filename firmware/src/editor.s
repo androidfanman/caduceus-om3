@@ -373,6 +373,11 @@ ed_get:
  cmp 12,d2
  bcc 1f
  PVAL g_miss
+ mov mdr,d3                       /* wheel-hsl-view: the H / S / L bar under the wheel (hbar.s; keeps d0..d3, a0..a2, MDR) */
+ add -4,sp
+ call hb_rd,[d2,d3,a2,a3],48     /* HB_F */
+ add 4,sp
+ mov d3,mdr
  movbu (AXIS,a2),d3               /* sector ids only on the Hue / Light / Extras / Film pages: else 5f */
  add -1,d3
  cmp 4,d3
@@ -1168,7 +1173,7 @@ gd_check:
 gd_set:
  add -4,sp                        /* v0.25: its slot (without it the call wrote over gd_set's saved a2, and ed_trig went
                                    * on with a2 = garbage: no half-press save after the editor's first use) */
- call gd_sel,[d2,d3,a2,a3],24     /* film test 8: the Saturation page's label and guide */
+ call hb_gsel,[d2,d3,a2,a3],24    /* film test 8: the Saturation page's label and guide (gd_sel; wheel-hsl-view: hb_gsel takes the bar off first) */
  add 4,sp
  mov GDESC,a0
  movhu (a0),d1
@@ -7292,7 +7297,7 @@ fl_mk:
  mov d2,(wl_blk)
 99:
  mov (52,sp),a2
- ret [d2,d3,a2,a3],80
+ jmp hb_alloc                     /* wheel-hsl-view: the bar's two buffers, then ret [d2,d3,a2,a3],80 */
 
 /* fl_cget: `call fl_cget,[d2,d3,a2,a3],40`, a2 = P, d0 = key (kind << 8 | n: kind 1 "FILM*" list cell, 2 left cell)
  * -> a0 = its slot word (0: none). P+STC block: (0) next victim, (4) 8 slot words, (36) 8 descriptors, (228) 8 keys,
@@ -23397,3 +23402,4 @@ bl_v:                             /* the value */
  .include "playfilm.s"            /* #93: playback labels a photo by the film in its own Exif (ext13) */
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
  .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
+ .include "hbar.s"                /* wheel-hsl-view: the H / S / L bar under the colour wheel (ext15) */
