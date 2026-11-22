@@ -1,21 +1,26 @@
 #!/usr/bin/env python3
-"""The colour wheel's H / S / L bar, round 2 (experiment/wheel-hsl-view): what the firmware puts together under the
+"""The colour wheel's H / S / L bar, round 3 (experiment/wheel-hsl-view): what the firmware puts together under the
 wheel, and the same picture made here (the emulator test compares the firmware's with it byte for byte).
 
-The bar: 400 x 50 in the guide picture's place (its two widgets widened by build.py's DATA), OSD type 11, the guide
-plane's palette (om-emu, 2026-11-22: about 25 strong colours, many greys, no cyan, no pale tints; indices 128.. not
-drawn). Left to right: a swatch of the colour under the cursor (its hue turned by its Hue value), then H, S and L,
-each its value ("H+2") and a coloured slider of 11 steps with a mark under the value's step:
-- H: the neighbouring shades (the colour's hue -27 .. +27 degrees, 5.5 a step, as the camera turns it);
-- S: grey to the full colour, L: dark through the colour to light, both in the colour as its Hue value turns it.
-The page's field shows its value white-boxed. Colours the palette lacks are two palette colours in alternating rows
-(1, 2 or 3 rows in 4), so each row of a step stays one run.
+The bar: 400 x 64 in the guide picture's place (its two widgets widened and raised by build.py's DATA), OSD type 11,
+the guide plane's palette (GUI layer 1, palette 62 at 0x614a67f0). h2 mixed two of the palette's ~25 strong colours in
+alternating rows, which the camera showed as rough stripes (owner, 2026-11-22). h3 draws every band in one solid colour
+of its own: palette 62's entries 108..120 are unused (0x01010101, not drawn; om-emu: made magenta they changed none of
+21 stock screens; entries 128..255 never reach the screen, the plane takes 128). The bar's picture uses those 13
+entries (SLOT) for its colours, and hbar.s writes the colour's 13 (PAL: per slice and Hue value) into them, in the
+palette table and through the camera's own palette call (GPISetPalette), each time it draws a new bar:
+- 108 the colour (its hue turned by its Hue value), the swatch, S's end and L's middle;
+- 109..111 S: the colour 25 / 50 / 75 % over grey; 112..115 L: 1/3 and 2/3 of the colour, 1/3 and 2/3 of the way to
+  white; 116..120 H: the slice's hue -22, -11, 0, +11, +22 degrees.
 
-Each row of the bar is a list of parts, encoded part by part (runs of up to 16 stopping at each part's edge):
-  swatch (46 px) | for H, S, L: text (54 px), slider (64 px).
-Fixed parts (blank rows, frames, letters, marks) are encoded here once each (hb_rows / hb_tok); the slider rows
-11..30 and the swatch rows 8..41 are made at each redraw from colour tables (hb_seg): a fixed head, the steps (one
-colour each, chosen per row by its 4-row mask), a fixed tail. hbar.s does exactly what stream() does.
+Left to right, every part centred on the bar's middle row line (owner: "they arent inline vertically with the color
+square"): the swatch, then H, S and L, each its value ("H+2", the page's white-boxed) and a 64 x 34 gradient with a
+caret above and below at the value: H 5 bands (the neighbouring hues), S 5 (grey to the colour), L 7 (black, the
+colour, white).
+
+Each row of the bar is 7 parts, each a fixed row of tokens (hb_rows / hb_tok): the swatch column (hb_swr; its colour
+rows hb_gid[0]), then per field its text part (hb_tx) and its slider part (gradient rows hb_gid[1 + f], other rows the
+caret table hb_mk). hbar.s does exactly what stream() does.
 
 usage: mkhbar.py OUT.inc [--preview PNG]"""
 import argparse, colorsys
@@ -23,109 +28,58 @@ import numpy as np
 from PIL import Image, ImageDraw
 from mkguides import raster, edge
 
-W, H = 400, 50
-BG = 72                               # the bar's ground: (13, 13, 13), opaque, so the camera's button frame behind it
-                                      # (180 px, centred in the widened widget) stays hidden
-SWW, TW, SLW = 46, 54, 64             # swatch, text, slider widths; a field = text + slider = 118; 46 + 3 * 118 = 400
-SW_Y0, SW_Y1 = 6, 43                  # the swatch box's rows (outline rows 6, 43; fill rows 8..41 between 2-px lines)
-SL_Y0, SL_Y1 = 10, 31                 # the slider's outline rows; its fill rows 11..30
-MK_Y0, MK_Y1 = 32, 42                 # the mark's rows
-STEPW, NSTEP = 5, 11                  # 11 steps of 5 px (slider cols 2..56; outline cols 1, 57)
-CAP = 20                              # the value's cap height
+W, H = 400, 64
+BG = 72                               # the bar's ground: palette 0x11282828, almost clear (the camera shows the live
+                                      # view through it, h2 photo)
+SWW, TW, SLW = 40, 50, 70             # swatch, text, slider widths; 40 + 3 * (50 + 70) = 400
+SW_Y0, SW_Y1 = 13, 50                 # the swatch box's rows: outline 13 / 50, white 14 / 49, colour 15..48 (34 x 34)
+SL_Y0, SL_Y1 = 14, 49                 # the slider's outline rows; its gradient rows 15..48 (as the swatch's colour)
+GX0, GW = 2, 64                       # the gradient's first column in the slider part and its width
+CAP = 20                              # the value's cap height (rows 22..41)
+MID2 = H - 1                          # twice the middle row line (31.5): every part is symmetric about it
 HUE = [60, 35, 15, 355, 320, 280, 235, 205, 180, 155, 120, 85]   # docs/PHOTO_TO_LOOK.md, slices 0..11
 DEG = 5.5                             # degrees of hue a step; + turns toward the next slice (lower HSV hue)
 FIELD_OF_AXIS = {2: 0, 0: 1, 1: 2}    # the editor's page (P+AXIS: 2 Hue, 0 Saturation, 1 Luminance) -> its field
 GHDR = bytes([(H - 1) & 255, ((H - 1) >> 8 & 3) | (((W - 1) & 15) << 4), ((W - 1) >> 4) & 63, 11])
-MASKS = (0b0000, 0b0001, 0b0101, 0b0111)   # rows (y & 3) that take colour B, for B's share 0, 1/4, 1/2, 3/4
-# the guide plane's palette (om-emu probe, 2026-11-22), the colours the mixes may use
-PAL = {7: (0, 0, 0), 12: (85, 85, 85), 64: (128, 128, 128), 11: (170, 170, 170), 98: (235, 235, 235),
-       10: (254, 254, 254), 122: (254, 0, 0), 90: (253, 0, 83), 89: (254, 0, 254), 88: (138, 27, 253),
-       87: (49, 52, 253), 104: (0, 0, 254), 105: (19, 116, 247), 107: (63, 173, 252), 2: (94, 175, 254),
-       86: (0, 172, 39), 54: (1, 207, 0), 22: (0, 255, 0), 23: (0, 170, 0), 24: (0, 85, 0), 1: (212, 255, 0),
-       20: (141, 171, 0), 21: (70, 86, 0), 123: (254, 255, 1), 16: (253, 105, 0), 17: (168, 70, 0), 18: (83, 35, 0),
-       55: (207, 87, 1)}
-SHOW = {**PAL, 0: (11, 11, 11), BG: (13, 13, 13), 9: (5, 5, 5)}   # for previews
-
-
-def _lin(c):
-    c = c / 255
-    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
-
-
-def _lab(lin):
-    x, y, z = (sum(m * v for m, v in zip(row, lin)) for row in
-               ((0.4124, 0.3576, 0.1805), (0.2126, 0.7152, 0.0722), (0.0193, 0.1192, 0.9505)))
-    f = lambda t: t ** (1 / 3) if t > 0.008856 else 7.787 * t + 16 / 116
-    fx, fy, fz = f(x / 0.9505), f(y), f(z / 1.089)
-    return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
-
-
-_KEYS = sorted(PAL)
-_LABS = np.array([_lab(tuple(_lin(v) for v in PAL[k])) for k in _KEYS])
-_LINS = np.array([[_lin(v) for v in PAL[k]] for k in _KEYS])
-
-
-def _mixes():
-    """Every candidate: (A, B, share of B) with its Lab colour (the mix of the two in linear light)."""
-    cand, labs = [], []
-    for ia, a in enumerate(_KEYS):
-        for ib, b in enumerate(_KEYS):
-            for k, sh in enumerate((0, .25, .5, .75)):
-                if (k == 0) != (a == b): continue
-                cand.append((ia, ib, k, sh)); labs.append(_lab(tuple(_LINS[ia] * (1 - sh) + _LINS[ib] * sh)))
-    return cand, np.array(labs)
-
-
-_CAND, _CLAB = _mixes()
-_CA = np.array([c[0] for c in _CAND]); _CB = np.array([c[1] for c in _CAND]); _CS = np.array([c[3] for c in _CAND])
-HUES = {122, 90, 89, 88, 87, 104, 105, 107, 2, 86, 54, 22, 1, 123, 16, 55}   # the strong colours (no greys, no darks)
-_HOK = np.array([_KEYS[a] in HUES and _KEYS[b] in HUES for a, b in zip(_CA, _CB)])
-
-
-def mix(target):
-    """target sRGB (0..255) -> (A, B, mask): two strong palette colours and B's share (row dither), nearest in Lab,
-    each of the two weighed by its own distance too (no far-apart pairs)."""
-    tl = np.array(_lab(tuple(_lin(v) for v in target)))
-    d = np.sqrt(((_CLAB - tl) ** 2).sum(1))
-    da = np.sqrt(((_LABS[_CA] - tl) ** 2).sum(1)); db = np.sqrt(((_LABS[_CB] - tl) ** 2).sum(1))
-    e = np.where(_HOK, d + 0.5 * ((1 - _CS) * da + _CS * db), np.inf)
-    ia, ib, k, _ = _CAND[int(np.argmin(e))]
-    return _KEYS[ia], _KEYS[ib], MASKS[k]
-
-
-def nearest(target):
-    """The strong palette colour nearest to target (Lab)."""
-    tl = np.array(_lab(tuple(_lin(v) for v in target)))
-    return min(HUES, key=lambda k: ((_LABS[_KEYS.index(k)] - tl) ** 2).sum())
-
-
-def share(a, b, t):
-    """a to b, b's share t (0..1) in quarters -> (A, B, mask)."""
-    q = round(4 * t)
-    return (b, b, 0) if q >= 4 else (a, a, 0) if q <= 0 else (a, b, MASKS[q])
+GREY, BLACK, WHITE = 64, 7, 10        # palette 62: 0xff808080, 0xff000000, 0xfffefefe
+SLOT0, NSLOT = 108, 13                # palette 62's unused entries 108..120 (stock 0x01010101)
+FREE_STOCK = 0x01010101
+SW, S_SL, L_SL, H_SL = 108, (109, 110, 111), (112, 113, 114, 115), (116, 117, 118, 119, 120)
+H_OFF = (-4, -2, 0, 2, 4)             # the H bands' values (x DEG)
+PAL_TABLE = 0x614a67f0                # palette 62 (record 0x614a6bf0)
 
 
 def hsv(h, s=1.0, v=1.0):
     return tuple(round(255 * x) for x in colorsys.hsv_to_rgb((h % 360) / 360, s, v))
 
 
-def blend(a, b, t):
-    return tuple(round(x * (1 - t) + y * t) for x, y in zip(a, b))
-
-
-GREY, BLACK, WHITE = 64, 7, 10
-
-
 def colours(c, h):
-    """slice c, its Hue value h -> 34 (A, B, mask): the swatch, H's, S's and L's 11 steps. The swatch and H: the hue
-    as near as two strong colours mixed get; S: grey to the colour, L: black to the colour to white, the colour = the
-    strong palette colour nearest to the turned hue (so S and L change when the Hue value turns it far enough)."""
-    full = hsv(HUE[c] - DEG * h)
-    col = nearest(full)
-    hs = [mix(hsv(HUE[c] - DEG * v)) for v in range(-5, 6)]
-    ss = [share(GREY, col, (v + 5) / 10) for v in range(-5, 6)]
-    ls = [share(BLACK, col, 1 - 0.75 * -v / 5) if v < 0 else share(col, WHITE, 0.75 * v / 5) for v in range(-5, 6)]
-    return [mix(full)] + hs + ss + ls
+    """slice c, its Hue value h -> the 13 colours (r, g, b) of entries 108..120."""
+    t = hsv(HUE[c] - DEG * h)
+    out = [t]
+    out += [tuple(round(128 * (1 - k) + x * k) for x in t) for k in (0.25, 0.5, 0.75)]
+    out += [tuple(round(x * k / 3) for x in t) for k in (1, 2)]
+    out += [tuple(round(x + (255 - x) * k / 3) for x in t) for k in (1, 2)]
+    out += [hsv(HUE[c] - DEG * v) for v in H_OFF]
+    assert len(out) == NSLOT
+    return out
+
+
+def argb(c, h):
+    return [0xff000000 | r << 16 | g << 8 | b for r, g, b in colours(c, h)]
+
+
+SHOW = {7: (0, 0, 0), 10: (254, 254, 254), 11: (170, 170, 170), 12: (85, 85, 85), 64: (128, 128, 128)}
+
+
+def vx(v):
+    """value v (-5..5) -> its gradient column (0..GW-1)"""
+    return round((v + 5) * (GW - 1) / 10)
+
+
+GH = [H_SL[x * 5 // GW] for x in range(GW)]
+GS = [(GREY, *S_SL, SW)[x * 5 // GW] for x in range(GW)]
+GL = [(BLACK, L_SL[0], L_SL[1], SW, L_SL[2], L_SL[3], WHITE)[x * 7 // GW] for x in range(GW)]
 
 
 def _fit(cap):
@@ -136,7 +90,8 @@ def _fit(cap):
 
 
 def text_part(f, v, active, fs):
-    """TW x 50: 'H+2' centred on row 21; on the page's field dark letters in a white rounded box."""
+    """TW x H: 'H+2' with its cap rows on 22..41; on the page's field dark letters in a white rounded box (rows
+    14..49)."""
     word = 'HSL'[f] + ('+' if v > 0 else '−' if v < 0 else '±') + str(abs(v))
     a = raster(word, fs, 0.8)
     base = np.nonzero((raster('H', fs, 0.8) > 128).any(axis=1))[0].max()
@@ -144,13 +99,13 @@ def text_part(f, v, active, fs):
     a = a[top - 2:base + 3]                       # cap rows plus 2 above, 2 below (the minus / plus-minus fit)
     cols = np.nonzero((a > 40).any(axis=0))[0]; a = a[:, cols.min():cols.max() + 1]
     hh, ww = a.shape
-    assert ww <= TW - 8, (word, ww)
-    y0 = 21 - (CAP + 4) // 2; x0 = (TW - ww) // 2
+    assert ww <= TW - 6, (word, ww)
+    y0 = (MID2 + 1 - CAP) // 2 - 2; x0 = (TW - ww) // 2
     out = np.full((H, TW), BG, dtype=np.uint8)
     if active:
         S = 4
         im = Image.new('L', (TW * S, H * S), 0)
-        ImageDraw.Draw(im).rounded_rectangle((1 * S, 5 * S, (TW - 1) * S - 1, 38 * S - 1), radius=5 * S, fill=255)
+        ImageDraw.Draw(im).rounded_rectangle((1 * S, 14 * S, (TW - 1) * S - 1, (MID2 - 13) * S - 1), radius=5 * S, fill=255)
         box = np.array(im.resize((TW, H), Image.LANCZOS))
         out[box > 128] = 10; out[(box > 40) & (box <= 128)] = 11
         reg = out[y0:y0 + hh, x0:x0 + ww]
@@ -163,62 +118,68 @@ def text_part(f, v, active, fs):
     return out
 
 
-def mark_part(v):
-    """SLW x 50, rows MK_Y0..MK_Y1 only: a white triangle pointing up at step v's centre."""
+def slider_frame():
+    """SLW x H: the slider column without its gradient: the outline rows and sides."""
     out = np.full((H, SLW), BG, dtype=np.uint8)
-    cx = 2 + STEPW * (v + 5) + STEPW / 2
-    S = 4
-    im = Image.new('L', (SLW * S, H * S), 0)
-    ImageDraw.Draw(im).polygon([(cx * S, 34 * S), ((cx - 4.5) * S, 40 * S), ((cx + 4.5) * S, 40 * S)], fill=255)
-    tri = np.array(im.resize((SLW, H), Image.LANCZOS)) > 100
-    e = edge(tri)
-    out[e != 0] = e[e != 0]
-    assert not (out[:MK_Y0] != BG).any() and not (out[MK_Y1 + 1:] != BG).any()
+    out[SL_Y0, GX0 - 1:GX0 + GW + 1] = 7; out[SL_Y1, GX0 - 1:GX0 + GW + 1] = 7
+    out[SL_Y0:SL_Y1 + 1, GX0 - 1] = 7; out[SL_Y0:SL_Y1 + 1, GX0 + GW] = 7
     return out
 
 
-SW_FILL = SWW - 10                    # 36 px of swatch colour between head and tail
+def mark_part(v):
+    """SLW x H: the slider column's rows other than the gradient's, with a white caret above (pointing down) and below
+    (pointing up) at value v's column, mirror images about the middle row line."""
+    out = slider_frame()
+    cx = GX0 + vx(v) + 0.5
+    S = 4
+    im = Image.new('L', (SLW * S, H * S), 0)
+    ImageDraw.Draw(im).polygon([((cx - 5) * S, 5 * S), ((cx + 5) * S, 5 * S), (cx * S, 11.5 * S)], fill=255)
+    tri = np.array(im.resize((SLW, H), Image.LANCZOS)) > 100
+    tri[H // 2:] = tri[:H // 2][::-1]             # the lower caret: the upper one mirrored
+    e = edge(tri)
+    put = (e != 0) & ((out == BG) | tri)
+    out[put] = e[put]
+    out[SL_Y0 + 1:SL_Y1, GX0:GX0 + GW] = BG       # the gradient's rows come from hb_gid
+    assert (out == out[::-1]).all()
+    return out
 
 
-def fixed_rows():
-    """The fixed row parts besides text and marks: name -> 1-D array."""
-    sw_edge = np.full(SWW, BG, dtype=np.uint8); sw_edge[3:SWW - 3] = 7
-    sw_line = np.full(SWW, BG, dtype=np.uint8); sw_line[3] = sw_line[SWW - 4] = 7; sw_line[4:SWW - 4] = 10
-    sl_edge = np.full(SLW, BG, dtype=np.uint8); sl_edge[1:2 + STEPW * NSTEP + 1] = 7
-    u8 = lambda xs: np.array(xs, dtype=np.uint8)
-    return {'sw_blank': np.full(SWW, BG, dtype=np.uint8), 'sw_edge': sw_edge, 'sw_line': sw_line,
-            'sw_head': u8([BG, BG, BG, 7, 10]), 'sw_tail': u8([10, 7, BG, BG, BG]),
-            'sl_blank': np.full(SLW, BG, dtype=np.uint8), 'sl_edge': sl_edge,
-            'sl_head': u8([BG, 7]), 'sl_tail': u8([7] + [BG] * (SLW - 3 - STEPW * NSTEP))}
+def swatch_rows():
+    """SWW x H: the swatch column without its colour (the box's outline and white line)."""
+    out = np.full((H, SWW), BG, dtype=np.uint8)
+    out[SW_Y0:SW_Y1 + 1, 1:SWW - 1] = 7
+    out[SW_Y0 + 1:SW_Y1, 2:SWW - 2] = 10
+    out[SW_Y0 + 2:SW_Y1 - 1, 3:SWW - 3] = BG     # the colour's rows come from hb_gid
+    assert (out == out[::-1]).all()
+    return out
+
+
+def sw_fill(colour):
+    return np.array([BG, 7, 10] + [colour] * (SWW - 6) + [10, 7, BG], dtype=np.uint8)
+
+
+def sl_fill(cols):
+    out = slider_frame()[(SL_Y0 + SL_Y1) // 2].copy()
+    out[GX0:GX0 + GW] = cols
+    return out
+
+
+SWF0, SWF1 = SW_Y0 + 2, SW_Y1 - 2     # the swatch's colour rows
+SLF0, SLF1 = SL_Y0 + 1, SL_Y1 - 1     # the gradients' rows
 
 
 def pieces():
     fs = _fit(CAP)
     return dict(text=[[[text_part(f, v, a, fs) for v in range(-5, 6)] for a in (0, 1)] for f in range(3)],
-                mark=[mark_part(v) for v in range(-5, 6)], fixed=fixed_rows(),
-                spec={(c, h): colours(c, h) for c in range(12) for h in range(-5, 6)})
-
-
-def pick(spec, y):
-    a, b, m = spec
-    return b if (m >> (y & 3)) & 1 else a
+                mark=[mark_part(v) for v in range(-5, 6)], swatch=swatch_rows())
 
 
 def row_parts(c, h, s, l, axis, y, P):
-    """Row y of the bar as parts: each a 1-D array (fixed) or ('run', colour, width) (made at the redraw)."""
-    F = P['fixed']; sp = P['spec'][(c, h)]      # sp[0] swatch, sp[1..11] H, sp[12..22] S, sp[23..33] L
-    parts = []
-    if y < SW_Y0 or y > SW_Y1: parts.append(F['sw_blank'])
-    elif y in (SW_Y0, SW_Y1): parts.append(F['sw_edge'])
-    elif y in (SW_Y0 + 1, SW_Y1 - 1): parts.append(F['sw_line'])
-    else: parts += [F['sw_head'], ('run', pick(sp[0], y), SW_FILL), F['sw_tail']]
-    for f, v in enumerate((h, s, l)):
+    """Row y of the bar: its 7 parts (1-D arrays). (The colour, slice c, is in the palette entries, not the picture.)"""
+    parts = [sw_fill(SW) if SWF0 <= y <= SWF1 else P['swatch'][y]]
+    for f, (v, g) in enumerate(((h, GH), (s, GS), (l, GL))):
         parts.append(P['text'][f][int(FIELD_OF_AXIS.get(axis) == f)][v + 5][y])
-        if y in (SL_Y0, SL_Y1): parts.append(F['sl_edge'])
-        elif SL_Y0 < y < SL_Y1:
-            parts += [F['sl_head']] + [('run', pick(sp[1 + 11 * f + k], y), STEPW) for k in range(NSTEP)] + [F['sl_tail']]
-        elif MK_Y0 <= y <= MK_Y1: parts.append(P['mark'][v + 5][y])
-        else: parts.append(F['sl_blank'])
+        parts.append(sl_fill(g) if SLF0 <= y <= SLF1 else P['mark'][v + 5][y])
     return parts
 
 
@@ -229,10 +190,6 @@ def row_tokens(row):
         while r < 16 and i + r < len(row) and row[i + r] == v: r += 1
         toks.append(v << 4 | (r - 1)); i += r
     return toks
-
-
-def run_tokens(colour, width):
-    return [colour << 4 | (min(16, width - k) - 1) for k in range(0, width, 16)]
 
 
 def pack(toks):
@@ -254,74 +211,65 @@ def stream(c, h, s, l, axis, P=None):
     h, s, l = clamp(h), clamp(s), clamp(l)
     toks = []
     for y in range(H):
-        for p in row_parts(c, h, s, l, axis, y, P):
-            toks += run_tokens(p[1], p[2]) if isinstance(p, tuple) else row_tokens(p)
+        for p in row_parts(c, h, s, l, axis, y, P): toks += row_tokens(p)
     return pack(toks)
 
 
 def render(c, h, s, l, axis, P=None):
     P = P or pieces()
-    rows = []
-    for y in range(H):
-        r = []
-        for p in row_parts(c, h, s, l, axis, y, P):
-            r += [p[1]] * p[2] if isinstance(p, tuple) else list(p)
-        assert len(r) == W
-        rows.append(r)
+    rows = [np.concatenate(row_parts(c, h, s, l, axis, y, P)) for y in range(H)]
+    assert all(len(r) == W for r in rows)
     return np.array(rows, dtype=np.uint8)
 
 
 def inc(P=None):
-    """hbar.inc for hbar.s (.ext15). hb_rows: each distinct fixed row part, u32 = its first token's index << 8 | its
-    count; hb_tok: their tokens (u16). hb_tx: 66 text parts (f * 22 + framed * 11 + v + 5) x 50 rows, hb_mk: 11 mark
-    parts x 50 rows (u16 row indices); HB_R_*: the fixed parts' indices. hb_seg: per slice c and Hue value h
-    (c * 11 + h + 5), 34 entries {A, B, mask, 0}: the swatch, then H, S, L's 11 steps each. HB_WORST: the longest
-    stream (a bound: every field at its longest)."""
+    """hbar.inc for hbar.s (.ext15). hb_rows: each distinct row part, u32 = its first token's index << 8 | its count;
+    hb_tok: their tokens (u16). hb_swr: the swatch column's rows (u16 row indices; its colour rows unused), hb_tx: 66
+    text parts (f * 22 + framed * 11 + v + 5) x H rows, hb_mk: 11 slider parts (v + 5) x H rows (the gradient's rows
+    unused), hb_gid: the rows of the swatch's colour and of the H, S, L gradients (4 u16). hb_pal: per slice c and Hue
+    value h (c * 11 + h + 5) the 13 colours (ARGB) of entries 108..120. HB_WORST: the longest stream (each part at its
+    longest)."""
     P = P or pieces()
     rows = {}; toks = []
     def rid(a):
         t = tuple(row_tokens(a))
         if t not in rows: rows[t] = len(rows); toks.append(t)
         return rows[t]
+    swr = [rid(P['swatch'][y]) for y in range(H)]
     tx = [rid(P['text'][f][a][v][y]) for f in range(3) for a in (0, 1) for v in range(11) for y in range(H)]
     mk = [rid(P['mark'][v][y]) for v in range(11) for y in range(H)]
-    fx = {k: rid(a) for k, a in P['fixed'].items()}
-    seg = bytearray()
-    for c in range(12):
-        for h in range(-5, 6):
-            for a, b, m in P['spec'][(c, h)]: seg += bytes((a, b, m, 0))
+    gid = [rid(sw_fill(SW)), rid(sl_fill(GH)), rid(sl_fill(GS)), rid(sl_fill(GL))]
     at = 0; rec = []
     for t in toks:
         rec.append(at << 8 | len(t)); at += len(t)
-    assert max(len(t) for t in toks) < 256 and at < 1 << 24
-    # a bound on the stream: the swatch's and the sliders' rows at their most tokens, each text / mark row at its most
-    tmax = lambda f, y: max(len(row_tokens(P['text'][f][a][v][y])) for a in (0, 1) for v in range(11))
-    mmax = lambda y: max(len(row_tokens(P['mark'][v][y])) for v in range(11))
-    F = P['fixed']; T = lambda k: len(row_tokens(F[k]))
+    assert max(len(t) for t in toks) < 256 and at < 1 << 24 and len(rows) < 65536
     n = 0
+    L = lambda a: len(row_tokens(a))
+    gmax = [len(toks[g]) for g in gid]
     for y in range(H):
-        n += (T('sw_head') + len(run_tokens(0, SW_FILL)) + T('sw_tail') if SW_Y0 + 1 < y < SW_Y1 - 1 else
-              max(T('sw_blank'), T('sw_edge'), T('sw_line')))
+        n += gmax[0] if SWF0 <= y <= SWF1 else L(P['swatch'][y])
         for f in range(3):
-            n += tmax(f, y)
-            n += (T('sl_head') + NSTEP * len(run_tokens(0, STEPW)) + T('sl_tail') if SL_Y0 < y < SL_Y1 else
-                  max(mmax(y), T('sl_edge'), T('sl_blank')))
+            n += max(L(P['text'][f][a][v][y]) for a in (0, 1) for v in range(11))
+            n += gmax[1 + f] if SLF0 <= y <= SLF1 else max(L(P['mark'][v][y]) for v in range(11))
     worst = len(pack([0] * n))
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
-    db = lambda b: ''.join(' .byte ' + ','.join(str(x) for x in b[i:i + 32]) + '\n' for i in range(0, len(b), 32))
-    return (f'.set HB_WORST, {worst}\n.set HB_HDR, {int.from_bytes(GHDR, "little"):#x}\n' + ''.join(f'.set HB_R_{k.upper()}, {i}\n' for k, i in fx.items()) +
-            f'.set HB_SWF, {SW_FILL}\n.set HB_STEPW, {STEPW}\n.set HB_NSTEP, {NSTEP}\n'
-            f'.set HB_SWY0, {SW_Y0}\n.set HB_SWY1, {SW_Y1}\n.set HB_SLY0, {SL_Y0}\n.set HB_SLY1, {SL_Y1}\n'
-            f'.set HB_MKY0, {MK_Y0}\n.set HB_MKY1, {MK_Y1}\n'
-            '.balign 4\nhb_rows:\n' + ''.join(f' .long {r}\n' for r in rec) + 'hb_seg:\n' + db(bytes(seg)) +
-            '.balign 2\nhb_tx:\n' + hw(tx) + 'hb_mk:\n' + hw(mk) + 'hb_tok:\n' + hw([x for t in toks for x in t]) +
-            '.balign 4\n')
+    return (f'.set HB_WORST, {worst}\n.set HB_HDR, {int.from_bytes(GHDR, "little"):#x}\n.set HB_H, {H}\n'
+            f'.set HB_SLOT0, {SLOT0}\n.set HB_NSLOT, {NSLOT}\n.set HB_PALT, {PAL_TABLE + 4 * SLOT0:#x}\n'
+            f'.set HB_SWF0, {SWF0}\n.set HB_SWF1, {SWF1}\n.set HB_SLF0, {SLF0}\n.set HB_SLF1, {SLF1}\n'
+            '.balign 4\nhb_rows:\n' + ''.join(f' .long {r}\n' for r in rec) +
+            '.balign 2\nhb_gid:\n' + hw(gid) + 'hb_swr:\n' + hw(swr) + 'hb_tx:\n' + hw(tx) + 'hb_mk:\n' + hw(mk) +
+            'hb_tok:\n' + hw([x for t in toks for x in t]) + '.balign 4\nhb_pal:\n' +
+            ''.join(' .long ' + ','.join(f'{x:#010x}' for x in argb(c, h)) + '\n' for c in range(12) for h in range(-5, 6)))
 
 
-def preview(bars, path, scale=3):
+def preview(bars, path, scale=3, ground=(96, 110, 120)):
+    """bars: [(c, h, picture)]: as the screen would show them over a plain ground (BG and the soft rim 9 drawn as / over
+    it), entries 108..120 the colour c, h's."""
     sheet = Image.new('RGB', (W * scale, (H + 6) * scale * len(bars)), (40, 40, 40))
-    for k, b in enumerate(bars):
-        rgb = Image.new('RGB', (W, H)); rgb.putdata([SHOW.get(int(v), (255, 0, 255)) for v in b.flatten()])
+    for k, (c, h, b) in enumerate(bars):
+        show = {**SHOW, BG: ground, 0: ground, 9: tuple(round(x * 0.47) for x in ground),
+                **{SLOT0 + i: col for i, col in enumerate(colours(c, h))}}
+        rgb = Image.new('RGB', (W, H)); rgb.putdata([show.get(int(v), (255, 0, 255)) for v in b.flatten()])
         sheet.paste(rgb.resize((W * scale, H * scale), Image.NEAREST), (0, k * (H + 6) * scale))
     sheet.save(path)
 
@@ -332,5 +280,5 @@ if __name__ == '__main__':
     P = pieces()
     open(a.out, 'w').write(inc(P))
     if a.preview:
-        preview([render(0, 2, 3, 0, 2, P), render(3, 0, -5, 0, 0, P), render(6, -3, 0, 4, 1, P),
-                 render(10, 5, 5, -5, 0, P), render(8, 0, 0, 0, 2, P)], a.preview)
+        preview([(c, h, render(c, h, s, l, ax, P)) for c, h, s, l, ax in
+                 ((0, 2, 3, 0, 2), (3, 0, -5, -5, 0), (6, -3, 0, 4, 1), (10, 5, 5, -5, 0), (8, 0, 0, 0, 2))], a.preview)

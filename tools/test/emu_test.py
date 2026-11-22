@@ -282,16 +282,24 @@ GDESC, SDESC = 0xa49ecdf8, 0xa49edf88
 # the half-press the camera's.
 import mkguides, mkhbar  # noqa: E402
 _HB = mkhbar.pieces()
-HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)} '
+HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.H)} '
                                              f'expect:mem:{GDESC + 12:x}={U32(len(b))} expect:mem:{GDESC:x}+10*={b.hex()}')(
     mkhbar.stream(c, h, s, l, axis, _HB))
 SHADOWS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Shadows').flatten()), 175, 50))
 WHEEL_HSL_BAR = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {HBAR_IS(0, 0, 3, 0, 0)} '
                  f'delete wait {HBAR_IS(0, 0, 3, 0, 2)} main+1 wait main+1 wait {HBAR_IS(0, 2, 3, 0, 2)} '
                  f'sub-1 wait {HBAR_IS(1, 0, 0, 0, 2)} sub+1 wait delete wait main-1 wait {HBAR_IS(0, 2, 3, -1, 1)} '
-                 f'info wait expect:mem:{GDESC + 2:x}={U16(175)} expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
+                 f'info wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
                  f's1 wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} '
                  f'expect:mem:{GDESC + 12:x}={U32(4022)}{U32(0xa49ebe40)} poweroff')
+# wheel-hsl-view h3: the bar's colours are palette 62's entries 108..120, which hb_spal sets to the colour under the
+# cursor (turned by its Hue) with each new bar: in the palette's table (as card/mkhbar.py's argb) and on the screen
+# (the swatch's middle, rear screen (177, 545), differs from the bar's clear ground at (157, 516); with the entries
+# unset it shows the ground).
+PAL_IS = lambda c, h: f'expect:mem:{mkhbar.PAL_TABLE + 4 * mkhbar.SLOT0:x}={"".join(U32(x) for x in mkhbar.argb(c, h))}'
+SWATCH_SHOWN = 'expect:pxdiff:177,545,157,516'
+WHEEL_BAR_COLOURS = (f'{OPEN_WHEEL} {PAL_IS(0, 0)} {SWATCH_SHOWN} delete wait main+1 wait main+1 wait {PAL_IS(0, 2)} '
+                     f'{SWATCH_SHOWN} sub-1 wait {PAL_IS(1, 0)} {SWATCH_SHOWN} poweroff')
 # Delete steps the HSL pages (P+AXIS 0 Saturation, 2 Hue, 1 Luminance); INFO goes to Shadows (5), Highlights (6) and
 # back to the HSL page it left; Delete on another Picture Mode row does nothing (the next INFO is a plain INFO).
 AXIS_IS = lambda a: f'expect:p:684={a:02x}'
@@ -1276,6 +1284,9 @@ TESTS = {
     ],
     'color-wheel-hsl-bar-shows-the-colour': [
         Boot(WHEEL_HSL_BAR),
+    ],
+    'color-wheel-hsl-bar-sets-its-own-colours': [
+        Boot(WHEEL_BAR_COLOURS),
     ],
     'color-wheel-delete-steps-saturation-hue-luminance': [
         Boot(WHEEL_DELETE_STEPS_HSL),

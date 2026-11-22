@@ -2,20 +2,24 @@
  * Owner (2026-11-22): "think we could do something like this for our color wheels?" -> "Yes, build the bar" (h1,
  * camera-tested: "that is looking good. and works.") -> round 2 (h2): "make the hsl bottom part bigger ... display
  * color ... Ideally the sat and light would change if we change the hue"; "map the delete key while in color profile
- * mode to switch between hsl and the info key to switch to the other wheels".
+ * mode to switch between hsl and the info key to switch to the other wheels" (camera-tested: "it works well") ->
+ * round 3 (h3): "the gradients look....bad. not smooth at all, and still a bit on the smallish side"; "they arent
+ * inline vertically with the color square to the left".
  *
  * The bar (card/mkhbar.py makes its parts and the same picture; the emulator test compares them byte for byte):
- * 400 x 50 in the guide picture's place under the wheel. build.py's DATA widens the guide's two widgets (frame
- * 0x3c6, picture 0x3c7: rectangles at 0x61451e40 / 0x61451e50) to 400 px, between the left column and Reset, on the
- * rear screen and in the viewfinder. Left to right: a swatch of the colour under the cursor (turned by its Hue), then
- * H, S and L, each its value and an 11-step coloured slider with a mark (H: the neighbouring shades; S: grey to the
- * colour; L: black to the colour to white; S and L in the colour as its Hue turns it). The page's value white-boxed.
+ * 400 x 64 in the guide picture's place under the wheel. build.py's DATA widens the guide's two widgets (frame
+ * 0x3c6, picture 0x3c7: rectangles at 0x61451e40 / 0x61451e50) to 400 x 64, between the left column and Reset, on the
+ * rear screen and in the viewfinder (the bottom edge where it was). Left to right, all on one middle line: a swatch of
+ * the colour under the cursor (turned by its Hue), then H, S and L, each its value and a gradient with carets at the
+ * value (H: the neighbouring hues; S: grey to the colour; L: black to the colour to white; S and L in the colour as
+ * its Hue turns it). The page's value white-boxed. Its colours: build.py writes card/mkhbar.py's PALETTE into the
+ * guide palette's unused entries (108..120, 128..255), so each band is one solid colour.
  *
  * When: the wheel's readout reads 916 + slice through GetValue on every redraw, before the screen's pictures are
  * drawn (om-emu trace, 2026-11-22). ed_get calls hb_rd there, after PVAL (only once the films are in: nothing at
  * start-up). hb_rd joins the bar only when something on it changed, into the buffer not on screen, then points GDESC
- * at it (400 wide). gd_set's gd_sel call goes through hb_gsel, which gives GDESC back to the camera's picture (175
- * wide) first. Leaving the wheel with MENU / OK keeps the bar in GDESC until the next half-press, as before.
+ * at it (400 x 64). gd_set's gd_sel call goes through hb_gsel, which gives GDESC back to the camera's picture (175 x
+ * 50) first. Leaving the wheel with MENU / OK keeps the bar in GDESC until the next half-press, as before.
  *
  * Keys (h2): Delete on the wheel row steps Saturation -> Hue -> Luminance -> Saturation; INFO steps to the other
  * wheels: from Saturation, Hue or Luminance to Shadows, then Highlights, then back to the HSL page it left. Delete's
@@ -25,10 +29,9 @@
  * release (entry 24) into INFO's release. INFO's own press (entry 26) goes through hb_kinf, which clears the mark,
  * then the stock 0x610b3ddb. ed_info's k_step asks hb_next for the page. */
 .section .ext15,"ax"
- .include "hbar.inc"              /* HB_*, hb_rows, hb_seg, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
-.set HB_W, 400
-.set HB_H, 50
-.set HB_BUF, 7168                 /* each stream buffer (worst case HB_WORST, checked by build.py) */
+ .include "hbar.inc"              /* HB_*, hb_rows, hb_gid, hb_swr, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
+.set HB_W, 400                    /* (HB_H: hbar.inc) */
+.set HB_BUF, 8192                 /* each stream buffer (worst case HB_WORST, checked by build.py) */
 .set HB_F, 48                     /* hb_rd's frame */
 .set HB_UI_INFO, 0x25             /* the GUI key codes of INFO's press and release (Delete's: 0x27, 0x29) */
 .set HB_UI_INFOR, 0x26
@@ -52,6 +55,12 @@ hb_dcv:                           /* 1: a Delete press was turned into INFO's: i
  .byte 0
 hb_last:                          /* the HSL page INFO last left (0 Saturation, 1 Luminance, 2 Hue) */
  .byte 0
+ .balign 4
+hb_lobj:                          /* GUI layer 1 as GPISetPalette reads it: (72) -> the layer number (as om-emu's) */
+ .space 72
+ .long hb_lnum
+hb_lnum:                          /* the guide's plane: GUI layer 1 (om-emu: its palette banks hold palette 62) */
+ .short 1
  .balign 2
 
 /* hb_alloc <- jmp from fl_mk's end (its frame: ret [d2,d3,a2,a3],80; a2 = P): the two stream buffers, once. */
@@ -78,7 +87,7 @@ hb_alloc:
  ret [d2,d3,a2,a3],80
 
 /* hb_gsel <- gd_set's `call hb_gsel,[d2,d3,a2,a3],24` (was gd_sel): GDESC holding a bar -> the camera's guide again
- * (175 wide), then gd_sel (same frame). Keeps d0, a2; uses d1, d2, a0. */
+ * (175 x 50), then gd_sel (same frame). Keeps d0, a2; uses d1, d2, a0. */
 hb_gsel:
  mov GDESC,a0
  mov (16,a0),d1
@@ -93,6 +102,8 @@ hb_gsel:
 1:
  mov 175,d1
  movhu d1,(2,a0)
+ mov 50,d1
+ movhu d1,(4,a0)
  mov GSTOCK_S,d1
  mov d1,(12,a0)
  mov GSTOCK_P,d1
@@ -207,19 +218,23 @@ hb_rd:
  movbu (EDK,a2),d0
  cmp 4,d0
  bcc 9f
- mov GDESC,a0                     /* the camera's 14 / 175 x 50 / 8 descriptor, or ours (400 wide) */
+ mov GDESC,a0                     /* the camera's 14 / 175 x 50 / 8 descriptor, or ours (400 x 64) */
  movhu (a0),d1
  cmp 14,d1
  bne 9f
  movhu (2,a0),d1
+ movhu (4,a0),d0
  cmp 175,d1
- beq 1f
+ bne 1f
+ cmp 50,d0
+ beq 3f
+ bra 9f
+1:
  cmp HB_W,d1
  bne 9f
-1:
- movhu (4,a0),d1
- cmp 50,d1
+ cmp HB_H,d0
  bne 9f
+3:
  movhu (6,a0),d1
  cmp 8,d1
  bne 9f
@@ -315,21 +330,56 @@ hb_rd:
  bne 6f
  mov (hb_b1),a1
 6:
- call hb_join,[d2,d3,a2,a3],80    /* a1 = the buffer -> d0 = the stream's length */
+ call hb_join,[d2,d3,a2,a3],64    /* a1 = the buffer -> d0 = the stream's length */
  mov GDESC,a0
  mov HB_W,d1
  movhu d1,(2,a0)
+ mov HB_H,d1
+ movhu d1,(4,a0)
  mov d0,(12,a0)
  mov a1,(16,a0)
  mov a1,(hb_cur)
  mov (20,sp),d0
  mov d0,(hb_key)
+ call hb_spal,[d2,d3,a2,a3],20    /* the colour's 13 palette entries */
 9:
  mov (4,sp),d0
  mov (8,sp),d1
  mov (12,sp),a0
  mov (16,sp),a1
  ret [d2,d3,a2,a3],HB_F
+
+/* hb_spal: `call hb_spal,[d2,d3,a2,a3],20`: the colour's 13 colours (hb_pal, slice * 11 + h + 5) into palette 62's
+ * entries 108..120: in its table (0x614a67f0, so the camera's own palette loads keep them) and on the screen through
+ * GPISetPalette (the call every GUI palette load ends in: calls, a0 = a GUI layer, its (72) -> the layer number 1;
+ * d0 = the first entry, d1 = how many, a1 = the colours). Uses d0, d1, a0, a1, mdr. */
+hb_spal:
+ movbu (hb_val+4),d0
+ mov 11,d1
+ mul d1,d0
+ movbu (hb_val),d1
+ extb d1
+ add 5,d1
+ add d1,d0
+ mov HB_NSLOT * 4,d1
+ mul d1,d0
+ add hb_pal,d0
+ mov d0,a0
+ mov HB_PALT,a1
+ mov HB_NSLOT,d1
+1:
+ mov (a0),d0
+ mov d0,(a1)
+ add 4,a0
+ add 4,a1
+ add -1,d1
+ bne 1b
+ mov HB_SLOT0,d0
+ mov HB_NSLOT,d1
+ mov hb_lobj,a0
+ mov HB_PALT,a1
+ calls gpi_setpal
+ ret [d2,d3,a2,a3],20
 
 /* hb_clamp: `call hb_clamp,[],0`, d0 = a byte -> d0 = it as signed, -5..5. */
 hb_clamp:
@@ -387,45 +437,18 @@ hb_trow:
 9:
  retf [],0
 
-/* hb_trun: `call hb_trun,[],0`, d0 = a colour, d1 = a width: one run, as tokens of up to 16. Uses d0, d1, a0. */
-hb_trun:
- asl 4,d0
- mov d0,a0
-1:
- mov d1,d0
- cmp 16,d0
- bls 2f
- mov 16,d0
-2:
- sub d0,d1
- add -1,d0
- add a0,d0
- HB_PUT
- cmp 0,d1
- bne 1b
- retf [],0
-
-/* hb_join: `call hb_join,[d2,d3,a2,a3],80`, a1 = a stream buffer (HB_BUF bytes): hb_val's bar as mkhbar.stream ->
- * d0 = its length; a1 kept. Locals (4) y, (8) 1 << (y & 3), (12) the colour table (hb_seg + (slice * 11 + h + 5) *
- * 136), (16..27) the 3 fields' text tables, (28..39) their mark tables, (40) the buffer, (44) the field, (48) the
- * step's entry, (52) steps left. */
+/* hb_join: `call hb_join,[d2,d3,a2,a3],64`, a1 = a stream buffer (HB_BUF bytes): hb_val's bar as mkhbar.stream ->
+ * d0 = its length; a1 kept. Each row: the swatch column (its colour rows hb_gid's first row, the others hb_swr), then
+ * per field its text part (hb_tx) and its slider part (gradient rows hb_gid's, the others hb_mk). Locals (4) y, (8)
+ * hb_gid (4 u16), (12..23) the 3 fields' text tables, (24..35) their slider tables, (40) the buffer, (44) the field. */
 hb_join:
  mov a1,(40,sp)
- mov HB_HDR,d0                    /* 400 x 50, type 11 */
+ mov HB_HDR,d0                    /* 400 x 64, type 11 */
  mov d0,(a1)
- movbu (hb_val+4),d0
- mov 11,d1
- mul d1,d0
- movbu (hb_val),d1
- extb d1
- add 5,d1
- add d1,d0
- mov 136,d1
- mul d1,d0
- add hb_seg,d0
- mov d0,(12,sp)
+ mov hb_gid,d0                    /* the colour rows (the colour itself is in palette entries 108..120) */
+ mov d0,(8,sp)
  mov sp,a0
- add 16,a0
+ add 12,a0
  clr d1                           /* field f */
 1:
  mov hb_val,a1
@@ -441,11 +464,11 @@ hb_join:
  mov 22,d2
  mul d1,d2
  add d2,d0
- mov 100,d2                       /* 50 rows of u16 */
+ mov HB_H * 2,d2                  /* H rows of u16 */
  mul d2,d0
  add hb_tx,d0
  mov d0,(a0)
- mov 100,d2
+ mov HB_H * 2,d2
  mul d2,d3
  add hb_mk,d3
  mov d3,(12,a0)
@@ -460,44 +483,21 @@ hb_join:
  mov 0,a2
  clr d0
  mov d0,(4,sp)
-10:                               /* a row */
- mov (4,sp),d0
- and 3,d0
- mov 1,d1
- asl d0,d1
- mov d1,(8,sp)
- mov (4,sp),d1                    /* the swatch */
- mov HB_R_SW_BLANK,d0
- cmp HB_SWY0,d1
- bcs 13f
- cmp HB_SWY1,d1
- bhi 13f
- mov HB_R_SW_EDGE,d0
- cmp HB_SWY0,d1
- beq 13f
- cmp HB_SWY1,d1
- beq 13f
- mov HB_R_SW_LINE,d0
- cmp HB_SWY0 + 1,d1
- beq 13f
- cmp HB_SWY1 - 1,d1
- beq 13f
- mov HB_R_SW_HEAD,d0
- call hb_trow,[],0
- mov (12,sp),a0
- movbu (2,a0),d0
- mov (8,sp),d1
- and d1,d0
- beq 11f
- movbu (1,a0),d0
+10:                               /* a row: the swatch column */
+ mov (4,sp),d1
+ cmp HB_SWF0,d1
+ bcs 11f
+ cmp HB_SWF1,d1
+ bhi 11f
+ mov (8,sp),a0
+ movhu (a0),d0
  bra 12f
 11:
- movbu (a0),d0
+ mov hb_swr,a0
+ mov d1,d0
+ add d0,d0
+ movhu (d0,a0),d0
 12:
- mov HB_SWF,d1
- call hb_trun,[],0
- mov HB_R_SW_TAIL,d0
-13:
  call hb_trow,[],0
  clr d0
  mov d0,(44,sp)
@@ -506,73 +506,33 @@ hb_join:
  asl2 d0
  mov sp,a0
  add d0,a0
- mov (16,a0),a1
+ mov (12,a0),a1
  mov (4,sp),d0
  add d0,d0
  movhu (d0,a1),d0
  call hb_trow,[],0
  mov (4,sp),d1                    /* its slider part */
- cmp HB_SLY0,d1
- beq 25f
- bcs 27f
- cmp HB_SLY1,d1
- beq 25f
- bcs 30f
- cmp HB_MKY0,d1
- bcs 27f
- cmp HB_MKY1,d1
- bhi 27f
- mov (44,sp),d0                   /* the mark's row */
+ cmp HB_SLF0,d1
+ bcs 21f
+ cmp HB_SLF1,d1
+ bhi 21f
+ mov (44,sp),d0                   /* a gradient row: hb_gid's entry 1 + f */
+ add d0,d0
+ mov (8,sp),a0
+ add d0,a0
+ movhu (2,a0),d0
+ bra 22f
+21:
+ mov (44,sp),d0
  asl2 d0
  mov sp,a0
  add d0,a0
- mov (28,a0),a1
+ mov (24,a0),a1
  mov d1,d0
  add d0,d0
  movhu (d0,a1),d0
- bra 28f
-25:
- mov HB_R_SL_EDGE,d0
- bra 28f
-27:
- mov HB_R_SL_BLANK,d0
-28:
+22:
  call hb_trow,[],0
- bra 40f
-30:                               /* a slider fill row: head, 11 steps, tail */
- mov HB_R_SL_HEAD,d0
- call hb_trow,[],0
- mov (44,sp),d0                   /* the field's steps: entries 1 + 11 f .. */
- mov 44,d1
- mul d1,d0
- add 4,d0
- mov (12,sp),d1
- add d1,d0
- mov d0,(48,sp)
- mov HB_NSTEP,d0
- mov d0,(52,sp)
-31:
- mov (48,sp),a0
- movbu (2,a0),d0
- mov (8,sp),d1
- and d1,d0
- beq 32f
- movbu (1,a0),d0
- bra 33f
-32:
- movbu (a0),d0
-33:
- add 4,a0
- mov a0,(48,sp)
- mov HB_STEPW,d1
- call hb_trun,[],0
- mov (52,sp),d0
- add -1,d0
- mov d0,(52,sp)
- bne 31b
- mov HB_R_SL_TAIL,d0
- call hb_trow,[],0
-40:
  mov (44,sp),d0
  inc d0
  mov d0,(44,sp)
@@ -605,4 +565,4 @@ hb_join:
  mov a3,d0
  mov a1,d1
  sub d1,d0
- ret [d2,d3,a2,a3],80
+ ret [d2,d3,a2,a3],64

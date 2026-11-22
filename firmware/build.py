@@ -130,10 +130,11 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
         # 300 px wide, so our line's value shows whole. The camera's own "1.1" sits at the box's left as before.
         **{0x614200e8 + 16 * i: (struct.pack('<4h', 477, y, 80, 62), struct.pack('<4h', 477, y, 300, 62))
            for i, y in enumerate((205, 269, 333, 173, 237, 301, 365))},
-        # wheel-hsl-view h2: the colour wheel screen's guide widgets (frame 0x3c6, picture 0x3c7) 180 -> 400 px wide for
-        # the H / S / L bar, between the left column and Reset: viewfinder place (310 -> 116), rear screen (360 -> 157).
-        # The camera's guides (175 px) stay centred in them, so they sit left of where they were (research/NOTES.md).
-        **{a: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 528, 400, 50, 157, 528, 400, 50))
+        # wheel-hsl-view h2 / h3: the colour wheel screen's guide widgets (frame 0x3c6, picture 0x3c7) 180 x 50 -> 400 x 64
+        # for the H / S / L bar, between the left column and Reset: viewfinder place (310 -> 116), rear screen (360 ->
+        # 157); h3 raised 14 px (528 -> 514), the bottom edge where it was. The camera's guides (175 x 50) stay centred
+        # in them, so they sit left of (and 7 px above) where they were (research/NOTES.md).
+        **{a: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64))
            for a in (0x61451e40, 0x61451e50)}}
 # wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
 # {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
@@ -269,7 +270,7 @@ def build(defaults, testfile, out):
     (out / 'wheel.inc').write_text('.balign 4\nwl_tab:\n' + db(bytes(wl)) + ' .balign 4\nfl_sagd:\n' + db(sagd) + ' .balign 4\n')
     import mkhbar                                 # wheel-hsl-view: the H / S / L bar's pieces (hbar.s)
     hb = mkhbar.inc()
-    assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 7168    # hbar.s HB_BUF
+    assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 8192    # hbar.s HB_BUF
     (out / 'hbar.inc').write_text(hb)
     (out / 'wheeldef.inc').write_text(f'.set XL_N, {len(mklabels.LABELS)}\n.set WLL, {len(wl)}\n.set XL_W0, {w0}\n.set SAS, {len(sagd)}\n'
                                       + ''.join(f'.set XL_{t.upper()}, {mklabels.LABELS.index(t)}\n' for t in ('Sat', 'Lum', 'Hue', 'Tint')))
@@ -575,6 +576,13 @@ def build(defaults, testfile, out):
         for j in (i, i + 128):
             assert struct.unpack_from('<I', m, o(PAL) + 4 * j)[0] == 0x01010101, j
             struct.pack_into('<I', m, o(PAL) + 4 * j, argb)
+    # wheel-hsl-view h3: the H / S / L bar writes its colours into the guide plane's palette (GUI layer 1, palette 62:
+    # record 0x614a6bf0 -> 0x614a67f0) at run time (hbar.s hb_spal), at entries 108..120, which nothing else uses
+    # (0x01010101, not drawn; om-emu: made magenta they changed none of 21 stock screens). Nothing written here.
+    import mkhbar
+    assert struct.unpack_from('<II', m, o(0x614a6bf0)) == (256, mkhbar.PAL_TABLE)
+    assert struct.unpack_from(f'<{mkhbar.NSLOT}I', m, o(mkhbar.PAL_TABLE) + 4 * mkhbar.SLOT0) == (mkhbar.FREE_STOCK,) * mkhbar.NSLOT
+    assert sy['gpi_setpal'] == 0x610f717b and bytes(m[o(0x610f717b):o(0x610f717b) + 5]) == bytes.fromhex('cff0f8fedc')
     assert sy['NR_IT'] == NR_IT if 'NR_IT' in sy else True
     # v0.23 Blacks / Whites icons: the left column's 5 slider-icon slots take ic_list (6 choices) instead of the stock
     # lists of 3 (layout records hold the list's start and end); the pictures from firmware/mkicons.py
