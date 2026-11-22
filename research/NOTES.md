@@ -10002,3 +10002,6 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
   hb_pu, ed_info k_6b, the wheel tests, .ext15. `feature/curve-5-points` (on beta 4): pm_list and the item count (it
   removes the Blacks / Whites row: 20 -> 19 rows, and frees a switch entry), cv_inf (INFO on the H&S row), the tests'
   row counts (theirs one less below Blacks / Whites, ours one more below the wheel), .ext14 / .ext15 room.
+- **Package s1:** VERSION "v0.40.3-s1 (h3 + Split toning row)", firmware from commit b514779, built three times, the
+  same byte for byte: E1479999.BIN 97c60530…f6c4, GUIDES.BIN a0c93b06…103a (LABELS / TONES as beta 4). Suite (om-emu at
+  the pin): 139 pass, 0 known, 1 FAIL = static:changed-bytes (h2's 11 sites and the 15 runs above, not in hooks.json).
