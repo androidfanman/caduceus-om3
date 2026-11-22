@@ -9990,3 +9990,16 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
 - **Package h3:** VERSION "v0.40.3-h3 (beta 4 + H/S/L bar 3, own colours)", firmware from commit 52c0219, built twice,
   the same byte for byte: E1479999.BIN bd6df55e…7916, GUIDES.BIN ee33c64e…05a1 (LABELS / TONES as beta 4). Suite
   (om-emu at the pin): 133 pass, 1 FAIL = static:changed-bytes (h2's sites, still not in hooks.json; no new site).
+
+## The H / S / L bar, h4: Delete in the bar's order (2026-11-22; emulator only, camera test pending)
+- **Owner, 2026-11-22 (on h3):** "that looks great! The only thing id change is when you click the delete button to
+  cycle through the H/S/L it goes backwards. it should go from h to s to l."
+- **Change (hbar.s hb_next, Delete branch only):** Hue -> Saturation -> Luminance -> Hue (P+AXIS 2 -> 0 -> 1 -> 2),
+  the bar's left-to-right order; h2 / h3 went Saturation -> Hue -> Luminance. The wheel still opens on Saturation (the
+  camera's), so Delete from there goes to Luminance, then Hue. INFO unchanged.
+- **Tests:** `color-wheel-delete-steps-hue-saturation-luminance` (renamed from `...-saturation-hue-luminance`, the new
+  order) caught on h3 (`--without`); the tests that reach Hue by Delete press it twice; the INFO test's HSL page is
+  Luminance now.
+- **Package h4:** VERSION "v0.40.3-h4 (beta 4 + H/S/L bar 3, Delete H-S-L)", firmware from commit 8fdc37c, built
+  twice, the same byte for byte: E1479999.BIN 211d7fc8…07fd, GUIDES.BIN 2cf26bb9…8d34. Suite (om-emu at the pin):
+  133 pass, 1 FAIL = static:changed-bytes (h2's sites, still not in hooks.json; no new site).
