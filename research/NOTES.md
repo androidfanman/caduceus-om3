@@ -9818,3 +9818,12 @@ owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-bet
   the step on this page for both the curve (after cv_d) and the dots. om-emu: at +7 / -7, -7 / +7 and +3 / -3 the
   curve ends on its dots. (1) is the header's three slots: a proposal (the other values written inside the graph by
   their points, our curve on all three pages) is with the owner as a mock-up.
+- **Owner (2026-11-22) on the in-graph proposal:** no: "I want it to look like" mock-up A (five labels in one top line).
+  Two tries, om-emu, both dead ends:
+  - A taller picture reaching up over the header. Descriptor pokes (the stream still 300 x 300): the middle-curve
+    element is not clipped to the graph box, and its place follows the descriptor's size (w or h 200: 150 px right /
+    down; h 364 or 456: 22 px down; w 400: 23 px left), so a bigger one does not move up. A real 300 x 364 picture
+    (64 band rows first) is not drawn at all.
+  - The header's records 0x61466480.. are 16-byte {-1, 46, 46, picture id} lists (a value's glyphs), not positions; the
+    positions are in the scene's own data. Variable 175's 508 bytes read all zero on the open page.
+  Open route (not started, uncertain): the scene's layout data for the header's objects.
