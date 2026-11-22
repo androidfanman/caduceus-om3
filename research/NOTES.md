@@ -9767,3 +9767,76 @@ Branch `try/v0.40.3-beta4` = `fix/wb-separate-shift` (w1: v0.40.3-beta3 + separa
 separate WB shifts, films and modes)". E1479999.BIN 7be6725d…8f16 (GUIDES / LABELS / TONES built in);
 `patch.py --release v0.40.3-beta4` rebuilds it byte for byte. Card files as v0.40.3-beta3. Suite on the release build: 129 pass, exit 0. Owner: "Yes, make beta4".
 Still not checked on the camera: a photo on a film with a shift (live view shows it).
+
+## The colour wheel with H / S / L at once: what it would take (2026-11-22; analysis only, nothing built; branch experiment/wheel-hsl-view from v0.40.3-beta4)
+- Owner: "think we could do something like this for our color wheels?" with photos of another camera's Color / Vivid
+  screen: (1) a bar under the wheel with a colour swatch and H, S and L of the chosen colour at once, each with a small
+  gradient slider, the field being edited highlighted; (2) the wheel itself showing hue shifts (the colour's dot moves
+  along the rim, the polygon bends, a dotted line from the centre to the chosen colour).
+- **Today (camera-tested):** the screen has the camera's "Color <swatch>" label (front dial), our page label Sat / Hue /
+  Lum / Tint in VDESC (70 x 30) with the value readout (3-character text record), and the guide picture under the wheel
+  (GDESC 175 x 50, SDESC 180 x 50; gd_set swaps it per page). The wheel (renderer, below) draws a 12-gon whose vertex
+  distances are 12 numbers; since editor test 4 (0x60b1d08d.., 45 reads -> tn_poly / ed_poly) those numbers are the
+  page's values, so Hue and Lum already show as distances, not as a hue turn.
+
+### Part 1: the H / S / L bar (OSD pictures, main CPU) - the cheaper part
+- Built from what we already swap: a picture descriptor pointed at a buffer in the heap. Precedent: xb_rend / xb_vl
+  (xblock.s) draw and encode an OSD type-11 picture at run time (label + value, 70 x 30) and the camera showed them
+  (Extras wheel labels; #64's labels). Pictures must stay in the heap (0xa2..): one in .ext12 blanked the menu (2026-11-16).
+- Where: the guide slot under the wheel (175 x 50) is the only slot that wide; slots squeeze a wider picture to their
+  box ("Saturation" in the 62 px label). So the bar is about 175 x 50: three fields "H+2", "S 0", "L-1" (about 58 px
+  each), the page's field boxed, a small slider under each. The page name stays in the dial label (Sat / Hue / Lum);
+  the guide's "[INFO]" hint would go (owner's call). Gradient sliders need the OSD palette's colours (a picture stores
+  palette indices, no colours; OMKit ui.md 5.2): which hues the palette holds is not known yet; grey sliders with a dot
+  are safe.
+- Values: S = the camera's 928 + 12k + c, H / L = slot bytes via ed_get on those pages; Shadows / Highlights keep the
+  stock guide (or show the tint strength).
+- When: composed in the paths we already own (ed_set / tn_set value change, ed_l / ed_r colour change, gd_set page
+  change), before the camera's redraw of the screen. No new hook, nothing at start-up.
+- Cost: xb_rend's font drawing took 1.62 M instructions per label (#64), too slow per click (a Hue click is ~0.74 M).
+  Use pre-drawn glyphs (digits, + / -, H S L, slider) and one encode pass of 175 x 50 px: estimate 0.1-0.2 M per click
+  (analysis). Runs do not cross rows on the firmware's pictures (OMKit ui.md 5.1), so rows can also be joined from
+  pre-encoded pieces if that is cheaper. Two output buffers (about 3-4 KB each), switched by the descriptor's payload
+  word, so the OSD engine never reads a half-written picture (OMKit's rule).
+- Code space: section 6 +256 KiB (camera-proven) for code and glyphs; the heap for the two output buffers.
+- om-emu draws OSD pictures, so the bar can be checked in the emulator (screenshots, instruction counts) before the camera.
+- Risk to the camera: low (the same kind of change as #64's labels). Open: whether a picture rewritten every click shows
+  cleanly (xb_vl's buffer is rewritten too, but only on page change), and the palette's colours.
+
+### Part 2: the wheel drawing (second CPU, camera-only) - the expensive part
+- OMKit (necrostaz/omkit, OM-5 Mark II fw 1.1, Apache-2.0 / CC BY 4.0; read only, nothing taken): on the OM-5 II the
+  Color / Vivid editor has dial logic but no drawing, so OMKit hooks the entry of the Color Creator renderer (task
+  C3D_MAIN on CPU 1) and draws its own frame with the firmware's OpenVG (integer paths, S_16 quarter pixels, one path
+  and one paint a frame, values handed across in an uncached block under a sequence counter, eglSwapBuffers itself).
+  Path: GUI item handler sets the panel's background (Color Creator kind) -> C3D interface task START / UPDATE / END ->
+  renderer on CPU 1 -> 256 x 256 surface over live view. Its notes: docs/platform/om5m2/ui.md section 4,
+  fw1100/imaging.md "Drawing (C3D, OpenVG)".
+- **The OM-3 has its own native kind** (it draws our wheel): kind names PART_COLOR, COLOR_CREATOR, COLOR_CREATOR2,
+  MONOCHROME_CREATOR.. (pointer list 0x6036e580), C3D_CP_COLOR_INFO_ST, debug names chColorCreator2Saturation[0..11]:
+  the order carries 12 saturations and the cursor, nothing about angles. So the stock renderer can only move vertices in
+  and out; a dot moving along the rim needs our own drawing.
+- OM-3 matches found (static analysis, this session):
+  - OpenVG / EGL name -> address table at 0x603a2xxx ({name, address} pairs; the addresses start with movm, a direct
+    `call` enters past the prologue): vgCreatePath 0x617b4958, vgClearPath 0x617b498a, vgDestroyPath 0x617b49a6,
+    vgAppendPathData 0x617b4a29, vgDrawPath 0x617b4b80, vgCreatePaint 0x617b4bb6, vgDestroyPaint 0x617b4bd1,
+    vgSetPaint 0x617b4beb, vgSetColor 0x617b4c24 (section 8); eglMakeCurrent 0x61798e95, eglSwapBuffers 0x617997b3.
+  - All direct calls into them come from 0x61050265..0x610513e0 (section 7, flag 1): the C3D renderer. eglSwapBuffers
+    is called once, at 0x61050308 (helper around 0x610502fc).
+  - Job dispatch 0x6104fdb1..0x6104fe34 (kind byte 0x62f4908c read at 0x6104fd53): calls 0x610506a6 (frame 72),
+    0x610507ba (212), 0x61050a08 (48) and 0x61050b52 (28), the last choosing by its order's byte +13: 1 ->
+    0x61050bc3, 2 -> 0x61051129 (frame 156). Which one is COLOR_CREATOR2 (the OM-3 wheel) is not settled: the order of
+    the kind names suggests 0x610507ba or 0x61050a08 (guess). The OM-5 II entry was 0x60ccf4f7.
+- What it would take: a hook at the wheel job's entry (one call site in the dispatcher), code that runs on the
+  renderer's CPU (whether that CPU executes our section-6 code from the same RAM is not known: sections 6 and 7 both
+  have flag 1; guess), the values handed across from the GUI side (cache: OMKit uses the uncached alias), and a renderer
+  of our own in assembly (OMKit's draws the 12-gon, scale, polygon and dots in about 60 fills; ours adds hue turns).
+  Several hundred lines of new assembly.
+- om-emu does not run the camera side at all (OMKit: same on their emulator), so every step is a camera flash, and the
+  first ones only answer "does our code run there". A fault there would hang the wheel screen (battery out); it runs
+  only while the wheel is drawn, never at start-up.
+
+### Suggested first camera test (not built; waits for the owner)
+- Part 1 only, text first: the guide slot under the wheel shows "H+2  S 0  L-1" for the chosen colour, the page's field
+  boxed, updated on every click and colour change; grey sliders if they fit. Emulator first (screenshots + the click's
+  instruction count), then the owner's camera. Part 2 only after that, starting with a probe that proves our code runs
+  in the wheel renderer (for example: draw the stock wheel, then one extra dot) before any real drawing.
