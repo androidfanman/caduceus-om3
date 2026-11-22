@@ -14,6 +14,7 @@ import { applyCurvesBin, curvesBin, readCurvesBin } from './curvesbin';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
 import { JobQueue, MAX_OWN, TILE_PX, fitSize, takeFiles } from './photos';
+import { isRecipe, lookFromRecipe } from './recipe';
 import {
   BANK_SCHEMA, PHOTO_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromPhotoCode, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
   SHARP, sharpLabel, slowGrain, monoGrain, grainStrength, setGrainStrength, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw, v28Parts, recipeText,
@@ -217,7 +218,7 @@ function shell() {
           ['Reset looks to standard', () => newBank('library')],
           ['Empty looks', () => newBank('empty')],
         ]),
-        h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN (pick its CURVES.BIN with it to keep each film\'s curves and colour mix), a looks file, or one look\'s .json' }, 'Open…'),
+        h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN (pick its CURVES.BIN with it to keep each film\'s curves and colour mix), a looks file, or one look\'s .json (LookLab\'s own, or a recipe with the photo code)' }, 'Open…'),
         h('button', { onclick: () => om3FilmPicker(), title: 'Add film simulations to your films' }, 'Film sims'),
         h('button', { onclick: () => $<HTMLInputElement>('#grade').click(), title: 'Make a film from your own .cube LUT or Lightroom preset (.xmp, .lrtemplate)' }, 'From LUT / preset…'),
         h('button', { onclick: pasteDialog, title: 'Open a shared look or looks link' }, 'Paste link'),
@@ -1733,6 +1734,7 @@ async function om3OpenOne(f: File, bytes: Uint8Array) {
     const j = JSON.parse(new TextDecoder().decode(bytes));
     if (j && j.schema === BANK_SCHEMA) { const b = parseBank(j, parseLook); replaceBank(b.bank, `Opened "${b.name}"`, b.name); return; }
     if (isOneLook(j)) { placeLook({ look: parseLook(j, f.name), changed: [], dropped: [] }); return; }
+    if (isRecipe(j)) { placeLook({ look: lookFromRecipe(j), changed: [], dropped: [] }); return; }   // a readable recipe with its photo code
     throw new Error('not an OM-3 file');
   } catch (err) { toast(`Not an OM-3 LOOKS.BIN, CURVES.BIN or looks file: ${(err as Error).message}`, 'err'); }
 }

@@ -8912,3 +8912,4 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   photos, a grid under the big photo). 480 px copies, redrawn one at a time 150 ms after the last change; nothing
   uploaded. vitest 89 pass. Fast-forwarded into main by cad, `looklab/` rebuilt (index-XN8KWU3f.js), checked in the
   browser with three sample photos as your own: grid of 3, film switch updates them, no errors.
+- 2026-11-21: + Open… reads a readable recipe .json (photo_code + rgb_curves + colour_mix + name; owner: "the open looks doesnt accept .json files"), from d05d51c on `feature/looklab-multi-photo`; on main with the test values and the code comment made generic (cad: the session's test had the owner's private look's curves and mix); vitest 93 pass; `looklab/` rebuilt (index-BmSce56r.js); browser: a made-up recipe opens as a look, no errors.
