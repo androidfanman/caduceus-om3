@@ -8940,3 +8940,35 @@ wrench tab's Card/Folder/File page lists the folder's files; picking one loads i
       helps / value lists copied in ext13, type-5 literal texts, the dropdown row {14, sid, 0, 1}, the row order).
       Setting: 1290, the twin of 1288 (descriptor 0x6061a6a8, the same 7-value stock list; probably the movie
       function of another accessory key; to be checked as 1288 was). Its value list becomes ours (entry k -> name k).
+
+## Look sets ls1: the menu row, the switch, the edge cases (2026-11-22; emulator only; branch feature/look-sets)
+Built on probe w1 (above). Code `firmware/src/looksets.s`, menu tables in `build.py`, hooks into `lg_pr` (ls_go),
+`ub_rd` (ls_auto), `el_go` (ls_init), `rc_go` (the nf_pend case below). Camera test pending (h2).
+- **Menu (om-emu screens):** a fresh camera's menu opens on the wrench tab's "1. Card/Folder/File" (rows Card
+  Formatting, Assign Save Folder, File Name, Edit Filename; the two Card Slot rows are hidden on the one-slot OM-3);
+  "Looks Set" is the fifth row, value "LOOKS.BIN". OK opens a dropdown of the list (LOOKS.BIN | BROKEN | PORTRA |
+  VELVIA in the test card), the cursor on the set in use; the dropdown's length follows the descriptor's byte count
+  (1290 at 0x6061a6a8 +12) and the value list's count, both set at run time (ls_cnt). After a pick the row reads the
+  set's name. The menu keeps its cursor within a power-on, not over a power-off (om-emu).
+- Page 235 structures: record 0x61587e70 {6, labels 0x61587934, helps 0x61586fa4, 4, values 0x61586728, 4, same};
+  definition 0x61510000 (= page 221's 0x6150fe08 + 0x24 x 14), dropdown rows 0x6150b4cc (2: 1167, 21); row order
+  cursor kind 239 sub 0 (5344, 1436, 21, 3282). Setting 1290's stock list (3341, 6, 9, 425, 3409, 88, 3200); a fresh
+  camera reads 3409 in om-emu (not in our list before ls_init: entry -1 -> treated as entry 0).
+- **Mode code 0 after a power-on blocked the COLORs (found here, fixed):** `rc_go` treats `cm_code` >= 0xC0 (the mode's
+  code still 0, so the dial position decided) after the first look as a live dial turn and waits. The mode code stays
+  0 until a dial turn (om-emu; the camera read 0 at least at the first look, k4), so a set taken after the first look
+  (any menu pick) left `rc_pend` set and the COLORs were never made (#86's own swap is before the first look). Fix:
+  with `nf_pend` and the dial position's group = the films' group (CM_LAST), no turn happened: go on.
+- **Changes on a film not yet captured:** a film's changes are captured when it is left (fl_sw); a switch leaves
+  every film at once. `ls_cap` captures each COLOR on a film that shows changes (`fl_live`), against the film it is on,
+  before the swap. Capturing every COLOR (first try) overwrote another set's saved record for the same film slot (one
+  EDITS record per slot j for all sets), so going back lost the change: only changed films are captured.
+- **Debug log `*` cache:** `lg_lv` / `lg_lr` answer per COLOR by film number; after a swap FILM 2 is another film, so the
+  log showed the old '*' (the camera's own fl_live was clean). Cleared at a swap.
+- **om-emu runs:** all nine look-set tests pass; 12 switches in one power-on all loaded (no allocation failure; each
+  keeps a ~3 KB film buffer until power-off, as el_card). exFAT and long names: probe w1.
+- **Not done / open:** per-set CURVES (a set's built-in curves and mix: `CURVES.BIN` matches by record CRC, so one
+  file serves one set); NAMES.BIN per set; the list is read once per power-on; the video menu (a pick in video loads
+  the same way, the COLORs at the next photo look, untested here); whether the camera's mode code stays 0 after a
+  power-on without a dial turn (the rc_go fix assumes nothing either way); whether 1290 is used by any OM-3 screen
+  (analysis as 1288: an accessory key's movie function).

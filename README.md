@@ -1,4 +1,4 @@
-> **Branch `experiment/look-sets-walk` (2026-11-22): a probe, not for use.** It lists `OM3MOD/LOOKS/*.BIN` into the debug log at the first half-press (emulator: works on FAT32 and exFAT). Camera test pending in test build h1. Design for switching sets from the menu: `research/NOTES.md`, "Look sets".
+> **Branch `feature/look-sets` (2026-11-22): work meant to ship, camera test pending.** Switch film sets kept in `OM3MOD/LOOKS/` from MENU > Card/Folder/File > Looks Set (`docs/USING.md`). Emulator: all look-set tests pass. Not released.
 
 <h1 align="center">Caduceus for OM-3</h1>
 
