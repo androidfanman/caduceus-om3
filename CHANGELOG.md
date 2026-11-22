@@ -55,6 +55,8 @@ LookLab only; the firmware is unchanged (v0.40.2 stays the current version).
   brings each film's RGB curves and Color Mix back with it. Before, the films came in flat, so the next save wrote
   them without their curves and mix.
 - Open… also takes one look's `.json`, and each look's Share window can save it as a look file.
+- **Your own photos, up to 12 at once:** "+ Your photos" takes several photos; each shows in a grid under the big
+  preview with the film on, and a click shows it large. Switching films updates all of them. Nothing is uploaded.
 
 ## v0.40.2
 2026-11-19. v0.40.1 plus smoother colour grain, made faster; camera-tested (the build before its release name).

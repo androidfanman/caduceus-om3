@@ -8905,3 +8905,10 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   order the same; a one-look .json added with its curves; Undo; no console errors.
 - Not released: LookLab on the site changes at the next release (owner's call).
 - On `main` 2026-11-21 (cad): the webapp files of 9d7f9b2 applied as they are (main's webapp = beta3's), vitest 83 pass, 3 skipped, tsc clean; `looklab/` rebuilt (index-CSI2DcYh.js), loaded in the browser with no errors.
+
+## LookLab: several of your own photos at once (2026-11-21; on main, browser-tested)
+- Owner: "Can we make it so we can upload more than one photo to test the film sims?" Session "LookLab: test films on
+  several photos at once", `feature/looklab-multi-photo` a3c2f10 (owner on the screenshot: "Yes, looks good"; up to 12
+  photos, a grid under the big photo). 480 px copies, redrawn one at a time 150 ms after the last change; nothing
+  uploaded. vitest 89 pass. Fast-forwarded into main by cad, `looklab/` rebuilt (index-XN8KWU3f.js), checked in the
+  browser with three sample photos as your own: grid of 3, film switch updates them, no errors.
