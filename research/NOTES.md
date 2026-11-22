@@ -8972,3 +8972,8 @@ Built on probe w1 (above). Code `firmware/src/looksets.s`, menu tables in `build
   the same way, the COLORs at the next photo look, untested here); whether the camera's mode code stays 0 after a
   power-on without a dial turn (the rc_go fix assumes nothing either way); whether 1290 is used by any OM-3 screen
   (analysis as 1288: an accessory key's movie function).
+- **Suites (om-emu 0819080):** feature/look-sets (out-ls1): 128 of 128 (after hooks.json took the pointer word at
+  0x6154a8dc whole: its low byte now differs from stock, the same site). Test build **h2** = `try/v0.40.2-h265-ls1`
+  (this branch + feature/v0.40.2-h265): 133 of 133; E1479999.BIN 142d4236…, GUIDES.BIN 94f4a4f5…; package
+  `~/om3-work/test-builds/2026-11-22-h2/` (private; sets REVERSE / SAME / BROKEN made from the release films, and
+  PORTRAIT.BIN, 20 portrait looks made for buburun's field test, generator kept with the package). Camera test pending.
