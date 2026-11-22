@@ -37,6 +37,8 @@ rz_l2:                            /* the strip: r4, pictures (mkicons PICTURES[1
  OPT 1, 3, IC_RZS + 1
  OPT 2, 3, IC_RZS + 2
  OPT 3, 3, IC_RZS + 3
+ .section .ext15,"ax"              /* split-tone row: the strings moved to .ext15 (it_tab grew by one entry; .ext14 was full) */
+ .balign 4
 rz_strs:
  .long rzt_str, rz0_str, rz1_str, rz2_str, rz3_str, rzs0_str, rzs1_str, rzs2_str, rzs3_str
  .balign 2
@@ -59,6 +61,7 @@ rzs2_str:                           /* "Med"; "Medium" is too wide for a cell (a
 rzs3_str:                           /* "Wide" */
  .short 87, 105, 100, 101, 0
  .balign 2
+ .section .ext14,"ax"
 
 /* rz_str <- jmp from st_get (its frame: ret [d2],8), d0 = ST_RZT .. ST_RZS + 3 -> a0 the UTF-16 string. */
 rz_str:

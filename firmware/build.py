@@ -422,7 +422,7 @@ def build(defaults, testfile, out):
     for a in ISDEF_SITES:
         assert m[o(a)] == 0xdd and (a + struct.unpack_from('<i', m, o(a) + 1)[0]) & 0xffffffff == 0x6129bad6, hex(a)
         assert m[o(a) + 6] == 24, hex(a)
-        m[o(a) + 1:o(a) + 5] = struct.pack('<i', sy['fl_isdef'] - a)     # v0.24 film test 6: fl_isdef, then ed_isdef
+        m[o(a) + 1:o(a) + 5] = struct.pack('<i', sy['sp_isdef' if a == 0x611d18a7 else 'fl_isdef'] - a)     # v0.24 film test 6: fl_isdef, then ed_isdef; split-tone row: the wheel's own "changed?" loop through sp_isdef (splitrow.s), then fl_isdef
     ps = poly_sites(m, o)
     assert [v for _, v in ps] == [v for v in range(928, 976) if v not in (939, 951, 963)] and ps[-1][0] == 0x60b1d354, ps
     for a in (0x60b1d156, 0x60b1d1ff, 0x60b1d2a8):   # mov 939/951/963,d0; jmp 0x60b1d354 (the shared last read)
@@ -468,7 +468,7 @@ def build(defaults, testfile, out):
     for a, c in ((0x611d040d, 0x611d0422), (0x611d0846, 0x611d0859)):
         assert bytes(m[o(a):o(a) + 6]) == b'\xfc\xdc' + struct.pack('<I', IT) and bytes(m[o(c):o(c) + 2]) == b'\xa5\x11', hex(a)
         struct.pack_into('<I', m, o(a) + 2, sy['it_tab'])
-        m[o(c) + 1] = 32                         # v0.25: + Glow / Clarity, Frame; v0.28 + Halation, Tone Balance; rgb-curves + RG_IT; + MX_IT; better grain g2 + GS_IT, SZ_IT; Halation Radius + RZ_IT
+        m[o(c) + 1] = 33                         # v0.25: + Glow / Clarity, Frame; v0.28 + Halation, Tone Balance; rgb-curves + RG_IT; + MX_IT; better grain g2 + GS_IT, SZ_IT; Halation Radius + RZ_IT
     # v0.24 film list: item 111's option lists (title / left column / strip, 48 x 12 B) -> fl_l0..2 (the stock 48, then
     # the films, written by editor.s), and setting 901's value table entry (COLOR 1-4) -> fl_rec, 4 + 20 records
     e = struct.unpack_from('<10I', m, o(sy['it_tab']))
@@ -566,6 +566,26 @@ def build(defaults, testfile, out):
         else:
             sw_add(base, n, RG_IT, ht)
             sw_add(base, n, MX_IT, ht)
+    # the Split toning row (splitrow.s) = the colour wheel's row (item 5397, key 5391) in every switch that has it,
+    # except its "changed?" (sp_star: its '*' and Reset guide from the tints alone)
+    ST_IT = 5375
+    assert sy['ST_IT'] == ST_IT
+    for base, n in ((0x61536a2c, 32), (0x61536b2c, 32), (0x61536c2c, 32), (0x61536d2c, 32), (0x61536f2c, 32),
+                    (0x615510cc, 32), (sy['sw11_tab'], 32), (0x6155124c, 32), (sy['sw13_tab'], 32)):
+        wh = [t for k, t in (struct.unpack_from('<II', m, o(base) + 8 * i) for i in range(n)) if k == 5391]
+        if not wh:
+            assert base == sy['sw11_tab'], hex(base)
+            continue
+        wt, = wh
+        if base == sy['sw13_tab']:
+            assert wt == 0x611d1aa9, hex(wt)
+            wt = sy['sp_star']
+        elif base == 0x615510cc:                   # the update's case: the page follows the row first (sp_case / sp_whl)
+            assert wt == sy['WH_CASE'], hex(wt)
+            wi, = [i for i in range(n) if struct.unpack_from('<I', m, o(base) + 8 * i)[0] == 5391]
+            struct.pack_into('<I', m, o(base) + 8 * wi + 4, sy['sp_whl'])
+            wt = sy['sp_case']
+        sw_add(base, n, ST_IT, wt)
     # rgb-curves test 2 (owner: "the line isn't blue"): the Picture Mode curve layer's palette (record 0x614a63e0 ->
     # 0x614a5fe0, read when Picture Mode opens; a 32-colour OSD plane) has no blue. Its fillers 27..31 are 0x01010101;
     # 31 fills whole screens, 27..30 changed nothing on 29 screens (om-emu, each made magenta). 29 / 30 -> blue (and
@@ -597,7 +617,7 @@ def build(defaults, testfile, out):
     sys.path.insert(0, str(ROOT / 'firmware'))
     import mkicons
     pics = mkicons.streams()
-    assert len(pics) == 23 and sy['IC_END'] - sy['IC_BK'] == 14 and sy['ic_pay'] % 8 == 0 and sy['IC_RZ0'] == sy['IC_GR'] + 1   # g2: + the Film Grain icon (id IC_GR); Halation Radius: + 4 cells (IC_RZ0..); r4: + 4 strip cells (IC_RZS..)
+    assert len(pics) == 24 and sy['IC_END'] - sy['IC_BK'] == 14 and sy['ic_pay'] % 8 == 0 and sy['IC_RZ0'] == sy['IC_GR'] + 1   # g2: + the Film Grain icon (id IC_GR); Halation Radius: + 4 cells (IC_RZ0..); r4: + 4 strip cells (IC_RZS..)
     # film test 7: the Color row (item 5397) cell picture list {u16 type 3, u16 id, ptr} at 0x6154be9c: "Color / Vivid"
     # 11389 -> our "HSL"
     assert struct.unpack_from('<HH', m, o(0x6154be9c)) == (3, 11389)
@@ -605,7 +625,7 @@ def build(defaults, testfile, out):
     # Halation Radius (pictures 15..22): r5, the set of cells that fills rz_pay (.ext14) best goes there (the first such
     # set in this fixed order), the rest into rz_pay2 (.ext13), each area in picture order
     import itertools
-    rk = range(15, len(pics))
+    rk = range(15, 23)
     al = {k: (len(pics[k][2]) + 7) & ~7 for k in rk}
     cap = sy['rz_pend'] - sy['rz_pay']
     first = max((c for r in range(len(rk) + 1) for c in itertools.combinations(rk, r) if sum(al[k] for k in c) <= cap),
@@ -617,7 +637,9 @@ def build(defaults, testfile, out):
     assert at2[0] <= sy['rz_pend'] and at2[1] <= sy['rz_pend2'], (hex(at2[0]), hex(at2[1]))
     at, end = sy['ic_pay'], sy['ic_pend']
     for k, (w, h, st) in enumerate(pics):
-        if k >= 15:
+        if k == 23:                                # the Split toning row's cell: its own room (splitrow.s sp_pay, .ext15)
+            at, end = sy['sp_pay'], sy['sp_pend']
+        elif k >= 15:
             at, end = place[k], place[k] + len(st)
         assert at % 8 == 0 and at + len(st) <= end, (k, len(st))
         m[o(at):o(at) + len(st)] = st

@@ -28,6 +28,7 @@ PICTURES = [
     ([('Grain', 20, 33)], W, H),   # better grain g2 (id 0x7f78): the Film Grain strength slider's icon (grain_icon)
     ([], 82, 62), ([], 82, 62), ([], 82, 62), ([], 82, 62),   # Halation Radius (ids IC_RZ0..): its row's left cells (r4: radius_cell, the Grain Size pictures' size)
     ([], 100, 76), ([], 100, 76), ([], 100, 76), ([], 100, 76),  # r4: its strip cells (ids IC_RZS..; were the words in the camera's font)
+    ([], 82, 62),                  # the Split toning row's cell (id IC_SP): split_icon
 ]
 STYLE = {10: (0.88, (0.20, 0.40, 0.60))}   # width, coverage thresholds (as the FILM cells, matched to the stock lettering)
 
@@ -483,6 +484,27 @@ def hsl_pie():
     return px
 
 
+def split_icon():
+    """the Split toning row's cell (82 x 62, as the colour wheel row's): a disc cut on the diagonal, orange (the
+    highlights) upper right, blue (the shadows) lower left, a thin white rim with a dark edge as hsl_pie's"""
+    import math
+    w, h, cx, cy, R = 82, 62, 41, 31, 24
+    px = np.zeros((h, w), dtype=np.uint8)
+    for y in range(h):
+        for x in range(w):
+            dx, dy = x + 0.5 - cx, y + 0.5 - cy
+            r = math.hypot(dx, dy)
+            if r > R + 2:
+                continue
+            if r > R + 0.5:
+                px[y, x] = 7
+            elif r > R - 1.5 or abs(dx + dy) < 1.2:
+                px[y, x] = 10
+            else:
+                px[y, x] = 34 if dy < -dx else 53
+    return px
+
+
 def glow_icon():
     """Glow (46 x 46, the "Glow" word's place): a white dot with a soft white glow round it"""
     import math
@@ -647,7 +669,7 @@ def radius_cell(kind, strip=False):
     return px
 
 
-CUSTOM = {3: border_icon, 10: hsl_pie, 11: glow_icon, 12: halo_icon, 13: bal_icon, 14: grain_icon}
+CUSTOM = {3: border_icon, 10: hsl_pie, 11: glow_icon, 12: halo_icon, 13: bal_icon, 14: grain_icon, 23: split_icon}
 CUSTOM.update({15 + i: (lambda k=k: radius_cell(k)) for i, k in enumerate(RZ_KINDS)})            # r4: ids IC_RZ0 + i
 CUSTOM.update({19 + i: (lambda k=k: radius_cell(k, strip=True)) for i, k in enumerate(RZ_KINDS)})  # r4: ids IC_RZS + i
 

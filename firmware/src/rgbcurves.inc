@@ -1299,6 +1299,8 @@ cv_inf:
  exthu d2
  cmp 5397,d2
  beq 1f
+ cmp ST_IT,d2                     /* the Split toning row: as the wheel's (splitrow.s) */
+ beq 1f
  cmp 5398,d2
  beq 1f
  cmp RG_IT,d2
@@ -1328,6 +1330,8 @@ cv_rsi:
  cmp 5396,d2
  beq 1f
  cmp 5397,d2
+ beq 1f
+ cmp ST_IT,d2                     /* the Split toning row */
  beq 1f
  cmp 5398,d2
  beq 1f

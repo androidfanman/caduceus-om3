@@ -858,6 +858,9 @@ k_go:
 6:
  jmp k_open                       /* film test 10: the INFO that opens the wheel goes to Hue; else k_ad, then k_6b */
 k_6b:
+ .if W_KEYS
+ jmp sp_inf                       /* split-tone row: INFO = all colours on the colour wheel, Shadows <-> Highlights on its own row (splitrow.s) */
+ .endif
  mov (16,sp),d0
  cmp 255,d0
  beq k_all
@@ -1411,7 +1414,11 @@ ed_isdef:
  clr d3
  btst 0x100,d1                    /* the HSL row's '*' (ed_isdef): its own settings only; the profile's (ed_isd0): all */
  beq 84f
- movbu (47,a0),d3                 /* Blacks, Whites, Extras Glow/Clarity, Art Effect, NR, VigFix: any non-zero */
+ movbu (56,a0),d3                 /* v0.26: the split toning strengths +56, +58; split-tone row: the profile's '*' only (the */
+ movbu (58,a0),d1                 /* tints have their own row and '*' now, sp_star) */
+ or d1,d3
+ movbu (47,a0),d1                 /* Blacks, Whites, Extras Glow/Clarity, Art Effect, NR, VigFix: any non-zero */
+ or d1,d3
  mov (48,a0),d1                   /* +48..51 (slot entries are 4-aligned: P + 32 + 64k) */
  or d1,d3
  movhu (52,a0),d1                 /* +52, +53: VigFix, Grain */
@@ -1429,10 +1436,6 @@ ed_isdef:
  movhu (26,a0),d1
  or d1,d3
 84:
- movbu (56,a0),d1                 /* v0.26: the split toning strengths +56, +58 */
- or d1,d3
- movbu (58,a0),d1
- or d1,d3
  cmp 0,d3
  bne 7f
  add d2,a0
@@ -2377,15 +2380,8 @@ ei_page:
  mov EMAGIC,d3
  mov d3,(EMARK,a2)
 2:
- mov (LPTR,a2),d3
- cmp 0,d3
- beq 3f
- .if W_FILM                       /* film test 7: the wheel opens on Saturation (the films are in the Picture Mode list) */
- mov 4,d3
- .else
- clr d3
- .endif
-3:
+ clr d3                           /* the wheel opens on Saturation (film test 7); split-tone row: the editor noted, */
+ mov a0,(sp_ed)                   /* for the row's update that follows (splitrow.s sp_sync puts the row's page in) */
  movbu d3,(AXIS,a2)
  mov d3,d0
  call ei_open,[d2,a2],8           /* film test 10: P+EOPEN = 1, then gd_set */
@@ -2636,7 +2632,7 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * the colour wheel), tone (Contrast, Highlight & Shadow, Blacks, Whites), white balance
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
- .long 111, MX_IT, RG_IT, 5397, TB_IT, AB_IT, 5398, BK_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
+ .long 111, MX_IT, RG_IT, 5397, ST_IT, TB_IT, AB_IT, 5398, BK_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 
@@ -2681,6 +2677,8 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set GSB, 0x7e90                  /* g2: their bar ids + k (row 9: the films' FLB rows end at 0x7e83) */
 .set SZB, 0x7e98
 .set RZ_IT, 5376                  /* Halation Radius: the choice row (class 17: 0 Bloom, 1 Tight, 2 Medium, 3 Wide; hrrow.s) */
+.set ST_IT, 5375                  /* the Split toning row: the wheel row (5397) again, on its Shadows / Highlights pages (splitrow.s) */
+.set IC_SP, 0x7f7d                 /* its cell picture (mkicons PICTURES[23], ic_ent 23) */
 .set RZB, 0x7ed8                  /* its bar ids + k (row 13, after Halation's HLB + 0..3; fl_isdef sends them to rz_def) */
 .set ST_RZT, 0x7f6c               /* Halation Radius: "Halation Radius", ST_RZ0 + r "Halation Radius: Bloom" .. "...: Wide", */
 .set ST_RZ0, 0x7f6d               /* ST_RZS + r the strip's "Bloom" / "Tight" / "Med" / "Wide" (rz_strs; after crop's */
@@ -2825,6 +2823,7 @@ it_tab:                           /* the stock 17 item entries (filled by build.
  .long RG_IT, 0, 0, 0, 0x6154bd18, 0x1b, 0, 0, 0, 0             /* rgb-curves: as H&S's entry (item 5398) */
  .long MX_IT, 0, 0, 0, 0x6154bd18, 0x1b, 0, 0, 0, 0             /* colour mix: the same */
  .long RZ_IT, rz_title, rz_l0, 4, 0, rz_l1, 4, 0, rz_l2, 4    /* Halation Radius: a choice row as Grain Size (hrrow.s) */
+ .long ST_IT, 0, 0, 0, 0, 0, 0, sp_cell, 0, 0                  /* Split toning: as the wheel row's entry (item 5397), its own cell picture */
 .section .ext11,"ax"
 bk_title:
  .short 4, ST_BKS
@@ -4590,6 +4589,11 @@ ic_get:
  add d1,a0
  retf [],0
 25:
+ cmp IC_SP,d1                     /* the Split toning row's cell -> ic_ent 23 */
+ bne 26f
+ mov ic_ent + 23 * 4,a0
+ retf [],0
+26:
  cmp IC_BK,d1
  bcs ic_stk
  cmp IC_END,d1
@@ -5579,6 +5583,7 @@ ic_ent:                           /* the slot word of each of our pictures, in f
  .long ic_d14                     /* g2: id IC_GR (ic_get) */
  .long ic_d15, ic_d16, ic_d17, ic_d18   /* Halation Radius: ids IC_RZ0 .. + 3 */
  .long ic_d19, ic_d20, ic_d21, ic_d22   /* r4: its strip, ids IC_RZS .. + 3 */
+ .long ic_d23                     /* the Split toning row's cell, id IC_SP */
 /* descriptors <6H3I> as the stock pictures': format 14, w, h, 8, 0, 0, size, payload, flags; build.py fills w, h,
  * size and payload (the streams from firmware/mkicons.py, packed into ic_pay, by their uncached address 0xa...) */
  .macro ICD n
@@ -5609,6 +5614,7 @@ ic_d\n:
  ICD 20
  ICD 21
  ICD 22
+ ICD 23
 .balign 8
 /* ------------------------------------------------------------------ v0.28 film WB (w3)
  * Owner: a film (and each COLOR's own settings) remembers the camera's WB last used with it, as its HSL does; one
@@ -6141,6 +6147,10 @@ st_chk:
 /* rd_a / rd_b <- jmp from 0x611d16b4 / 0x611d1725 (the readout glyph lookups, d0 = item): 1011, 5397 (stock) and
  * Blacks / Whites take the 11-entry -5..+5 tables (0x611d16e6 / 0x611d1757), else none (0x611d16ee / 0x611d175f). */
 rd_a:
+ cmp ST_IT,d0                     /* the Split toning row reads as the wheel row */
+ bne 0f
+ mov 5397,d0
+0:
  cmp 5397,d0                      /* v0.28 t2: the wheel's readout on a Shadows / Highlights page: 0..10 */
  bne 5f
  movm [a2],(sp)
@@ -6191,6 +6201,10 @@ rd_a:
 1:
  jmp rda_11
 rd_b:
+ cmp ST_IT,d0                     /* the Split toning row reads as the wheel row */
+ bne 0f
+ mov 5397,d0
+0:
  cmp 5397,d0                      /* v0.28 t2: the tone pages (as rd_a) */
  bne 5f
  movm [a2],(sp)
@@ -11328,6 +11342,11 @@ tn_set:
  add -928,d2
  cmp 48,d2
  bcc 9f
+ add -4,sp                        /* split-tone row: with all colours on (left on from the colour wheel row) the */
+ call sp_all,[d2,d3,a2,a3],20     /* dial's 12 writes would leave the tint on the last colour: nothing (splitrow.s; */
+ add 4,sp                         /* keeps d1, a0, a1) */
+ cmp 0,d0
+ bne 8f
  cmp -5,d1                        /* v0.28 t2: the dial's -5..+5 = strength 0..10 (the wheels only add a colour) */
  blt 8f
  cmp 5,d1
@@ -23408,3 +23427,4 @@ bl_v:                             /* the value */
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
  .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
  .include "hbar.s"                /* wheel-hsl-view: the H / S / L bar under the colour wheel (ext15) */
+ .include "splitrow.s"            /* the Split toning row: the Shadows / Highlights wheels on their own row (ext15) */

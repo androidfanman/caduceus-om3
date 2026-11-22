@@ -115,6 +115,9 @@ hb_gsel:
 hb_pu:
  movhu (a0),d0
  movhu d0,(hb_item)
+ mov a0,(sp_a0)                   /* split-tone row: the wheel's page follows the row (splitrow.s) */
+ call sp_sync,[d2,d3,a2,a3],20
+ mov (sp_a0),a0
  jmp gr_upd
 
 /* hb_kdel <- the Delete press entry of the Picture Mode screen's key state (CALLS: a1 = the key event, its GUI code at
@@ -184,16 +187,10 @@ hb_next:
  movbu (hb_last),d1
  bra 9f
 5:
- cmp 3,d0
- bcc 6f
- movbu d0,(hb_last)
- mov 5,d1
- bra 9f
-6:
- mov 6,d1
+ mov 6,d1                         /* split-tone row: INFO steps only on its row, Shadows <-> Highlights (sp_inf) */
  cmp 5,d0
  beq 9f
- movbu (hb_last),d1
+ mov 5,d1
 9:
  jmp k_set
 
