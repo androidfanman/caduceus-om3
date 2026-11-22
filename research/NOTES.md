@@ -9941,7 +9941,11 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
   the same byte for byte: E1479999.BIN 3f8a6093…1d63, GUIDES.BIN a8399cb7…8c52 (LABELS / TONES as beta 4). Suite
   (om-emu at the pin): 132 pass, 1 FAIL = static:changed-bytes (the 11 sites above, not yet in hooks.json).
 
-## The Split toning row, s1: Shadows / Highlights on their own Picture Mode row (2026-11-22; emulator only, camera test pending; branch feature/split-tone-row from wheel-hsl-view h3 = 52c0219)
+## The Split toning row, s1: Shadows / Highlights on their own Picture Mode row (2026-11-22; camera-tested by the owner 2026-11-22; branch feature/split-tone-row from wheel-hsl-view h3 = 52c0219)
+
+**Camera result (2026-11-22):** s1 on the owner's OM-3 (card files matched the package's sha256). Owner: "That's
+beautiful. It worked great". No single step of TEST-STEPS was reported apart, and no debug log was read; the rough
+edge with "all colours" left on and the held-OK Reset question stay open.
 - Owner: "moves the two split toning wheels to a new row. I want them seperate from HSL". Their choices (asked with a
   mock-up before building): the row right under the colour wheel, Tone Balance its own row below it; INFO steps
   Shadows <-> Highlights; on the colour wheel INFO is "Color All" again; the row's picture a circle half orange, half
