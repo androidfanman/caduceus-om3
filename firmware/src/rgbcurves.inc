@@ -1586,6 +1586,11 @@ cvd_go:
  bne 16f
  mov cv_pd,d1
  call cv_d,[d2,d3,a2,a3],44
+ mov (cv_on),d1                   /* five-point curve: a step of 2 CV_STEP (cv_prm keeps values to -7..+7, so the */
+ cmp 3,d1                         /* doubling is here and at the dots, not in the record: camera test c1, the ends */
+ bne 163f                         /* stopped half way to their dots) */
+ add d0,d0
+163:
  add d0,d2
 16:
  cmp 0,d2
@@ -1683,6 +1688,11 @@ cvd_go:
  extb d0
  mov CV_STEP,d1
  mul d1,d0
+ mov (cv_on),d1                   /* five-point curve: as the curve, 2 CV_STEP a step */
+ cmp 3,d1
+ bne 202f
+ add d0,d0
+202:
  mov d2,d1
  asl2 d1
  mov cv_h0,a0

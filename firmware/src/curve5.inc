@@ -385,8 +385,8 @@ b5_star:
  jmp HS_STAR
 
 /* b5_dr (jumped to from cv_draw on the Blk / Wht page, its frame): the made-up record at b5_rec, channel 0 = the
- * five points as RGB-curve offsets (x 2: a step of 96 / 4095, +-7 = +-16 %, about the camera's own curve's bend):
- * [0] Blacks, [2] Sh, [3] Mid, [4] Hi, [5] Whites, [1] (the 10 % input) between Blacks and Sh; channels 1, 2 flat.
+ * five points as RGB-curve offsets: [0] Blacks, [2] Sh, [3] Mid, [4] Hi, [5] Whites ([1] is not a point); channels
+ * 1, 2 flat. cv_draw doubles the step for this page (2 CV_STEP: +-7 = +-16 %, about the camera's own curve's bend).
  * Then cv_draw's locals: (4) k, (44) the record, (8) colour 0, (12) no selected point -> cvd_go. */
 b5_dr:
  mov (cv_k),d0
@@ -408,7 +408,6 @@ b5_dr:
  blt 1f
  cmp 7,d0
  bgt 1f
- add d0,d0
  movbu d0,(a1)
 1:
  movbu (80,a0),d0
@@ -417,34 +416,17 @@ b5_dr:
  blt 3f
  cmp 7,d0
  bgt 3f
- add d0,d0
  movbu d0,(5,a1)
 3:
  movbu (b5_sh),d0
  extb d0
- add d0,d0
  movbu d0,(2,a1)
  movbu (b5_md),d0
  extb d0
- add d0,d0
  movbu d0,(3,a1)
  movbu (b5_hi),d0
  extb d0
- add d0,d0
  movbu d0,(4,a1)
- movbu (a1),d0                    /* [1] = (3 Blacks + 2 Sh) / 5 */
- extb d0
- mov d0,d1
- add d0,d0
- add d1,d0
- movbu (2,a1),d1
- extb d1
- add d1,d0
- add d1,d0
- mov 205,d1
- mul d1,d0
- asr 10,d0
- movbu d0,(1,a1)
  mov a1,(44,sp)
  clr d0
  mov d0,(8,sp)

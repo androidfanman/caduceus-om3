@@ -9808,3 +9808,13 @@ owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-bet
   0, static checks pass (the 13 tests that count rows under H&S now count one less); the new page's test on
   v0.40.3-beta4: `caught`. Package (private) `test-builds/2026-11-22-curve-5-points-1`, go-back v0.40.3-beta4. Not on
   a camera yet.
+- **Test 1 camera (owner, 2026-11-22, c1; a photo of the Blk / Wht page at Blk +7 / Wht -7, not kept):** "this is looking
+  good and works, but has some quirks": (1) "The black/white text doesn't show up with the shad/mid/high text";
+  (2) "The curves for the end don't keep up with the dot". Camera-tested: the three INFO pages, the Blk / Wht page's
+  header (labels, dials over both, the middle empty) and guide, the dials, the curve picture drawn. In the photo the
+  end dots sit at +-16 % while the curve ends about half way: cv_prm keeps a value to -7..+7, and b5_dr had doubled
+  the values in its record (the dots, from the record itself, were not clamped), so the curve stopped at +-3.5.
+- **Fix for (2) (emulator only, VERSION c2, not packaged yet):** the record holds the plain values; cv_draw doubles
+  the step on this page for both the curve (after cv_d) and the dots. om-emu: at +7 / -7, -7 / +7 and +3 / -3 the
+  curve ends on its dots. (1) is the header's three slots: a proposal (the other values written inside the graph by
+  their points, our curve on all three pages) is with the owner as a mock-up.
