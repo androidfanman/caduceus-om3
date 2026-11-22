@@ -253,6 +253,14 @@ FIVE_POINT_PAGE = (HS_ROW + 'main+1 wait expect:val:978=1 expect:p:79=00 expect:
 # Leaving the row ends the Blk / Wht page: back on the row the dials are Sh / Hi's again.
 FIVE_POINT_LEAVES = (HS_ROW + 'info wait info wait main+1 wait expect:p:79=01 down wait up wait main+1 wait '
                      'expect:val:978=1 expect:p:79=01 poweroff')
+# Test 3: the header shows all five values in one line (slots of 80 px from x 494; the camera's own header is three
+# slots, x 544..844). On Sh / Hi the first and last slots hold Blk and Wht (nothing there before); on Blk / Wht the
+# middle slot holds Mid (empty there before).
+FIVE_POINT_HEADER = (HS_ROW + 'expect:ink:496,112,540,138 expect:ink:850,112,890,138 '
+                     'info wait info wait expect:ink:660,112,730,138 poweroff')
+# The RGB row uses the same header: it gets the camera's places back (nothing left or right of x 544..847).
+FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 4 +
+                          'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
 
 def no_scene_set_in_update(hits):
@@ -1216,6 +1224,12 @@ TESTS = {
     ],
     'five-point-curve-page-ends-on-leaving-the-row': [
         Boot(FIVE_POINT_LEAVES),
+    ],
+    'five-point-curve-header-shows-five-values': [
+        Boot(FIVE_POINT_HEADER),
+    ],
+    'five-point-curve-header-back-on-the-rgb-row': [
+        Boot(FIVE_POINT_HEADER_BACK),
     ],
     'wb-to-highlight-shadow-sets-the-scene-in-the-row-refresh': [
         Boot(WB_HS_SWITCH, watch=SCENE_IN_UPDATE, hits=no_scene_set_in_update),

@@ -37,7 +37,285 @@ b5_hs:
  inc d0
  mov d0,(cv_gen)
 1:
+ mov 1,d0                         /* test 3: on the row (b5_lk lays the header out), and the film with its Sh / */
+ movbu d0,(b5_row)                /* Mid / Hi for the header's greyed values */
+ call b5_rd,[d2,d3,a2,a3],36
  jmp HS_CASE
+
+/* b5_rd (`call b5_rd,[d2,d3,a2,a3],36`; keeps d1, a0, a1, mdr; d0 free): b5_fk = the film k (-1: not a film) and,
+ * on a film, its Sh / Mid / Hi in b5_sh / b5_md / b5_hi (the camera's own settings, read as b5_ev0 does) */
+b5_rd:
+ mov d1,(4,sp)
+ mov a0,(8,sp)
+ mov a1,(12,sp)
+ mov mdr,d1
+ mov d1,(16,sp)
+ mov 111,d0
+ call sget,[],4
+ call fl_k,[],0
+ mov d0,(b5_fk)
+ cmp 0,d0
+ blt 9f
+ mov d0,d3
+ add d0,d0
+ add d0,d3                        /* 3k */
+ mov d3,d0
+ add 976,d0
+ call sget,[],4
+ movbu d0,(b5_hi)
+ mov d3,d0
+ add 977,d0
+ call sget,[],4
+ movbu d0,(b5_md)
+ mov d3,d0
+ add 978,d0
+ call sget,[],4
+ movbu d0,(b5_sh)
+9:
+ mov (16,sp),d1
+ mov d1,mdr
+ mov (4,sp),d1
+ mov (8,sp),a0
+ mov (12,sp),a1
+ ret [d2,d3,a2,a3],36
+
+/* ---- test 3 (owner, 2026-11-22: "I want it to look like" the first mock-up): five values in the header's one line,
+ * Blk  Sh  Mid  Hi  Wht, the page's own white under their dial symbols, the others grey.
+ * The header is 12 picture objects of the H&S page's container (object 47, class HD_VT; om-emu): a dial symbol, a
+ * name, a sign and a digit for each of the camera's three slots, ids 971..982, their pointers at (HD_KIDS, container),
+ * each with its place x / y at +8 / +10 and its box w / h at +12 / +14 (a draw uses them as they are then: om-emu,
+ * moved by hand). b5_lk moves them into five 80 px slots (x 494..893) for the page that is on, and back for
+ * everything else that uses the header (the camera's own picture modes, the RGB and Mix pages):
+ *   layout 1, Sh / Hi:   the left slot's four -> slot 1, the right's -> slot 3; the middle's name / sign / digit
+ *                        objects, widened to 80 px, show "Blk v", "Mid v", "Wht v" (b5_cmp) in slots 0 / 2 / 4
+ *   layout 2, Mid:       the middle's four stay; the left name / digit and the right name / digit objects show
+ *                        "Blk v" / "Sh v" and "Hi v" / "Wht v" in slots 0 / 1 / 3 / 4, the two signs nothing
+ *   layout 3, Blk / Wht: the left four -> slot 0, the right four -> slot 4, the middle three show Sh / Mid / Hi
+ * The camera greys the objects of the slots its look is not on, ours with them (om-emu).
+ * When: every picture object's draw looks its picture up (cv_ic, the return HS_HDRAW) with the object at (16,sp) of
+ * the draw's frame. The left column's objects are drawn first in a pass (their container, class LC_VT, is two
+ * steps before the header's in the containers' chain at +36), so the header is in place before its own objects are
+ * drawn; a header object's own lookup does the same as a fallback. Nothing is searched: each step is a pointer the
+ * camera's own objects hold, checked by class and id; a miss leaves the header as it is. */
+ .set OB_VT, 0x6135993c           /* a picture object's class (its first word) */
+ .set HD_VT, 0x61466f24           /* the H&S page's container (object 47) */
+ .set LC_VT, 0x61456090           /* the left column's container (object 237) */
+ .set HD_KIDS, 796                /* the container's object pointers, 971.. first */
+ .set HD_ID0, 971
+b5_lk:
+ clr d1
+ mov d1,(b5_nx)
+ movhu (b5_row),d1                /* b5_row, b5_cur: off the row with the header as stock, nothing to do */
+ cmp 0,d1
+ bne 1f
+ jmp cv_ic_hd
+1:
+ movm [d2,d3,a2,a3],(sp)
+ add -16,sp
+ mov d0,(4,sp)
+ mov a0,(8,sp)
+ mov a1,(12,sp)
+ mov (48,sp),a2                   /* the object being drawn */
+ mov (a2),d1
+ cmp OB_VT,d1
+ bne 8f
+ mov (20,a2),a3                   /* its container */
+ cmp 0,a3
+ beq 8f
+ mov (a3),d1
+ cmp HD_VT,d1
+ beq 2f
+ cmp LC_VT,d1
+ bne 8f
+ mov (36,a3),a3
+ cmp 0,a3
+ beq 8f
+ mov (36,a3),a3
+ cmp 0,a3
+ beq 8f
+ mov (a3),d1
+ cmp HD_VT,d1
+ bne 8f
+2:                                /* a3 = the header's container. d2 = the layout wanted */
+ clr d2
+ movbu (b5_row),d1
+ cmp 0,d1
+ beq 3f
+ mov (cv_on),d1
+ cmp 3,d1
+ bne 21f
+ mov 3,d2
+ bra 3f
+21:
+ cmp 0,d1
+ bne 3f
+ mov (b5_fk),d1
+ cmp 0,d1
+ blt 3f
+ mov 1,d2
+ mov (HD_KIDS + 16,a3),a1         /* the middle's dial symbol shown = the camera's Mid look */
+ cmp 0,a1
+ beq 3f
+ movbu (16,a1),d1
+ btst 1,d1
+ beq 3f
+ mov 2,d2
+3:
+ mov d2,d0                        /* a0 = the layout's 12 (x, w) */
+ asl2 d0
+ mov d0,d1
+ add d0,d0
+ add d1,d0
+ asl2 d0
+ mov b5_lt,a0
+ add d0,a0
+ mov (HD_KIDS + 4,a3),a1          /* in place already? (the left name's x differs in all four) */
+ cmp 0,a1
+ beq 8f
+ movhu (8,a1),d0
+ movhu (4,a0),d1
+ cmp d0,d1
+ beq 5f
+ clr d3
+4:
+ mov d3,d0
+ asl2 d0
+ mov a3,a1
+ add d0,a1
+ mov (HD_KIDS,a1),a1
+ cmp 0,a1
+ beq 41f
+ mov (a1),d1
+ cmp OB_VT,d1
+ bne 41f
+ movhu (6,a1),d1
+ add -HD_ID0,d1
+ cmp d3,d1
+ bne 41f
+ movhu (a0),d1
+ movhu d1,(8,a1)
+ movhu (2,a0),d1
+ movhu d1,(12,a1)
+41:
+ add 4,a0
+ inc d3
+ cmp 12,d3
+ bne 4b
+5:
+ movbu d2,(b5_cur)
+ movbu (b5_row),d1                /* the Mid page's guide ("B/W [INFO]", b5_mid) goes by the look that is drawn: the */
+ cmp 0,d1                         /* panel keeps its look while another row is open (om-emu) */
+ beq 51f
+ clr d1
+ cmp 2,d2
+ bne 50f
+ inc d1
+50:
+ movbu d1,(b5_mid)
+51:
+ cmp 0,d2                         /* the picture of a header object on our layouts */
+ beq 8f
+ mov (20,a2),d1
+ mov a3,d0
+ cmp d0,d1
+ bne 8f
+ movhu (6,a2),d1
+ add -HD_ID0,d1
+ cmp 12,d1
+ bcc 8f
+ mov d2,d0
+ add -1,d0
+ asl2 d0
+ mov d0,d3
+ add d0,d0
+ add d3,d0                        /* 12 (layout - 1) */
+ add d1,d0
+ mov b5_rp,a0
+ add d0,a0
+ movbu (a0),d0
+ cmp 0,d0
+ beq 8f
+ cmp 1,d0
+ bne 6f
+ mov cv_ent + 4 * (CVI_N + 1),a0  /* nothing (a clear 14 x 30) */
+ bra 7f
+6:
+ add -2,d0                        /* a greyed value: its name 0..4 (Blk, Sh, Mid, Hi, Wht) and its number */
+ mov d0,d3
+ clr d1
+ cmp 0,d0
+ beq 61f
+ cmp 4,d0
+ beq 62f
+ mov b5_sh - 1,a0
+ add d0,a0
+ movbu (a0),d1
+ bra 64f
+61:
+ mov 79,d2
+ bra 63f
+62:
+ mov 80,d2
+63:
+ B5P 65f
+ mov (b5_fk),d1
+ asl2 d1
+ asl2 d1
+ asl2 d1
+ add d2,d1
+ add d1,a0
+ movbu (a0),d1
+ bra 64f
+65:
+ clr d1
+64:
+ extb d1
+ add 7,d1
+ cmp 15,d1
+ bcs 66f
+ mov 7,d1
+66:
+ mov d3,d0                        /* b5_cmp[15 n + v + 7] */
+ asl2 d0
+ asl2 d0
+ sub d3,d0
+ add d1,d0
+ asl2 d0
+ mov b5_cmp,a0
+ add d0,a0
+7:
+ mov a0,(b5_nx)                   /* the draw's second lookup (HS_DRAW2) gets the same */
+ mov (4,sp),d0
+ mov (12,sp),a1
+ add 16,sp
+ movm (sp),[d2,d3,a2,a3]
+ retf [],0
+8:
+ mov (4,sp),d0
+ mov (8,sp),a0
+ mov (12,sp),a1
+ add 16,sp
+ movm (sp),[d2,d3,a2,a3]
+ jmp cv_ic_hd
+
+ .balign 4
+b5_nx:                            /* the picture slot b5_lk chose, for the draw's second lookup */
+ .long 0
+b5_row:                           /* 1 while the H&S row is the open one */
+ .byte 0
+b5_cur:                           /* the layout the header's objects were last put in (0 stock) */
+ .byte 0
+ .balign 4
+b5_lt:                            /* x, w of 971..982 (dial, name, sign, digit of the left, middle, right slot) */
+ .short 578, 36, 544, 38, 582, 13, 595, 16,  701, 36, 655, 50, 705, 13, 718, 16,  811, 36, 777, 38, 815, 13, 828, 16
+ .short 614, 36, 580, 38, 618, 13, 631, 16,  701, 36, 494, 80, 654, 80, 814, 80,  774, 36, 740, 38, 778, 13, 791, 16
+ .short 578, 36, 494, 80, 582, 13, 574, 80,  701, 36, 655, 50, 705, 13, 718, 16,  811, 36, 734, 80, 815, 13, 814, 80
+ .short 538, 36, 496, 46, 542, 13, 555, 16,  701, 36, 574, 80, 654, 80, 734, 80,  858, 36, 816, 46, 862, 13, 875, 16
+b5_rp:                            /* layouts 1..3, the 12 objects: 0 the camera's picture, 1 nothing, 2 + name */
+ .byte 0, 0, 0, 0,  0, 2, 4, 6,  0, 0, 0, 0
+ .byte 0, 2, 1, 3,  0, 0, 0, 0,  0, 5, 1, 6
+ .byte 0, 0, 0, 0,  0, 3, 4, 5,  0, 0, 0, 0
+ .balign 4
 
 /* cv_pu <- .hook_pu (the screen update's end, (4,sp) -> the current item): the RGB / Mix rows keep cv_on, the H&S row
  * has its page's, any other row -> off; off the H&S row the Blk / Wht page ends. Then pu_hook. Uses d0, a0. */
@@ -50,6 +328,7 @@ cv_pu:
  clr d0
  movbu d0,(b5_pg)
  movbu d0,(b5_mid)
+ movbu d0,(b5_row)
  mov a0,d0
  cmp RG_IT,d0
  beq 1f
@@ -75,6 +354,7 @@ cv_gx:
  clr d1
  movbu d1,(b5_pg)
  movbu d1,(b5_mid)
+ movbu d1,(b5_row)
 1:
  jmp gx_map
 

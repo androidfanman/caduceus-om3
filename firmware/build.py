@@ -303,6 +303,12 @@ def build(defaults, testfile, out):
     rg2 = []                                      # colour mix: the Mix page's pictures (7..) live with its code (ext12)
     for i, (name, w, h, st) in enumerate(rp):
         (rg if i < 7 else rg2 if i < 16 else rg5).extend([' .balign 4', f'cvp_s{i}:', db(st).rstrip('\n')])
+    f5 = rgbpics.five_streams()                   # five-point curve test 3: the header's greyed values (b5_cmp)
+    rg5 += [' .balign 4', 'b5_cmp:', ' .long ' + ', '.join(f'b5c_d{i}' for i in range(len(f5)))]
+    for i, (name, w, h, st) in enumerate(f5):
+        rg5 += [f'b5c_d{i}:                          /* {name} */', f' .short 14, {w}, {h}, 8, 0, 0', f' .long {len(st)}, b5c_s{i} + 0x40000000, 0']
+    for i, (name, w, h, st) in enumerate(f5):
+        rg5 += [' .balign 4', f'b5c_s{i}:', db(st).rstrip('\n')]
     (out / 'curve5pics.inc').write_text('\n'.join(rg5) + '\n')
     (out / 'rgbpics.inc').write_text('\n'.join(rg) + '\n')
     (out / 'rgbpics2.inc').write_text('\n'.join(rg2) + '\n')

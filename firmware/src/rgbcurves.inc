@@ -1327,6 +1327,8 @@ cv_ic:
  mov mdr,d1                       /* mix test 5 (owner: "turn the center dial and number black"): on our pages the */
  cmp HS_HDRAW,d1                  /* H&S header's middle (its dial symbol, name, number) clear. The header's draw */
  bne 18f                          /* (return HS_HDRAW) passes in a0 the layout record of the spot: the middle's are */
+ jmp b5_lk                        /* five-point curve test 3: the header's five slots first (-> cv_ic_hd, or its picture) */
+cv_ic_hd:
  mov (cv_on),d1                   /* HS_MID0.. (om-emu, in both of the panel's looks); the left and right values' */
  cmp 0,d1                         /* records lie below and above, so their pictures, which the middle shares, stay */
  beq 12f
@@ -1344,6 +1346,14 @@ cv_ic:
 18:
  cmp HS_DRAW2,d1
  bne 12f
+ mov (b5_nx),d1                   /* five-point curve test 3: the picture b5_lk chose at the first lookup */
+ cmp 0,d1
+ beq 181f
+ mov d1,a0
+ clr d1
+ mov d1,(b5_nx)
+ retf [],0
+181:
  mov (cv_sgn),d1
  cmp 0,d1
  beq 12f
