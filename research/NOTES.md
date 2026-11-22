@@ -9872,6 +9872,11 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
 - **Test** `color-wheel-hsl-bar-shows-the-colour`: Saturation +3 -> bar (0, 3, 0) with S framed; Hue -> H framed;
   Hue +2; the next colour (0, 0, 0); Luminance -1 -> (2, 3, -1) with L framed; each GDESC byte for byte as
   mkhbar.stream; Shadows -> its own guide; half-press -> the camera's (4022 B, 0xa49ebe40). On v0.40.3-beta4: caught.
+  `color-wheel-saturation-guide-names-the-page` changed with it: on Saturation (one colour) GDESC holds the bar (was
+  "Saturation [INFO]", the behaviour this test build changes on purpose); its "Sat. All" checks are as before.
+- **Package h1:** VERSION "v0.40.3-h1 (beta 4 + H/S/L bar under the wheel)", firmware/card source = commit a318715
+  (7cdf884 changes only the test). E1479999.BIN d4512a5d…64bc, GUIDES.BIN 094b4a6b…2dff (LABELS / TONES as beta 4);
+  built twice, the same byte for byte. Suite on it (om-emu at the pin, 0819080): 130 pass, 0 known, 0 FAIL.
 - **Not known (camera only):** whether the camera shows a guide picture rewritten at each click cleanly (two buffers,
   switched after the write), whether the letters are big enough on the camera's screen (cap height 19 px against the
   camera's guide words' 31), and whether a click feels slower.
