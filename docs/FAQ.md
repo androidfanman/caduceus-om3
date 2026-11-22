@@ -32,7 +32,7 @@ launcher adds them to your copy of OM's official file. It downloads that file fr
 
 ### Can I go back to the camera's own firmware?
 
-Yes, at any time: see [going back](INSTALL.md#going-back-to-the-cameras-own-firmware). It takes about two minutes.
+Yes, at any time: see [going back](INSTALL.md#going-back-to-the-cameras-own-firmware). It takes up to about five minutes.
 
 ## Films and settings
 

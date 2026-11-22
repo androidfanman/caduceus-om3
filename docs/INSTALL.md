@@ -98,8 +98,8 @@ OM3MOD/CURVES.BIN
 
 1. Put the card in the camera. Check the battery is **fully charged**. Switch the camera **off**.
 2. **Hold the OK button** and switch the camera **on**. Keep holding OK until the update starts.
-3. The light stays **on (steady)** while the update is written. This takes about **two minutes**.
-   **Don't switch off, open the battery door or take the card out.**
+3. The light stays **on (steady)** while the update is written. This can take **up to about five minutes**:
+   that's normal, just wait. **Don't switch off, open the battery door or take the card out.**
 4. When the light starts **blinking**, it's finished. Switch the camera off.
 
 If the light blinks straight away, without a steady phase, the camera didn't accept the file and nothing changed. The

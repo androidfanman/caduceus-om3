@@ -56,8 +56,8 @@ About 15 minutes. **[Step-by-step install guide](https://androidfanman.github.io
 4. **Copy** the `DCOLYMP` folder to the top of the SD card. For the film sims, put `LOOKS.BIN` (from the
    [latest release](https://github.com/androidfanman/caduceus-om3/releases/latest)) in a folder `OM3MOD` on the card;
    updating from an earlier version, keep your `OM3MOD` files: the camera copies them into its memory once.
-5. **Update the camera:** camera off, **hold OK** and switch on. Steady light = writing (about two minutes, don't touch
-   anything); blinking = done.
+5. **Update the camera:** camera off, **hold OK** and switch on. Steady light = writing (up to about five minutes, don't
+   touch anything); blinking = done.
 
 To undo: [go back to the camera's own firmware](https://androidfanman.github.io/caduceus-om3/pages/install/#going-back-to-the-cameras-own-firmware). Problems:
 [if something goes wrong](https://androidfanman.github.io/caduceus-om3/pages/install/#if-something-goes-wrong).
