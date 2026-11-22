@@ -9827,3 +9827,5 @@ owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-bet
   - The header's records 0x61466480.. are 16-byte {-1, 46, 46, picture id} lists (a value's glyphs), not positions; the
     positions are in the scene's own data. Variable 175's 508 bytes read all zero on the open page.
   Open route (not started, uncertain): the scene's layout data for the header's objects.
+- **Test 2 (c2; emulator only):** c1 + the curve fix. E1479999.BIN `176b7b04…7281`, GUIDES.BIN `2354da8f…1830` (build
+  of b1d51ec). Suite 131 pass, exit 0. Package (private) `test-builds/2026-11-22-curve-5-points-2`. Not on the card.
