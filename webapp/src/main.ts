@@ -13,6 +13,7 @@ import { makeZip } from './zip';
 import { applyCurvesBin, curvesBin, readCurvesBin } from './curvesbin';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
+import { JobQueue, MAX_OWN, TILE_PX, fitSize, takeFiles } from './photos';
 import {
   BANK_SCHEMA, PHOTO_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromPhotoCode, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
   SHARP, sharpLabel, slowGrain, monoGrain, grainStrength, setGrainStrength, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw, v28Parts, recipeText,
@@ -234,7 +235,7 @@ function shell() {
         h('a', { href: './samples/CREDITS.md', target: '_blank', rel: 'noopener' }, 'Image credits'))),
     h('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }),
     h('input', { type: 'file', id: 'file', multiple: true, accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),
-    h('input', { type: 'file', id: 'photo', accept: 'image/*', hidden: true, onchange: onPhoto }),
+    h('input', { type: 'file', id: 'photo', accept: 'image/*', multiple: true, hidden: true, onchange: onPhoto }),
     h('input', { type: 'file', id: 'grade', accept: '.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnGradeFile }));
   buildPreview();
   // owner 2026-11-13: the film list is as tall as the preview and scrolls on its own
@@ -1018,7 +1019,12 @@ function refreshProblems() {
 
 // ---------------------------------------------------------------- preview
 let srcData: ImageData | null = null;
-let userPhoto: ImageData | null = null;
+/** One of your own photos (owner 2026-11-21: several at once): the file, read again when you pick it so only the picked
+ *  one is kept large, a small copy for the grid, and its grid picture. Nothing leaves the browser. */
+interface OwnPhoto { id: string; name: string; file: File; small: ImageData; big: ImageData | null; tile: HTMLCanvasElement }
+const own: OwnPhoto[] = [];
+let ownSeq = 0;
+const tileJobs = new JobQueue();
 let canvas: HTMLCanvasElement;
 let beforeCv: HTMLCanvasElement;
 let beforeOf: ImageData | null = null;
@@ -1029,8 +1035,8 @@ function buildPreview() {
   const thumbs = h('div', { class: 'thumbs' },
     ...samples().map((s) => h('button', { class: `thumb${S.image === s.id ? ' on' : ''}`, 'data-id': s.id, onclick: () => pickImage(s.id), title: s.label },
       h('img', { src: `./samples/${s.id}.jpg?v=${SAMPLE_REV}`, alt: s.label, loading: 'lazy' }))),
-    h('button', { class: `thumb own${S.image === 'user' ? ' on' : ''}`, 'data-id': 'user', onclick: () => (userPhoto ? pickImage('user') : $<HTMLInputElement>('#photo').click()), title: 'Your photo (stays on this device)' },
-      h('span', {}, '+ Your photo')));
+    h('button', { class: 'thumb own', onclick: () => $<HTMLInputElement>('#photo').click(), title: `Add up to ${MAX_OWN} of your own photos (they stay on this device)` },
+      h('span', {}, '+ Your photos')));
   // before / after: the untouched photo on its own canvas, clipped at a line you drag on the photo (or arrow keys)
   beforeCv = h('canvas', { class: 'before', 'aria-hidden': 'true' }); beforeOf = null;
   const divider = h('div', { class: 'divider', role: 'slider', tabindex: '0', 'aria-label': 'Before and after divider', 'aria-valuemin': '0', 'aria-valuemax': '100' },
@@ -1058,22 +1064,32 @@ function buildPreview() {
   $('#preview').replaceChildren(
     h('div', { class: 'pv-wrap' }, frame, h('span', { class: 'badge' }, 'Before'), h('span', { class: 'badge r' }, 'After · approximate')),
     thumbs,
+    h('div', { id: 'own', class: 'own-photos' }),
     h('div', { class: 'pv-opts' },
       h('label', { class: 'aspect' },
         'Image Aspect ',
         h('select', { onchange: (e: Event) => { S.aspect = (e.target as HTMLSelectElement).value; try { localStorage.setItem('caduceus.om3.aspect', S.aspect); } catch { /* storage blocked */ } schedulePreview(); } },
           ...ASPECTS.map((a) => h('option', { value: a.id, selected: a.id === S.aspect }, a.label))), aspectHelp.q),
       h('span', { class: 'help' }, 'Includes Contrast, Sharp, Shading, Film Grain, Border, Glow, Halation and the lens corners.'),
-      h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Use your own photo…')),
+      h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Add your own photos…')),
     aspectHelp.box,
-    h('p', { class: 'help' }, 'Drag the line on the photo to compare before and after. Shading, grain, border, glow and the lens corners follow the camera\'s own maths, checked against photos from an OM-3; colours are close but not exact (strong blues and purples differ most), so check a new look on the camera. Your own photo never leaves this browser.'));
+    h('p', { class: 'help' }, 'Drag the line on the photo to compare before and after. Shading, grain, border, glow and the lens corners follow the camera\'s own maths, checked against photos from an OM-3; colours are close but not exact (strong blues and purples differ most), so check a new look on the camera. Your own photos never leave this browser.'));
+  renderOwn();
   pickImage(S.image);
 }
 
 async function pickImage(id: string) {
   S.image = id;
-  document.querySelectorAll('.thumb').forEach((t) => t.classList.toggle('on', (t as HTMLElement).dataset.id === id));
-  if (id === 'user') { srcData = userPhoto; schedulePreview(); return; }
+  document.querySelectorAll('.thumb, .own-tile').forEach((t) => t.classList.toggle('on', (t as HTMLElement).dataset.id === id));
+  const p = own.find((x) => x.id === id);
+  for (const o of own) if (o !== p) o.big = null;   // only the picked photo is kept large
+  if (p) {
+    if (!p.big) {
+      try { p.big = (await readPhoto(p.file, { big: true, small: false })).big; } catch { toast('That photo could not be read again', 'err'); return; }
+    }
+    if (S.image === id) { srcData = p.big; schedulePreview(); }
+    return;
+  }
   try {
     const img = new Image();
     img.src = `./samples/${id}.jpg?v=${SAMPLE_REV}`;
@@ -1091,37 +1107,114 @@ function previewPx(): number {
   return Math.max(1024, Math.min(2048, Math.ceil(css * (window.devicePixelRatio || 1))));
 }
 
-function toImageData(img: CanvasImageSource, w: number, h0: number, max = previewPx()): ImageData {
-  const k = Math.min(1, max / Math.max(w, h0));
-  const W = Math.round(w * k), H = Math.round(h0 * k);
+function toImageData(img: CanvasImageSource, w: number, h0: number, max = previewPx(), smooth = false): ImageData {
+  const { w: W, h: H } = fitSize(w, h0, max);
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  if (smooth) ctx.imageSmoothingQuality = 'high';   // the grid's small copies: a big step down, so no jaggies
   ctx.drawImage(img, 0, 0, W, H);
   return ctx.getImageData(0, 0, W, H);
 }
 
-async function onPhoto(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0];
-  (e.target as HTMLInputElement).value = '';
-  if (!f) return;
+/** Reads one of your photos (turned upright from its EXIF) into the copies asked for: `big` for the preview, `small`
+ *  for the grid. */
+async function readPhoto(f: File, want: { big: boolean; small: boolean }): Promise<{ big: ImageData | null; small: ImageData | null }> {
+  const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' } as ImageBitmapOptions);
   try {
-    const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' } as ImageBitmapOptions);
-    userPhoto = toImageData(bmp, bmp.width, bmp.height);
-    bmp.close();
-    pickImage('user');
-  } catch { toast('That file could not be read as an image', 'err'); }
+    return {
+      big: want.big ? toImageData(bmp, bmp.width, bmp.height) : null,
+      small: want.small ? toImageData(bmp, bmp.width, bmp.height, TILE_PX, true) : null,
+    };
+  } finally { bmp.close(); }
 }
 
-/** The photo frame: the photo's shape, as wide as the pane allows but no taller than 70% of the window. */
+/** Adds the photos you picked (up to MAX_OWN in all) to the grid, and shows the first of them large. */
+async function onPhoto(e: Event) {
+  const inp = e.target as HTMLInputElement;
+  const files = Array.from(inp.files ?? []);
+  inp.value = '';
+  if (!files.length) return;
+  const { take, notImages, overMax } = takeFiles(own.length, files);
+  let bad = notImages, shown = false;
+  for (const f of take) {
+    try {
+      const { big, small } = await readPhoto(f, { big: !shown, small: true });   // the others are read large when picked
+      const p: OwnPhoto = { id: `own${++ownSeq}`, name: f.name || 'Photo', file: f, small: small!, big, tile: h('canvas', { class: 'own-cv' }) };
+      drawTile(p);
+      own.push(p); renderOwn();
+      if (!shown) { shown = true; pickImage(p.id); }
+    } catch { bad++; }
+  }
+  const msg = [overMax ? `Up to ${MAX_OWN} photos at once: ${overMax} not added.` : '', bad ? `${bad} file${bad > 1 ? 's' : ''} could not be read as a photo.` : ''].filter(Boolean).join(' ');
+  if (msg) toast(msg, 'err');
+}
+
+/** The grid of your own photos, each with the film on; click one to see it large. */
+function renderOwn() {
+  const box = document.getElementById('own');
+  if (!box) return;
+  box.hidden = !own.length;
+  document.getElementById('preview')?.classList.toggle('has-own', own.length > 0);
+  if (!own.length) { box.replaceChildren(); schedulePreview(); return; }   // the frame goes back to its full height
+  box.replaceChildren(
+    h('div', { class: 'own-head' },
+      h('b', {}, `Your photos (${own.length} of ${MAX_OWN})`),
+      h('span', { class: 'help' }, 'Click one to see it large.'),
+      own.length < MAX_OWN ? h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Add…') : null,
+      h('button', { class: 'link', onclick: removeAllOwn }, 'Remove all')),
+    h('div', { class: 'own-grid' }, ...own.map((p) => h('div', { class: `own-tile${S.image === p.id ? ' on' : ''}`, 'data-id': p.id },
+      h('button', { class: 'own-pick', onclick: () => { pickImage(p.id); showBig(); }, title: p.name, 'aria-label': `Show ${p.name} large` }, p.tile),
+      h('button', { class: 'own-x', onclick: () => removeOwn(p.id), title: 'Remove this photo', 'aria-label': `Remove ${p.name}` }, '×')))));
+}
+
+/** After a click in the grid: scroll the pane back up if most of the big photo is out of view. */
+function showBig() {
+  const pane = document.getElementById('preview'), frame = canvas?.parentElement;
+  if (!pane || !frame) return;
+  const f = frame.getBoundingClientRect(), v = pane.getBoundingClientRect();
+  if (f.top + f.height / 2 < v.top) pane.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function removeOwn(id: string) {
+  const i = own.findIndex((p) => p.id === id);
+  if (i < 0) return;
+  own.splice(i, 1);
+  renderOwn();
+  if (S.image === id) pickImage(own[Math.min(i, own.length - 1)]?.id ?? samples()[0].id);
+}
+
+function removeAllOwn() {
+  const showing = own.some((p) => p.id === S.image);
+  own.length = 0; tileJobs.cancel(); renderOwn();
+  if (showing) pickImage(samples()[0].id);
+}
+
+/** One grid picture: the current film on the small copy, at the preview's Image Aspect. */
+function drawTile(p: OwnPhoto) {
+  const src = p.small, cr = cropRect(src.width, src.height, S.aspect), cv = p.tile;
+  if (cv.width !== cr.w || cv.height !== cr.h) { cv.width = cr.w; cv.height = cr.h; }
+  const ctx = cv.getContext('2d')!;
+  const l = cur();
+  if (!l) { ctx.putImageData(src, -cr.x, -cr.y, cr.x, cr.y, cr.w, cr.h); return; }
+  const out = ctx.createImageData(src.width, src.height);
+  renderLook(src, out, splitPv(l), { advice: true, camera: CAM, crop: cr, quiet: true });
+  ctx.putImageData(out, -cr.x, -cr.y, cr.x, cr.y, cr.w, cr.h);
+}
+
+/** The photo frame: the photo's shape, as wide as the pane allows but no taller than 70% of the window (60% with
+ *  your own photos in the grid). */
 function sizeFrame(w: number, h: number) {
   const frame = canvas.parentElement as HTMLElement | null;
   if (!frame) return;
   frame.style.aspectRatio = `${w} / ${h}`;
-  frame.style.width = `min(100%, ${(70 * w / h).toFixed(2)}vh)`;
+  const vh = own.length ? 60 : 70;   // with your own photos, a little lower so the grid shows below it
+  frame.style.width = `min(100%, ${(vh * w / h).toFixed(2)}vh)`;
 }
 
 function schedulePreview() {
+  // the grid redraws one picture at a time, shortly after the last change (a slider drag moves the big preview only)
+  if (own.length) tileJobs.run(own.map((p) => () => drawTile(p)), 150);
   if (previewQueued) return;
   previewQueued = true;
   requestAnimationFrame(() => {
