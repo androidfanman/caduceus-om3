@@ -129,7 +129,16 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
         # Firmware Version screen"): the 7 rows' plain place (x 477; the x 427 place is the update view's) 80 px ->
         # 300 px wide, so our line's value shows whole. The camera's own "1.1" sits at the box's left as before.
         **{0x614200e8 + 16 * i: (struct.pack('<4h', 477, y, 80, 62), struct.pack('<4h', 477, y, 300, 62))
-           for i, y in enumerate((205, 269, 333, 173, 237, 301, 365))}}
+           for i, y in enumerate((205, 269, 333, 173, 237, 301, 365))},
+        # wheel-hsl-view h2: the colour wheel screen's guide widgets (frame 0x3c6, picture 0x3c7) 180 -> 400 px wide for
+        # the H / S / L bar, between the left column and Reset: viewfinder place (310 -> 116), rear screen (360 -> 157).
+        # The camera's guides (175 px) stay centred in them, so they sit left of where they were (research/NOTES.md).
+        **{a: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 528, 400, 50, 157, 528, 400, 50))
+           for a in (0x61451e40, 0x61451e50)}}
+# wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
+# {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
+KEYW = {0x61322f1c: ((0x01000026, 0x27, 1, 0), 'hb_kdel'), 0x61322f2c: ((0x01000027, 0x29, 1, 0), 'hb_krel'),
+        0x61322f4c: ((0x0100002e, 0x25, 1, 0x610b3ddb), 'hb_kinf')}
 EXT2 = (0x607187a8, 0x60718800)            # section-2 tail (FF from 0x607187a4, end 0x60718800; v0.20)
 EXT7 = (0x6164afd0, 0x6164b000)            # section-7 tail (FF from 0x6164afcc, end 0x6164b000; v0.20)
 EXT9 = (0x619a9670, 0x619a97f0)            # section-9 tail (FF from 0x619a966c, end 0x619a9800)
@@ -260,7 +269,7 @@ def build(defaults, testfile, out):
     (out / 'wheel.inc').write_text('.balign 4\nwl_tab:\n' + db(bytes(wl)) + ' .balign 4\nfl_sagd:\n' + db(sagd) + ' .balign 4\n')
     import mkhbar                                 # wheel-hsl-view: the H / S / L bar's pieces (hbar.s)
     hb = mkhbar.inc()
-    assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 4096    # hbar.s HB_BUF
+    assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 6144    # hbar.s HB_BUF
     (out / 'hbar.inc').write_text(hb)
     (out / 'wheeldef.inc').write_text(f'.set XL_N, {len(mklabels.LABELS)}\n.set WLL, {len(wl)}\n.set XL_W0, {w0}\n.set SAS, {len(sagd)}\n'
                                       + ''.join(f'.set XL_{t.upper()}, {mklabels.LABELS.index(t)}\n' for t in ('Sat', 'Lum', 'Hue', 'Tint')))
@@ -367,6 +376,9 @@ def build(defaults, testfile, out):
     for a, (stock, new) in DATA.items():
         assert bytes(m[o(a):o(a) + len(stock)]) == stock, hex(a)
         m[o(a):o(a) + len(stock)] = new
+    for a, (entry, name) in KEYW.items():
+        assert struct.unpack_from('<4I', m, o(a) - 12) == entry, hex(a)
+        struct.pack_into('<I', m, o(a), sy[name])
     # v0.23 Grain: the Film Grain Effect row's two picture mode -> setting id tables (MONO 1-4) -> gr_tab (+ COLOR 1-4)
     # (the row's own lookup 0x611c308a here; the left column's in gr_lc, since its count is shared with item 131)
     assert bytes(m[o(0x611c30a0):o(0x611c30a6)]) == b'\xfc\xdc' + struct.pack('<I', 0x6153670c)

@@ -269,8 +269,9 @@ LABEL_SIZE = {t: len(mklabels.encode11(bytes(mklabels.render(mklabels.bitmap(t))
               for t in ('Sat', 'Hue', 'Lum', 'Tint')}
 LABEL_IS = lambda name: f'expect:mem:{VDESC + 12:x}={U32(LABEL_SIZE[name])}'
 OPEN_WHEEL = 's1 ok ok down down down wait'
-WHEEL_PAGE_LABELS = (f'{OPEN_WHEEL} {LABEL_IS("Sat")} info wait {LABEL_IS("Sat")} info wait {LABEL_IS("Hue")} '
-                     f'info wait {LABEL_IS("Lum")} info wait {LABEL_IS("Tint")} info wait {LABEL_IS("Tint")} '
+# wheel-hsl-view h2: Delete steps Sat -> Hue -> Lum -> Sat, INFO the tint wheels (Shadows, Highlights) and back.
+WHEEL_PAGE_LABELS = (f'{OPEN_WHEEL} {LABEL_IS("Sat")} delete wait {LABEL_IS("Hue")} delete wait {LABEL_IS("Lum")} '
+                     f'delete wait {LABEL_IS("Sat")} info wait {LABEL_IS("Tint")} info wait {LABEL_IS("Tint")} '
                      f'info wait {LABEL_IS("Sat")} poweroff')
 # On Saturation, GDESC (a single color) reads "Saturation [INFO]" (wheel-hsl-view: the H / S / L bar in its place) and
 # SDESC (ALL, 175 wide while ours) "Sat. All [INFO]", whether the dial or INFO turned ALL on. Off Saturation, SDESC is
@@ -281,32 +282,43 @@ GDESC, SDESC = 0xa49ecdf8, 0xa49edf88
 # the half-press the camera's.
 import mkguides, mkhbar  # noqa: E402
 _HB = mkhbar.pieces()
-HBAR_IS = lambda h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 12:x}={U32(len(b))} expect:mem:{GDESC:x}+10*={b.hex()}')(
-    mkhbar.stream(h, s, l, axis, _HB))
+HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)} '
+                                             f'expect:mem:{GDESC + 12:x}={U32(len(b))} expect:mem:{GDESC:x}+10*={b.hex()}')(
+    mkhbar.stream(c, h, s, l, axis, _HB))
 SHADOWS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Shadows').flatten()), 175, 50))
-WHEEL_HSL_BAR = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {HBAR_IS(0, 3, 0, 0)} '
-                 f'info wait info wait {HBAR_IS(0, 3, 0, 2)} main+1 wait main+1 wait {HBAR_IS(2, 3, 0, 2)} '
-                 f'sub-1 wait {HBAR_IS(0, 0, 0, 2)} sub+1 wait info wait main-1 wait {HBAR_IS(2, 3, -1, 1)} '
-                 f'info wait expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
-                 f's1 wait expect:mem:{GDESC + 12:x}={U32(4022)}{U32(0xa49ebe40)} poweroff')
+WHEEL_HSL_BAR = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {HBAR_IS(0, 0, 3, 0, 0)} '
+                 f'delete wait {HBAR_IS(0, 0, 3, 0, 2)} main+1 wait main+1 wait {HBAR_IS(0, 2, 3, 0, 2)} '
+                 f'sub-1 wait {HBAR_IS(1, 0, 0, 0, 2)} sub+1 wait delete wait main-1 wait {HBAR_IS(0, 2, 3, -1, 1)} '
+                 f'info wait expect:mem:{GDESC + 2:x}={U16(175)} expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
+                 f's1 wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} '
+                 f'expect:mem:{GDESC + 12:x}={U32(4022)}{U32(0xa49ebe40)} poweroff')
+# Delete steps the HSL pages (P+AXIS 0 Saturation, 2 Hue, 1 Luminance); INFO goes to Shadows (5), Highlights (6) and
+# back to the HSL page it left; Delete on another Picture Mode row does nothing (the next INFO is a plain INFO).
+AXIS_IS = lambda a: f'expect:p:684={a:02x}'
+WHEEL_DELETE_STEPS_HSL = (f'{OPEN_WHEEL} {AXIS_IS(0)} delete wait {AXIS_IS(2)} delete wait {AXIS_IS(1)} '
+                          f'delete wait {AXIS_IS(0)} delete wait {AXIS_IS(2)} poweroff')
+WHEEL_INFO_STEPS_TONES = (f'{OPEN_WHEEL} info wait {AXIS_IS(5)} info wait {AXIS_IS(6)} info wait {AXIS_IS(0)} '
+                          f'delete wait {AXIS_IS(2)} info wait {AXIS_IS(5)} delete wait {AXIS_IS(2)} '
+                          f'info wait info wait {AXIS_IS(6)} info wait {AXIS_IS(2)} poweroff')
+WHEEL_DELETE_OFF_ROW = (f'{OPEN_WHEEL} down wait delete wait up wait {AXIS_IS(0)} info wait {AXIS_IS(5)} poweroff')
 _SAT_PICS = mkicons.sat_pictures()
 _, SAT_ALL_GUIDE = (len(mkicons.encode11(bytes(a.flatten().tolist()), 175, 50)) for a in _SAT_PICS[1:])   # wheel-hsl-view: the bar in the Saturation guide's place
 SDESC_STOCK_SIZE = 4471
 SDESC_IS = lambda width, size: f'expect:mem:{SDESC + 2:x}={U16(width)} expect:mem:{SDESC + 12:x}={U32(size)}'
-WHEEL_SAT_GUIDES = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0)} {SDESC_IS(175, SAT_ALL_GUIDE)} '
+WHEEL_SAT_GUIDES = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} {SDESC_IS(175, SAT_ALL_GUIDE)} '
                     f'sub+1 wait expect:val:2197=255 {SDESC_IS(175, SAT_ALL_GUIDE)} sub-1 wait '
-                    f'info wait {SDESC_IS(175, SAT_ALL_GUIDE)} info wait {SDESC_IS(180, SDESC_STOCK_SIZE)} poweroff')
+                    f'delete wait {SDESC_IS(180, SDESC_STOCK_SIZE)} poweroff')   # h2: all colours from the dial only
 # On Hue, ed_get calls the label code (vl_s). Its caller gets a2 back as it was. v0.20..v0.30.3 handed back the call's
 # return address in a2: the call wrote it over ed_get's saved a2.
-WHEEL_READOUT_KEEPS_A2 = f'keep:{{ed_get}}:{{g_ret}}:a2 {OPEN_WHEEL} info wait info wait wait expect:kept poweroff'
+WHEEL_READOUT_KEEPS_A2 = f'keep:{{ed_get}}:{{g_ret}}:a2 {OPEN_WHEEL} delete wait wait expect:kept poweroff'
 # The same on Shadows: tn_get calls the label code on its readout.
-TONE_READOUT_KEEPS_A2 = (f'keep:{{tn_get}}:{{t_ret}}:a2 {OPEN_WHEEL} info wait info wait info wait info wait wait '
+TONE_READOUT_KEEPS_A2 = (f'keep:{{tn_get}}:{{t_ret}}:a2 {OPEN_WHEEL} info wait wait '
                          f'{LABEL_IS("Tint")} expect:kept poweroff')
 # The front dial puts all colors (cursor 255) between slices 1 and 12. On Saturation it stops there, as stock. On Hue
 # (as on Lum and Tint) it steps over: 1 -> 12 -> 1.
 CURSOR = 2197                     # COLOR 1's wheel cursor: slice 1..12, 255 = all colors
 WHEEL_DIAL_SKIPS_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:{CURSOR}=255 sub-1 wait expect:val:{CURSOR}=1 '
-                        f'info wait info wait {LABEL_IS("Hue")} sub+1 wait expect:val:{CURSOR}=12 '
+                        f'delete wait {LABEL_IS("Hue")} sub+1 wait expect:val:{CURSOR}=12 '
                         f'sub-1 wait expect:val:{CURSOR}=1 poweroff')
 # Left on Hue, the half-press puts the wheel back on Saturation and the camera's "Vivid" back for the other screens.
 # The wheel opens again with Sat.
@@ -316,11 +328,11 @@ WHEEL_DIAL_SKIPS_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:{CURSOR}=255 sub-1 
 # on a page puts the '*' up, so the frames are compared from the second on.
 WHEEL_STEP_WRITE = (f'main+1 wait fhash:a mids:{{manager}} main+1 wait expect:mids:{CURSOR} fhash:b '
                     f'expect:fdiff:a:b main-1 wait fhash:c expect:fsame:a:c')
-WHEEL_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} {WHEEL_STEP_WRITE} '
-                            f'info wait info wait {LABEL_IS("Tint")} {WHEEL_STEP_WRITE} poweroff')
+WHEEL_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} delete wait {LABEL_IS("Hue")} {WHEEL_STEP_WRITE} '
+                            f'info wait {LABEL_IS("Tint")} {WHEEL_STEP_WRITE} poweroff')
 # The same on the Extras page (P + AXIS = 3). INFO does not reach it in this build (W_EXTRAS 0), so the test puts the
 # page byte there from Hue.
-EXTRAS_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} pokep:0x{{AXIS}}=03 wait '
+EXTRAS_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} delete wait {LABEL_IS("Hue")} pokep:0x{{AXIS}}=03 wait '
                              f'{WHEEL_STEP_WRITE} poweroff')
 # The Mix page (the second row in Picture Mode) and the RGB page (the third): a dial click's refresh writes only the
 # H&S panel's mode (2191) with its own value. The H&S id's write before it (976 / 978 + 3k) re-checked 37 more
@@ -333,7 +345,7 @@ PANEL_STEP_WRITE = lambda dial: (f'{dial}+1 wait fhash:a mids:{{manager}} {dial}
 MIX_STEP_WRITES_MODE = (f'{OPEN_MIX} {PANEL_STEP_WRITE("main")} {PANEL_STEP_WRITE("sub")} down wait '
                         f'{PANEL_STEP_WRITE("main")} poweroff')
 VIVID_SIZE = 1660                 # the camera's own dial label picture
-WHEEL_RESET_LABEL = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} menu wait menu wait s1 wait wait '
+WHEEL_RESET_LABEL = (f'{OPEN_WHEEL} delete wait {LABEL_IS("Hue")} menu wait menu wait s1 wait wait '
                      f'expect:mem:{VDESC + 12:x}={U32(VIVID_SIZE)} {OPEN_WHEEL} {LABEL_IS("Sat")} poweroff')
 # Picture Mode closes after 30 s idle (#75, stock 8 s), counted again from each key or dial turn. The super control
 # panel and the white balance screen keep 8 s. A dial turn every 12 s keeps the wheel open for 48 s.
@@ -1264,6 +1276,15 @@ TESTS = {
     ],
     'color-wheel-hsl-bar-shows-the-colour': [
         Boot(WHEEL_HSL_BAR),
+    ],
+    'color-wheel-delete-steps-saturation-hue-luminance': [
+        Boot(WHEEL_DELETE_STEPS_HSL),
+    ],
+    'color-wheel-info-steps-to-the-tint-wheels-and-back': [
+        Boot(WHEEL_INFO_STEPS_TONES),
+    ],
+    'color-wheel-delete-on-another-row-does-nothing': [
+        Boot(WHEEL_DELETE_OFF_ROW),
     ],
     'color-wheel-saturation-guide-names-the-page': [
         Boot(WHEEL_SAT_GUIDES),

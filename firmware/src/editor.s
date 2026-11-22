@@ -12,6 +12,8 @@
                                    * misread "hide the color select wheel": the page the owner meant was the all-colours
                                    * one, whose guide reads "Color Select [INFO]"); all colours never come on (0: film
                                    * test 8, all colours always). Needs W_SALL 1 */
+ .set W_KEYS, 1                   /* wheel-hsl-view h2 (owner): Delete steps Saturation / Hue / Luminance, INFO the other
+                                   * wheels (Shadows, Highlights); no Color All by INFO (hbar.s hb_next, hb_kdel) */
  .set W_HSL, 0                    /* film test 10 (owner): pages in HSL order, Hue -> Saturation -> Luminance, opening on
                                    * Hue; their dial labels Hue / Saturation / Luminance (0: S -> H -> L, open on S) */
  .set HL_FAIL, 1                  /* hl_ok: not the gate's context */
@@ -861,7 +863,7 @@ k_6b:
  beq k_all
  mov (20,sp),a2
  movbu (AXIS,a2),d1
- .if W_SONE == 0
+ .if W_SONE == 0 && W_KEYS == 0
  cmp 0,d1
  beq f_no                         /* Saturation, single: stock INFO turns ALL on */
  .endif
@@ -885,7 +887,9 @@ k_step:
  movbu (AXIS,a2),d0               /* S -> H -> L -> Extras -> (Film, when LOOKS.BIN loaded) -> S; v0.24 film test 7
                                    * (owner): Extras and Film hidden (W_EXTRAS / W_FILM 0): S -> H -> L -> S; film test 10
                                    * (W_HSL): H -> S -> L -> H */
- .if W_HSL
+ .if W_KEYS
+ jmp hb_next                      /* wheel-hsl-view h2: Delete / INFO (hbar.s) -> k_set */
+ .elseif W_HSL
  mov 1,d1
  cmp 0,d0
  beq 8f
@@ -927,6 +931,7 @@ k_step:
  .endif
  .endif
 8:
+k_set:
  movbu d1,(AXIS,a2)
  mov d1,d0
  call gd_set,[d2,a2],8            /* the guide picture for the new page */
@@ -5290,7 +5295,7 @@ pu_hook:
  call sh_build,[d2,d3,a2,a3],20
  mov (gx_d0),a0
 1:
- call gr_upd,[d2,d3,a2,a3],20
+ call hb_pu,[d2,d3,a2,a3],20      /* gr_upd, after wheel-hsl-view notes the current item (hbar.s) */
  add 4,sp
  mov (0x6037a360),d0
  jmp pu_back
