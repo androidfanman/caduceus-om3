@@ -21,7 +21,7 @@
  * at it (400 x 64). gd_set's gd_sel call goes through hb_gsel, which gives GDESC back to the camera's picture (175 x
  * 50) first. Leaving the wheel with MENU / OK keeps the bar in GDESC until the next half-press, as before.
  *
- * Keys (h2): Delete on the wheel row steps Saturation -> Hue -> Luminance -> Saturation; INFO steps to the other
+ * Keys (h2, h4): Delete on the wheel row steps Hue -> Saturation -> Luminance -> Hue (the bar's H, S, L); INFO steps to the other
  * wheels: from Saturation, Hue or Luminance to Shadows, then Highlights, then back to the HSL page it left. Delete's
  * press had no handler in the Picture Mode screen's key state (block 0x61322da0, entry 23 {0x01000026, 39, 1, 0}).
  * build.py's KEYW gives that entry hb_kdel: on the wheel row (GUI state 0x0418, Picture Mode's current item 5397,
@@ -164,7 +164,8 @@ hb_kinf:
  jmp hb_info_stock
 
 /* hb_next <- jmp from ed_info's k_step (its frame; a2 = P, d0 = the page now) -> jmp k_set with d1 = the next page.
- * Delete (hb_del): Saturation -> Hue -> Luminance -> Saturation; from Shadows / Highlights the HSL page INFO left.
+ * Delete (hb_del): the bar's order H -> S -> L: Hue -> Saturation -> Luminance -> Hue (h4, owner: Delete "goes backwards.
+ * it should go from h to s to l"); from Shadows / Highlights the HSL page INFO left.
  * INFO: Saturation / Hue / Luminance -> Shadows (that page noted), Shadows -> Highlights, Highlights -> the page noted. */
 hb_next:
  movbu (hb_del),d1
@@ -172,14 +173,14 @@ hb_next:
  beq 5f
  clr d1
  movbu d1,(hb_del)
- mov 2,d1
+ mov 1,d1                         /* Saturation -> Luminance */
  cmp 0,d0
  beq 9f
- mov 1,d1
- cmp 2,d0
- beq 9f
- clr d1
+ mov 2,d1                         /* Luminance -> Hue */
  cmp 1,d0
+ beq 9f
+ clr d1                           /* Hue -> Saturation */
+ cmp 2,d0
  beq 9f
  movbu (hb_last),d1
  bra 9f
