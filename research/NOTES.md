@@ -9880,3 +9880,63 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
 - **Not known (camera only):** whether the camera shows a guide picture rewritten at each click cleanly (two buffers,
   switched after the write), whether the letters are big enough on the camera's screen (cap height 19 px against the
   camera's guide words' 31), and whether a click feels slower.
+
+## The H / S / L bar, round 2 (h2): wider, in colour; Delete / INFO (2026-11-22; emulator only, camera test pending; branch experiment/wheel-hsl-view)
+- **h1 camera result (owner, 2026-11-22):** "that is looking good. and works." (camera-tested; no h1 log: the card's
+  CADLOG was still w1's). Round 2 asked (owner): the bar bigger, as in their photos, in colour ("hue (so what shades),
+  saturation (how vibrant those shades are) or light (how bright). Ideally the sat and light would change if we
+  change the hue"); "map the delete key while in color profile mode to switch between hsl and the info key to switch
+  to the other wheels" (later: the split-tone wheels may leave this group).
+- **Where a wider bar can go (static + om-emu):** the guide is two widgets of the wheel screen's layout, frame 0x3c6
+  and picture 0x3c7 (records 0x6145213c / 0x61452194), each with rectangles {x, y, w, h} x 2 at 0x61451e40 /
+  0x61451e50: (310, 528, 180, 50) in the viewfinder (om-emu DEVICE=evf) and (360, 528, 180, 50) on the rear screen.
+  Only this layout points at them. Widened by DATA to 400 px: viewfinder x 116, rear x 157 (between the left column
+  and Reset at 524 / 604). om-emu draws a 475-wide picture in a 475-wide rectangle whole; the camera's button frame
+  behind it is a fixed 180-px picture (shared with Reset's) centred in the rectangle, so the bar's ground is opaque
+  (palette 72). Height kept at 50: the wheel itself is drawn by the camera's other engine, which om-emu does not draw,
+  so how much room is above the bar is not known (camera question).
+- **The guide plane's palette (om-emu, a 256-stripe probe in the guide):** indices >= 128 and 108..120 not drawn;
+  strong colours red 122, rose 90, magenta 89, violet 88, blues 87 / 104 / 53, azure 105, sky 107 / 2, greens 22 / 54
+  / 86 / 23 / 24, yellow-green 1 / 20 / 21, yellow 123, oranges 16 / 55 / 17 / 18; greys 7 (black), 12, 33, 64, 11,
+  98, 10 (white) and more. No cyan, no pale tints; dark shades only for orange, green, yellow-green. In-between
+  colours are two palette colours in alternating rows (1, 2 or 3 rows in 4), so each row of a step stays one run.
+- **The bar (card/mkhbar.py, firmware/src/hbar.s):** 400 x 50: a swatch (the colour under the cursor turned by its
+  Hue: two strong colours mixed), then H, S, L, each its value (cap 20, the page's white-boxed) and an 11-step slider
+  (5 px a step) with a mark under its value: H the colour's hue -27 .. +27 degrees (5.5 a step, docs/PHOTO_TO_LOOK.md);
+  S grey (64) to the colour; L black to the colour to white; the colour of S and L = the strong palette colour nearest
+  to the turned hue, so they change when the Hue value turns it far enough. Fixed row parts (text, marks, frames)
+  encoded once (hb_rows / hb_tok); slider and swatch rows made at each redraw from hb_seg (per slice and Hue value,
+  34 x {A, B, mask}). Worst stream 6,412 B: two 7 KB heap buffers. ext15 72,876 / 139,264.
+- **Delete (static + om-emu):** on the wheel screen stock Delete does nothing (om-emu: screen and settings unchanged).
+  Its press is in the Picture Mode screen's key state (block 0x61322da0, 129 x {event, GUI code, 1, handler}) as
+  {0x01000026, 39, 1, 0}: no handler; the GUI's code -> event table 0x6150088c maps code 39 to 0x9016, which never
+  reaches Picture Mode's handler (0x6125becc) or the wheel. INFO is {0x0100002e, 37, 1, 0x610b3ddb} -> 0x9014.
+  KEYW (build.py) puts hb_kdel / hb_krel on Delete's press / release and hb_kinf on INFO's press. hb_kdel: GUI state
+  0x0418 (the pointer 0x603713a4), Picture Mode's current item 5397 (hb_item, noted by hb_pu from pu_hook's screen
+  update), the films in and the wheel used -> the event's code 37 (INFO) and hb_del = 1; the release -> code 38.
+  Elsewhere Delete stays as stock. ed_info's k_step jumps to hb_next (W_KEYS 1): Delete Saturation -> Hue -> Luminance
+  -> Saturation (from Shadows / Highlights: the HSL page INFO left); INFO Saturation / Hue / Luminance -> Shadows ->
+  Highlights -> the HSL page it left. INFO on one colour no longer turns all colours on (the front dial still does).
+- **Behaviour that differs from v0.40.3-beta4 (the owner's call):** (1) INFO no longer goes Color -> Color All -> Hue ->
+  Luminance; Delete steps Color -> Hue -> Luminance, INFO goes to Shadows / Highlights and back. (2) Color All only from
+  the front dial (past colour 1 / 12 on Color). (3) The guide box under the wheel is 400 wide on every screen that uses
+  this layout: the camera's own guides (175 px: Shadows / Highlights, and the stock colour profile editor's "Color All
+  [INFO]" when no films are in) and its 180-px button frame sit centred in it, about 93 px (rear) / 84 px (viewfinder)
+  left of where they were. (4) The "[INFO]" hints on Color / Hue / Luminance stay replaced by the bar (as h1).
+- **Cost (om-emu, instructions to GDESC's draw):** Hue click 616,179 -> 736,747 (+20 %), colour step 633,018 ->
+  725,691 (+15 %), Luminance click 631,737 -> 724,222; page change by Delete 1,374,897 (INFO's on beta 4 1,239,021).
+  h1 was +10 %.
+- **Tests:** `color-wheel-hsl-bar-shows-the-colour` (the bar byte for byte as mkhbar.stream on Saturation, Hue, the
+  next colour, Luminance; widths 400 / 175), new `color-wheel-delete-steps-saturation-hue-luminance`,
+  `color-wheel-info-steps-to-the-tint-wheels-and-back`, `color-wheel-delete-on-another-row-does-nothing`. The wheel
+  tests that stepped pages with INFO now use Delete for Hue / Luminance and INFO for the tint pages
+  (`color-wheel-dial-label-follows-the-page` checks the new order; `color-wheel-saturation-guide-names-the-page` reaches
+  all colours by the dial only).
+- **Patch sites to review (static:changed-bytes):** tools/test/hooks.json is NOT updated (`--write-hooks` was refused
+  in this session): 0x61322f1c:4, 0x61322f2c:4, 0x61322f4c:3 (the three key-state handler words) and 0x61451e40..
+  0x61451e5f (x and w of the two rectangles, both screens). No new hook; nothing of these runs at start-up (the
+  rectangles are layout data; the handlers run on a Delete / INFO press in Picture Mode). Until hooks.json takes them
+  the suite reports this one FAIL.
+- **Package h2:** VERSION "v0.40.3-h2 (beta 4 + H/S/L bar 2, Delete / INFO)", firmware from commit f3fb7bb, built twice,
+  the same byte for byte: E1479999.BIN 3f8a6093…1d63, GUIDES.BIN a8399cb7…8c52 (LABELS / TONES as beta 4). Suite
+  (om-emu at the pin): 132 pass, 1 FAIL = static:changed-bytes (the 11 sites above, not yet in hooks.json).
