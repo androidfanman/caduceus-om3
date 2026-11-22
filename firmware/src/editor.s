@@ -11762,6 +11762,7 @@ lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call e
  call ub_try,[d2,d3,a2,a3],36     /* films in camera memory: a block write held back by the camera's own save */
  call el_card,[d2,d3,a2,a3],36
  call ck_card,[d2,d3,a2,a3],24    /* v0.30 test 9: CURVES.BIN, after el_card's films */
+ call ls_scan,[d2,d3,a2,a3],36    /* look sets probe w1: list OM3MOD\LOOKS once (looksets.s) */
  call cr_hp,[d2,d3,a2,a3],20      /* crop modes: the first shutter event after an early load (crop.s) */
  call cm_hp,[d2,d3,a2,a3],24      /* k4: in P / A / S / M, their films and choice now (kept in M) */
  call lg_write,[d2,d3,a2,a3],40
@@ -13494,6 +13495,7 @@ lg_cnow:
  mov d2,d0
  call lg_h4,[],0
  LGS lg_rb
+ call ls_txt,[d2,d3,a2,a3],24     /* look sets probe w1 */
  ret [d2,d3,a2,a3],24
 
 /* lg_btn: `call lg_btn,[d2,d3,a2,a3],24`: BUTTONS AND DIALS from lg_cv: photo and video buttons, our Creative Dial
@@ -22877,3 +22879,5 @@ bl_v:                             /* the value */
  .include "fwver.s"               /* our version on the camera's Firmware Version screen (ext13) */
 
  .include "newfilms.s"            /* #86: a new film set made again in every mode (ext13) */
+
+ .include "looksets.s"             /* look sets probe w1: list OM3MOD\\LOOKS (ext13) */
