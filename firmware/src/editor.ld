@@ -101,6 +101,7 @@ HS_CASE       = 0x611d04e5;   /* rgb-curves: the column update's case for H&S (5
 LC_PICK       = 0x611c7785;   /* rgb-curves: the left cell's pick from an option list (lch_back's call) */
 LC_DONE       = 0x611d0b90;
 STAR_END      = 0x611d1acb;
+HS_STAR       = 0x611d1ab1;   /* five-point curve: the H&S row's own "changed?" case (sw13) */
 INF_GO        = 0x611c29cf;   /* rgb-curves: the row event function (0x611c28xx): INFO to the row's panel */
 INF_NO        = 0x611c29fb;   /* ... not */
 RSI_GO        = 0x611c298e;   /* its held-OK reset to the row's panel */

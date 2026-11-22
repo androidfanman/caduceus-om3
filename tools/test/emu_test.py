@@ -224,11 +224,12 @@ DEBUG_LOG_RELEASES_ONLY = (r'^Written at shutter button event 5 \(a half-press a
 # camera's Off: the row is starred, as the profile is.
 NF_BYTE, NR_ROW_COLOR2, NR_SLOT_COLOR2 = 0x6295942d, 0x7e11, 32 + 64 + 51
 NR_ROW_STAR = lambda star: f'expect:isdef:{{ed_isdef}}:{NR_ROW_COLOR2:x}={0 if star else 1}'
-# The Blacks / Whites row (the eighth in Picture Mode) shows the camera's WB grid scene (element 24813) in the bottom
-# bar's holder, and Contrast, the next row, gets the bar's own scene (element 24771) back. gr_end does that at the end
+# The WB Compensation row (the sixth in Picture Mode; until the five-point curve the Blacks / Whites grid row, the
+# eighth, was checked here) shows the camera's WB grid scene (element 24813) in the bottom bar's holder, and Highlight
+# & Shadow, the next row, gets the bar's own scene (element 24771) back. gr_end does that at the end
 # of the screen update: a flash before it is camera-only (research/TESTING.md, "Past regressions").
 HOLDER_SCENE = lambda element: f'expect:mem:{{gr_cont}}+0*+308*+4={element & 255:02x}{element >> 8:02x}'
-GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 7 + HOLDER_SCENE(24813) +
+GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCENE(24813) +
                      ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 # WB Compensation (the sixth row) <-> Highlight & Shadow (the seventh): the holder's scene changes in the row refresh,
 # not in the screen update. A scene set during the update makes the camera draw a pass without grid or curve before
@@ -238,6 +239,20 @@ WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCEN
                 ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) +
                 ' down up down wait ' + HOLDER_SCENE(24771) + ' up down up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
+# Five-point curve (2026-11-22): on a film the Highlight & Shadow row (the seventh) steps Sh / Hi -> Mid -> Blk / Wht ->
+# Sh / Hi with INFO. On Blk / Wht the dials set the film's Blacks (P + 79, COLOR 1's slot +47; main +1 = +1, the left
+# value, as Sh) and Whites (P + 80; sub +1 = -1, the right value, as Hi) and leave Sh (978) and Hi (976) alone; on the
+# camera's own pages the dials still set Sh / Hi and leave Blacks / Whites alone. The Blacks / Whites row is gone:
+# the eighth row is Contrast (its bar's scene in the holder, not the grid's).
+HS_ROW = 's1 wait wait ok wait ok wait ' + 'down wait ' * 6
+FIVE_POINT_PAGE = (HS_ROW + 'main+1 wait expect:val:978=1 expect:p:79=00 expect:p:80=00 '
+                   'info wait info wait main+1 wait main+1 wait sub+1 wait expect:p:79=02 expect:p:80=ff '
+                   'expect:val:978=1 expect:val:976=0 '
+                   'info wait main+1 wait sub+1 wait expect:val:978=2 expect:val:976=-1 expect:p:79=02 expect:p:80=ff '
+                   'down wait ' + HOLDER_SCENE(24771) + ' poweroff')
+# Leaving the row ends the Blk / Wht page: back on the row the dials are Sh / Hi's again.
+FIVE_POINT_LEAVES = (HS_ROW + 'info wait info wait main+1 wait expect:p:79=01 down wait up wait main+1 wait '
+                     'expect:val:978=1 expect:p:79=01 poweroff')
 
 
 def no_scene_set_in_update(hits):
@@ -1194,6 +1209,12 @@ TESTS = {
     ],
     'grid-row-gives-the-bottom-bar-back': [
         Boot(GRID_ROW_AND_BACK),
+    ],
+    'five-point-curve-info-reaches-blacks-whites': [
+        Boot(FIVE_POINT_PAGE),
+    ],
+    'five-point-curve-page-ends-on-leaving-the-row': [
+        Boot(FIVE_POINT_LEAVES),
     ],
     'wb-to-highlight-shadow-sets-the-scene-in-the-row-refresh': [
         Boot(WB_HS_SWITCH, watch=SCENE_IN_UPDATE, hits=no_scene_set_in_update),

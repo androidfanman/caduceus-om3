@@ -2626,7 +2626,7 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * the colour wheel), tone (Contrast, Highlight & Shadow, Blacks, Whites), white balance
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
- .long 111, MX_IT, RG_IT, 5397, TB_IT, AB_IT, 5398, BK_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
+ .long 111, MX_IT, RG_IT, 5397, TB_IT, AB_IT, 5398, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 
@@ -23069,6 +23069,7 @@ el_tid:                           /* the GUI task's id, noted by el_go */
  .include "rgbcurves.inc"           /* rgb-curves: engine, storage */
  .include "colourmix.inc"           /* colour mix: the per-film 3 x 3 matrix (m1) */
  .include "curvesfile.inc"          /* v0.30 test 9: CURVES.BIN, each film's built-in curves and mix */
+ .include "curve5.inc"              /* five-point curve: Blacks / Whites as the H&S curve's ends */
 
 .section .ext13,"ax"
  .include "wheel.inc"             /* wl_tab (build.py): fl_mk copies it into wl_blk */

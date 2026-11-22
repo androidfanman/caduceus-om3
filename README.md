@@ -1,3 +1,6 @@
+> **Branch `feature/curve-5-points` (2026-11-22): a test, not a release.** Blacks and Whites move into the Highlight &
+> Shadow curve as a third INFO page (Sh / Hi, Mid, Blk / Wht). Emulator only so far: `research/NOTES.md`, "Five-point curve".
+
 <h1 align="center">Caduceus for OM-3</h1>
 
 

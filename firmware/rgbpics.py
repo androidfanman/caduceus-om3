@@ -51,8 +51,8 @@ def label(parts):
     return letters(parts, 38, 30, 23, 26)
 
 
-def guide():
-    g = mkguides.build('Color')                     # 175 x 50: the word right-aligned to col 102, the key at 107..172
+def guide(word='Color'):
+    g = mkguides.build(word)                     # 175 x 50: the word right-aligned to col 102, the key at 107..172
     cols = np.nonzero(g.any(axis=0))[0]
     g = g[:, max(0, cols.min() - 2):]
     assert g.shape[1] <= 160, g.shape
@@ -151,7 +151,9 @@ def pictures():
            [(n + ' mid', name_label(n, c)) for n, c in (('R', RED), ('G', GREEN), ('B', BLUE))] + \
            [('Mix cell', mixcell())] + \
            [('clear 50 x 34', np.zeros((34, 50), dtype=np.uint8))] + \
-           [('clear 14 x 30', np.zeros((30, 14), dtype=np.uint8))]   # test 7: RGB's right "±" / "+" sign, cleared
+           [('clear 14 x 30', np.zeros((30, 14), dtype=np.uint8))] + \
+           [('Blk', small_label('Blk', WHITE)), ('Wht', small_label('Wht', WHITE)),
+            ('guide Sh/Hi', guide('Sh/Hi')), ('guide B/W', guide('B/W'))]   # five-point curve (curve5.inc): 16..19
 
 
 def streams():

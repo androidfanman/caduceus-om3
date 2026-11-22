@@ -9767,3 +9767,39 @@ Branch `try/v0.40.3-beta4` = `fix/wb-separate-shift` (w1: v0.40.3-beta3 + separa
 separate WB shifts, films and modes)". E1479999.BIN 7be6725d…8f16 (GUIDES / LABELS / TONES built in);
 `patch.py --release v0.40.3-beta4` rebuilds it byte for byte. Card files as v0.40.3-beta3. Suite on the release build: 129 pass, exit 0. Owner: "Yes, make beta4".
 Still not checked on the camera: a photo on a film with a shift (live view shows it).
+
+## Five-point curve: Blacks / Whites as the Highlight & Shadow curve's ends (2026-11-22; emulator only)
+Owner: "brings the black/white grid into the shadow curves as a 1st and 5th point"; from a mock-up (private) the
+owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-beta4. Code `firmware/src/curve5.inc`
+(its head comment is the spec), small changes in rgbcurves.inc / colourmix.inc.
+- **What it does (om-emu):** on a film (COLOR 1-4) the H&S row's INFO steps Sh / Hi -> Mid -> Blk / Wht -> Sh / Hi.
+  The Blk / Wht page is the camera's H&S page in a mode of ours, as the RGB and Mix pages (cv_on 3): the left value
+  = Blacks (slot +47; event 0x9032, om-emu "main" +1 = +1), the right = Whites (+48; 0x9031, "sub" +1 = -1), as the
+  camera pairs Sh / Hi; -7..+7, they stop at the ends. Header "Blk" / "Wht" (the labels' 38 px box: the size of
+  "Sat" / "Hue"), the middle empty; guide "Sh/Hi [INFO]", and on a film's Mid page "B/W [INFO]" ("Blk/Wht" is too wide
+  for the guide's word). Hold OK on the page: Blacks and Whites 0 (cv_rst -> cv_zx -> b5_zk); the Reset guide shows
+  when either is set. The row's '*' counts them (b5_star before the camera's own case 0x611d1ab1). The Blacks /
+  Whites grid row is out of pm_list (its code stays). Other picture modes: the row as stock (b5_fk < 0).
+- **The picture:** cv_draw's RGB code on a made-up record (b5_dr): one white curve through Blacks, Sh, Mid, Hi,
+  Whites at 0 / 25 / 50 / 75 / 100 %, each value x 2 RGB steps (+-7 = +-16 %, about the camera's own bend), the ends'
+  dots big and white, the three between small and grey. The ends only move up / down (a minus Blacks lies on the
+  floor, a plus Whites on the ceiling); the end dots are half outside the picture, as the RGB page's. The camera's own
+  Sh / Hi and Mid pages keep the camera's three-point pictures (their ends do not follow Blacks / Whites).
+- **The mock-up's five labels in one row are not built:** the camera's header has three slots (38 / 50 / 38 px
+  label boxes); the page shows the pair it is on. Our own header was tried and dropped for the Mix page (mix test 4).
+- **The panel's value selectors (om-emu):** the H&S panel ((4, the column), 0x6247a290 here) holds four selectors,
+  +124 its look (2 entries), +128 Hi, +132 Sh, +136 Mid: 15 entries each, the entry 7 - value (count u16 at +92,
+  entry u16 at +94). A dial moves the entry and the panel writes the entry's value. On the Blk / Wht page they
+  follow the dials while the writes are refused, so the first build came back to Sh / Hi with a stale entry (Sh 1,
+  three clicks on Blk / Wht, then one click on Sh / Hi wrote 4). cv_inf now sets the Sh / Hi entries to Blacks /
+  Whites on entering and to the film's Sh / Hi on leaving (b5_sel).
+- **Space:** cv_ic / cv_pic moved from the full .ext12 to .ext15 with the new code and its four pictures (rgbpics
+  entries 16..19, curve5pics.inc). b1: ext12 261,688 / 262,144, ext15 9,156 / 139,264.
+- **Hooks / patch sites:** no new hook. Table words changed: sw13's H&S entry (0x611d1ab1 -> b5_star); the H&S update
+  case already pointed at cv_hs. Nothing runs before Picture Mode's H&S row is open on a film (start-up rule).
+- **Tests:** `five-point-curve-info-reaches-blacks-whites`, `five-point-curve-page-ends-on-leaving-the-row`;
+  `grid-row-gives-the-bottom-bar-back` now uses the WB row (the Blacks / Whites row is gone).
+- **Camera-only / open:** how the page looks on the camera (the panel's look flips were camera-only trouble on the
+  Mix page: mix tests 3..6); live view following the dials (lv_ref's fingerprint has +47 / +48); photos. Owner's
+  calls: the two stock pages' curve (ours with five points there too?), the labels' size, hold OK on Sh / Hi leaving
+  Blacks / Whites as they are.

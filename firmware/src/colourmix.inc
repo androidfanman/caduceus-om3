@@ -457,6 +457,10 @@ cv_zx:
  call mx_zk,[d2],8
  ret [d2],8
 1:
+ cmp 3,d1                         /* five-point curve: the Blk / Wht page's (b5_zk, curve5.inc) */
+ bne 2f
+ jmp b5_zk
+2:
  call cv_zk,[d2],8
  ret [d2],8
 

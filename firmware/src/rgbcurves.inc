@@ -876,34 +876,10 @@ cv_case:
  inc d0
  mov d0,(cv_gen)
  jmp HS_CASE
-cv_hs:                            /* ... and for the H&S row itself */
- clr d0
- mov d0,(cv_on)
- jmp HS_CASE
+cv_hs:                            /* ... and for the H&S row itself: its page (five-point curve, curve5.inc) */
+ jmp b5_hs
 
-/* cv_pu <- .hook_pu (the screen update's end, (4,sp) -> the current item): another row -> off; then pu_hook */
-cv_pu:
- mov (4,sp),a0
- movhu (a0),d0
- cmp RG_IT,d0
- beq 1f
- cmp MX_IT,d0                     /* colour mix: its page too (cv_on 2) */
- beq 1f
- mov 0,a0
- mov a0,(cv_on)
-1:
- jmp pu_hook
-
-/* cv_gx <- .hook_gx (d0 = the next GUI state; a0, a1, d1 free): any state change -> off; then gx_map */
-cv_gx:
- mov d0,d1
- exthu d1
- cmp 0,d1
- beq 1f
- mov 0,a1
- mov a1,(cv_on)
-1:
- jmp gx_map
+/* cv_pu, cv_gx: in curve5.inc (five-point curve) */
 
 /* lc_rg: the column's left-cell switch for RG_IT (as lc_bw, then lch_back's pick with our one-option list) */
 lc_rg:
@@ -936,10 +912,10 @@ cv_val:
  bra 1b
 2:
  mov d2,(cv_k)
- mov (cv_on),d0                   /* colour mix: the Mix page's values */
- cmp 2,d0
- bne 21f
- jmp mx_val
+ mov (cv_on),d0                   /* colour mix: the Mix page's values; five-point curve: Blk / Wht (b5_val) */
+ cmp 1,d0
+ beq 21f
+ jmp b5_val
 21:
  cmp 0,d1
  bne 3f
@@ -1045,6 +1021,12 @@ cv_dflt:
  call cv_val,[d2,d3],12
  cmp HS_DMD,a2                    /* Mid's default: 1 when COLOR k has a point set, so the page counts as changed */
  bne 3f                           /* (its Reset guide) */
+ mov (cv_on),d0                   /* five-point curve: on Blk / Wht, either of them set */
+ cmp 3,d0
+ bne 40f
+ call b5_chg,[],0
+ bra 42f
+40:
  mov (cv_k),d0
  call cv_lk,[],0
  mov 18,d1
@@ -1061,6 +1043,7 @@ cv_dflt:
  inc a0
  add -1,d1
  bne 4b
+42:
  cmp 0,d0
  beq 3f
  mov CV_MIDV + 1,d0
@@ -1142,7 +1125,7 @@ cv_ev:
  mov (cv_on),d2
  cmp 0,d2
  bne 1f
- jmp 90f
+ jmp b5_ev0                       /* five-point curve: at INFO, is this a film? -> cv_ev90 */
 1:
  cmp 0x900c,d0                    /* OK pressed / released: the reset counts only while it is held */
  bne 2f
@@ -1174,10 +1157,10 @@ cv_ev:
  ble 31f
  mov CV_CLK,d3
 31:
- mov (cv_on),d2                   /* colour mix: the Mix page's dials */
- cmp 2,d2
- bne 311f
- jmp mx_ev
+ mov (cv_on),d2                   /* colour mix: the Mix page's dials; five-point curve: Blk / Wht (b5_ev) */
+ cmp 1,d2
+ beq 311f
+ jmp b5_ev
 311:
  cmp 0x9031,d0                    /* front dial: the point */
  bne 4f
@@ -1256,6 +1239,7 @@ cv_ev80:
  inc d0                           /* refuses but which refreshes the page as for its own rows */
  mov d0,(cv_gen)
 90:
+cv_ev90:
  mov (4,sp),d2
  mov d2,mdr
  mov (8,sp),d0
@@ -1295,32 +1279,7 @@ cv_dty:
 /* cv_inf <- .hook_inf (0x611c29c2 in the column's row event function, d2 = the current item): INFO goes to the row's
  * panel for 5397 / 5398 (stock) and RG_IT. cv_rsi <- .hook_rsi (0x611c296f): the held-OK reset the same for 5052 /
  * 5396 / 5397 / 5398 (stock) and RG_IT; 111 its own; else nothing. */
-cv_inf:
- exthu d2
- cmp 5397,d2
- beq 1f
- cmp 5398,d2
- beq 1f
- cmp RG_IT,d2
- beq 2f
- cmp MX_IT,d2
- beq 2f
- jmp INF_NO
-2:
- mov (8,sp),a0                    /* mix test 6 (owner: always the outer look): the H&S panel ((4, the column)) keeps */
- mov (4,a0),a0                    /* its look in a two-entry selector ((124, panel); om-emu): INFO sends it "up" and */
- cmp 0,a0                         /* OK, and the entry it lands on (0 outer: dials over our two values, 1 middle) goes */
- beq 1f                           /* to +122 and 2191. On our rows the selector is put on entry 1 first, so INFO always */
- mov (HS_PSEL,a0),a0              /* lands on the outer look; INFO still reaches the panel, which redraws the page */
- cmp 0,a0
- beq 1f
- movhu (SEL_N,a0),d0
- cmp 2,d0
- bne 1f
- mov 1,d0
- movhu d0,(SEL_I,a0)
-1:
- jmp INF_GO
+/* cv_inf: in curve5.inc (five-point curve) */
 cv_rsi:
  exthu d2
  cmp 5052,d2
@@ -1349,6 +1308,7 @@ cv_rsi:
  jmp cv_rsi                       /* stock 0x611c296f: exthu d2; cmp 5052,d2 */
 .section .ext12,"ax"
 
+.section .ext15,"ax"                /* five-point curve: cv_ic and cv_pic moved out of the full .ext12 */
 /* cv_ic <- .hook_ic (the picture lookup, d0 id -> a0 its slot, `retf`): our pictures CVI0.., and while the page is
  * on the curve page's swaps (above); else ar_ic. Uses d1, a0 (cv_pic keeps the rest). */
 cv_ic:
@@ -1406,6 +1366,12 @@ cv_ic:
  mov cv_ent + 4 * CVI_N,a0        /* a clear picture the size of the slot (a small one left old pixels, om-emu) */
  retf [],0
 16:
+ mov (cv_on),d1                   /* five-point curve: nothing in the middle on Blk / Wht */
+ cmp 3,d1
+ bne 160f
+ mov cv_ent + 4 * CVI_N,a0
+ retf [],0
+160:
  movbu (cv_c),d1
  add 10,d1
  asl2 d1
@@ -1443,6 +1409,11 @@ cv_ic:
  mov (cv_on),a0                   /* test 7 (spec section 4): "Sh" -> "Level" on RGB, "Sat" on Mix */
  cmp 2,a0
  beq 31f
+ cmp 3,a0                         /* five-point curve: "Blk" */
+ bne 30f
+ mov cv_ent + 4 * 16,a0
+ retf [],0
+30:
  mov cv_ent + 4 * 9,a0
  retf [],0
 31:
@@ -1454,6 +1425,11 @@ cv_ic:
  mov (cv_on),a0
  cmp 2,a0
  beq 41f
+ cmp 3,a0                         /* five-point curve: "Wht" */
+ bne 40f
+ mov cv_ent + 4 * 17,a0
+ retf [],0
+40:
  mov cv_ent + 16,a0               /* "Hi" -> "Pt" */
  retf [],0
 41:
@@ -1465,10 +1441,29 @@ cv_ic:
  cmp 16248,d1
  bne 8f
 6:
+ mov (cv_on),d1                   /* five-point curve: on Blk / Wht the guide reads "Sh/Hi [INFO]" */
+ cmp 3,d1
+ bne 61f
+ mov cv_ent + 4 * 18,a0
+ retf [],0
+61:
  add 20,a0                        /* the guide */
 7:
  retf [],0
 8:
+ movbu (b5_mid),d1                /* five-point curve: a film's own Mid page: the guide reads "B/W [INFO]" */
+ cmp 0,d1
+ beq 81f
+ mov d0,d1
+ exthu d1
+ cmp 16247,d1
+ beq 82f
+ cmp 16248,d1
+ bne 81f
+82:
+ mov cv_ent + 4 * 19,a0
+ retf [],0
+81:
  jmp ar_ic
 
 /* cv_pic: (from cv_ic) our curves' picture, drawn again when anything changed (cv_gen) -> a0 = its slot */
@@ -1491,6 +1486,7 @@ cv_pic:
  mov cv_slot,a0
  retf [],0
 
+.section .ext12,"ax"
 /* cv_draw: `call cv_draw,[d2,d3,a2,a3],128`: COLOR cv_k's three curves as a 300 x 300 OSD type-11 picture (the curve
  * layer's palette: white 14, black 2, grey 20, cv_col) at
  * CV_WRK + CW_ST, cv_desc's size and payload. Each column's span of each curve (lo / hi: this and the last column's
@@ -1509,6 +1505,11 @@ cv_draw:
  mov d0,(8,sp)
  jmp cvd_st
 cvd_rgb:
+ mov (cv_on),d0                   /* five-point curve: the Blk / Wht page's made-up record (b5_dr -> cvd_go) */
+ cmp 3,d0
+ bne 2f
+ jmp b5_dr
+2:
  mov (cv_k),d0
  cmp 4,d0
  bcs 1f
@@ -1521,6 +1522,7 @@ cvd_rgb:
  mov d0,(8,sp)
  movbu (cv_p),d0
  mov d0,(12,sp)
+cvd_go:
  clr d0                           /* 1. the spans, channel by channel */
  mov d0,(36,sp)
 10:
@@ -1750,6 +1752,13 @@ cvd_crv:
  movbu d1,(d0,a0)
  clr d3                           /* the curves: the other two, then the selected one */
 33:
+ mov (cv_on),d0                   /* five-point curve: one curve only */
+ cmp 3,d0
+ bne 331f
+ cmp 2,d3
+ beq 331f
+ jmp cvd_37
+331:
  mov (8,sp),d2
  add 1,d2
  add d3,d2
@@ -1770,6 +1779,12 @@ cvd_crv:
  mov cv_col,a0
  movbu (d0,a0),d0
  mov d0,(60,sp)
+ mov (cv_on),d0                   /* five-point curve: white */
+ cmp 3,d0
+ bne 343f
+ mov 14,d0
+ mov d0,(60,sp)
+343:
  mov 600,d0
  mul d2,d0
  mov d0,d1
@@ -1807,9 +1822,12 @@ cvd_crv:
  add -1,d1
  bne 35b
 37:
+cvd_37:
  inc d3
  cmp 3,d3
- bcs 33b
+ bcc 371f
+ jmp 33b
+371:
  clr d0                           /* the selected colour's points */
  mov d0,(88,sp)
 40:
@@ -1834,6 +1852,19 @@ cvd_crv:
  mov 8,d0
  mov 14,d1
 41:
+ mov (cv_on),d3                   /* five-point curve: the two ends big and white, the three between small, grey */
+ cmp 3,d3
+ bne 411f
+ mov 5,d0
+ mov 20,d1
+ cmp 0,d2
+ beq 410f
+ cmp 4,d2
+ bne 411f
+410:
+ mov 8,d0
+ mov 14,d1
+411:
  mov d1,(100,sp)
  mov d0,(80,sp)
  mov d0,d1

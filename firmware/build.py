@@ -297,11 +297,13 @@ def build(defaults, testfile, out):
     import rgbpics                                # rgb-curves: the page's pictures (firmware/rgbpics.py; editor's cv_ent)
     rp = rgbpics.streams()
     rg = ['.balign 4', 'cv_ent:', ' .long ' + ', '.join(f'cvp_d{i}' for i in range(len(rp)))]
+    rg5 = [' .balign 4']                          # five-point curve: entries 16.. (descriptor and stream) in .ext15
     for i, (name, w, h, st) in enumerate(rp):
-        rg += [f'cvp_d{i}:                          /* {name} */', f' .short 14, {w}, {h}, 8, 0, 0', f' .long {len(st)}, cvp_s{i} + 0x40000000, 0']
+        (rg if i < 16 else rg5).extend([f'cvp_d{i}:                          /* {name} */', f' .short 14, {w}, {h}, 8, 0, 0', f' .long {len(st)}, cvp_s{i} + 0x40000000, 0'])
     rg2 = []                                      # colour mix: the Mix page's pictures (7..) live with its code (ext12)
     for i, (name, w, h, st) in enumerate(rp):
-        (rg if i < 7 else rg2).extend([' .balign 4', f'cvp_s{i}:', db(st).rstrip('\n')])
+        (rg if i < 7 else rg2 if i < 16 else rg5).extend([' .balign 4', f'cvp_s{i}:', db(st).rstrip('\n')])
+    (out / 'curve5pics.inc').write_text('\n'.join(rg5) + '\n')
     (out / 'rgbpics.inc').write_text('\n'.join(rg) + '\n')
     (out / 'rgbpics2.inc').write_text('\n'.join(rg2) + '\n')
     (out / 'mixtab.inc').write_text('\n'.join(rgbpics.mixtables()) + '\n')   # colour mix: the Mix page's tables
@@ -545,6 +547,8 @@ def build(defaults, testfile, out):
         elif base == sy['sw13_tab']:
             assert ht == 0x611d1ab1 and sy['STAR_END'] == 0x611d1acb, hex(ht)
             sw_add(base, n, RG_IT, sy['cv_star'])                       # the row's '*' and Reset guide: our curves
+            assert sy['HS_STAR'] == ht
+            struct.pack_into('<I', m, o(base) + 8 * hi + 4, sy['b5_star'])   # five-point curve: the H&S row's '*' counts Blacks / Whites
             sw_add(base, n, MX_IT, sy['mx_star'])                       # ... and our mix
         else:
             sw_add(base, n, RG_IT, ht)
