@@ -71,6 +71,16 @@ are read only when the camera's block is empty or invalid (the first start). Blo
 `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` are built into the firmware from v0.29 (the formats below are unchanged;
 copies on a card are ignored).
 
+## Look sets (feature/look-sets, not released)
+
+More film sets live in `C:\OM3MOD\LOOKS\NAME.BIN` (8.3 names, the `LOOKS.BIN` v1 format above, checked the same way).
+The camera lists the folder at the first half-press with a card and offers them in MENU > Card/Folder/File > Looks Set,
+after `LOOKS.BIN` (the default). A picked set is taken as a new set (always, whether or not the camera had it before).
+The set in use is kept in a record of its own in store M, at image offset 0x3B040 (32 bytes; older firmware never reads
+it): `OM3L` | u16 version 1 | u16 length 32 | CRC-32 of bytes 12..31 | 11-character 8.3 name, space-padded, as in the
+folder entry (all zero: `LOOKS.BIN`) | zero to the end. The menu row is the camera's setting 1290 (an accessory key's
+movie function the OM-3 does not have); its value names a list entry (9, 6, 3341, 425, 3409, 88, 3200, 1001..1009).
+
 ## The RGB curves record (feature/rgb-curves, not released)
 
 Per COLOR / film R / G / B tone curves (5 points each at 0 / 25 / 50 / 75 / 100 %, offsets −7..+7) are kept in a record of their own in the same

@@ -11762,7 +11762,7 @@ lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call e
  call ub_try,[d2,d3,a2,a3],36     /* films in camera memory: a block write held back by the camera's own save */
  call el_card,[d2,d3,a2,a3],36
  call ck_card,[d2,d3,a2,a3],24    /* v0.30 test 9: CURVES.BIN, after el_card's films */
- call ls_scan,[d2,d3,a2,a3],36    /* look sets probe w1: list OM3MOD\LOOKS once (looksets.s) */
+ call ls_go,[d2,d3,a2,a3],36      /* look sets: a menu pick, and the OM3MOD\LOOKS list (looksets.s) */
  call cr_hp,[d2,d3,a2,a3],20      /* crop modes: the first shutter event after an early load (crop.s) */
  call cm_hp,[d2,d3,a2,a3],24      /* k4: in P / A / S / M, their films and choice now (kept in M) */
  call lg_write,[d2,d3,a2,a3],40
@@ -13495,7 +13495,7 @@ lg_cnow:
  mov d2,d0
  call lg_h4,[],0
  LGS lg_rb
- call ls_txt,[d2,d3,a2,a3],24     /* look sets probe w1 */
+ call ls_txt,[d2,d3,a2,a3],24     /* look sets: the Look sets: line */
  ret [d2,d3,a2,a3],24
 
 /* lg_btn: `call lg_btn,[d2,d3,a2,a3],24`: BUTTONS AND DIALS from lg_cv: photo and video buttons, our Creative Dial
@@ -19703,6 +19703,9 @@ ub_pfl:                           /* `call ub_pfl,[d2,d3,a2,a3],28` from sd_load
 ub_rd:                            /* `call ub_rd,[d2,d3,a2,a3],28`, a0 = a buffer of UB_PFL: the card's LOOKS.BIN into it
                                    * -> ub_cv (0 on entry). Locals (4) handle, (8) buffer. */
  mov a0,(8,sp)
+ call ls_auto,[d2,d3,a2,a3],20    /* look sets: a set from OM3MOD\LOOKS in use -> the card's LOOKS.BIN only by a pick */
+ cmp 0,d0
+ bne 9f
  call pf_open,[],4
  cmp 0,a0
  beq 9f
@@ -20317,6 +20320,14 @@ rc_go:                            /* `call rc_go,[d2,d3,a2,a3],24` from sx_set's
  cmp 0,d0
  beq 03f                          /* the first look: the dial stands for the code still 0 after a power-on */
  call cm_gnow,[],0
+ movbu (nf_pend),d1               /* look sets: a new set taken after the first look, the dial in the films' group: no
+                                     turn, the code only still 0 since the power-on; make the COLORs now */
+ cmp 0,d1
+ beq 47f
+ movbu (cm_ram + CM_LAST),d1
+ cmp d1,d0
+ beq 03f
+47:
  movbu (cm_code),d0
  cmp 0xc0,d0
  bcs 03f
@@ -22262,6 +22273,7 @@ el_go:                            /* `call el_go,[d2,d3,a2,a3],36` from gx_map (
  and 0x3ff,d0
  cmp 0x3ff,d0
  bne 9f                           /* not all 10 sections copied: the next state change tries again */
+ call ls_init,[d2,d3,a2,a3],20    /* look sets: the set in use from M, the row's list (RAM only) */
  call ub_chk,[d2,d3,a2,a3],20
  cmp 0,d0
  beq 9f
@@ -22880,4 +22892,4 @@ bl_v:                             /* the value */
 
  .include "newfilms.s"            /* #86: a new film set made again in every mode (ext13) */
 
- .include "looksets.s"             /* look sets probe w1: list OM3MOD\\LOOKS (ext13) */
+ .include "looksets.s"             /* look sets: switch film sets from the Card/Folder/File menu (ext13) */

@@ -382,6 +382,20 @@ def fv_not_run(hits):
     return [f'fv_add ran {len(hits)} times with no menu opened'] if hits else []
 
 
+# Look sets (looksets.s): the "Looks Set" row, last on the wrench tab's Card/Folder/File page, where a fresh camera's
+# menu opens, and again after each power-off (4 downs). OK opens the dropdown with the cursor on the
+# set in use; a pick ends with OK and the menu closes; the set loads at the next half-press. Setting 1290's values per
+# entry: 9 (LOOKS.BIN), 6, 3341, ... (looksets.s lsm_keys). Sets on the card: LOOKS/NAME.BIN.
+LS_OPEN_FRESH = 'menu wait down wait down wait down wait down wait ok wait'
+LS_SCREEN = 'ok wait menu wait wait'   # a screen change after a load: #86 makes the COLORs at the next screen event
+LS_DONE = 'ok wait menu wait wait'
+LS_SETS = {'LOOKS/PORTRA.BIN': 'LOOKS_P', 'LOOKS/VELVIA.BIN': 'LOOKS_ONE', 'LOOKS/NOTES.TXT': 'LOOKS_P'}
+LS_LINE = lambda use, rest='': rf'^Look sets: in use {use}, {rest}'
+LS_PICKED = lambda name, n, res: rf'^Look sets: .*picks loaded {n}, last pick {name} result {res}$'
+NEW_SET_20 = r'^New film sets taken this power-on: 1, films changed in the last 20 of 20, '
+NO_NEW_SET = r'^New film sets taken this power-on: 0, '
+LS_PICK_PORTRA = f'wait wait s1 wait wait {LS_OPEN_FRESH} down wait {LS_DONE} s1 wait wait'
+
 @dataclass
 class Boot:
     tokens: str
@@ -461,6 +475,9 @@ FIXTURES = {
     'LOOKS_ONE': lambda looks, names: other_set(looks, names, [*range(18), 19, 18]),
     'LOOKS_WB': lambda looks, names: film_wb_set(looks, FILMS_WB),
     'LOOKS_WB_NEW': lambda looks, names: film_wb_set(looks, FILMS_WB_NEW),
+    'LOOKS_P': lambda looks, names: other_set(looks, names, range(19, -1, -1), 'P '),    # look sets: a set of its own
+    'LOOKS_BAD': lambda looks, names: (lambda b: b[:100] + bytes([b[100] ^ 1]) + b[101:])(
+        other_set(looks, names, range(19, -1, -1), 'X ')),                              # look sets: CRC wrong
 }
 # #88: from COLOR 1 on the shooting screen, FILM 1 (the list runs COLOR 1-4, then the films); then the next film. Both
 # leave the super control panel's cursor on its Picture Mode cell.
@@ -1211,6 +1228,62 @@ TESTS = {
     # ... and fv_add never runs while the camera starts, idles or powers off (the start-up rule)
     'firmware-version-line-not-at-start-up': [
         Boot('wait poweroff', watch=('fv_add',), hits=fv_not_run),
+    ],
+    # Look sets: the row lists LOOKS.BIN, then the folder's .BIN sets by name (NOTES.TXT left out).
+    'look-set-row-lists-the-folder': [
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} {LS_DONE} s1 wait poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN', r'list 3 \(files 2, walk 0, \d+ us\): LOOKS\.BIN \| PORTRA \| VELVIA \| picks loaded 0, ')],
+             card=LS_SETS),
+    ],
+    # ... a pick loads at the next half-press, made fresh (#86); it stays after a power-off, and while it is in use a
+    # new OM3MOD/LOOKS.BIN is not taken by itself.
+    'look-set-pick-loads-at-the-half-press-and-stays': [
+        Boot(f'{LS_PICK_PORTRA} expect:val:1290=6 poweroff',
+             expect=[LS_LINE('PORTRA'), LS_PICKED('PORTRA', 1, 1), NEW_SET_20], card=LS_SETS),
+        Boot('wait wait s1 wait wait expect:val:1290=6 poweroff',
+             expect=[LS_LINE('PORTRA', r'list 3 '), LS_PICKED('none', 0, 0), NO_NEW_SET], card={'LOOKS.BIN': 'LOOKS_ONE'}),
+    ],
+    # ... FILM 3 on COLOR 1: the new set's FILM 3, no '*'.
+    'look-set-film-3-made-from-the-new-set': [
+        Boot(FILM_SWITCH_WRITES, expect=[FILM_3_LINE], card=LS_SETS),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff', expect=[FILM_3_LINE, NO_STAR_LINE, NEW_SET_LINE(20),
+                                                              LS_LINE('PORTRA')]),
+    ],
+    # ... a file that fails the check: the films stay, the row back on the set in use.
+    'look-set-not-valid-keeps-the-films': [
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} down wait {LS_DONE} s1 wait wait expect:val:1290=9 poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), LS_PICKED('BROKEN', 0, 4), NO_NEW_SET],
+             card={**LS_SETS, 'LOOKS/BROKEN.BIN': 'LOOKS_BAD'}),
+    ],
+    # ... back to LOOKS.BIN: loaded again although the camera had it (the seen ring is not asked).
+    'look-set-back-to-looks-bin': [
+        Boot(f'{LS_PICK_PORTRA} poweroff', expect=[LS_LINE('PORTRA')], card=LS_SETS),
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait expect:val:1290=9 poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), LS_PICKED(r'LOOKS\.BIN', 1, 1), NEW_SET_20]),
+    ],
+    # ... a pick before the first half-press (the list is the set in use and LOOKS.BIN until then).
+    'look-set-pick-before-the-first-half-press': [
+        Boot(f'{LS_PICK_PORTRA} poweroff', expect=[LS_LINE('PORTRA')], card=LS_SETS),
+        Boot(f'wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), LS_PICKED(r'LOOKS\.BIN', 1, 1)]),
+    ],
+    # ... a film's changes belong to its set: gone under PORTRA (another FILM 2), back with LOOKS.BIN.
+    'look-set-changes-come-back-with-their-set': [
+        Boot(CONTRAST_ON_FILM_2, expect=[FILM_2_LINE], card=LS_SETS),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff', expect=[FILM_2_LINE, NO_FILM_CHANGES, LS_LINE('PORTRA')]),
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait {LS_SCREEN} s1 wait wait poweroff',
+             expect=[FILM_2_LINE, FILM_2_CHANGED, LS_LINE(r'LOOKS\.BIN')]),
+    ],
+    # ... no LOOKS folder: only LOOKS.BIN, nothing else changes.
+    'look-set-no-folder': [
+        Boot('wait wait s1 wait wait poweroff', expect=[LS_LINE(r'LOOKS\.BIN', r'list 1 \(files 0, ')]),
+    ],
+    # ... the set in use stays listed when its file is gone from the card (it is in the camera).
+    'look-set-in-use-listed-without-its-file': [
+        Boot(f'{LS_PICK_PORTRA} poweroff', expect=[LS_LINE('PORTRA')], card=LS_SETS),
+        Boot('wait wait s1 wait wait expect:val:1290=3341 poweroff',
+             expect=[LS_LINE('PORTRA', r'list 3 \(files 1, .*LOOKS\.BIN \| VELVIA \| PORTRA ')],
+             card={'LOOKS/PORTRA.BIN': None}),
     ],
 }
 

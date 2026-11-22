@@ -449,6 +449,52 @@ def build(defaults, testfile, out):
     assert bytes(m[o(0x61538464):o(0x61538464) + 80]) == bytes(m[o(sy['fl_scr']):o(sy['fl_scr']) + 80])
     struct.pack_into('<I', m, o(0x615384b4) + 84, 24)
     struct.pack_into('<I', m, o(0x615384b4) + 92, sy['fl_scr'])
+    # Look sets (looksets.s): page 235 (wrench tab, "Card/Folder/File") gets "Looks Set" (setting 1290) at its end, as
+    # PR #51's Bitrate row on page 221. Page record {n, labels, helps, n2, value lists, n3, value lists}, the page
+    # definition's dropdown rows {14, sid, 0, 1} (0x61510000: page 221's 0x6150fe08 + 0x24 x 14), the row order (cursor
+    # kind 239, sub 0) and 1290's descriptor record 0x6061a6a8 -> lsm_keys (16 values; ls_cnt sets the count shown).
+    LSID = 1290
+    def ls_put(name, data):
+        m[o(sy[name]):o(sy[name]) + len(data)] = data
+        return sy[name]
+    LR = 0x61587e70
+    assert struct.unpack_from('<7I', m, o(LR)) == (6, 0x61587934, 0x61586fa4, 4, 0x61586728, 4, 0x61586728)
+    ls_labs = [bytes(m[o(0x61587934) + 12 * i:o(0x61587934) + 12 * i + 12]) for i in range(6)]
+    ls_hlps = [bytes(m[o(0x61586fa4) + 12 * i:o(0x61586fa4) + 12 * i + 12]) for i in range(6)]
+    assert [struct.unpack_from('<I', x)[0] for x in ls_labs] == [5344, 5097, 1167, 1436, 21, 3282]
+    assert [struct.unpack_from('<I', x)[0] for x in ls_hlps] == [5344, 5097, 1167, 1436, 21, 3282]
+    ls_vals = [bytes(m[o(0x61586728) + 8 * i:o(0x61586728) + 8 * i + 8]) for i in range(4)]
+    assert [struct.unpack_from('<H', x)[0] for x in ls_vals] == [5097, 1167, 1436, 21]
+    ls_labs.append(struct.pack('<IHHI', LSID, 5, 0, sy['lss_title']))
+    ls_hlps.append(struct.pack('<IHHI', LSID, 5, 0, sy['lss_help']))
+    ls_vals.append(struct.pack('<HHI', LSID, 1, sy['lsm_vl']))     # the count: ls_cnt at run time (1 = LOOKS.BIN)
+    keys = struct.unpack_from('<16H', m, o(sy['lsm_keys']))
+    assert len(set(keys)) == 16
+    for k in range(16):                                            # lsm_vl's values
+        struct.pack_into('<I', m, o(sy['lsm_vl']) + 12 * k, keys[k])
+    struct.pack_into('<7I', m, o(LR), 7, ls_put('lsm_lab', b''.join(ls_labs)), ls_put('lsm_hlp', b''.join(ls_hlps)),
+                     5, ls_put('lsm_val', b''.join(ls_vals)), 5, sy['lsm_val'])
+    LD = 0x61510000
+    assert struct.unpack_from('<2I', m, o(LD)) == (0x6150b4cc, 2)
+    ls_dds = [bytes(m[o(0x6150b4cc) + 16 * i:o(0x6150b4cc) + 16 * i + 16]) for i in range(2)]
+    assert [struct.unpack_from('<4I', x) for x in ls_dds] == [(14, 1167, 0, 1), (14, 21, 0, 1)]
+    ls_dds.append(struct.pack('<4I', 14, LSID, 0, 1))
+    struct.pack_into('<2I', m, o(LD), ls_put('lsm_dd', b''.join(ls_dds)), 3)
+    a = 0x61529634                               # {u16 kind, u16 n, u32 subs}, subs {u16 sub, u16 n, u32 ids}
+    while struct.unpack_from('<H', m, o(a))[0] != 239:
+        a += 8
+    _, kn, ksubs = struct.unpack_from('<HHI', m, o(a))
+    sub = next(ksubs + 8 * j for j in range(kn) if struct.unpack_from('<H', m, o(ksubs + 8 * j))[0] == 0)
+    _, sn, sp_ = struct.unpack_from('<HHI', m, o(sub))
+    ids = list(struct.unpack_from('<%dH' % sn, m, o(sp_)))
+    assert ids == [5344, 1436, 21, 3282], ids
+    struct.pack_into('<HHI', m, o(sub), 0, 5, ls_put('lsm_ro', struct.pack('<5H', *(ids + [LSID]))))
+    LDS = 0x6061a6a8
+    sid_, _, lst, vls, nb, el = struct.unpack_from('<HHIIHH', m, o(LDS))
+    assert (sid_, vls, nb, el) == (LSID, 0, 14, 2), (sid_, vls, nb, el)
+    assert struct.unpack_from('<7H', m, o(lst)) == (3341, 6, 9, 425, 3409, 88, 3200)
+    struct.pack_into('<I', m, o(LDS) + 4, sy['lsm_keys'])
+    struct.pack_into('<H', m, o(LDS) + 12, 32)  # all 16 valid when the camera loads its settings; ls_cnt narrows it
     # film test 4: the held-OK reset sends its event to the rows listed for the selected picture mode (0x611c3c07
     # `add 0x61536324,d1` over 8 entries, bound `cmp 8,d1` at 0x611c3cae): fl_rtab = the stock 8 + the films
     assert struct.unpack_from('<HHI', m, o(0x61536324) + 8 * 4) == (54, 5, 0x61536310)

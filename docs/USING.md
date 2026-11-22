@@ -150,6 +150,28 @@ hold OK on it in Picture Mode.
 
 More on LookLab: [how to use it](CONTROL_PANEL.md).
 
+## Several film sets on one card: Looks Set (look sets, in testing)
+
+Keep more than one set of films on the card and switch between them from the menu.
+
+1. Make a folder **`LOOKS`** inside `OM3MOD` and save each set there as **`NAME.BIN`** (a `LOOKS.BIN` from LookLab,
+   renamed). Names: up to 8 letters or digits, then `.BIN`, for example `PORTRA.BIN`. Longer names may not show.
+2. Switch on and half-press once: the camera reads the folder.
+3. **MENU > wrench tab > 1. Card/Folder/File > Looks Set**: pick a set. It loads at your next half-press.
+
+`LOOKS.BIN` (the one in `OM3MOD` itself) is always first in the list and is the default. What to expect:
+
+- The COLOR that was on FILM 3 shows the new set's FILM 3, in every shooting mode, with no `*`.
+- Your changes stay with the films they were made on: switch back and they're there again, unless you changed the
+  same film number in the other set in between.
+- A file that isn't a valid set is skipped: the films stay as they were and the row goes back to the set in use.
+- The set in use stays after switching off. While a set from `LOOKS` is in use, a new `OM3MOD/LOOKS.BIN` isn't taken by
+  itself: pick **LOOKS.BIN** in the list to load it.
+- The list is read once after switching on (at the first half-press). Up to 15 sets show. Files added while the
+  camera is on show after switching off and on.
+- Each switch uses a little of the camera's memory until it's switched off; after many switches in one session a
+  switch may be refused (switch off and on).
+
 ## Crop modes: XPan, 21:9 and 5:4 (v0.40-alpha)
 
 Image Aspect has three more choices, on the super control panel and in the Image Aspect menus: **5:4**, **XPan**
@@ -189,6 +211,7 @@ labels and guides are part of the firmware. The card only brings films in, in th
 | File | What it is | Where it comes from |
 |---|---|---|
 | `LOOKS.BIN` | Films FILM 1–20, with their names: the camera takes them once, if it never had that set | The release or LookLab |
+| `LOOKS/NAME.BIN` | More film sets, picked in MENU > Card/Folder/File > Looks Set (look sets, in testing) | LookLab (a `LOOKS.BIN`, renamed) |
 | `EDITS.BIN`, `BUNDLES.BIN` | Your changes and Extras from versions before v0.29: copied into the camera at the first start | Written by the camera before v0.29 |
 | `GUIDES.BIN`, `LABELS.BIN`, `TONES.BIN` | Code, labels and guides of versions before v0.29 (ignored from v0.29) | The release, before v0.29 |
 
