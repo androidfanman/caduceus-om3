@@ -506,9 +506,9 @@ ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wai
 WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
-# borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
+# borders: Picture Mode's Border row, the 18th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
 # Radius); COLOR 1's slot +50 is P + 82
-OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 18
+OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 17
 # border preview (2026-11-17): with a Border on the look, the shooting screen's grid shows the border's inner edge as
 # a frame line. Rear screen 900 x 600, 4:3: the picture x 50..850, y 0..599; Border 3 is 26 px in (bd_run's width), so
 # the left line is on x 75..76 and the top one on y 25..26. Each line is checked against a point beside it on om-emu's
@@ -535,41 +535,42 @@ SI_EV_ON = 'expect:pxdiff:623,566,300,450'
 BORDER_TO_0 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
 BORDER_TO_M3 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=fd menu wait wait s1 wait wait'   # black -3
 BORDER_FROM_M3 = f'{OPEN_BORDER}' + ' right wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
-# gentler Shading: Picture Mode's Shading row (the camera's own, item 5399), the 13th (pm_list); setting 912 = COLOR 1's
-OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 12
+# gentler Shading: Picture Mode's Shading row (the camera's own, item 5399), the 12th (pm_list); setting 912 = COLOR 1's
+OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 11
 SHADING_TO_M3 = f'{OPEN_SHADING}' + ' left wait' * 3 + ' expect:val:912=-3 menu wait wait s1 wait wait'
 # border-dial-direction (2026-11-18): a dial click on the Border row steps it the way it steps the camera's own
-# Contrast row (the 9th, COLOR 1's setting 908). From Contrast nine rows down to Border.
+# Contrast row (the 8th since the five-point curve took the Blacks / Whites row out, 2026-11-22; COLOR 1's setting
+# 908). The row counts below are one less than before for every row under Highlight & Shadow.
 CONTRAST_COLOR_1 = 908
 # #86: FILM 2 picked on COLOR 1, then its Contrast (the camera's own row) one step up, saved at the half-press. Set ONE
 # leaves FILM 2 as it is, so the change and its '*' stay.
-CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 8 +
+CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 7 +
                       ' main+1 wait menu wait wait s1 wait wait poweroff')
 FILM_2_CHANGED = r'^Films with changes \(a \* in the camera\): 2$'
-DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
+DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 7 +
                     f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1 sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1' +
                     ' down wait' * 10 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
                     ' sub+1 wait sub+1 wait expect:p:82=01 menu wait wait s1 wait wait poweroff')
 # dial direction (2026-11-18): the same for Glow, Halation, Split Tone Balance and Film Grain. Contrast first, then
-# the row (moves from Contrast, the 9th row): right twice, the rear dial once (+1), the front dial twice (-2). The
+# the row (moves from Contrast, the 8th row): right twice, the rear dial once (+1), the front dial twice (-2). The
 # values: COLOR 1's slot byte (P + 32 + slot) after each step. Glow keeps Glow as -1..-5 (the screen shows +1..+5).
 # Film Grain's byte is its level (strength 2, 3, 1 -> 1, 2, 1), so its strength is also checked in the debug log.
-CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
+CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 7 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
                    f' sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1')
 BAR_DIAL = lambda moves, off, two, three, one: (
     f'{CONTRAST_CLICKS} {moves} right wait right wait expect:p:{off}={two} main+1 wait expect:p:{off}={three}'
     f' sub+1 wait sub+1 wait expect:p:{off}={one} menu wait wait s1 wait wait poweroff')
 GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
 HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
-BALANCE_DIAL = BAR_DIAL('up wait ' * 4, 65, '02', '03', '01')
+BALANCE_DIAL = BAR_DIAL('up wait ' * 3, 65, '02', '03', '01')
 GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
-# better grain g2: the Film Grain strength row, the 17th (Grain Size under it); COLOR 1's level byte +53 is P + 85
-OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 16
+# better grain g2: the Film Grain strength row, the 16th (Grain Size under it); COLOR 1's level byte +53 is P + 85
+OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 15
 GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
-# Halation Radius: its row, the 16th (under Halation, Film Grain under it); kept in the curves record's spare byte G
+# Halation Radius: its row, the 15th (under Halation, Film Grain under it); kept in the curves record's spare byte G
 # with the grain (the debug log's NOW lines)
-OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 15
+OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 14
 RADIUS_LINE = lambda r: f'^Halation Radius on COLOR 1-4: {r}, Bloom, Bloom, Bloom$'
 GRAIN_2_MEDIUM = '^Film Grain on COLOR 1-4: 2 Medium, Off, Off, Off$'
 EDIT_RGB = f'{OPEN_RGB} main+1 wait menu wait wait'
