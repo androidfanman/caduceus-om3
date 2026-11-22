@@ -9803,3 +9803,8 @@ owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-bet
   Mix page: mix tests 3..6); live view following the dials (lv_ref's fingerprint has +47 / +48); photos. Owner's
   calls: the two stock pages' curve (ours with five points there too?), the labels' size, hold OK on Sh / Hi leaving
   Blacks / Whites as they are.
+- **Test 1 (c1; emulator only):** VERSION "v0.40.3-c1 (five-point curve test 1, on beta 4)". E1479999.BIN
+  `d950d51b…83be`, GUIDES.BIN `5b5d1cf7…ca8b` (build of dd675a4; d3beb77 changes tests only). Suite: **131 pass**, exit
+  0, static checks pass (the 13 tests that count rows under H&S now count one less); the new page's test on
+  v0.40.3-beta4: `caught`. Package (private) `test-builds/2026-11-22-curve-5-points-1`, go-back v0.40.3-beta4. Not on
+  a camera yet.
