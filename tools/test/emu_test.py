@@ -224,17 +224,17 @@ DEBUG_LOG_RELEASES_ONLY = (r'^Written at shutter button event 5 \(a half-press a
 # camera's Off: the row is starred, as the profile is.
 NF_BYTE, NR_ROW_COLOR2, NR_SLOT_COLOR2 = 0x6295942d, 0x7e11, 32 + 64 + 51
 NR_ROW_STAR = lambda star: f'expect:isdef:{{ed_isdef}}:{NR_ROW_COLOR2:x}={0 if star else 1}'
-# The Blacks / Whites row (the eighth in Picture Mode) shows the camera's WB grid scene (element 24813) in the bottom
+# The Blacks / Whites row (the ninth in Picture Mode) shows the camera's WB grid scene (element 24813) in the bottom
 # bar's holder, and Contrast, the next row, gets the bar's own scene (element 24771) back. gr_end does that at the end
 # of the screen update: a flash before it is camera-only (research/TESTING.md, "Past regressions").
 HOLDER_SCENE = lambda element: f'expect:mem:{{gr_cont}}+0*+308*+4={element & 255:02x}{element >> 8:02x}'
-GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 7 + HOLDER_SCENE(24813) +
+GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 8 + HOLDER_SCENE(24813) +
                      ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) + ' poweroff')
-# WB Compensation (the sixth row) <-> Highlight & Shadow (the seventh): the holder's scene changes in the row refresh,
+# WB Compensation (the seventh row) <-> Highlight & Shadow (the eighth): the holder's scene changes in the row refresh,
 # not in the screen update. A scene set during the update makes the camera draw a pass without grid or curve before
 # the refresh (research/NOTES.md, "the one-frame flash"). Hits: gr_upd / gr_end to the update's end (pe_back /
 # pe_ret) holds no sc_set; each switch still sets the scene, which HOLDER_SCENE checks after each key.
-WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCENE(24813) +
+WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 6 + HOLDER_SCENE(24813) +
                 ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) +
                 ' down up down wait ' + HOLDER_SCENE(24771) + ' up down up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
@@ -269,10 +269,12 @@ LABEL_SIZE = {t: len(mklabels.encode11(bytes(mklabels.render(mklabels.bitmap(t))
               for t in ('Sat', 'Hue', 'Lum', 'Tint')}
 LABEL_IS = lambda name: f'expect:mem:{VDESC + 12:x}={U32(LABEL_SIZE[name])}'
 OPEN_WHEEL = 's1 ok ok down down down wait'
-# wheel-hsl-view h2: Delete steps Sat -> Hue -> Lum -> Sat, INFO the tint wheels (Shadows, Highlights) and back.
+# wheel-hsl-view h2: Delete steps Sat -> Hue -> Lum -> Sat. split-tone row: the tint wheels (Shadows, Highlights) are
+# the next row's, stepped by INFO there; back on the wheel row the label is Sat again.
+OPEN_SPLIT = f'{OPEN_WHEEL} down wait'
 WHEEL_PAGE_LABELS = (f'{OPEN_WHEEL} {LABEL_IS("Sat")} delete wait {LABEL_IS("Hue")} delete wait {LABEL_IS("Lum")} '
-                     f'delete wait {LABEL_IS("Sat")} info wait {LABEL_IS("Tint")} info wait {LABEL_IS("Tint")} '
-                     f'info wait {LABEL_IS("Sat")} poweroff')
+                     f'delete wait {LABEL_IS("Sat")} down wait {LABEL_IS("Tint")} info wait {LABEL_IS("Tint")} '
+                     f'up wait {LABEL_IS("Sat")} poweroff')
 # On Saturation, GDESC (a single color) reads "Saturation [INFO]" (wheel-hsl-view: the H / S / L bar in its place) and
 # SDESC (ALL, 175 wide while ours) "Sat. All [INFO]", whether the dial or INFO turned ALL on. Off Saturation, SDESC is
 # the camera's again.
@@ -289,7 +291,7 @@ SHADOWS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Shadows').flatten())
 WHEEL_HSL_BAR = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {HBAR_IS(0, 0, 3, 0, 0)} '
                  f'delete wait {HBAR_IS(0, 0, 3, 0, 2)} main+1 wait main+1 wait {HBAR_IS(0, 2, 3, 0, 2)} '
                  f'sub-1 wait {HBAR_IS(1, 0, 0, 0, 2)} sub+1 wait delete wait main-1 wait {HBAR_IS(0, 2, 3, -1, 1)} '
-                 f'info wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
+                 f'down wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
                  f's1 wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} '
                  f'expect:mem:{GDESC + 12:x}={U32(4022)}{U32(0xa49ebe40)} poweroff')
 # wheel-hsl-view h3: the bar's colours are palette 62's entries 108..120, which hb_spal sets to the colour under the
@@ -300,15 +302,61 @@ PAL_IS = lambda c, h: f'expect:mem:{mkhbar.PAL_TABLE + 4 * mkhbar.SLOT0:x}={"".j
 SWATCH_SHOWN = 'expect:pxdiff:177,545,157,516'
 WHEEL_BAR_COLOURS = (f'{OPEN_WHEEL} {PAL_IS(0, 0)} {SWATCH_SHOWN} delete wait main+1 wait main+1 wait {PAL_IS(0, 2)} '
                      f'{SWATCH_SHOWN} sub-1 wait {PAL_IS(1, 0)} {SWATCH_SHOWN} poweroff')
-# Delete steps the HSL pages (P+AXIS 0 Saturation, 2 Hue, 1 Luminance); INFO goes to Shadows (5), Highlights (6) and
-# back to the HSL page it left; Delete on another Picture Mode row does nothing (the next INFO is a plain INFO).
+# Delete steps the HSL pages (P+AXIS 0 Saturation, 2 Hue, 1 Luminance); Delete on another Picture Mode row does nothing
+# (the next INFO is a plain INFO).
 AXIS_IS = lambda a: f'expect:p:684={a:02x}'
 WHEEL_DELETE_STEPS_HSL = (f'{OPEN_WHEEL} {AXIS_IS(0)} delete wait {AXIS_IS(2)} delete wait {AXIS_IS(1)} '
                           f'delete wait {AXIS_IS(0)} delete wait {AXIS_IS(2)} poweroff')
-WHEEL_INFO_STEPS_TONES = (f'{OPEN_WHEEL} info wait {AXIS_IS(5)} info wait {AXIS_IS(6)} info wait {AXIS_IS(0)} '
-                          f'delete wait {AXIS_IS(2)} info wait {AXIS_IS(5)} delete wait {AXIS_IS(2)} '
-                          f'info wait info wait {AXIS_IS(6)} info wait {AXIS_IS(2)} poweroff')
-WHEEL_DELETE_OFF_ROW = (f'{OPEN_WHEEL} down wait delete wait up wait {AXIS_IS(0)} info wait {AXIS_IS(5)} poweroff')
+WHEEL_DELETE_OFF_ROW = (f'{OPEN_WHEEL} down wait down wait delete wait up wait up wait {AXIS_IS(0)} info wait {AXIS_IS(0)} '
+                        f'expect:val:2197=255 poweroff')
+# split-tone row (2026-11-22): the Shadows / Highlights wheels are their own Picture Mode row, right under the colour
+# wheel's. The row opens the wheel on Shadows (P+AXIS 5: dial label Tint, the Shadows guide), INFO steps Shadows <->
+# Highlights (6), Delete does nothing there, and each arrival starts on Shadows again. The colour wheel row is back on
+# Saturation when you return to it.
+HIGHLIGHTS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Highlights').flatten()), 175, 50))
+GUIDE_IS = lambda size: f'expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(size)}'
+SPLIT_ROW_OPENS = (f'{OPEN_SPLIT} {AXIS_IS(5)} {LABEL_IS("Tint")} {GUIDE_IS(SHADOWS_GUIDE)} up wait {AXIS_IS(0)} '
+                   f'{LABEL_IS("Sat")} delete wait {AXIS_IS(2)} down wait {AXIS_IS(5)} info wait {AXIS_IS(6)} '
+                   f'down wait up wait {AXIS_IS(5)} up wait {AXIS_IS(0)} poweroff')
+SPLIT_ROW_INFO = (f'{OPEN_SPLIT} info wait {AXIS_IS(6)} {GUIDE_IS(HIGHLIGHTS_GUIDE)} info wait {AXIS_IS(5)} '
+                  f'{GUIDE_IS(SHADOWS_GUIDE)} delete wait {AXIS_IS(5)} info wait {AXIS_IS(6)} poweroff')
+# The rear dial on the row sets the page's tint: COLOR 1's slot +55..+58 (P + 87: Shadows colour, strength code,
+# Highlights colour, strength code; three clicks = strength 3 = code -2, one click = code -1), where the wheel pages
+# kept them since v0.26. The colour wheel's own values stay: Saturation of the first colour (setting 928) 0, the
+# H / S / L bar 0 / 0 / 0.
+TINTS_ARE = lambda hx: f'expect:p:87={hx}'
+SPLIT_ROW_DIAL = (f'{OPEN_SPLIT} {TINTS_ARE("00000000")} main+1 wait main+1 wait main+1 wait {TINTS_ARE("00fe0000")} '
+                  f'info wait main+1 wait {TINTS_ARE("00fe00ff")} expect:val:928=0 up wait {AXIS_IS(0)} '
+                  f'{HBAR_IS(0, 0, 0, 0, 0)} {TINTS_ARE("00fe00ff")} poweroff')
+# The row's '*' (rear screen, right of its picture; the box is plain without it) follows the tints alone, and the colour
+# wheel row's '*' the wheel's values alone (before: one row, one '*' for both).
+SPLIT_STAR, WHEEL_STAR = '90,380,104,396', '90,306,104,322'
+SPLIT_ROW_STAR = (f'{OPEN_SPLIT} expect:noink:{SPLIT_STAR} main+1 wait expect:ink:{SPLIT_STAR} up wait '
+                  f'expect:noink:{WHEEL_STAR} expect:ink:{SPLIT_STAR} main+1 wait expect:ink:{WHEEL_STAR} poweroff')
+# On the colour wheel INFO is "all colours" again: on Saturation it turns them on (cursor 255) and off; on Hue it does
+# nothing. Delete from all colours still steps to Hue with one colour.
+WHEEL_INFO_ALL = (f'{OPEN_WHEEL} info wait expect:val:{2197}=255 {AXIS_IS(0)} info wait expect:val:{2197}=1 {AXIS_IS(0)} '
+                  f'delete wait {AXIS_IS(2)} info wait {AXIS_IS(2)} expect:val:{2197}=1 delete wait delete wait '
+                  f'info wait expect:val:{2197}=255 delete wait {AXIS_IS(2)} expect:val:{2197}=1 poweroff')
+# All colours left on from the colour wheel row: on this row the dial's click (12 writes, one a colour) changes no tint;
+# INFO turns all colours off and stays on Shadows, and the dial sets the tint again.
+SPLIT_ROW_ALL = (f'{OPEN_WHEEL} info wait expect:val:{2197}=255 down wait {AXIS_IS(5)} main+1 wait '
+                 f'{TINTS_ARE("00000000")} info wait expect:val:{2197}=1 {AXIS_IS(5)} main+1 wait '
+                 f'{TINTS_ARE("00010000")} poweroff')
+def newest_looks():
+    def key(d):
+        n, _, pre = d.name.lstrip('v').partition('-')
+        return [int(x) for x in n.split('.')], pre == '', pre
+    rel = max((d for d in (REPO / 'releases').iterdir() if d.name.startswith('v') and (d / 'LOOKS.BIN').exists()), key=key)
+    return rel / 'LOOKS.BIN'
+
+
+# A film that has tints as built (FILM 4 of the release's LOOKS.BIN: its record +53..+56) shows them on the row with
+# no '*'; a click on another colour changes the tint and the '*' comes.
+SPLIT_ROW_FILM = lambda looks: (
+    's1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 4 +
+    f' {AXIS_IS(5)} {TINTS_ARE(looks[32 + 64 * 3 + 53:32 + 64 * 3 + 57].hex())} expect:noink:{SPLIT_STAR} '
+    f'main+1 wait expect:ink:{SPLIT_STAR} poweroff')
 _SAT_PICS = mkicons.sat_pictures()
 _, SAT_ALL_GUIDE = (len(mkicons.encode11(bytes(a.flatten().tolist()), 175, 50)) for a in _SAT_PICS[1:])   # wheel-hsl-view: the bar in the Saturation guide's place
 SDESC_STOCK_SIZE = 4471
@@ -320,7 +368,7 @@ WHEEL_SAT_GUIDES = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} {SDESC_IS(175, SAT_A
 # return address in a2: the call wrote it over ed_get's saved a2.
 WHEEL_READOUT_KEEPS_A2 = f'keep:{{ed_get}}:{{g_ret}}:a2 {OPEN_WHEEL} delete wait wait expect:kept poweroff'
 # The same on Shadows: tn_get calls the label code on its readout.
-TONE_READOUT_KEEPS_A2 = (f'keep:{{tn_get}}:{{t_ret}}:a2 {OPEN_WHEEL} info wait wait '
+TONE_READOUT_KEEPS_A2 = (f'keep:{{tn_get}}:{{t_ret}}:a2 {OPEN_SPLIT} wait '
                          f'{LABEL_IS("Tint")} expect:kept poweroff')
 # The front dial puts all colors (cursor 255) between slices 1 and 12. On Saturation it stops there, as stock. On Hue
 # (as on Lum and Tint) it steps over: 1 -> 12 -> 1.
@@ -337,7 +385,7 @@ WHEEL_DIAL_SKIPS_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:{CURSOR}=255 sub-1 
 WHEEL_STEP_WRITE = (f'main+1 wait fhash:a mids:{{manager}} main+1 wait expect:mids:{CURSOR} fhash:b '
                     f'expect:fdiff:a:b main-1 wait fhash:c expect:fsame:a:c')
 WHEEL_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} delete wait {LABEL_IS("Hue")} {WHEEL_STEP_WRITE} '
-                            f'info wait {LABEL_IS("Tint")} {WHEEL_STEP_WRITE} poweroff')
+                            f'down wait {LABEL_IS("Tint")} {WHEEL_STEP_WRITE} poweroff')
 # The same on the Extras page (P + AXIS = 3). INFO does not reach it in this build (W_EXTRAS 0), so the test puts the
 # page byte there from Hue.
 EXTRAS_STEP_WRITES_CURSOR = (f'{OPEN_WHEEL} delete wait {LABEL_IS("Hue")} pokep:0x{{AXIS}}=03 wait '
@@ -505,8 +553,8 @@ PICK_NEXT_FILM, PICK_FILM_BEFORE = 'ok wait ok wait right wait ok wait wait', 'o
 # PANEL_TO_PICTURE_MODE (the panel, left, OK: the Picture Mode list).
 WB_SCREEN_A_PLUS_1 = 'ok wait right wait ok wait down wait down wait ok wait right wait ok wait wait'
 PANEL_TO_PICTURE_MODE = 'ok wait left wait ok wait'
-# Picture Mode's WB Compensation row (the sixth), OK: the camera's fine-tune screen for the look; A-B one step to A
-WB_ROW_A_PLUS_1 = 'down wait ' * 5 + 'ok wait right wait'
+# Picture Mode's WB Compensation row (the seventh), OK: the camera's fine-tune screen for the look; A-B one step to A
+WB_ROW_A_PLUS_1 = 'down wait ' * 6 + 'ok wait right wait'
 # Stills fine-tune ids (table 0x615d1944: A-B id, G-M = + 13): Custom WB, Shade, Auto, Sunny; movie Auto and Custom WB
 CWB_AB, CWB_GM, SHADE_AB, SHADE_GM, AUTO_AB, SUNNY_AB, SUNNY_GM = 1592, 1605, 1587, 1600, 1580, 1584, 1597
 MOVIE_AUTO_AB, MOVIE_CWB_AB = 1606, 1618
@@ -525,9 +573,9 @@ ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wai
 WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
-# borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
+# borders: Picture Mode's Border row, the 20th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
 # Radius); COLOR 1's slot +50 is P + 82
-OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 18
+OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 19
 # border preview (2026-11-17): with a Border on the look, the shooting screen's grid shows the border's inner edge as
 # a frame line. Rear screen 900 x 600, 4:3: the picture x 50..850, y 0..599; Border 3 is 26 px in (bd_run's width), so
 # the left line is on x 75..76 and the top one on y 25..26. Each line is checked against a point beside it on om-emu's
@@ -554,26 +602,26 @@ SI_EV_ON = 'expect:pxdiff:623,566,300,450'
 BORDER_TO_0 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
 BORDER_TO_M3 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=fd menu wait wait s1 wait wait'   # black -3
 BORDER_FROM_M3 = f'{OPEN_BORDER}' + ' right wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
-# gentler Shading: Picture Mode's Shading row (the camera's own, item 5399), the 13th (pm_list); setting 912 = COLOR 1's
-OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 12
+# gentler Shading: Picture Mode's Shading row (the camera's own, item 5399), the 14th (pm_list); setting 912 = COLOR 1's
+OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 13
 SHADING_TO_M3 = f'{OPEN_SHADING}' + ' left wait' * 3 + ' expect:val:912=-3 menu wait wait s1 wait wait'
 # border-dial-direction (2026-11-18): a dial click on the Border row steps it the way it steps the camera's own
-# Contrast row (the 9th, COLOR 1's setting 908). From Contrast nine rows down to Border.
+# Contrast row (the 10th, COLOR 1's setting 908). From Contrast nine rows down to Border.
 CONTRAST_COLOR_1 = 908
 # #86: FILM 2 picked on COLOR 1, then its Contrast (the camera's own row) one step up, saved at the half-press. Set ONE
 # leaves FILM 2 as it is, so the change and its '*' stay.
-CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 8 +
+CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 9 +
                       ' main+1 wait menu wait wait s1 wait wait poweroff')
 FILM_2_CHANGED = r'^Films with changes \(a \* in the camera\): 2$'
-DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
+DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 9 +
                     f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1 sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1' +
                     ' down wait' * 10 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
                     ' sub+1 wait sub+1 wait expect:p:82=01 menu wait wait s1 wait wait poweroff')
 # dial direction (2026-11-18): the same for Glow, Halation, Split Tone Balance and Film Grain. Contrast first, then
-# the row (moves from Contrast, the 9th row): right twice, the rear dial once (+1), the front dial twice (-2). The
+# the row (moves from Contrast, the 10th row): right twice, the rear dial once (+1), the front dial twice (-2). The
 # values: COLOR 1's slot byte (P + 32 + slot) after each step. Glow keeps Glow as -1..-5 (the screen shows +1..+5).
 # Film Grain's byte is its level (strength 2, 3, 1 -> 1, 2, 1), so its strength is also checked in the debug log.
-CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
+CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 9 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
                    f' sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1')
 BAR_DIAL = lambda moves, off, two, three, one: (
     f'{CONTRAST_CLICKS} {moves} right wait right wait expect:p:{off}={two} main+1 wait expect:p:{off}={three}'
@@ -583,12 +631,12 @@ HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
 BALANCE_DIAL = BAR_DIAL('up wait ' * 4, 65, '02', '03', '01')
 GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
-# better grain g2: the Film Grain strength row, the 17th (Grain Size under it); COLOR 1's level byte +53 is P + 85
-OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 16
+# better grain g2: the Film Grain strength row, the 18th (Grain Size under it); COLOR 1's level byte +53 is P + 85
+OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 17
 GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
 # Halation Radius: its row, the 16th (under Halation, Film Grain under it); kept in the curves record's spare byte G
 # with the grain (the debug log's NOW lines)
-OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 15
+OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 16
 RADIUS_LINE = lambda r: f'^Halation Radius on COLOR 1-4: {r}, Bloom, Bloom, Bloom$'
 GRAIN_2_MEDIUM = '^Film Grain on COLOR 1-4: 2 Medium, Off, Off, Off$'
 EDIT_RGB = f'{OPEN_RGB} main+1 wait menu wait wait'
@@ -1291,8 +1339,26 @@ TESTS = {
     'color-wheel-delete-steps-saturation-hue-luminance': [
         Boot(WHEEL_DELETE_STEPS_HSL),
     ],
-    'color-wheel-info-steps-to-the-tint-wheels-and-back': [
-        Boot(WHEEL_INFO_STEPS_TONES),
+    'color-wheel-info-turns-all-colours-on-and-off': [
+        Boot(WHEEL_INFO_ALL),
+    ],
+    'split-tone-row-opens-the-shadows-wheel': [
+        Boot(SPLIT_ROW_OPENS),
+    ],
+    'split-tone-row-info-steps-shadows-and-highlights': [
+        Boot(SPLIT_ROW_INFO),
+    ],
+    'split-tone-row-dial-sets-the-tints-only': [
+        Boot(SPLIT_ROW_DIAL),
+    ],
+    'split-tone-row-star-follows-the-tints': [
+        Boot(SPLIT_ROW_STAR),
+    ],
+    'split-tone-row-all-colours-leave-the-tints': [
+        Boot(SPLIT_ROW_ALL),
+    ],
+    'split-tone-row-shows-a-films-tints': [
+        Boot(SPLIT_ROW_FILM(newest_looks().read_bytes())),
     ],
     'color-wheel-delete-on-another-row-does-nothing': [
         Boot(WHEEL_DELETE_OFF_ROW),
@@ -2707,14 +2773,6 @@ def run_fddrive(emu, build, out, card0):
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
           PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive}
-
-
-def newest_looks():
-    def key(d):
-        n, _, pre = d.name.lstrip('v').partition('-')
-        return [int(x) for x in n.split('.')], pre == '', pre
-    rel = max((d for d in (REPO / 'releases').iterdir() if d.name.startswith('v') and (d / 'LOOKS.BIN').exists()), key=key)
-    return rel / 'LOOKS.BIN'
 
 
 def main():

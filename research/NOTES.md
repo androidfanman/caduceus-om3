@@ -9940,3 +9940,65 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
 - **Package h2:** VERSION "v0.40.3-h2 (beta 4 + H/S/L bar 2, Delete / INFO)", firmware from commit f3fb7bb, built twice,
   the same byte for byte: E1479999.BIN 3f8a6093…1d63, GUIDES.BIN a8399cb7…8c52 (LABELS / TONES as beta 4). Suite
   (om-emu at the pin): 132 pass, 1 FAIL = static:changed-bytes (the 11 sites above, not yet in hooks.json).
+
+## The Split toning row, s1: Shadows / Highlights on their own Picture Mode row (2026-11-22; emulator only, camera test pending; branch feature/split-tone-row from wheel-hsl-view h3 = 52c0219)
+- Owner: "moves the two split toning wheels to a new row. I want them seperate from HSL". Their choices (asked with a
+  mock-up before building): the row right under the colour wheel, Tone Balance its own row below it; INFO steps
+  Shadows <-> Highlights; on the colour wheel INFO is "Color All" again; the row's picture a circle half orange, half
+  blue.
+- **How the camera treats the wheel row (om-emu trace + static):** on each arrival on the row the camera makes the
+  wheel's editor anew (ed_init -> ei_page, the 12 values read: 93 GetValue calls), then runs the row's case of the
+  column update switch 0x615510cc (0x611d04d3 -> 0x611d1308: the cursor, the readout by the screen's current item
+  (screen + 4928), and the Reset guide from the wheel's "changed?" 0x611d184e, which asks "is at default" for the
+  COLOR's 12 sector ids at 0x611d18a7). The left cell comes from the item table entry's picture list (+28). Other
+  places that test for item 5397 (0x611bda0b, 0x611c221b, 0x611c2b1f, 0x611d0440, 0x611d0c20) are not patched: the new
+  row works without them in om-emu (as the RGB / Mix rows do without 5398's).
+- **The row (splitrow.s, .ext15):** ST_IT 5375 (key 5369) = the wheel's row a second time: item table entry
+  {ST_IT, .., sp_cell} (count 32 -> 33), the wheel's own target in the switches 0x61536a2c / b2c / c2c / d2c / f2c and
+  0x6155124c, sp_case in 0x615510cc (the wheel's own entry there -> sp_whl), sp_star in sw13; cv_inf / cv_rsi pass INFO
+  and the held-OK reset to its panel; rd_a / rd_b read it as 5397. pm_list: ..., 5397, ST_IT, TB_IT, ... (20 rows).
+  Cell picture IC_SP 0x7f7d (mkicons PICTURES[23] split_icon, 82 x 62, palette 34 / 53; payload in sp_pay, .ext15).
+- **Pages follow the row:** sp_sync (from sp_case / sp_whl before the wheel's case, and from hb_pu on every row): on
+  ST_IT a page that is not 5 / 6 -> 5 (Shadows); on any other row 5 / 6 -> 0. Then gd_set and, because the editor made
+  just before (noted by ei_page in sp_ed, good for one update) holds the Saturation page's values, its children 1..12
+  re-read (refresh 0x611b20ea, as k_set). Without that re-read the dial counted from Saturation's value (first try:
+  three clicks gave strength 8). Each arrival on either row starts on its first page (Saturation / Shadows): the
+  camera's own init does that for the wheel row already.
+- **Keys:** ed_info's k_6b -> sp_inf. A real INFO: all colours on -> the stock handler (off); Saturation with one
+  colour -> the stock handler (all on); Shadows / Highlights -> the other (hb_next); Hue / Luminance -> nothing.
+  Delete (hb_del) as h2: Saturation -> Hue -> Luminance, only on the wheel row (hb_kdel: PM_WHEEL), so nothing on the
+  new row.
+- **'*' and Reset guide:** the new row's follow its tints alone (sp_def: against the film's record +53..+56 when the
+  COLOR holds a film, a colour with strength 0 = none; no film: both strengths 0), through sp_upd + sp_isdef at
+  0x611d18a7 (was fl_isdef there; else still fl_isdef). The wheel row's '*' no longer counts the tints without a film
+  (ed_isdef; with a film it never did). The profile's '*' counts them as before. The held-OK reset is the wheel's own
+  on both rows, unchanged: the film as built, or the whole COLOR (slot +0..58, curves, mix, grain).
+- **All colours left on from the wheel row:** on the new row the camera shows its all-colours screen ("Color All",
+  "Color Select [INFO]") and a dial click writes all 12 sectors, which left the tint on colour 12: tn_set refuses the
+  write while 2201 + k or 2197 + k reads 255 (sp_all). INFO turns all colours off (stays on Shadows). Known wart:
+  the wheel counted the refused clicks, so the first click after can land one step further (om-emu: strength 2).
+  Turning all colours off at arrival would need a SetValue inside the screen update (not tried).
+- **Storage: unchanged** (slot +55..+58, LOOKS / EDITS record +53..+56, Tone Balance +33): om-emu, FILM 4 of the
+  release's LOOKS.BIN shows its tints (01 01 01 01) on the row with no '*'.
+- **Space:** .ext14 was full with one more it_tab entry: hrrow.s's strings (rz_strs..) moved to .ext15. ext3 473 /
+  492, ext6 460 / 608, ext11 65,488 / 65,536, ext14 16,120 / 16,384, ext15 67,184 / 139,264. The 32-entry row switches
+  have one free entry left each (the build needs one): the next new row needs them re-hashed larger, or a row removed.
+- **Behaviour that differs from h3 (the owner's call):** (1) Shadows / Highlights are no longer pages of the colour
+  wheel; (2) INFO on the colour wheel = all colours on / off on Saturation (as beta 4's first INFO), nothing on Hue /
+  Luminance; (3) the list has 20 rows: page 1 ends with Split toning, Tone Balance opens page 2 and every later row
+  sits one lower; (4) the two rows have separate '*'; (5) leaving the new row and coming back starts on Shadows.
+- **Tests:** new `split-tone-row-opens-the-shadows-wheel`, `-info-steps-shadows-and-highlights`,
+  `-dial-sets-the-tints-only`, `-star-follows-the-tints`, `-all-colours-leave-the-tints`, `-shows-a-films-tints`,
+  `color-wheel-info-turns-all-colours-on-and-off` (replaces `color-wheel-info-steps-to-the-tint-wheels-and-back`); the
+  wheel tests that reached the tint pages by INFO go one row down instead; the tests that count rows below the wheel
+  count one more.
+- **Patch sites to review (static:changed-bytes; hooks.json NOT updated, as h2's 11):** the new row's entries
+  {key 5369, target} in seven stock row switches: 0x61536af4, 0x61536bf4, 0x61536cf4, 0x61536df4, 0x61536ff4,
+  0x61551194, 0x61551314 (each two runs), and the wheel row's own target in 0x615510cc (0x61551150:3, -> sp_whl).
+  Existing sites with new bytes: the item table's count (0x611d0423 / 0x611d085a: 33), the call at 0x611d18a7
+  (-> sp_isdef). No new hook. Nothing of it runs at start-up: all of it is reached from the Picture Mode screen's
+  update and key handling, behind PVAL (the films in) and the wheel's marker.
+- **Where the sibling branches meet this one:** `experiment/wheel-hsl-view` (this is on its h3): hbar.s hb_next /
+  hb_pu, ed_info k_6b, the wheel tests, .ext15. `feature/curve-5-points` (on beta 4): pm_list and the item count (it
+  removes the Blacks / Whites row: 20 -> 19 rows, and frees a switch entry), cv_inf (INFO on the H&S row), the tests'
+  row counts (theirs one less below Blacks / Whites, ours one more below the wheel), .ext14 / .ext15 room.
