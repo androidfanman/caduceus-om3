@@ -28,7 +28,7 @@
  .include "hbar.inc"              /* HB_*, hb_rows, hb_seg, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
 .set HB_W, 400
 .set HB_H, 50
-.set HB_BUF, 6144                 /* each stream buffer (worst case HB_WORST, checked by build.py) */
+.set HB_BUF, 7168                 /* each stream buffer (worst case HB_WORST, checked by build.py) */
 .set HB_F, 48                     /* hb_rd's frame */
 .set HB_UI_INFO, 0x25             /* the GUI key codes of INFO's press and release (Delete's: 0x27, 0x29) */
 .set HB_UI_INFOR, 0x26

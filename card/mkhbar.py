@@ -12,7 +12,7 @@ The page's field shows its value white-boxed. Colours the palette lacks are two 
 (1, 2 or 3 rows in 4), so each row of a step stays one run.
 
 Each row of the bar is a list of parts, encoded part by part (runs of up to 16 stopping at each part's edge):
-  swatch (46 px) | for H, S, L: text (46 px), slider (72 px).
+  swatch (46 px) | for H, S, L: text (54 px), slider (64 px).
 Fixed parts (blank rows, frames, letters, marks) are encoded here once each (hb_rows / hb_tok); the slider rows
 11..30 and the swatch rows 8..41 are made at each redraw from colour tables (hb_seg): a fixed head, the steps (one
 colour each, chosen per row by its 4-row mask), a fixed tail. hbar.s does exactly what stream() does.
@@ -26,12 +26,12 @@ from mkguides import raster, edge
 W, H = 400, 50
 BG = 72                               # the bar's ground: (13, 13, 13), opaque, so the camera's button frame behind it
                                       # (180 px, centred in the widened widget) stays hidden
-SWW, TW, SLW = 46, 46, 72             # swatch, text, slider widths; a field = text + slider = 118; 46 + 3 * 118 = 400
+SWW, TW, SLW = 46, 54, 64             # swatch, text, slider widths; a field = text + slider = 118; 46 + 3 * 118 = 400
 SW_Y0, SW_Y1 = 6, 43                  # the swatch box's rows (outline rows 6, 43; fill rows 8..41 between 2-px lines)
 SL_Y0, SL_Y1 = 10, 31                 # the slider's outline rows; its fill rows 11..30
 MK_Y0, MK_Y1 = 32, 42                 # the mark's rows
-STEPW, NSTEP = 6, 11                  # 11 steps of 6 px (slider cols 2..67; outline cols 1, 68)
-CAP = 17                              # the value's cap height
+STEPW, NSTEP = 5, 11                  # 11 steps of 5 px (slider cols 2..56; outline cols 1, 57)
+CAP = 20                              # the value's cap height
 HUE = [60, 35, 15, 355, 320, 280, 235, 205, 180, 155, 120, 85]   # docs/PHOTO_TO_LOOK.md, slices 0..11
 DEG = 5.5                             # degrees of hue a step; + turns toward the next slice (lower HSV hue)
 FIELD_OF_AXIS = {2: 0, 0: 1, 1: 2}    # the editor's page (P+AXIS: 2 Hue, 0 Saturation, 1 Luminance) -> its field
@@ -136,7 +136,7 @@ def _fit(cap):
 
 
 def text_part(f, v, active, fs):
-    """46 x 50: 'H+2' centred on row 21; on the page's field dark letters in a white rounded box."""
+    """TW x 50: 'H+2' centred on row 21; on the page's field dark letters in a white rounded box."""
     word = 'HSL'[f] + ('+' if v > 0 else '−' if v < 0 else '±') + str(abs(v))
     a = raster(word, fs, 0.8)
     base = np.nonzero((raster('H', fs, 0.8) > 128).any(axis=1))[0].max()
@@ -150,7 +150,7 @@ def text_part(f, v, active, fs):
     if active:
         S = 4
         im = Image.new('L', (TW * S, H * S), 0)
-        ImageDraw.Draw(im).rounded_rectangle((1 * S, 7 * S, (TW - 1) * S - 1, 36 * S - 1), radius=5 * S, fill=255)
+        ImageDraw.Draw(im).rounded_rectangle((1 * S, 5 * S, (TW - 1) * S - 1, 38 * S - 1), radius=5 * S, fill=255)
         box = np.array(im.resize((TW, H), Image.LANCZOS))
         out[box > 128] = 10; out[(box > 40) & (box <= 128)] = 11
         reg = out[y0:y0 + hh, x0:x0 + ww]
@@ -164,7 +164,7 @@ def text_part(f, v, active, fs):
 
 
 def mark_part(v):
-    """72 x 50, rows MK_Y0..MK_Y1 only: a white triangle pointing up at step v's centre."""
+    """SLW x 50, rows MK_Y0..MK_Y1 only: a white triangle pointing up at step v's centre."""
     out = np.full((H, SLW), BG, dtype=np.uint8)
     cx = 2 + STEPW * (v + 5) + STEPW / 2
     S = 4
@@ -189,7 +189,7 @@ def fixed_rows():
     return {'sw_blank': np.full(SWW, BG, dtype=np.uint8), 'sw_edge': sw_edge, 'sw_line': sw_line,
             'sw_head': u8([BG, BG, BG, 7, 10]), 'sw_tail': u8([10, 7, BG, BG, BG]),
             'sl_blank': np.full(SLW, BG, dtype=np.uint8), 'sl_edge': sl_edge,
-            'sl_head': u8([BG, 7]), 'sl_tail': u8([7, BG, BG, BG])}
+            'sl_head': u8([BG, 7]), 'sl_tail': u8([7] + [BG] * (SLW - 3 - STEPW * NSTEP))}
 
 
 def pieces():
@@ -297,13 +297,15 @@ def inc(P=None):
     # a bound on the stream: the swatch's and the sliders' rows at their most tokens, each text / mark row at its most
     tmax = lambda f, y: max(len(row_tokens(P['text'][f][a][v][y])) for a in (0, 1) for v in range(11))
     mmax = lambda y: max(len(row_tokens(P['mark'][v][y])) for v in range(11))
+    F = P['fixed']; T = lambda k: len(row_tokens(F[k]))
     n = 0
     for y in range(H):
-        F = P['fixed']
-        n += (len(row_tokens(F['sw_head'])) + 3 + len(row_tokens(F['sw_tail']))) if SW_Y0 + 1 < y < SW_Y1 - 1 else 3
+        n += (T('sw_head') + len(run_tokens(0, SW_FILL)) + T('sw_tail') if SW_Y0 + 1 < y < SW_Y1 - 1 else
+              max(T('sw_blank'), T('sw_edge'), T('sw_line')))
         for f in range(3):
             n += tmax(f, y)
-            n += (2 + NSTEP + 4) if SL_Y0 < y < SL_Y1 else mmax(y) if MK_Y0 <= y <= MK_Y1 else 5
+            n += (T('sl_head') + NSTEP * len(run_tokens(0, STEPW)) + T('sl_tail') if SL_Y0 < y < SL_Y1 else
+                  max(mmax(y), T('sl_edge'), T('sl_blank')))
     worst = len(pack([0] * n))
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
     db = lambda b: ''.join(' .byte ' + ','.join(str(x) for x in b[i:i + 32]) + '\n' for i in range(0, len(b), 32))
