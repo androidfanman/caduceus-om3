@@ -229,13 +229,13 @@ NR_ROW_STAR = lambda star: f'expect:isdef:{{ed_isdef}}:{NR_ROW_COLOR2:x}={0 if s
 # & Shadow, the next row, gets the bar's own scene (element 24771) back. gr_end does that at the end
 # of the screen update: a flash before it is camera-only (research/TESTING.md, "Past regressions").
 HOLDER_SCENE = lambda element: f'expect:mem:{{gr_cont}}+0*+308*+4={element & 255:02x}{element >> 8:02x}'
-GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 6 + HOLDER_SCENE(24813) +
+GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCENE(24813) +   # p4: one row less
                      ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 # WB Compensation (the seventh row) <-> Highlight & Shadow (the eighth): the holder's scene changes in the row refresh,
 # not in the screen update. A scene set during the update makes the camera draw a pass without grid or curve before
 # the refresh (research/NOTES.md, "the one-frame flash"). Hits: gr_upd / gr_end to the update's end (pe_back /
 # pe_ret) holds no sc_set; each switch still sets the scene, which HOLDER_SCENE checks after each key.
-WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 6 + HOLDER_SCENE(24813) +
+WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCENE(24813) +   # p4: one row less
                 ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) +
                 ' down up down wait ' + HOLDER_SCENE(24771) + ' up down up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
@@ -267,7 +267,7 @@ FIVE_POINT_ALL_PAGES = (HS_ROW + 'info wait info wait ' + 'sub+1 wait ' * 7 + 'e
 # Test 6 (owner, camera c5: "the tone curve has an * on it"; "star only when its changed from the film"): FILM 4 of
 # the release's LOOKS.BIN has Blacks, Whites and Sh as built (record +39, +40, +44). Its H&S row has no '*' until one
 # of the five values leaves the film's: Sh by a dial and back, then Whites on the Blk / Wht page. (c5: '*' at once.)
-HS_STAR_BOX = '90,232,104,248'
+HS_STAR_BOX = '90,158,104,174'   # p4: Highlight & Shadow is the second row of page 2 (was the third)
 def FIVE_POINT_STAR(looks):
     assert looks[32 + 64 * 3 + 39] and looks[32 + 64 * 3 + 44], 'FILM 4 needs Blacks and Sh as built for this test'
     return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 6 +
@@ -679,7 +679,7 @@ PICK_NEXT_FILM, PICK_FILM_BEFORE = 'ok wait ok wait right wait ok wait wait', 'o
 WB_SCREEN_A_PLUS_1 = 'ok wait right wait ok wait down wait down wait ok wait right wait ok wait wait'
 PANEL_TO_PICTURE_MODE = 'ok wait left wait ok wait'
 # Picture Mode's WB Compensation row (the seventh), OK: the camera's fine-tune screen for the look; A-B one step to A
-WB_ROW_A_PLUS_1 = 'down wait ' * 6 + 'ok wait right wait'
+WB_ROW_A_PLUS_1 = 'down wait ' * 5 + 'ok wait right wait'   # p4: the sixth row (no Tone Balance row)
 # Stills fine-tune ids (table 0x615d1944: A-B id, G-M = + 13): Custom WB, Shade, Auto, Sunny; movie Auto and Custom WB
 CWB_AB, CWB_GM, SHADE_AB, SHADE_GM, AUTO_AB, SUNNY_AB, SUNNY_GM = 1592, 1605, 1587, 1600, 1580, 1584, 1597
 MOVIE_AUTO_AB, MOVIE_CWB_AB = 1606, 1618
