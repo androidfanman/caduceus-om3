@@ -188,25 +188,23 @@ hb_next:
  beq 9f
  movbu (hb_last),d1
  bra 9f
-5:                                /* split-tone row: INFO steps only on its row (sp_inf): Shadows -> Highlights -> */
- cmp 5,d0                         /* Balance (Highlights with st_bal, stwheel.s) -> Shadows (w2) */
- bne 6f
- clr d1
+5:                                /* split-tone row: INFO steps only on its row (sp_inf), left to right on the panel: */
+ cmp 5,d0                         /* Shadows -> Balance (the Highlights page with st_bal, stwheel.s) -> Highlights -> */
+ bne 6f                           /* Shadows (w3; w2 had Highlights before Balance: owner, "goes backwards") */
+ mov 1,d1
  movbu d1,(st_bal)
  mov 6,d1
  bra 9f
 6:
  movbu (st_bal),d1
  cmp 0,d1
- bne 7f
- mov 1,d1
+ beq 7f
+ clr d1                           /* Balance -> Highlights */
  movbu d1,(st_bal)
  mov 6,d1
  bra 9f
 7:
- clr d1
- movbu d1,(st_bal)
- mov 5,d1
+ mov 5,d1                         /* Highlights -> Shadows */
 9:
  jmp k_set
 

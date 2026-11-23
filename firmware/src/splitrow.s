@@ -15,6 +15,8 @@
  * The row's '*' and Reset guide: its tints against the film's as built (no film: any strength), sp_star / sp_isdef /
  * sp_def; the colour wheel row's '*' no longer counts the tints (ed_isdef). The held-OK reset is the wheel's own,
  * unchanged (the film as built, or the whole COLOR). */
+.set C3D_UPD, 0x60b1ced8          /* the camera's display update (d0 = 1: no wheel); the test watches it */
+ .globl C3D_UPD
 .section .ext15,"ax"
  .balign 4
 sp_cell:                          /* the row's cell picture list, as 5397's 0x6154be9c */
@@ -48,6 +50,10 @@ sp_case:
  call WH_UPD,[d2,d3,a2,a3],56
  clr d0
  movbu d0,(sp_upd)
+ mov (8,sp),a0                    /* w3: no camera wheel on this row. The update's 288-byte block (setting 275, */
+ mov d0,(268,a0)                  /* published at WH_END): its word +268 = 1 asks the display for the colour wheel */
+                                  /* (0x61135744 -> kind 6); 0, as on a row without one, and the camera's own display */
+                                  /* update draws none (0x60b1ced8 with d0 = 1; research/NOTES.md, w3) */
  jmp WH_END
 sp_whl:
  mov 5397,d0

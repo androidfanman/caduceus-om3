@@ -16,10 +16,10 @@
  * changed, into the bar's heap buffer not on screen (hb_b0 / hb_b1, 16 KB each now), and puts the 12 hues into palette
  * 62's entries 108..119 (the bar's slots; each one's new picture makes the other's key stale: hb_key, st_key).
  * Each row: its three background parts (left wheel, Balance, right wheel; the page's variant) into st_row, then the
- * four sprites over it (two dots, the caret, the value; 0 = see-through), then st_row as greedy runs of up to 16
+ * five sprites over it (two dots, the caret, the value, the cursor's ring; 0 = see-through), then st_row as greedy runs of up to 16
  * (HB_PUT), as mkstwheel.stream. A stream that would not fit its buffer is not drawn. */
 .section .ext15,"ax"
- .include "stwheel.inc"           /* ST_*, st_rows, st_bg, st_cy, st_tok, st_dxy, st_dot, st_car, st_vtab, st_pal */
+ .include "stwheel.inc"           /* ST_*, st_rows, st_bg, st_cy, st_tok, st_dxy, st_dot, st_car, st_cur, st_none, st_vtab, st_pal */
 .set ST_F, 48                     /* st_rd's frame */
 .if ST_W - HB_W || ST_H - HB_PH
  .error "the panel and the bar share the guide's descriptor and buffers: the same size"
@@ -29,13 +29,13 @@ st_key:                           /* what the panel on screen shows (st_rd's key
  .long -1
 st_boff:                          /* sp_all -> st_tset: P offset of the Tone Balance byte just written */
  .long 0
-st_v:                             /* Shadows colour, strength, Highlights colour, strength, Balance + 5, mode */
+st_v:                             /* Shadows colour, strength, Highlights colour, strength, Balance + 5, mode, the cursor's colour (w3) */
  .byte 0, 0, 0, 0, 0, 0, 0, 0
 st_bal:                           /* 1: the row's Balance step (on the Highlights page) */
  .byte 0
  .balign 4
-st_sp:                            /* the four sprites: u32 picture, u16 x, u16 y */
- .space 32
+st_sp:                            /* the five sprites: u32 picture, u16 x, u16 y */
+ .space 40
 st_row:                           /* the row being built */
  .space ST_W
 st_rend:
@@ -116,13 +116,16 @@ st_code:
 3:
  retf [],0
 
-/* st_rd: `call st_rd,[d2,d3,a2,a3],ST_F`, a2 = P. Keeps d0, d1, a0, a1 (and d2, d3, a2, a3 by the call); MDR not.
- * Locals (4) d0, (8) d1, (12) a0, (16) a1, (20) key. */
+/* st_rd: `call st_rd,[d2,d3,a2,a3],ST_F`, a2 = P, d2 = the readout's slice (the cursor's colour, 0..11). Keeps d0, d1,
+ * a0, a1 (and d2, d3, a2, a3 by the call); MDR not. Locals (4) d0, (8) d1, (12) a0, (16) a1, (20) key. */
 st_rd:
  mov d0,(4,sp)
  mov d1,(8,sp)
  mov a0,(12,sp)
  mov a1,(16,sp)
+ cmp 12,d2
+ bcc 9f
+ movbu d2,(st_v + 6)
  mov (hb_b0),d0
  cmp 0,d0
  beq 9f
@@ -235,6 +238,10 @@ st_rd:
  mul d1,d3
  movbu (5,a1),d0
  add d0,d3
+ mov 12,d1
+ mul d1,d3
+ movbu (6,a1),d0
+ add d0,d3
  mov d3,(20,sp)
  mov (st_key),d0                  /* nothing changed and the panel on screen: done */
  cmp d0,d3
@@ -302,7 +309,7 @@ st_put:
  ret [],0                         /* (st_dotp's mul changed MDR: not retf) */
 
 /* st_dotp: `call st_dotp,[],0`, a1 = st_v + 2i (colour, strength), d1 = the wheel's middle column, a0 = st_sp's entry:
- * the dot's place (st_dxy). Uses d0, d2, a1. */
+ * the dot's place (st_dxy); strength 0: no dot (st_none). Uses d0, d2, a1. */
 st_dotp:
  movbu (a1),d0
  mov 11,d2
@@ -320,6 +327,10 @@ st_dotp:
  add ST_CY,d0
  mov d0,a1
  mov st_dot,d0
+ cmp 0,d2                         /* (d2: the strength) */
+ bne 1f
+ mov st_none,d0
+1:
  jmp st_put
 
 /* st_half: `call st_half,[],8`, a0 = a background part's table entry (u16 st_rows index), a1 = where in st_row ->
@@ -401,6 +412,48 @@ st_join:
  mov ST_VX,d1
  mov ST_VY,a1
  call st_put,[],0
+ mov st_sp + 32,a0                /* w3: the cursor's ring on the page's wheel (none on Balance): at the cursor */
+ mov st_none,d0                   /* colour's point, or at the dot when that colour is the tint's */
+ clr d1
+ mov 0,a1
+ movbu (st_v + 5),d2
+ cmp 2,d2
+ bcc 4f
+ add d2,d2
+ add st_v,d2
+ mov d2,a1                        /* the page's tint: colour, strength */
+ movbu (st_v + 6),d0
+ movbu (a1),d2
+ cmp d0,d2
+ bne 1f
+ movbu (1,a1),d2
+ bra 2f
+1:
+ clr d2
+2:
+ mov 11,d1
+ mul d1,d0
+ add d2,d0
+ add d0,d0
+ add st_dxy,d0
+ mov d0,a1
+ mov ST_CX0,d1
+ movbu (st_v + 5),d0
+ cmp 0,d0
+ beq 3f
+ mov ST_CX1,d1
+3:
+ movbu (a1),d0
+ extb d0
+ add d0,d1
+ add ST_CURD,d1
+ movbu (1,a1),d0
+ extb d0
+ add ST_CY + ST_CURD,d0
+ mov d0,a1
+ mov st_cur,d0
+4:
+ call st_put,[],0
  mov (8,sp),a1
  mov ST_HDR,d0                    /* ST_W x ST_H, type 11 */
  mov d0,(a1)
@@ -468,7 +521,7 @@ st_join:
  mov (24,sp),d0
  inc d0
  mov d0,(24,sp)
- cmp 4,d0
+ cmp 5,d0
  bne 21b
  mov st_row,a0                    /* the row as runs of up to 16 */
 30:
