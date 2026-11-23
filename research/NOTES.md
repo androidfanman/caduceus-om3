@@ -10189,3 +10189,37 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   b7477658…c7b0). On s2 + w2, not p3.
 - **Suite (w3, 74ab711, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 24 runs as w2.
   On the owner's card 2026-11-23 (owner, in the session: "put w3 on the card when the suite passes"); checksums verified.
+
+## The Split toning panel, w4: stacked at the left, the point moves; the widget moved at run time (2026-11-23; emulator only)
+- **w3 camera result (owner, 2026-11-23, photo in test-builds/2026-11-23-split-tone-panel-3/camera-results):** the
+  camera's wheel is gone on the Split toning row (camera-tested: the +268 word of setting 275's block), the panel,
+  points, cursor ring and dial work. Owner: "When I adjust the value on the wheel the dot from the wheel should move
+  with the value, not still stay in that center position"; "still hard to read and see based on how small it is ...
+  the wheels being on the left side of the screen and stacked. So highlight wheel on top. Shadow wheel below it. Balance
+  below that (the balance bar horizontal instead of vertical."
+- **The point moves:** per colour an eraser sprite (the 7 x 7 patch of the wheel without points at that colour's point);
+  with a tint (strength > 0) it is laid over the tint colour's point before the dot is drawn.
+- **Size limits (static):** malloc 0x60024068 has pools <= 192 / 2112 / 16448 B, larger -> 0, so one picture's stream
+  is at most 16448 B; type 11 runs are at most 16 px, so a picture costs at least width / 16 tokens a row. Sharing one
+  static 400-wide place with the bar made a tall place impossible (the bar would need ~20 KB of clear rows).
+- **The widgets (om-emu dumps):** the guide's two widgets are heap objects (method table 0x6135993c, id word
+  0x03c68003 frame / 0x03c78003 picture at +4, the rectangle in use at +8, their copies of the layout's rectangles at
+  +0x140 viewfinder / +0x148 rear screen), children 6 and 7 of the screen's widget parent (list at parent + 0x328).
+  The static word 0x608546f8 points at the open screen's layout object, whose +0xdc is that parent. Widget records
+  0x6145213c (frame: rect 0x61451e40, pictures 0x27bc / 0x27bd) and 0x61452194 (picture: rect 0x61451e50, pictures
+  0x3f75 / 0x3f76 = GDESC / SDESC in the descriptor pointer table near 0xa46a3b60).
+- **w4:** st_place (stwheel.s) walks 0x608546f8 -> +0xdc -> child, checks every step (0x62...... word-aligned pointers,
+  method table, id word, the rectangles' copies = one of our two places) and writes the place: the picture widget to
+  the panel's (rear (116, 97, 188, 481), viewfinder x 75), the frame to 4 x 4 under the Shadows wheel (it showed as an
+  empty box where the bar was). st_rd calls it after a good join and draws only if it answered; hb_gsel (every gd_set)
+  puts the bar's place back. om-emu: the panel draws whole at the new place on the same update, the bar back at its
+  place on the wheel row, nothing left behind. Static rectangles: both the bar's 400 x 64 again; mkhbar.PAD 0.
+- **The panel:** 188 x 481, wheels radius 84 at x 94 (Highlights y 92, Shadows y 298), names under them, the Balance bar
+  and "Balance" + value at the bottom; largest stream of 1,500 random states 15,884 B (HB_BUF 16448).
+- **Not known (camera only):** the same heap layout and pointer on the camera; that the camera redraws from the
+  object's rectangle as om-emu does; the viewfinder's place; INFO order on this layout (kept: Shadows -> Balance ->
+  Highlights).
+- **Next, if w4 works (not built):** each wheel its own picture (the frame widget's picture list repointed to a
+  descriptor of ours), for wheels of about 230 px.
+- **Package:** `test-builds/2026-11-23-split-tone-panel-4` (commit 2003efc; E1479999.BIN 216ff695…540e, GUIDES.BIN
+  b6c9f6b9…cc9f). On s2 + w3, not p3.
