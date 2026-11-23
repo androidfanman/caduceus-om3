@@ -118,12 +118,13 @@ def name_label(t, fill, cap=20):
     return a
 
 
-def wide_label(t, fill):
-    """five-point curve test 3: "Blk" / "Wht" at the size of the camera's own "Sh" / "Hi" (cap 20), in a 46 px box (the
-    header's objects are moved and resized by b5_lk, so the 38 px box no longer binds), ink and edge inside 1..44"""
-    a = letters([(t, fill)], 46, 30, 20, 26, maxw=40, sx=0.92)
+def wide_label(t, fill, w):
+    """five-point curve test 4 (owner: the selected "Sh" / "Hi" / "Mid" are larger; "have the black/white do the
+    same"): "Blk" / "Wht" at the camera's own selected size (om-emu: its "Sh" and "Mid" are 24 px tall, rows 3..26 of
+    the 30, 3 px stems), in a box of their own width (the header's objects are moved and resized by b5_lk)"""
+    a = letters([(t, fill)], w, 30, 24, 27, maxw=w - 4)
     cols = np.nonzero(a.any(axis=0))[0]
-    assert cols.min() >= 1 and cols.max() <= 44, (t, cols.min(), cols.max())
+    assert cols.min() >= 0 and cols.max() <= w - 1 and not a[29].any(), (t, cols.min(), cols.max())
     return a
 
 
@@ -188,7 +189,7 @@ def pictures():
            [('Mix cell', mixcell())] + \
            [('clear 50 x 34', np.zeros((34, 50), dtype=np.uint8))] + \
            [('clear 14 x 30', np.zeros((30, 14), dtype=np.uint8))] + \
-           [('Blk', wide_label('Blk', WHITE)), ('Wht', wide_label('Wht', WHITE)),
+           [('Blk', wide_label('Blk', WHITE, 40)), ('Wht', wide_label('Wht', WHITE, 50)),
             ('guide Sh/Hi', guide('Sh/Hi')), ('guide B/W', guide('B/W'))]   # five-point curve (curve5.inc): 16..19
 
 
