@@ -10153,3 +10153,6 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   how the panel sits next to it.
 - **Package:** `test-builds/2026-11-23-split-tone-panel-2` (commit 7a68fcd; E1479999.BIN eb18f777…28f2, GUIDES.BIN
   63918da6…306b). On s2 + w1, not p3 (needs ~45 KB of .ext15; p3 has ~900 B).
+- **Suite (w2, 7a68fcd, built twice the same):** 140 pass, 0 known, 1 FAIL static:changed-bytes. Its full list (26 runs
+  on w1, 24 on w2) differs from w1's only at the picture widget's rectangle 0x61451e50 / 0x61451e58 (y and height
+  now changed too); no new hook (static:hook-list passes).
