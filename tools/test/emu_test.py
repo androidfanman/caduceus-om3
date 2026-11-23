@@ -294,6 +294,10 @@ def FIVE_POINT_RESET_BW(looks):
 # What test 7 leaves alone: on a COLOR with no film OK held gives 0, and the guide follows "not 0".
 FIVE_POINT_RESET_NO_FILM = (HS_ROW + f'expect:noink:{HS_RESET_BOX} main+1 wait expect:val:978=1 expect:ink:{HS_RESET_BOX} '
                             f'hold:ok wait wait expect:val:978=0 expect:noink:{HS_RESET_BOX} poweroff')
+# Test 8 (owner, camera c7: "the text on all the Info icons looks different"): the row's own guides are drawn to the
+# camera's "Mid [INFO]" (rgbpics.py guide5): on the Mid page ("B/W [INFO]") the white key is 60 px wide as the
+# camera's, x 449..508, so its right edge falls between x 508 and 509 (c7: 62 px, white on both).
+FIVE_POINT_GUIDE_KEY = HS_ROW + 'info wait expect:noink:506,545,508,560 expect:ink:508,545,509,560 poweroff'
 FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 5 +
                           'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
@@ -1362,6 +1366,9 @@ TESTS = {
     ],
     'five-point-curve-reset-without-a-film-gives-0': [
         Boot(FIVE_POINT_RESET_NO_FILM),
+    ],
+    'five-point-curve-guide-key-is-the-cameras-size': [
+        Boot(FIVE_POINT_GUIDE_KEY),
     ],
     'five-point-curve-on-the-sh-hi-and-mid-pages': [
         Boot(FIVE_POINT_ALL_PAGES),

@@ -59,6 +59,63 @@ def guide(word='Color'):
     return g
 
 
+def info_key():
+    """five-point curve test 8 (owner, camera c7: "the text on all the Info icons looks different"): the [INFO] key
+    measured on the camera's own "Mid [INFO]" guide in om-emu (not copied: drawn here from the measures). White key
+    60 x 36 (mkguides' was 62 x 36) in a 2 px dark line; "INFO" in the regular face (mkguides' is bold), 26 px tall,
+    the letters 3 / 15 / 12 / 15 px wide with 2 / 2 / 3 px between. -> (50 x 64 palette array, its width)"""
+    from scipy import ndimage
+    H, KW = 50, 64
+    S = 4
+    im = Image.new('L', (KW * S, 40 * S), 0)
+    from PIL import ImageDraw
+    ImageDraw.Draw(im).rounded_rectangle((0, 0, KW * S - 1, 40 * S - 1), radius=3 * S, fill=255)
+    full = np.zeros((H, KW + 2), dtype=bool); full[5:45, 1:KW + 1] = np.array(im.resize((KW, 40), Image.LANCZOS)) > 128
+    img = np.zeros((H, KW + 2), dtype=np.uint8)
+    e = ndimage.distance_transform_edt(~full)
+    img[(e > 0) & (e <= 1.0)] = 9
+    inner = ndimage.binary_erosion(full, iterations=2)
+    img[full] = 7; img[inner] = 10
+    for fs in range(14, 50):
+        r = np.nonzero((mkguides.raster('H', fs, 1.0) > 128).any(axis=1))[0]
+        if r.max() - r.min() + 1 >= 26: break
+    x = 1 + 2 + 4                                 # the key's line, then 4 px of white
+    for ch, w, gap in (('I', 3, 2), ('N', 15, 2), ('F', 12, 3), ('O', 15, 0)):
+        a = mkguides.raster(ch, fs, 1.0)
+        cols = np.nonzero((a > 128).any(axis=0))[0]; a = a[:, cols.min():cols.max() + 1]
+        rows = np.nonzero((mkguides.raster('H', fs, 1.0) > 128).any(axis=1))[0]
+        a = a[rows.min() - 1:rows.max() + 2]      # the O's overshoot, a row each way
+        a = np.array(Image.fromarray(a.astype(np.uint8)).resize((w, a.shape[0]), Image.LANCZOS)).astype(int)
+        y0 = 25 - a.shape[0] // 2
+        reg = img[y0:y0 + a.shape[0], x:x + w]
+        reg[a > 110] = 7
+        reg[(a > 40) & (a <= 110) & (reg == 10)] = 11
+        x += w + gap
+    return img
+
+
+def guide5(word):
+    """the H&S row's own guides ("Sh/Hi [INFO]", "B/W [INFO]") drawn to the camera's "Mid [INFO]": the word a little
+    heavier than mkguides' (the camera's stems are 4 px), then info_key 5 px after it"""
+    a, fs, sq = mkguides.fit(word)
+    a0 = mkguides.raster(word[0], fs, sq); base = np.nonzero((a0 > 128).any(axis=1))[0].max()
+    a = np.maximum(a, np.pad(a, ((0, 0), (1, 0)))[:, :-1])   # every stem 1 px wider (3 -> 4, the camera's)
+    fill = a > 128; soft = (a > 40) & ~fill
+    h, w = fill.shape
+    key = info_key()
+    lay = np.zeros((50, 2 + w + 3 + key.shape[1]), dtype=np.uint8)
+    shift = 40 - base
+    for y in range(h):
+        yy = y + shift
+        if 0 <= yy < 50:
+            lay[yy, 2:2 + w][fill[y]] = 10
+            lay[yy, 2:2 + w][soft[y]] = 11
+    g = mkguides.edge(lay == 10, lay == 11)
+    g[:, 2 + w + 3:] = key
+    assert g.shape[1] <= 160, g.shape
+    return g
+
+
 ORANGE = 34                   # colour menu (test 7): the cells' red-orange (the left column's 34, as the page's red dot)
 
 
@@ -190,7 +247,7 @@ def pictures():
            [('clear 50 x 34', np.zeros((34, 50), dtype=np.uint8))] + \
            [('clear 14 x 30', np.zeros((30, 14), dtype=np.uint8))] + \
            [('Blk', wide_label('Blk', WHITE, 40)), ('Wht', wide_label('Wht', WHITE, 50)),
-            ('guide Sh/Hi', guide('Sh/Hi')), ('guide B/W', guide('B/W'))]   # five-point curve (curve5.inc): 16..19
+            ('guide Sh/Hi', guide5('Sh/Hi')), ('guide B/W', guide5('B/W'))]   # five-point curve (curve5.inc): 16..19
 
 
 def streams():
