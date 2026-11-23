@@ -10257,3 +10257,25 @@ was c4's design: `b5_dr` drew only on the Blk / Wht page (cv_on 3); the other tw
 - Package (private) `test-builds/2026-11-22-curve-5-points-5`: VERSION "v0.40.3-c5", build of a03f81b, E1479999.BIN
   686e9972...1263, GUIDES.BIN 5fc69136...0098. Not on a camera. Suite: 144 pass, one FAIL, `static:changed-bytes` with the
   same sites as p1 (s2's, hooks.json not updated; nothing new from c5: it adds no hook and changes no stock byte).
+
+## 2026-11-22: five-point curve test 6 (c6, on c5; emulator only): the H&S row's '*' against the film
+
+Owner (camera, c5): "the tone curve has an * on it"; asked which: "star only when its changed from the film".
+
+- **Cause:** `b5_star` called the row changed when Blacks or Whites was not 0, so a film with either built in had the
+  '*' as picked. The other three were already right: the camera's own check (HS_STAR, 0x611d190f) asks "is at
+  default" for Sh / Mid / Hi at 0x611d1939 / 46 / 53, all in build.py's ISDEF_SITES, so through `fl_isdef` (against
+  the film as built).
+- **c6:** `b5_star` asks `fl_isdef` with BWB + k, the id the Blacks / Whites grid row asked with (fl_isdef's row 15:
+  record +39 / +40 against slot +47 / +48 on a film that is there; else `ed_isdef`, not 0). 40 B smaller
+  (.ext15 139,112 / 139,264).
+- **Not changed (told to the owner as theirs to decide):** the page's "Reset [OK Hold]" guide is not the star's
+  switch. The page compares its values with GetDefault (stock 0 for Sh / Mid / Hi through `vf_def`; `b5_chg` for
+  Blacks / Whites, not 0), and hold OK writes 0. On a film with built-in values the guide therefore shows on the
+  untouched film, and a reset turns the '*' on. Same in the release for Sh / Mid / Hi.
+- **Emulator:** FILM 4 of the release's LOOKS.BIN (Blacks, Whites, Sh built in): no '*' as picked, '*' after a Sh
+  step, gone after the step back, '*' after a Whites step. Tests `five-point-curve-star-only-when-changed-from-the-film`
+  (`caught` on c5 at the first check, pass on c6) and `five-point-curve-star-without-a-film-is-any-value-set` (pass).
+- Package (private) `test-builds/2026-11-22-curve-5-points-6`: VERSION "v0.40.3-c6", build of 0b0f080, E1479999.BIN
+  0aca0b9d...dfaf, GUIDES.BIN aa87d318...447c. Not on a camera. Suite: 146 pass, one FAIL, `static:changed-bytes` with p1's
+  twelve sites (as c5 and p1; c6 adds none).
