@@ -10275,3 +10275,10 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Package:** `test-builds/2026-11-23-split-tone-panel-6` (E1479999.BIN 342d0bc3…97cc, GUIDES.BIN 0ffad2c6…08c9).
 - **Suite (w6, fb34439, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w5.
   On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified.
+- **w6 camera result (owner, 2026-11-23):** "the issue still persists": no panel. The debug log was written before the
+  row was opened (status 0), so it has no readout. Asked the owner whether the readout showed (a photo of its lines 2 /
+  3 says whether any guide-picture widget is in (0x608546f8) +- the searched range on the camera).
+- **Where this stands:** static rectangle changes work on the camera (w2 / w3: the 400 x 200 place); moving the
+  widgets at run time (w4..w6) has not, because the camera's GUI heap does not match om-emu's past (0x608546f8) =
+  0x62C5A140: that object's fields om-emu fills are 0 on the camera. Unexplained; guesses: the camera's live layout
+  object is elsewhere and that pointer is stale, or a cache / other-CPU effect (om-emu has no cache).
