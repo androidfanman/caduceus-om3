@@ -176,9 +176,11 @@ p.warn { background: #2e2510; color: #f1e3bf; border-left: 3px solid #f2c25c; pa
 .check .help { flex-basis: 100%; margin-left: 24px; }
 
 /* editor */
-.ed-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+/* the name gets the full width when the buttons do not fit beside it (three buttons since Save film sim) */
+.ed-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-start; margin-bottom: 12px; }
+.ed-head .field.grow { flex: 1 1 200px; }
 .ed-head input { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 15px; }
-.ed-btns { display: flex; gap: 6px; margin-top: 21px; }
+.ed-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 21px; }
 .group { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; margin-bottom: 12px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
 .seg button { border: 0; border-radius: 0; padding: 5px 12px; background: var(--panel); }
@@ -321,6 +323,8 @@ canvas.film-pv { width: 100%; height: auto; border-radius: 8px; background: #000
 .film-pick small { color: var(--muted); }
 .matched-tag { margin-left: 6px; font-size: 11px; color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; white-space: nowrap; }
 .film-add { white-space: nowrap; }
+.film-acts { display: inline-flex; gap: 4px; align-items: center; }
+.film-del { padding: 4px 9px; }
 @media (max-width: 760px) { .film-dlg { grid-template-columns: 1fr; } .film-side { position: static; } .film-list { max-height: none; } }
 dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .replace-box .modal-actions { padding: 8px 0 0; }

@@ -13,6 +13,7 @@ import { makeZip } from './zip';
 import { applyCurvesBin, curvesBin, readCurvesBin } from './curvesbin';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
+import { STORE_SAVED, putSaved, readSaved, savedCopy, savedIndex, writeSaved } from './saved';
 import { JobQueue, MAX_OWN, TILE_PX, fitSize, takeFiles } from './photos';
 import { isRecipe, lookFromRecipe } from './recipe';
 import {
@@ -1416,12 +1417,27 @@ function om3LibraryPicker() {
   const dlg = modal(`Library look for ${at(k, v)}`, list);
 }
 
+// ---------------------------------------------------------------- your own film sims ("User created", owner 2026-11-23)
+let SAVED: Look[] = (() => { try { return readSaved(localStorage.getItem(STORE_SAVED)); } catch { return []; } })();
+function storeSaved() {
+  try { localStorage.setItem(STORE_SAVED, writeSaved(SAVED)); } catch { toast('Could not save: this browser blocks storage for this page', 'err'); }
+}
+/** "Save film sim": a copy of the look goes into Film sims › User created (same name: asks to replace it). */
+function saveFilm(l: Look) {
+  const name = l.name.trim();
+  if (!name) { toast('Give the look a name first', 'err'); return; }
+  if (savedIndex(SAVED, name) >= 0 && !confirm(`"${name}" is already saved in User created. Replace it with this version?`)) return;
+  const r = putSaved(SAVED, l);
+  SAVED = r.looks; storeSaved();
+  toast(`${r.replaced ? 'Updated' : 'Saved'} "${name}" in Film sims › User created`);
+}
+
 /** Film sims: browse the fitted films, preview one on the current photo and add it to the looks. With `into`, the
  *  film goes into that (empty) FILM; otherwise into the selected FILM when it is empty, else the first empty FILM (or, when all 20 are used, it asks to replace
  *  the selected look). Removing works as for any look (× in the list). */
 function om3FilmPicker(into?: { k: number; v: number }) {
-  type Pick = FilmGroup | 'all' | 'camera' | 'matched' | 'tuned';
-  let group: Pick = 'all' as Pick, query = '', sel: Film | null = null;
+  type Pick = FilmGroup | 'all' | 'camera' | 'matched' | 'tuned' | 'saved';
+  let group: Pick = 'all' as Pick, query = '', sel: Film | null = null, selSaved: Look | null = null;
   const pv = h('canvas', { class: 'film-pv', 'aria-label': 'Preview of the selected film sim' });
   const pvNote = h('div', { class: 'film-desc' });
   const drawPv = () => {
@@ -1429,10 +1445,13 @@ function om3FilmPicker(into?: { k: number; v: number }) {
     const sc = Math.min(1, 520 / srcData.width), W = Math.round(srcData.width * sc), H = Math.round(srcData.height * sc);
     const c = document.createElement('canvas'); c.width = srcData.width; c.height = srcData.height;
     const cx = c.getContext('2d')!;
-    if (sel) { const out = cx.createImageData(srcData.width, srcData.height); renderLook(srcData, out, splitPv(filmLook(sel)), { advice: true, camera: CAM }); cx.putImageData(out, 0, 0); }
+    const look = sel ? filmLook(sel) : selSaved;
+    if (look) { const out = cx.createImageData(srcData.width, srcData.height); renderLook(srcData, out, splitPv(look), { advice: true, camera: CAM }); cx.putImageData(out, 0, 0); }
     else cx.putImageData(srcData, 0, 0);
     pv.width = W; pv.height = H; pv.getContext('2d')!.drawImage(c, 0, 0, W, H);
-    pvNote.replaceChildren(...(sel ? [h('b', {}, sel.film), h('p', {}, sel.desc)] : [h('p', { class: 'help' }, 'Click a film to see it on your photo.')]));
+    pvNote.replaceChildren(...(sel ? [h('b', {}, sel.film), h('p', {}, sel.desc)]
+      : selSaved ? [h('b', {}, `${selSaved.name} · user created`), ...(selSaved.notes ? [h('p', {}, selSaved.notes)] : [])]
+        : [h('p', { class: 'help' }, 'Click a film to see it on your photo.')]));
   };
   const target = (): { k: number; v: number } | null => {
     if (into && !O.bank[into.k][into.v]) return into;
@@ -1440,14 +1459,15 @@ function om3FilmPicker(into?: { k: number; v: number }) {
     for (let k = 0; k < COLORS; k++) { const v = O.bank[k].findIndex((l) => !l); if (v >= 0) return { k, v }; }   // the first empty FILM
     return null;
   };
-  const place = (f: Film, t: { k: number; v: number }) => {
+  type Src = { name: string; make: () => Look };
+  const place = (f: Src, t: { k: number; v: number }) => {
     const old = O.bank[t.k][t.v];
-    O.bank[t.k][t.v] = filmLook(f); O.k = t.k; O.v = t.v; into = undefined;
+    O.bank[t.k][t.v] = f.make(); O.k = t.k; O.v = t.v; into = undefined;
     save(); renderAll(); drawRows();
     toast(old ? `${f.name} replaced "${old.name}" as ${at(t.k, t.v)}` : `${f.name} added as ${at(t.k, t.v)}`);
   };
   // All 20 numbers in use: ask first, then let the user pick which COLOR and number to replace.
-  const askReplace = (f: Film) => {
+  const askReplace = (f: Src) => {
     const box = h('div', { class: 'replace-box' });
     const dlg = modal(`Replace a look with ${f.name}?`, box);
     const choose = () => {
@@ -1464,9 +1484,34 @@ function om3FilmPicker(into?: { k: number; v: number }) {
         h('button', { onclick: () => dlg.close() }, 'No'),
         h('button', { class: 'primary', onclick: choose }, 'Yes, choose a look…')));
   };
-  const add = (f: Film) => {
+  const add = (f: Src) => {
     const t = target();
     if (t) place(f, t); else askReplace(f);
+  };
+  const ofFilm = (f: Film): Src => ({ name: f.name, make: () => filmLook(f) });
+  const ofSaved = (l: Look): Src => ({ name: l.name, make: () => savedCopy(l) });
+  // where each saved film already is in the current list, by name
+  const whereSaved = (l: Look) => O.bank.flatMap((row, k) => row.flatMap((x, v) => (x && x.name.trim().toLowerCase() === l.name.trim().toLowerCase() ? [at(k, v)] : [])));
+  const forget = (l: Look) => {
+    if (!confirm(`Delete "${l.name}" from User created? Looks already in your list keep it.`)) return;
+    SAVED = SAVED.filter((x) => x !== l); storeSaved();
+    if (selSaved === l) { selSaved = null; drawPv(); }
+    drawRows(); toast(`Deleted "${l.name}" from User created`);
+  };
+  const savedRows = (q: string) => {
+    const ls = SAVED.filter((l) => !q || `${l.name} ${l.notes}`.toLowerCase().includes(q));
+    if (!ls.length) return group === 'saved' ? [h('div', { class: 'film-group' }, h('h3', {}, 'User created'),
+      h('p', { class: 'empty' }, SAVED.length ? 'No saved film matches.' : 'No films saved yet. Pick a look in your list and press Save film sim (next to Reset look) to keep it here.'))] : [];
+    return [h('div', { class: 'film-group' }, h('h3', {}, 'User created'), ...ls.map((l) => {
+      const in_ = whereSaved(l);
+      return h('div', { class: `film-row saved${selSaved === l ? ' on' : ''}${in_.length ? ' in-list' : ''}`, role: 'listitem' },
+        h('button', { class: 'film-pick', onclick: () => { sel = null; selSaved = l; drawPv(); drawRows(); }, 'aria-pressed': String(selSaved === l) },
+          h('b', {}, l.name), h('small', {}, l.notes || 'Your own film')),
+        in_.length ? h('span', { class: 'in-list-tag', title: `Already in "${LISTS.current}": ${in_.join(', ')}` }, '✓ ', in_.join(', ')) : null,
+        h('span', { class: 'film-acts' },
+          h('button', { class: 'film-add', onclick: () => add(ofSaved(l)), title: `Add ${l.name} to your looks` }, '+ Add'),
+          h('button', { class: 'film-del', onclick: () => forget(l), title: `Delete ${l.name} from User created`, 'aria-label': `Delete ${l.name}` }, '×')));
+    }))];
   };
   // where each film sim already is in the current list (COLOR k, number v), by the look's film origin
   const where = () => {
@@ -1480,21 +1525,22 @@ function om3FilmPicker(into?: { k: number; v: number }) {
     const hit = (f: Film) => !q || `${f.name} ${f.film}`.toLowerCase().includes(q);
     // owner 2026-11-08: the camera's 20 first, in their FILM 1-20 order; under All the other films follow by type
     const cam = group === 'all' || group === 'camera' ? CAMERA_FILMS.filter(hit) : [];
-    const rows = group === 'camera' ? [] : FILMS.filter((f) => (group === 'all' ? !CAMERA_FILMS.includes(f) : group === 'matched' ? !!f.matched : group === 'tuned' ? !f.matched : f.group === group) && hit(f));
+    const mine = group === 'all' || group === 'saved' ? savedRows(q) : [];
+    const rows = group === 'camera' || group === 'saved' ? [] : FILMS.filter((f) => (group === 'all' ? !CAMERA_FILMS.includes(f) : group === 'matched' ? !!f.matched : group === 'tuned' ? !f.matched : f.group === group) && hit(f));
     const parts: [string, Film[]][] = [...(cam.length ? [['The 20 (FILM 1–20 order)', cam] as [string, Film[]]] : []),
       ...FILM_GROUPS.filter(([g]) => rows.some((f) => f.group === g)).map(([g, label]) => [group === 'all' ? `More: ${label.toLowerCase()}` : label, rows.filter((f) => f.group === g)] as [string, Film[]])];
     const sections = parts.map(([label, fs]) =>
       h('div', { class: 'film-group' }, h('h3', {}, label), ...fs.map((f) =>
         h('div', { class: `film-row${sel === f ? ' on' : ''}${have.has(f.name) ? ' in-list' : ''}`, role: 'listitem' },
-          h('button', { class: 'film-pick', onclick: () => { sel = f; drawPv(); drawRows(); }, 'aria-pressed': String(sel === f) },
+          h('button', { class: 'film-pick', onclick: () => { sel = f; selSaved = null; drawPv(); drawRows(); }, 'aria-pressed': String(sel === f) },
             h('b', {}, CAMERA_FILMS.includes(f) ? `${CAMERA_FILMS.indexOf(f) + 1}. ${f.name}` : f.name),
             h('small', {}, f.film, f.matched ? h('span', { class: 'matched-tag', title: 'Colour matched: graded against film scans of a colour chart' }, 'colour matched') : null)),
           have.has(f.name) ? h('span', { class: 'in-list-tag', title: `Already in "${LISTS.current}": ${have.get(f.name)!.join(', ')}` }, '✓ ', have.get(f.name)!.join(', ')) : null,
-          h('button', { class: 'film-add', onclick: () => add(f), title: `Add ${f.name} to your looks` }, '+ Add')))));
-    list.replaceChildren(...(sections.length ? sections : [h('p', { class: 'empty' }, 'No film matches.')]));
+          h('button', { class: 'film-add', onclick: () => add(ofFilm(f)), title: `Add ${f.name} to your looks` }, '+ Add')))));
+    list.replaceChildren(...(mine.length || sections.length ? [...mine, ...sections] : [h('p', { class: 'empty' }, 'No film matches.')]));
   };
   const chips = h('div', { class: 'seg film-groups', role: 'radiogroup', 'aria-label': 'Film type' },
-    ...([['all', 'All'], ['camera', 'The 20'], ['matched', 'Colour matched'], ['tuned', 'Hand-tuned']] as [Pick, string][]).concat(FILM_GROUPS.map(([g, l]) => [g, l.replace(' simulations', '')] as [Pick, string])).map(([g, t]) =>
+    ...([['all', 'All'], ['saved', 'User created'], ['camera', 'The 20'], ['matched', 'Colour matched'], ['tuned', 'Hand-tuned']] as [Pick, string][]).concat(FILM_GROUPS.map(([g, l]) => [g, l.replace(' simulations', '')] as [Pick, string])).map(([g, t]) =>
       h('button', { role: 'radio', 'aria-checked': String(g === group), class: g === group ? 'on' : '', onclick: (e: Event) => {
         group = g; (e.currentTarget as HTMLElement).parentElement!.querySelectorAll('button').forEach((b) => { const on = b === e.currentTarget; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
         drawRows();
@@ -1550,6 +1596,7 @@ function renderOm3Editor(l: Look) {
             toast(film ? `"${r.name}" restored to the ${film.name} film sim` : orig ? `"${r.name}" restored to the built-in values` : `"${l.name}" reset to neutral`);
           },
         }, 'Reset look'),
+        h('button', { class: 'share-btn', onclick: () => saveFilm(l), title: 'Keep a copy of this look in Film sims › User created, to add it again later' }, 'Save film sim'),
         h('button', { class: 'share-btn', onclick: () => om3ShareProfile(l), title: 'Share this look as a link' }, 'Share'))),
     h('label', { class: 'field' }, h('span', { class: 'lbl' }, 'Notes'),
       h('textarea', {
