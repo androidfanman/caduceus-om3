@@ -298,9 +298,14 @@ _ST = mkstwheel.pieces()
 RECT_IS = lambda a, xv, xr, y, w, h: f'expect:mem:{a:x}={U16(xv)}{U16(y)}{U16(w)}{U16(h)}{U16(xr)}{U16(y)}{U16(w)}{U16(h)}'
 GUIDE_PLACE = f'{RECT_IS(0x61451e40, 116, 157, 514, 400, 64)} {RECT_IS(0x61451e50, 116, 157, 514, 400, 64)}'
 _PAN = (mkstwheel.PLACE[0], mkstwheel.PLACE[1] - mkstwheel.H, mkstwheel.W, mkstwheel.H)
-WIDGET_AT = lambda x, y, w, h: (f'expect:mem:62c5b980={U16(x)}{U16(y)}{U16(w)}{U16(h)} '
-                                f'{RECT_IS(0x62c5b978 + 0x140, x - 41, x, y, w, h)}')
-PANEL_PLACE, BAR_PLACE = WIDGET_AT(*_PAN), WIDGET_AT(157, 514, 400, 64)
+WIDGET_AT = lambda o, xv, x, y, w, h: (f'expect:mem:{o + 8:x}={U16(x)}{U16(y)}{U16(w)}{U16(h)} '
+                                       f'{RECT_IS(o + 0x140, xv, x, y, w, h)}')
+# ... and the camera's own column (here "Color", 0x3c1 at 0x62c5ac78, and Reset, 0x3be at 0x62c5b498) is 196 px to the
+# left while the panel shows.
+PANEL_PLACE = (f'{WIDGET_AT(0x62c5b978, _PAN[0] - 80, *_PAN)} {WIDGET_AT(0x62c5ac78, 578 - 196, 658 - 196, 112, 70, 30)} '
+               f'{WIDGET_AT(0x62c5b498, 524 - 196, 604 - 196, 528, 180, 50)}')
+BAR_PLACE = (f'{WIDGET_AT(0x62c5b978, 116, 157, 514, 400, 64)} {WIDGET_AT(0x62c5ac78, 578, 658, 112, 70, 30)} '
+             f'{WIDGET_AT(0x62c5b498, 524, 604, 528, 180, 50)}')
 STRIP_IS = lambda sc, ss, hc, hs, b, mode, cur=0: (lambda s: f'expect:mem:{GDESC + 2:x}={U16(mkstwheel.W)}{U16(mkstwheel.H)} '
                                                        f'expect:mem:{GDESC + 12:x}={U32(len(s))} expect:mem:{GDESC:x}+10*={s.hex()}')(
     mkstwheel.stream(sc, ss, hc, hs, b, mode, cur, _ST))

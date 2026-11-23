@@ -29,7 +29,8 @@
 .set ST_BARV, 116 | (514 << 16)    /* the bar's place (build.py): viewfinder, rear screen, size */
 .set ST_BARR, 157 | (514 << 16)
 .set ST_BARS, 400 | (64 << 16)
-.set ST_PANV, (ST_PX - 41) | (ST_PY << 16)   /* the panel's */
+.set ST_PANV, (ST_PX - 80) | (ST_PY << 16)   /* the panel's (the viewfinder's right-hand widgets sit 80 px left of the rear screen's) */
+.set ST_DX, -196                   /* the camera's column moves this far while the panel shows */
 .set ST_PANR, ST_PX | (ST_PY << 16)
 .set ST_PANS, ST_W | (ST_H << 16)
  .balign 4
@@ -61,11 +62,13 @@ st_rend:
  bne \miss
  .endm
 
-/* st_place: `call st_place,[d2,d3,a2,a3],28`, d0 = 1 the panel's place / 0 the bar's -> d1 = 1 done, 0 nothing
- * changed. The screen's widget parent: (ST_GUI) -> (+0xdc); its child 7 is the guide picture's widget (0x3c7), child
- * 6 the camera's button frame behind it (0x3c6): for the panel the picture goes to the panel's place and the frame to
- * 4 x 4 pixels under the Shadows wheel's middle (it would show where the bar was). Each widget only if it checks out
- * (st_w1); the picture's decides the answer. om-emu, 2026-11-23. Uses d0, d1, a0, a1. */
+/* st_place: `call st_place,[d2,d3,a2,a3],28`, d0 = 1 the panel's places / 0 the camera's -> d1 = 1 done, 0 nothing
+ * changed. The screen's widget parent: (ST_GUI) -> (+0xdc); its children (st_wt): the guide picture's widget (0x3c7)
+ * goes to the panel's place, at the right of the screen where the camera's wheel was; the camera's button frame
+ * (0x3c6) to 4 x 4 pixels under the Shadows wheel's middle (it would show where the bar was); and the camera's own
+ * column there (the two dial marks, "Color" and its swatch, the page label, its value and its mark, Reset's two) ST_DX
+ * to the left, beside the panel. Each widget only if it checks out (st_w1); the picture's decides the answer. om-emu,
+ * 2026-11-23. Uses d0, d1, a0, a1. */
 st_place:
  mov d0,d3
  mov (ST_GUI),d0
@@ -73,64 +76,98 @@ st_place:
  mov d0,a0
  mov (0xdc,a0),d0
  ST_HP d0, 8f
- mov d0,a3
- mov st_wt7,a1
+ mov d0,(st_par)
+ mov st_wt,a1
  call st_w1,[],4
  cmp 0,d1
  beq 8f
- mov st_wt6,a1
- call st_w1,[],4
+1:
+ add 40,a1
+ cmp st_wte,a1
+ beq 2f
+ call st_w1,[],4                  /* (keeps a1, d3) */
+ bra 1b
+2:
  mov 1,d1
  ret [d2,d3,a2,a3],28
 8:
  clr d1
  ret [d2,d3,a2,a3],28
 
+/* st_wt: per widget 10 words: its child slot in the parent, its id word, its method table, where its copy of the
+ * rectangles is (viewfinder x | y << 16, w | h << 16, rear screen, w | h << 16), then its two places (viewfinder,
+ * rear screen, size): the camera's, the panel's. ST_WT / ST_WX: a picture / the value text of the camera's column: the
+ * camera's place and that place ST_DX to the left. (om-emu, 2026-11-23: slots, ids, tables, rectangles.) */
+ .macro ST_WT off, id, xv, xr, y, w, h
+ .long \off, (\id << 16) | 0x8003, ST_WVT, 0x140
+ .long \xv | (\y << 16), \xr | (\y << 16), \w | (\h << 16)
+ .long (\xv + ST_DX) | (\y << 16), (\xr + ST_DX) | (\y << 16), \w | (\h << 16)
+ .endm
+ .macro ST_WX off, id, xv, xr, y, w, h
+ .long \off, (\id << 16) | 0x8013, 0x6135946c, 0xc0
+ .long \xv | (\y << 16), \xr | (\y << 16), \w | (\h << 16)
+ .long (\xv + ST_DX) | (\y << 16), (\xr + ST_DX) | (\y << 16), \w | (\h << 16)
+ .endm
  .balign 4
-st_wt7:                           /* the child's place in the parent, its id word; the bar's rectangles (viewfinder */
- .long 0x344, ST_WID              /* x | y << 16, rear screen, w | h << 16), the panel's */
+st_par:                           /* the widget parent (st_place -> st_w1) */
+ .long 0
+st_wt:
+ .long 0x344, ST_WID, ST_WVT, 0x140              /* the guide picture: the bar's place, the panel's */
  .long ST_BARV, ST_BARR, ST_BARS
  .long ST_PANV, ST_PANR, ST_PANS
-st_wt6:
- .long 0x340, 0x03c68003
+ .long 0x340, 0x03c68003, ST_WVT, 0x140          /* the button frame behind it */
  .long ST_BARV, ST_BARR, ST_BARS
- .long (ST_PX - 41 + ST_CX0 - 2) | ((ST_PY + ST_CY0 - 2) << 16), (ST_PX + ST_CX0 - 2) | ((ST_PY + ST_CY0 - 2) << 16), 4 | (4 << 16)
+ .long (ST_PX - 80 + ST_CX0 - 2) | ((ST_PY + ST_CY0 - 2) << 16), (ST_PX + ST_CX0 - 2) | ((ST_PY + ST_CY0 - 2) << 16), 4 | (4 << 16)
+ ST_WT 0x31c, 0x179, 542, 622, 115, 36, 24     /* the front dial's mark */
+ ST_WT 0x320, 0x3c0, 542, 622, 461, 36, 24     /* the rear dial's */
+ ST_WT 0x324, 0x3c1, 578, 658, 112, 70, 30     /* "Color" */
+ ST_WT 0x328, 0x3c2, 648, 728, 112, 38, 30     /* its swatch */
+ ST_WT 0x32c, 0x3c3, 578, 658, 458, 70, 30     /* the page label ("Tint") */
+ ST_WX 0x330, 0x3c4, 652, 732, 458, 29, 30     /* its value (a text widget) */
+ ST_WT 0x334, 0x3c5, 648, 728, 458, 38, 30     /* (the value's picture form) */
+ ST_WT 0x338, 0x3be, 524, 604, 528, 180, 50    /* Reset */
+ ST_WT 0x33c, 0x3bf, 524, 604, 528, 180, 50
+st_wte:
 
-/* st_w1: `call st_w1,[],4`, a3 = the parent, a1 = the widget's table (st_wt7 / st_wt6), d3 = 1 the panel's place / 0
- * the bar's -> d1 = 1 written, 0 not. The child must be a picture widget (ST_WVT) with the table's id and hold one of
- * the table's two places in its copy of the rectangles (+0x140 viewfinder, +0x148 rear screen: x, y, w, h shorts);
- * +8 is the one in use. Uses d0, d1, d2, a0, a2. */
+/* st_w1: `call st_w1,[],4`, a1 = the widget's st_wt entry, d3 = 1 the panel's place / 0 the camera's, (st_par) the
+ * parent -> d1 = 1 written, 0 not. The child must have the entry's method table and id word and hold one of the
+ * entry's two places in its copy of the rectangles; +8 is the rectangle in use (viewfinder or rear screen), +12 its
+ * size. Keeps a1, d3; uses d0, d1, d2, a0, a2, a3. */
 st_w1:
+ mov (st_par),a0
  mov (a1),d0
- mov a3,a0
  add d0,a0
  mov (a0),d0
  ST_HP d0, 8f
  mov d0,a2
  mov (a2),d0
- cmp ST_WVT,d0
+ mov (8,a1),d1
+ cmp d1,d0
  bne 8f
  mov (4,a2),d0
  mov (4,a1),d1
  cmp d1,d0
  bne 8f
+ mov (12,a1),d0
+ mov a2,a3
+ add d0,a3                        /* its copies: (0) viewfinder, (4) size, (8) rear screen, (12) size */
  mov a1,a0
- add 8,a0
+ add 16,a0
  mov 2,d2
 1:
  mov (a0),d0                      /* this place? (all four words) */
- mov (0x140,a2),d1
+ mov (a3),d1
  cmp d0,d1
  bne 2f
  mov (4,a0),d0
- mov (0x148,a2),d1
+ mov (8,a3),d1
  cmp d0,d1
  bne 2f
  mov (8,a0),d0
- mov (0x144,a2),d1
+ mov (4,a3),d1
  cmp d0,d1
  bne 2f
- mov (0x14c,a2),d1
+ mov (12,a3),d1
  cmp d0,d1
  beq 3f
 2:
@@ -140,30 +177,30 @@ st_w1:
  bra 8f
 3:
  mov (8,a2),d0                    /* in use: the viewfinder's (d2 = 1) or the rear screen's (0) */
- mov (0x140,a2),d1
+ mov (a3),d1
  clr d2
  cmp d0,d1
  bne 4f
  inc d2
 4:
  mov a1,a0
- add 8,a0
+ add 16,a0
  cmp 0,d3
  beq 5f
  add 12,a0
 5:
  mov (a0),d0
- mov d0,(0x140,a2)
+ mov d0,(a3)
  mov (4,a0),d1
- mov d1,(0x148,a2)
+ mov d1,(8,a3)
  cmp 0,d2
  bne 6f
  mov d1,d0
 6:
  mov d0,(8,a2)
  mov (8,a0),d0
- mov d0,(0x144,a2)
- mov d0,(0x14c,a2)
+ mov d0,(4,a3)
+ mov d0,(12,a3)
  mov d0,(12,a2)
  mov 1,d1
  ret [],4
