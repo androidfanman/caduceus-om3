@@ -950,6 +950,7 @@ k_set:
  call k_cur,[a2],8                  /* poke: the cursor setting re-written with its own value */
  cmp 0,d0
  bne 10f                          /* no value (yet): no poke */
+ call st_kc,[],0                  /* w8: on the Split toning row's Shadows / Highlights, the tint's colour (stwheel.s) */
  call facade,[],4
  mov (a0),a2
  mov (4,a2),a2                    /* SetValue(id, mode 0, value) */

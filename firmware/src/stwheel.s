@@ -76,6 +76,85 @@ rd_b10:
  clr d3
  jmp rd_b5
 
+/* st_l / st_r <- COLOR1-4 editor records +20 / +24 (build.py; were ed_l / ed_r): the colour cursor's left / right
+ * (the front dial). On the row's Balance step (st_bal, the Highlights page) nothing (d0 = 1, as ed_l's "nothing"):
+ * w8, owner: "remove the option to spin the dial on the wheel when balance is selected". Else ed_l / ed_r with every
+ * register as at entry. CALLS entry. */
+st_l:
+ movm [d2,d3,a2],(sp)
+ add -4,sp                        /* the call's return slot: it would overwrite the saved d2 */
+ call st_lb,[],0
+ add 4,sp
+ cmp 0,d2                         /* (before movm, which leaves the flags as they are) */
+ movm (sp),[d2,d3,a2]
+ bne 1f
+ jmp ed_l
+st_r:
+ movm [d2,d3,a2],(sp)
+ add -4,sp                        /* the call's return slot: it would overwrite the saved d2 */
+ call st_lb,[],0
+ add 4,sp
+ cmp 0,d2                         /* (before movm, which leaves the flags as they are) */
+ movm (sp),[d2,d3,a2]
+ bne 1f
+ jmp ed_r
+1:
+ mov 1,d0
+ rets
+
+/* st_lb: `call st_lb,[],0` -> d2 = 1 on the row's Balance step (st_bal, films in, the editor on page 6), else 0. Uses
+ * d2, d3, a2 (st_l / st_r give them back: movm). */
+st_lb:
+ movbu (st_bal),d2
+ cmp 0,d2
+ beq 9f
+ PVAL 8f                          /* (uses d3, a2) */
+ mov (EMARK,a2),d3
+ cmp EMAGIC,d3
+ bne 8f
+ movbu (AXIS,a2),d3
+ cmp 6,d3
+ beq 9f
+8:
+ clr d2
+9:
+ ret [],0
+
+/* st_kc <- k_set (ed_info's frame: (16) the cursor value it pokes back, a2 = P, the new page in P+AXIS) `call
+ * st_kc,[],0`: on the Split toning row's Shadows page (5) or Highlights page (6 without st_bal), when that tint has a
+ * strength, the value becomes its colour (slice + 1): the cursor goes back to the tint's colour (w8, owner: "when we
+ * switch back to shadow or highlight, can the slice selector go back to the color we had selected"). Uses d0, d1, a0. */
+st_kc:
+ movbu (AXIS,a2),d0
+ mov 55,d1
+ cmp 5,d0
+ beq 1f
+ cmp 6,d0
+ bne 9f
+ movbu (st_bal),d1
+ cmp 0,d1
+ bne 9f
+ mov 57,d1
+1:
+ movbu (EDK,a2),d0
+ cmp 4,d0
+ bcc 9f
+ asl 6,d0
+ add 32,d0
+ add d1,d0
+ mov a2,a0
+ add d0,a0                        /* COLOR k's slot + 55 / + 57: the colour, then its strength code */
+ movbu (1,a0),d0
+ cmp 0,d0
+ beq 9f
+ movbu (a0),d0
+ cmp 12,d0
+ bcc 9f
+ inc d0
+ mov d0,(16,sp)
+9:
+ ret [],0
+
 /* st_tset <- tn_set (its frame 68) when sp_all answered non-zero: 2 = Tone Balance written (st_boff) -> the wheel's
  * refresh s_cur for that byte (dirty, saved at the next half-press); else nothing, as tn_set's own exit. */
 st_tset:

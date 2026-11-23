@@ -370,6 +370,14 @@ SPLIT_STRIP = (f'{OPEN_SPLIT} {STRIP_IS(0, 0, 0, 0, 0, 0)} {PAL_STRIP(0, 0, 0, 0
                f'main+1 wait main+1 wait {STRIP_IS(2, 1, 2, 2, -1, 1)} {PAL_STRIP(2, 1, 2, 2, 1)} down wait main+1 wait up wait '
                f'{STRIP_IS(2, 1, 2, 2, 0, 0)} up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} down wait '
                f'{STRIP_IS(2, 1, 2, 2, 0, 0)} {PAL_STRIP(2, 1, 2, 2, 0)} poweroff')
+# w8 (owner, w7 on the camera): on the Balance step the front dial does nothing (the cursor 2197 + k and the bar stay);
+# when INFO goes to Shadows or Highlights the cursor goes back to that tint's colour (value = slice + 1), when it has one.
+CUR_IS = lambda v: f'expect:val:2197={v}'
+SPLIT_BALANCE_NO_DIAL = (f'{OPEN_SPLIT} sub-1 wait sub-1 wait main+1 wait {CUR_IS(3)} info wait {STRIP_IS(2, 1, 0, 0, 0, 2)} '
+                         f'sub-1 wait sub+1 wait sub+1 wait {CUR_IS(3)} {STRIP_IS(2, 1, 0, 0, 0, 2)} poweroff')
+SPLIT_CURSOR_BACK = (f'{OPEN_SPLIT} sub-1 wait sub-1 wait main+1 wait {CUR_IS(3)} info wait info wait {AXIS_IS(6)} {CUR_IS(3)} '
+                     f'sub-1 wait sub-1 wait sub-1 wait main+1 wait {CUR_IS(6)} {TINTS_ARE("02ff05ff")} info wait {AXIS_IS(5)} '
+                     f'{CUR_IS(3)} info wait {CUR_IS(3)} info wait {AXIS_IS(6)} {CUR_IS(6)} poweroff')
 # w7: the camera's own wheel stays on the Split toning row (as on the colour wheel row; w3..w6 asked for none): its
 # display update (0x60b1ced8) gets d0 = 0 ("the wheel") there, 1 on the rows without a wheel.
 SPLIT_KEEPS_WHEEL = f'{OPEN_WHEEL} down wait main+1 wait info wait up wait poweroff'
@@ -1394,6 +1402,12 @@ TESTS = {
     ],
     'split-tone-bar-shows-and-sets-the-tints-and-balance': [
         Boot(SPLIT_STRIP),
+    ],
+    'split-tone-row-balance-ignores-the-front-dial': [
+        Boot(SPLIT_BALANCE_NO_DIAL),
+    ],
+    'split-tone-row-cursor-goes-back-to-the-tint': [
+        Boot(SPLIT_CURSOR_BACK),
     ],
     'split-tone-row-keeps-the-camera-wheel': [
         Boot(SPLIT_KEEPS_WHEEL, watch=('C3D_UPD',), regs=True, hits=split_row_keeps_wheel),

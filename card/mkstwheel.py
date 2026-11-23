@@ -64,11 +64,10 @@ def argb(sc, ss, hc, hs, mode):
 
 
 def word_of(f, v):
-    """field f, value index v (0..10) -> its text: S / H the strength 0..10, B the Balance -5..+5."""
-    if f == 1:
-        b = v - 5
-        return 'B' + ('+' if b > 0 else '−' if b < 0 else '±') + str(abs(b))
-    return LETTERS[f] + str(v)
+    """field f, value index v (0..10) -> its text: S / H the strength 0..10 ("S+6", "S±0", as the camera's own Tint
+    readout; w8, owner: "the is no + next to the numbers"), B the Balance -5..+5."""
+    n = v - 5 if f == 1 else v
+    return LETTERS[f] + ('+' if n > 0 else '−' if n < 0 else '±') + str(abs(n))
 
 
 def text_part(f, v, active, fs):
@@ -80,7 +79,7 @@ def text_part(f, v, active, fs):
     a = a[top - 2:base + 3]
     cols = np.nonzero((a > 40).any(axis=0))[0]; a = a[:, cols.min():cols.max() + 1]
     hh, ww = a.shape
-    if ww > TW - 6:                                 # "S10" / "H10": a little narrower
+    if ww > TW - 6:                                 # "S+10" / "H+10": a little narrower
         a = np.array(Image.fromarray(a.astype(np.uint8)).resize((TW - 6, hh), Image.LANCZOS)).astype(int)
         hh, ww = a.shape
     y0 = (MID2 + 1 - CAP) // 2 - 2; x0 = (TW - ww) // 2

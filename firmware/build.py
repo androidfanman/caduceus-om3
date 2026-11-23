@@ -107,8 +107,8 @@ WORDS = {0x60e57480: (0x60b86de7, 'cv_get'), 0x60e57490: (0x60b86e09, 'sl_cnt'),
          **{a + 4: (0x6122393a, 'ed_init') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},
          **{a + 44: (0x6122661b, 'ed_info') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},
          **{a + 36: (0x61225d52, 'ed_event') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},
-         **{a + 20: (0x6122471c, 'ed_l') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},   # film test 8:
-         **{a + 24: (0x61224c1c, 'ed_r') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},   # all colours stay
+         **{a + 20: (0x6122471c, 'st_l') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},   # film test 8:
+         **{a + 24: (0x61224c1c, 'st_r') for a in (0x615adcc4, 0x615adcfc, 0x615add34, 0x615add6c)},   # all colours stay
          # v0.22: the Picture Mode column for COLOR1-4 (modes 54/55/56/64 + 1 in the builder's switch table) -> pm_color
          **{a: (0x611bd8fd, 'pm_color') for a in (0x615335e4, 0x615335ec, 0x61533614, 0x61533574)}}
 PM_IDLE_SITES = (0x611c2243, 0x611c22ae, 0x611c232d, 0x611c2481, 0x611c25dc, 0x611c274b, 0x611c28ac, 0x611c29ef,
