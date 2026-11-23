@@ -49,6 +49,17 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## LookLab update (2026-11-21)
+LookLab only; the firmware is unchanged (v0.40.2 stays the current version).
+- **Open… reads `CURVES.BIN`:** opening a card's `LOOKS.BIN` together with its `CURVES.BIN` (pick both, in any order)
+  brings each film's RGB curves and Color Mix back with it. Before, the films came in flat, so the next save wrote
+  them without their curves and mix.
+- Open… also takes one look's `.json`, and each look's Share window can save it as a look file.
+- **Your own photos, up to 12 at once:** "+ Your photos" takes several photos; each shows in a grid under the big
+  preview with the film on, and a click shows it large. Switching films updates all of them. Nothing is uploaded.
+- **Open… reads a readable recipe `.json`** (a look written out setting by setting with the camera's photo code, plus
+  its RGB curves and Color Mix): the look comes from the photo code, with its name, curves and mix.
+
 ## v0.40.2
 2026-11-19. v0.40.1 plus smoother colour grain, made faster; camera-tested (the build before its release name).
 - **Smoother colour grain:** the grain's colour speckle is now made on every row instead of every other row, so it has

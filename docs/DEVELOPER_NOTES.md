@@ -4,7 +4,7 @@ All addresses: OM-3 runtime (decoded main + 0x60021020). E-P7 1.1 base 0x6002002
 Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 
 ## Proven on the camera
-- SD update: DCOLYMP/E1479999.BIN, hold OK at power-on; steady ~2 min, then blink. Restore = official file.
+- SD update: DCOLYMP/E1479999.BIN, hold OK at power-on; steady up to ~5 min, then blink. Restore = official file.
 - Hue/lightness: builder 0x60518381, single call 0x60518615 (call …,[d2,d3,a2,a3],96), resume 0x6051861a.
   Output records at output(=(12,a2))+836, stride 24; hue +18, sat +20, light +22. Record r = UI sector 2(r%6)+r/6.
   Hue raw = -1000*ui moves yellow->orange->red (toward the NEXT sector; opposite to Caduceus' sim convention).

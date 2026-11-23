@@ -10,9 +10,11 @@ import { History } from './history';
 import { fromLibrary, libraryOrigin, resetLook } from './reset';
 import { ASPECTS, cropRect, lastHalation, renderLook } from './preview';
 import { makeZip } from './zip';
-import { curvesBin } from './curvesbin';
+import { applyCurvesBin, curvesBin, readCurvesBin } from './curvesbin';
 import { rrpreset } from './rapidraw';
 import { previewToneLut } from './tone';
+import { JobQueue, MAX_OWN, TILE_PX, fitSize, takeFiles } from './photos';
+import { isRecipe, lookFromRecipe } from './recipe';
 import {
   BANK_SCHEMA, PHOTO_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromPhotoCode, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
   SHARP, sharpLabel, slowGrain, monoGrain, grainStrength, setGrainStrength, toOm3, validateBank, type Bank, type Fw, FW_NAME, bankMinFw, exportLook, minFw, v28Parts, recipeText,
@@ -216,7 +218,7 @@ function shell() {
           ['Reset looks to standard', () => newBank('library')],
           ['Empty looks', () => newBank('empty')],
         ]),
-        h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN, or a looks file saved from this tool' }, 'Open…'),
+        h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN (pick its CURVES.BIN with it to keep each film\'s curves and colour mix), a looks file, or one look\'s .json (LookLab\'s own, or a recipe with the photo code)' }, 'Open…'),
         h('button', { onclick: () => om3FilmPicker(), title: 'Add film simulations to your films' }, 'Film sims'),
         h('button', { onclick: () => $<HTMLInputElement>('#grade').click(), title: 'Make a film from your own .cube LUT or Lightroom preset (.xmp, .lrtemplate)' }, 'From LUT / preset…'),
         h('button', { onclick: pasteDialog, title: 'Open a shared look or looks link' }, 'Paste link'),
@@ -233,8 +235,8 @@ function shell() {
         h('a', { href: '../' }, 'Tour'), h('a', { href: '../pages/install/' }, 'Install'), h('a', { href: '../pages/faq/' }, 'FAQ'),
         h('a', { href: './samples/CREDITS.md', target: '_blank', rel: 'noopener' }, 'Image credits'))),
     h('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }),
-    h('input', { type: 'file', id: 'file', accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),
-    h('input', { type: 'file', id: 'photo', accept: 'image/*', hidden: true, onchange: onPhoto }),
+    h('input', { type: 'file', id: 'file', multiple: true, accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),
+    h('input', { type: 'file', id: 'photo', accept: 'image/*', multiple: true, hidden: true, onchange: onPhoto }),
     h('input', { type: 'file', id: 'grade', accept: '.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnGradeFile }));
   buildPreview();
   // owner 2026-11-13: the film list is as tall as the preview and scrolls on its own
@@ -1018,7 +1020,12 @@ function refreshProblems() {
 
 // ---------------------------------------------------------------- preview
 let srcData: ImageData | null = null;
-let userPhoto: ImageData | null = null;
+/** One of your own photos (owner 2026-11-21: several at once): the file, read again when you pick it so only the picked
+ *  one is kept large, a small copy for the grid, and its grid picture. Nothing leaves the browser. */
+interface OwnPhoto { id: string; name: string; file: File; small: ImageData; big: ImageData | null; tile: HTMLCanvasElement }
+const own: OwnPhoto[] = [];
+let ownSeq = 0;
+const tileJobs = new JobQueue();
 let canvas: HTMLCanvasElement;
 let beforeCv: HTMLCanvasElement;
 let beforeOf: ImageData | null = null;
@@ -1029,8 +1036,8 @@ function buildPreview() {
   const thumbs = h('div', { class: 'thumbs' },
     ...samples().map((s) => h('button', { class: `thumb${S.image === s.id ? ' on' : ''}`, 'data-id': s.id, onclick: () => pickImage(s.id), title: s.label },
       h('img', { src: `./samples/${s.id}.jpg?v=${SAMPLE_REV}`, alt: s.label, loading: 'lazy' }))),
-    h('button', { class: `thumb own${S.image === 'user' ? ' on' : ''}`, 'data-id': 'user', onclick: () => (userPhoto ? pickImage('user') : $<HTMLInputElement>('#photo').click()), title: 'Your photo (stays on this device)' },
-      h('span', {}, '+ Your photo')));
+    h('button', { class: 'thumb own', onclick: () => $<HTMLInputElement>('#photo').click(), title: `Add up to ${MAX_OWN} of your own photos (they stay on this device)` },
+      h('span', {}, '+ Your photos')));
   // before / after: the untouched photo on its own canvas, clipped at a line you drag on the photo (or arrow keys)
   beforeCv = h('canvas', { class: 'before', 'aria-hidden': 'true' }); beforeOf = null;
   const divider = h('div', { class: 'divider', role: 'slider', tabindex: '0', 'aria-label': 'Before and after divider', 'aria-valuemin': '0', 'aria-valuemax': '100' },
@@ -1058,22 +1065,32 @@ function buildPreview() {
   $('#preview').replaceChildren(
     h('div', { class: 'pv-wrap' }, frame, h('span', { class: 'badge' }, 'Before'), h('span', { class: 'badge r' }, 'After · approximate')),
     thumbs,
+    h('div', { id: 'own', class: 'own-photos' }),
     h('div', { class: 'pv-opts' },
       h('label', { class: 'aspect' },
         'Image Aspect ',
         h('select', { onchange: (e: Event) => { S.aspect = (e.target as HTMLSelectElement).value; try { localStorage.setItem('caduceus.om3.aspect', S.aspect); } catch { /* storage blocked */ } schedulePreview(); } },
           ...ASPECTS.map((a) => h('option', { value: a.id, selected: a.id === S.aspect }, a.label))), aspectHelp.q),
       h('span', { class: 'help' }, 'Includes Contrast, Sharp, Shading, Film Grain, Border, Glow, Halation and the lens corners.'),
-      h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Use your own photo…')),
+      h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Add your own photos…')),
     aspectHelp.box,
-    h('p', { class: 'help' }, 'Drag the line on the photo to compare before and after. Shading, grain, border, glow and the lens corners follow the camera\'s own maths, checked against photos from an OM-3; colours are close but not exact (strong blues and purples differ most), so check a new look on the camera. Your own photo never leaves this browser.'));
+    h('p', { class: 'help' }, 'Drag the line on the photo to compare before and after. Shading, grain, border, glow and the lens corners follow the camera\'s own maths, checked against photos from an OM-3; colours are close but not exact (strong blues and purples differ most), so check a new look on the camera. Your own photos never leave this browser.'));
+  renderOwn();
   pickImage(S.image);
 }
 
 async function pickImage(id: string) {
   S.image = id;
-  document.querySelectorAll('.thumb').forEach((t) => t.classList.toggle('on', (t as HTMLElement).dataset.id === id));
-  if (id === 'user') { srcData = userPhoto; schedulePreview(); return; }
+  document.querySelectorAll('.thumb, .own-tile').forEach((t) => t.classList.toggle('on', (t as HTMLElement).dataset.id === id));
+  const p = own.find((x) => x.id === id);
+  for (const o of own) if (o !== p) o.big = null;   // only the picked photo is kept large
+  if (p) {
+    if (!p.big) {
+      try { p.big = (await readPhoto(p.file, { big: true, small: false })).big; } catch { toast('That photo could not be read again', 'err'); return; }
+    }
+    if (S.image === id) { srcData = p.big; schedulePreview(); }
+    return;
+  }
   try {
     const img = new Image();
     img.src = `./samples/${id}.jpg?v=${SAMPLE_REV}`;
@@ -1091,37 +1108,114 @@ function previewPx(): number {
   return Math.max(1024, Math.min(2048, Math.ceil(css * (window.devicePixelRatio || 1))));
 }
 
-function toImageData(img: CanvasImageSource, w: number, h0: number, max = previewPx()): ImageData {
-  const k = Math.min(1, max / Math.max(w, h0));
-  const W = Math.round(w * k), H = Math.round(h0 * k);
+function toImageData(img: CanvasImageSource, w: number, h0: number, max = previewPx(), smooth = false): ImageData {
+  const { w: W, h: H } = fitSize(w, h0, max);
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  if (smooth) ctx.imageSmoothingQuality = 'high';   // the grid's small copies: a big step down, so no jaggies
   ctx.drawImage(img, 0, 0, W, H);
   return ctx.getImageData(0, 0, W, H);
 }
 
-async function onPhoto(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0];
-  (e.target as HTMLInputElement).value = '';
-  if (!f) return;
+/** Reads one of your photos (turned upright from its EXIF) into the copies asked for: `big` for the preview, `small`
+ *  for the grid. */
+async function readPhoto(f: File, want: { big: boolean; small: boolean }): Promise<{ big: ImageData | null; small: ImageData | null }> {
+  const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' } as ImageBitmapOptions);
   try {
-    const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' } as ImageBitmapOptions);
-    userPhoto = toImageData(bmp, bmp.width, bmp.height);
-    bmp.close();
-    pickImage('user');
-  } catch { toast('That file could not be read as an image', 'err'); }
+    return {
+      big: want.big ? toImageData(bmp, bmp.width, bmp.height) : null,
+      small: want.small ? toImageData(bmp, bmp.width, bmp.height, TILE_PX, true) : null,
+    };
+  } finally { bmp.close(); }
 }
 
-/** The photo frame: the photo's shape, as wide as the pane allows but no taller than 70% of the window. */
+/** Adds the photos you picked (up to MAX_OWN in all) to the grid, and shows the first of them large. */
+async function onPhoto(e: Event) {
+  const inp = e.target as HTMLInputElement;
+  const files = Array.from(inp.files ?? []);
+  inp.value = '';
+  if (!files.length) return;
+  const { take, notImages, overMax } = takeFiles(own.length, files);
+  let bad = notImages, shown = false;
+  for (const f of take) {
+    try {
+      const { big, small } = await readPhoto(f, { big: !shown, small: true });   // the others are read large when picked
+      const p: OwnPhoto = { id: `own${++ownSeq}`, name: f.name || 'Photo', file: f, small: small!, big, tile: h('canvas', { class: 'own-cv' }) };
+      drawTile(p);
+      own.push(p); renderOwn();
+      if (!shown) { shown = true; pickImage(p.id); }
+    } catch { bad++; }
+  }
+  const msg = [overMax ? `Up to ${MAX_OWN} photos at once: ${overMax} not added.` : '', bad ? `${bad} file${bad > 1 ? 's' : ''} could not be read as a photo.` : ''].filter(Boolean).join(' ');
+  if (msg) toast(msg, 'err');
+}
+
+/** The grid of your own photos, each with the film on; click one to see it large. */
+function renderOwn() {
+  const box = document.getElementById('own');
+  if (!box) return;
+  box.hidden = !own.length;
+  document.getElementById('preview')?.classList.toggle('has-own', own.length > 0);
+  if (!own.length) { box.replaceChildren(); schedulePreview(); return; }   // the frame goes back to its full height
+  box.replaceChildren(
+    h('div', { class: 'own-head' },
+      h('b', {}, `Your photos (${own.length} of ${MAX_OWN})`),
+      h('span', { class: 'help' }, 'Click one to see it large.'),
+      own.length < MAX_OWN ? h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Add…') : null,
+      h('button', { class: 'link', onclick: removeAllOwn }, 'Remove all')),
+    h('div', { class: 'own-grid' }, ...own.map((p) => h('div', { class: `own-tile${S.image === p.id ? ' on' : ''}`, 'data-id': p.id },
+      h('button', { class: 'own-pick', onclick: () => { pickImage(p.id); showBig(); }, title: p.name, 'aria-label': `Show ${p.name} large` }, p.tile),
+      h('button', { class: 'own-x', onclick: () => removeOwn(p.id), title: 'Remove this photo', 'aria-label': `Remove ${p.name}` }, '×')))));
+}
+
+/** After a click in the grid: scroll the pane back up if most of the big photo is out of view. */
+function showBig() {
+  const pane = document.getElementById('preview'), frame = canvas?.parentElement;
+  if (!pane || !frame) return;
+  const f = frame.getBoundingClientRect(), v = pane.getBoundingClientRect();
+  if (f.top + f.height / 2 < v.top) pane.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function removeOwn(id: string) {
+  const i = own.findIndex((p) => p.id === id);
+  if (i < 0) return;
+  own.splice(i, 1);
+  renderOwn();
+  if (S.image === id) pickImage(own[Math.min(i, own.length - 1)]?.id ?? samples()[0].id);
+}
+
+function removeAllOwn() {
+  const showing = own.some((p) => p.id === S.image);
+  own.length = 0; tileJobs.cancel(); renderOwn();
+  if (showing) pickImage(samples()[0].id);
+}
+
+/** One grid picture: the current film on the small copy, at the preview's Image Aspect. */
+function drawTile(p: OwnPhoto) {
+  const src = p.small, cr = cropRect(src.width, src.height, S.aspect), cv = p.tile;
+  if (cv.width !== cr.w || cv.height !== cr.h) { cv.width = cr.w; cv.height = cr.h; }
+  const ctx = cv.getContext('2d')!;
+  const l = cur();
+  if (!l) { ctx.putImageData(src, -cr.x, -cr.y, cr.x, cr.y, cr.w, cr.h); return; }
+  const out = ctx.createImageData(src.width, src.height);
+  renderLook(src, out, splitPv(l), { advice: true, camera: CAM, crop: cr, quiet: true });
+  ctx.putImageData(out, -cr.x, -cr.y, cr.x, cr.y, cr.w, cr.h);
+}
+
+/** The photo frame: the photo's shape, as wide as the pane allows but no taller than 70% of the window (60% with
+ *  your own photos in the grid). */
 function sizeFrame(w: number, h: number) {
   const frame = canvas.parentElement as HTMLElement | null;
   if (!frame) return;
   frame.style.aspectRatio = `${w} / ${h}`;
-  frame.style.width = `min(100%, ${(70 * w / h).toFixed(2)}vh)`;
+  const vh = own.length ? 60 : 70;   // with your own photos, a little lower so the grid shows below it
+  frame.style.width = `min(100%, ${(vh * w / h).toFixed(2)}vh)`;
 }
 
 function schedulePreview() {
+  // the grid redraws one picture at a time, shortly after the last change (a slider drag moves the big preview only)
+  if (own.length) tileJobs.run(own.map((p) => () => drawTile(p)), 150);
   if (previewQueued) return;
   previewQueued = true;
   requestAnimationFrame(() => {
@@ -1616,14 +1710,20 @@ function replaceBank(bank: Bank, msg: string, name?: string) {
   toast(probs.length ? `${msg}. ${probs.length} problem(s) to fix before export.` : msg, probs.length ? 'err' : 'ok');
 }
 async function om3OnFile(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0];
-  (e.target as HTMLInputElement).value = '';
-  if (!f) return;
+  const input = e.target as HTMLInputElement, files = [...(input.files ?? [])];
+  input.value = '';
+  // Several files at once (the card's LOOKS.BIN with its CURVES.BIN): the looks first, then the curves and mix on them.
+  const read = await Promise.all(files.map(async (f) => ({ f, bytes: new Uint8Array(await f.arrayBuffer()) })));
+  const isCurves = (b: Uint8Array) => b.length >= 4 && String.fromCharCode(...b.subarray(0, 4)) === 'OM3K';
+  read.sort((a, b) => Number(isCurves(a.bytes)) - Number(isCurves(b.bytes)));
+  for (const { f, bytes } of read) await om3OpenOne(f, bytes);
+}
+async function om3OpenOne(f: File, bytes: Uint8Array) {
   if (/\.(cube|xmp|lrtemplate)$/i.test(f.name)) { await gradeDialog(f); return; }
-  const bytes = new Uint8Array(await f.arrayBuffer());
   const magic = bytes.length >= 4 ? String.fromCharCode(...bytes.subarray(0, 4)) : '';
   try {
     if (magic === 'OM3P') { const bk = readProfiles(bytes, om3Fw28()); replaceBank(bk, `Opened ${f.name} (${bk.flat().filter(Boolean).length} looks)`); return; }
+    if (magic === 'OM3K') { om3OpenCurves(bytes, f.name); return; }
     if (magic === 'OM3N') { toast('That is NAMES.BIN (the name pictures). Open LOOKS.BIN instead: it holds the names too.', 'err'); return; }
     if (bytes[0] === 0xff && bytes[1] === 0xd8) {                                  // v0.27: a JPEG from the camera: its om3.1. code
       const txt = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 262144)));
@@ -1633,8 +1733,21 @@ async function om3OnFile(e: Event) {
     }
     const j = JSON.parse(new TextDecoder().decode(bytes));
     if (j && j.schema === BANK_SCHEMA) { const b = parseBank(j, parseLook); replaceBank(b.bank, `Opened "${b.name}"`, b.name); return; }
+    if (isOneLook(j)) { placeLook({ look: parseLook(j, f.name), changed: [], dropped: [] }); return; }
+    if (isRecipe(j)) { placeLook({ look: lookFromRecipe(j), changed: [], dropped: [] }); return; }   // a readable recipe with its photo code
     throw new Error('not an OM-3 file');
-  } catch (err) { toast(`Not an OM-3 LOOKS.BIN or looks file: ${(err as Error).message}`, 'err'); }
+  } catch (err) { toast(`Not an OM-3 LOOKS.BIN, CURVES.BIN or looks file: ${(err as Error).message}`, 'err'); }
+}
+/** One look's JSON (a look as it leaves the tool, schema caduceus-om3-look/N, or the same fields without the schema). */
+const isOneLook = (j: unknown): j is Record<string, unknown> => !!j && typeof j === 'object' && !Array.isArray(j)
+  && typeof (j as Record<string, unknown>).name === 'string' && Array.isArray((j as Record<string, unknown>).hue)
+  && ((j as Record<string, unknown>).schema === undefined || /^caduceus-om3-look\//.test(String((j as Record<string, unknown>).schema)));
+/** CURVES.BIN (firmware v0.30): each film's curves and colour mix, back on the looks of the LOOKS.BIN it was saved with. */
+function om3OpenCurves(bytes: Uint8Array, name: string) {
+  const { matched, looks } = applyCurvesBin(O.bank, readCurvesBin(bytes));
+  if (!matched) { toast(`${name} was saved for other looks: none of these ${looks} matches it. Open the LOOKS.BIN saved with it first, or both together.`, 'err'); return; }
+  save(); renderAll();
+  toast(`Curves and colour mix from ${name} on ${matched} of ${looks} looks${matched < looks ? ' (the others were changed since, or come from another set)' : ''}`);
 }
 
 async function om3OnGradeFile(e: Event) {
@@ -1735,6 +1848,24 @@ async function gradeDialog(f: File) {
     h('div', { class: 'modal-actions' }, h('button', { onclick: () => dlg.close() }, 'Cancel'), add));
 }
 
+/** Put a look in the first free place (the selected one when it is empty), or ask to replace the selected one when
+ *  all 20 are in use. */
+function placeLook(c: { look: Look; changed: string[]; dropped: string[] }): boolean {
+  let k = O.k, v = O.v;
+  if (O.bank[k][v]) {
+    const free = O.bank[k].findIndex((x) => !x);
+    if (free >= 0) v = free;
+    else {
+      const any = O.bank.flat().findIndex((x) => !x);
+      if (any >= 0) { k = Math.floor(any / PER); v = any % PER; }
+      else if (!confirm(`All 20 looks are in use. Replace ${at(O.k, O.v)} ("${O.bank[k][v]!.name}") with "${c.look.name}"?`)) return false;
+    }
+  }
+  O.bank[k][v] = c.look; O.k = k; O.v = v;
+  save(); renderAll();
+  toast(`Added "${c.look.name}" as ${at(k, v)}${om3Changes(c)}${minFw(c.look) > 20 ? ` · needs Caduceus v${FW_NAME[minFw(c.look)]} or later` : ''}`);
+  return true;
+}
 async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
   try {
     if (isOm3Code(t, OB_PREFIX)) {
@@ -1748,20 +1879,7 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
     if (!fromPhoto && !isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_) or a photo\'s om3.1. code.');
     const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: fromPhoto ? lookFromPhotoCode(t) : parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
     if (!c.look) throw new Error('That link holds no look.');
-    let k = O.k, v = O.v;
-    if (O.bank[k][v]) {
-      const free = O.bank[k].findIndex((x) => !x);
-      if (free >= 0) v = free;
-      else {
-        const any = O.bank.flat().findIndex((x) => !x);
-        if (any >= 0) { k = Math.floor(any / PER); v = any % PER; }
-        else if (!confirm(`All 20 looks are in use. Replace ${at(O.k, O.v)} ("${O.bank[k][v]!.name}") with "${c.look.name}"?`)) return false;
-      }
-    }
-    O.bank[k][v] = c.look; O.k = k; O.v = v;
-    save(); renderAll();
-    toast(`Added "${c.look.name}" as ${at(k, v)}${om3Changes(c)}${minFw(c.look) > 20 ? ` · needs Caduceus v${FW_NAME[minFw(c.look)]} or later` : ''}`);
-    return true;
+    return placeLook(c as { look: Look; changed: string[]; dropped: string[] });
   } catch (e) {
     importCodeMsg((e as Error).message);
     return false;
@@ -1802,6 +1920,9 @@ async function om3ShareProfile(l: Look) {
     h('div', { class: 'code-box link' }, h('input', { type: 'text', readonly: true, value: link, onfocus: (e: Event) => (e.target as HTMLInputElement).select() }),
       h('button', { onclick: () => copy(link, 'Link copied') }, 'Copy link')),
     ...recipeCodes(l),
+    h('div', { class: 'ex-row' },
+      h('div', {}, h('b', {}, 'Look file (.json)'), h('p', { class: 'help' }, 'This look with everything in it, including its RGB curves and colour mix. Open… it here later (it is added to your list) or send it to someone.')),
+      h('button', { onclick: () => download(`${rrName(l.name)}.om3look.json`, JSON.stringify(exportLook(l), null, 1), 'application/json') }, 'Download')),
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'RapidRAW preset'), h('p', { class: 'help' }, 'This look as a .rrpreset for RapidRAW (Presets › Import), for ORF files. An approximation of the camera look.')),
       h('button', { onclick: () => download(`${rrName(l.name)}.rrpreset`, rrpreset(bankPack([l]), 0), 'application/json') }, 'Download'))));
@@ -1916,7 +2037,7 @@ function om3ExportDialog() {
       h('div', {}, h('b', {}, 'Card folder (.zip)'), h('p', { class: 'help' }, 'OM3MOD/LOOKS.BIN, OM3MOD/NAMES.BIN, OM3MOD/CURVES.BIN (v0.28 or later) and the looks file. Unzip at the card root (never into DCOLYMP/).')),
       zip),
     h('div', { class: 'ex-row' },
-      h('div', {}, h('b', {}, 'Single files'), h('p', { class: 'help' }, 'LOOKS.BIN: the 20 looks. NAMES.BIN: their names as the camera shows them under the wheel ("Empty" for unused numbers). CURVES.BIN (v0.30): each film\'s RGB curves and colour mix, made for this LOOKS.BIN: save them together. All go in OM3MOD/. Still on firmware v0.17–v0.18? It reads the same looks as PROFILES.BIN.')),
+      h('div', {}, h('b', {}, 'Single files'), h('p', { class: 'help' }, 'LOOKS.BIN: the 20 looks. NAMES.BIN: their names as the camera shows them under the wheel ("Empty" for unused numbers). CURVES.BIN (v0.30): each film\'s RGB curves and colour mix, made for this LOOKS.BIN: save them together. To bring a card\'s films back here with their curves and mix, Open… its LOOKS.BIN and CURVES.BIN together. All go in OM3MOD/. Still on firmware v0.17–v0.18? It reads the same looks as PROFILES.BIN.')),
       h('div', { class: 'ex-btns' },
         h('button', { disabled: probs.length > 0, onclick: () => download('LOOKS.BIN', looksBin()) }, 'LOOKS.BIN'),
         h('button', { disabled: probs.length > 0 || fw < 28, title: 'Firmware v0.30: the films\' RGB curves and colour mix, for the LOOKS.BIN above', onclick: () => download('CURVES.BIN', curvesBin(looksBin(), O.bank)) }, 'CURVES.BIN'),

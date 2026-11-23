@@ -8883,6 +8883,37 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   after `lg_ver` in ext13 by 24 bytes, nothing else. LookLab's grain preview: colour planes at full height with the g6
   taps, Cr sigma 9 (vitest 76 pass).
 
+
+## LookLab opens CURVES.BIN (2026-11-21; branch `feature/looklab-open-curves` from `try/v0.40.3-beta3`; browser-tested)
+- Owner: "looklab doesnt open curve files so when you open a look it is missing the mix and curves". LookLab wrote
+  CURVES.BIN but never read it: opening the card's LOOKS.BIN (or a photo's om3.1 code, which has no curves either)
+  brought the films in flat, and the next export wrote flat entries for them, so the camera dropped their curves and
+  mix (happened to the owner's 50s / 60s / 70s films in his 2026-11-20 list; the camera's log said CURVES.BIN matched all
+  20, i.e. it took the flat values).
+- Fix (`webapp/src/curvesbin.ts` `readCurvesBin` / `applyCurvesBin`, `main.ts` Open…): Open… takes CURVES.BIN (checked
+  as the camera checks it: size, magic, version, count, CRC, zero bytes, value ranges) and puts each entry on the look
+  whose LOOKS.BIN record (written as for v0.28 or later) has the entry's CRC-32, wherever it sits, so a moved film keeps
+  its values and a changed one is left alone; a flat entry clears the look's curves / mix, as the camera shows it.
+  Open… now takes several files (LOOKS.BIN first, then CURVES.BIN, whatever the order picked) and one look's .json
+  (schema caduceus-om3-look/N, or the same fields without it); the Share window of a look gets "Look file (.json)".
+  Undo covers it. LOOKS.BIN reopens and rewrites byte for byte (checked on the v0.30.3 release set, the owner's
+  2026-11-20 list and three of our card sets), which is what the CRC match needs.
+- Tests: `webapp/tests/curves-import.test.ts` (7; vitest 83 pass, 3 skipped): LOOKS.BIN alone has no curves (the bug),
+  CURVES.BIN brings all 20 back, the v0.30.3 release pair reads back and rewrites CURVES.BIN byte for byte, a moved
+  film, a changed film, another set (0 matched), flat entries, refused files. Browser (dev server, the owner's card
+  files): LOOKS.BIN alone 20 looks without curves; + CURVES.BIN "on 20 of 20 looks"; both picked at once in reverse
+  order the same; a one-look .json added with its curves; Undo; no console errors.
+- Not released: LookLab on the site changes at the next release (owner's call).
+- On `main` 2026-11-21 (cad): the webapp files of 9d7f9b2 applied as they are (main's webapp = beta3's), vitest 83 pass, 3 skipped, tsc clean; `looklab/` rebuilt (index-CSI2DcYh.js), loaded in the browser with no errors.
+
+## LookLab: several of your own photos at once (2026-11-21; on main, browser-tested)
+- Owner: "Can we make it so we can upload more than one photo to test the film sims?" Session "LookLab: test films on
+  several photos at once", `feature/looklab-multi-photo` a3c2f10 (owner on the screenshot: "Yes, looks good"; up to 12
+  photos, a grid under the big photo). 480 px copies, redrawn one at a time 150 ms after the last change; nothing
+  uploaded. vitest 89 pass. Fast-forwarded into main by cad, `looklab/` rebuilt (index-XN8KWU3f.js), checked in the
+  browser with three sample photos as your own: grid of 3, film switch updates them, no errors.
+- 2026-11-21: + Open… reads a readable recipe .json (photo_code + rgb_curves + colour_mix + name; owner: "the open looks doesnt accept .json files"), from d05d51c on `feature/looklab-multi-photo`; on main with the test values and the code comment made generic (cad: the session's test had the owner's private look's curves and mix); vitest 93 pass; `looklab/` rebuilt (index-BmSce56r.js); browser: a made-up recipe opens as a look, no errors.
+
 ## Look sets: switch film sets from the camera menu (2026-11-22; research + probe w1, emulator only; branch experiment/look-sets-walk)
 Request (buburun): film sets as files in a LOOKS folder, `OM3MOD/LOOKS.BIN` the default; a "Looks set" row in the
 wrench tab's Card/Folder/File page lists the folder's files; picking one loads it.
