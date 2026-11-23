@@ -10361,5 +10361,5 @@ Owner (through cad): "the info button should cycle through the H/S/L and the del
   Delete.
 - **No new hook or patch site.** Space: .ext13 81,472 / 81,920 (256 B less than c9), .ext15 138,512 / 139,264.
 - **Package (private) `test-builds/2026-11-22-picture-mode-2`:** VERSION "v0.40.3-p2", firmware from commit a48e1ef,
-  built twice, the same byte for byte: E1479999.BIN 8ddde1fa…ce03, GUIDES.BIN 933c1272…a4a6. Not on a camera. Suite
+  built twice, the same byte for byte: E1479999.BIN 8ddde1fa…ce03, GUIDES.BIN 933c1272…86a4. Not on a camera. Suite
   (om-emu at the pin): 151 pass, 1 FAIL = `static:changed-bytes`, the same sites as c9 (hooks.json not updated).
