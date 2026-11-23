@@ -10231,3 +10231,29 @@ merged in. Nothing new in behaviour. The joins:
   are 62 KB, the bar's tokens 40 KB).
 - Tests: row counts for the 19-row list. Suite: 143 pass, the one FAIL is `static:changed-bytes` with s2's sites
   (hooks.json not updated: before a release, with the owner's OK).
+
+## 2026-11-22: five-point curve test 5 (c5, on p1; emulator only): the one curve on the Sh / Hi and Mid pages too
+
+Owner (camera, p1): "the black and white values dont show up on the curve when it is on shad/high or mid mode". That
+was c4's design: `b5_dr` drew only on the Blk / Wht page (cv_on 3); the other two pages were the camera's own picture.
+
+- **What the camera draws there (om-emu, p1, lookups at cv_ic):** the graph 4145, then the Mid curve's object (ids
+  4177..4191 on the Mid page = white with its cross, 4192..4206 on Sh / Hi = grey), then the Sh and Hi halves' objects
+  (4147..4161 white with their crosses on Sh / Hi, 4162..4176 grey on Mid). The crosses are part of the white pictures.
+  A first lookup of the halves comes from 0x610db128 (not a draw), before the header.
+- **c5:** on a film's H&S row (`b5_row`, `b5_fk` >= 0) with cv_on 0, `b5_c0` (from cv_ic) gives the halves the clear
+  picture and the Mid object ours (`cv_pic`), as on the RGB / Mix / Blk-Wht pages. The Mid object's id tells the page,
+  so which points are big: `b5_mk`, a bit a point (0x0a Sh / Hi, 0x04 Mid, 0x11 Blk / Wht; cv_draw's dots read it).
+  `b5_cd` (cv_pic's call in place of cv_draw) sets cv_on 3 for the length of cv_draw on those pages, so the one
+  drawing code serves all three. `b5_hs` bumps cv_gen on every page (it runs at each row update, before the lookups),
+  `b5_dr` takes the film from b5_fk. New code in .ext13 (81,408 / 81,920; .ext15 unchanged 139,152 / 139,264; .ext12
+  261,720 / 262,144). No hook, no start-up work, nothing off a film's H&S row.
+- **Differs from c4 / p1 (told to the owner):** round dots in place of the camera's crosses; the camera's second grey
+  curve is gone from the two pages; the curve's shape there is ours (2 CV_STEP a step), not the camera's drawing.
+- **Emulator:** the three pages with all five values; the curve follows the dials on each page; up to the WB row and
+  back. Test `five-point-curve-on-the-sh-hi-and-mid-pages`: `caught` on p1, pass on c5.
+- **Camera-only unknowns:** the redraw speed on the two pages (our drawing at each dial step, as on Blk / Wht and RGB);
+  the draw order.
+- Package (private) `test-builds/2026-11-22-curve-5-points-5`: VERSION "v0.40.3-c5", build of a03f81b, E1479999.BIN
+  686e9972...1263, GUIDES.BIN 5fc69136...0098. Not on a camera. Suite: 144 pass, one FAIL, `static:changed-bytes` with the
+  same sites as p1 (s2's, hooks.json not updated; nothing new from c5: it adds no hook and changes no stock byte).
