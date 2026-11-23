@@ -10233,3 +10233,6 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   the right edge, "Color", "Tint" + value and Reset beside it, everything back on the colour wheel row and the other rows.
 - **Package:** `test-builds/2026-11-23-split-tone-panel-4` (commit 5a02877; E1479999.BIN 6b06ef27…b437, GUIDES.BIN
   34d39c97…60cf). On s2 + w3, not p3.
+- **Suite (w4, 5a02877, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes: 26 runs, the same list
+  as w1 (the picture widget's static rectangle is the bar's again). On the owner's card 2026-11-23 (owner, in the
+  session: "put w4 on the card when the suite passes"); checksums verified.
