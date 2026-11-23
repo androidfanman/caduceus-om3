@@ -10308,3 +10308,18 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Suite (w7, 43646a6, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as
   w4..w6. On the owner's card 2026-11-23 (owner: "sd card is in. put the test build on when its ready"); checksums
   verified.
+
+## The Split toning bar, w8: +, no front dial on Balance, the cursor back to the tint (2026-11-23; emulator only)
+- **w7 camera result (owner, 2026-11-23):** "that is looking good" (camera-tested: the bar draws under the camera's
+  wheel and works). Asked: "the is no + next to the numbers"; "remove the option to spin the dial on the wheel when
+  balance is selected"; "when we switch back to shadow or highlight, can the slice selector go back to the color we had
+  selected".
+- **w8 (94d843b):** (1) S / H read "S+6" / "S±0". (2) The COLOR1-4 editor records' left / right (+20 / +24, the
+  front dial's events 0x9008 / 0x900a) -> st_l / st_r: on the Balance step (st_bal, page 6) d0 = 1 (nothing), else
+  ed_l / ed_r. (A first version restored d2 from the stack after st_lb and lost its answer; the test caught it.) (3)
+  k_set calls st_kc before its cursor poke: on page 5, or 6 without st_bal, a tint with a strength makes the poked
+  value its colour + 1 (the cursor 2197 + k holds slice + 1: om-emu, slice 0 -> 1, two steps -> 3). Arrival on the row
+  leaves the cursor as it was (not asked).
+- **Tests:** `split-tone-row-balance-ignores-the-front-dial`, `split-tone-row-cursor-goes-back-to-the-tint` (both
+  fail on w7 with `--without`).
+- **Package:** `test-builds/2026-11-23-split-tone-bar-8` (E1479999.BIN 0a04945a…a56b, GUIDES.BIN 37169c75…907b).
