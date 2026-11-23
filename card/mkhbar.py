@@ -40,7 +40,9 @@ MID2 = H - 1                          # twice the middle row line (31.5): every 
 HUE = [60, 35, 15, 355, 320, 280, 235, 205, 180, 155, 120, 85]   # docs/PHOTO_TO_LOOK.md, slices 0..11
 DEG = 5.5                             # degrees of hue a step; + turns toward the next slice (lower HSV hue)
 FIELD_OF_AXIS = {2: 0, 0: 1, 1: 2}    # the editor's page (P+AXIS: 2 Hue, 0 Saturation, 1 Luminance) -> its field
-GHDR = bytes([(H - 1) & 255, ((H - 1) >> 8 & 3) | (((W - 1) & 15) << 4), ((W - 1) >> 4) & 63, 11])
+PAD = 136                             # split-tone panel w2: the picture's place is 400 x 200 (build.py), the bar its
+PH = H + PAD                          # bottom 64 rows; the 136 rows over it clear (palette entry 0, alpha 0)
+GHDR = bytes([(PH - 1) & 255, ((PH - 1) >> 8 & 3) | (((W - 1) & 15) << 4), ((W - 1) >> 4) & 63, 11])
 GREY, BLACK, WHITE = 64, 7, 10        # palette 62: 0xff808080, 0xff000000, 0xfffefefe
 SLOT0, NSLOT = 108, 13                # palette 62's unused entries 108..120 (stock 0x01010101)
 FREE_STOCK = 0x01010101
@@ -209,7 +211,7 @@ def stream(c, h, s, l, axis, P=None):
     """The firmware's picture for slice c (0..11) with values h, s, l on page axis."""
     P = P or pieces()
     h, s, l = clamp(h), clamp(s), clamp(l)
-    toks = []
+    toks = row_tokens(np.zeros(W, dtype=np.uint8)) * PAD
     for y in range(H):
         for p in row_parts(c, h, s, l, axis, y, P): toks += row_tokens(p)
     return pack(toks)
@@ -251,9 +253,9 @@ def inc(P=None):
         for f in range(3):
             n += max(L(P['text'][f][a][v][y]) for a in (0, 1) for v in range(11))
             n += gmax[1 + f] if SLF0 <= y <= SLF1 else max(L(P['mark'][v][y]) for v in range(11))
-    worst = len(pack([0] * n))
+    worst = len(pack([0] * (n + PAD * len(row_tokens(np.zeros(W, dtype=np.uint8))))))
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
-    return (f'.set HB_WORST, {worst}\n.set HB_HDR, {int.from_bytes(GHDR, "little"):#x}\n.set HB_H, {H}\n'
+    return (f'.set HB_WORST, {worst}\n.set HB_HDR, {int.from_bytes(GHDR, "little"):#x}\n.set HB_H, {H}\n.set HB_PH, {PH}\n.set HB_PAD, {PAD}\n'
             f'.set HB_SLOT0, {SLOT0}\n.set HB_NSLOT, {NSLOT}\n.set HB_PALT, {PAL_TABLE + 4 * SLOT0:#x}\n'
             f'.set HB_SWF0, {SWF0}\n.set HB_SWF1, {SWF1}\n.set HB_SLF0, {SLF0}\n.set HB_SLF1, {SLF1}\n'
             '.balign 4\nhb_rows:\n' + ''.join(f' .long {r}\n' for r in rec) +

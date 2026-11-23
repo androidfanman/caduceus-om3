@@ -134,8 +134,12 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
         # for the H / S / L bar, between the left column and Reset: viewfinder place (310 -> 116), rear screen (360 ->
         # 157); h3 raised 14 px (528 -> 514), the bottom edge where it was. The camera's guides (175 x 50) stay centred
         # in them, so they sit left of (and 7 px above) where they were (research/NOTES.md).
-        **{a: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64))
-           for a in (0x61451e40, 0x61451e50)}}
+        # split-tone panel w2: the picture's (0x3c7) 200 high (378..578, the bottom edge where it was), for the Split
+        # toning panel's bigger wheels; the bar is the bottom of a 400 x 200 picture (mkhbar.PAD), so it stays put. The
+        # frame (0x3c6, the camera's button frame behind it) keeps 400 x 64. The widgets take these when Picture Mode
+        # opens (om-emu: changing them later moves nothing), so the place cannot follow the row.
+        0x61451e40: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64)),
+        0x61451e50: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 378, 400, 200, 157, 378, 400, 200))}
 # wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
 # {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
 KEYW = {0x61322f1c: ((0x01000026, 0x27, 1, 0), 'hb_kdel'), 0x61322f2c: ((0x01000027, 0x29, 1, 0), 'hb_krel'),
@@ -270,7 +274,7 @@ def build(defaults, testfile, out):
     (out / 'wheel.inc').write_text('.balign 4\nwl_tab:\n' + db(bytes(wl)) + ' .balign 4\nfl_sagd:\n' + db(sagd) + ' .balign 4\n')
     import mkhbar                                 # wheel-hsl-view: the H / S / L bar's pieces (hbar.s)
     hb = mkhbar.inc()
-    assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 8192    # hbar.s HB_BUF
+    assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 16384   # hbar.s HB_BUF
     (out / 'hbar.inc').write_text(hb)
     import mkstwheel                              # split-tone strip w1: the two small wheels and Balance (stwheel.s)
     (out / 'stwheel.inc').write_text(mkstwheel.inc())

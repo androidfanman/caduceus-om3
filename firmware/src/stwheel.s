@@ -1,38 +1,101 @@
-/* ================================================================== the Split toning strip, test w1 (feature/split-tone-row)
- * Owner (2026-11-23), mock-up C (two small wheels and the Balance slider on one screen): "its exactly what i am really
- * envisioning" -> "Yes, try it". This test only shows them; keys and storage are s1's.
- *
- * On the Split toning row's pages (P+AXIS 5 Shadows, 6 Highlights) the guide picture's place under the camera's wheel
- * (400 x 64, as the H / S / L bar: hbar.s) shows card/mkstwheel.py's strip: the Shadows wheel with a dot at its tint,
- * the Balance slider with a caret at Tone Balance and its value, the Highlights wheel; the page's wheel and label
- * white-marked. When: the wheel's readout (916 + slice) on those pages goes through tn_get, whose dial-label call
- * (vl_s) goes through st_vl -> st_rd first (as ed_get's hb_rd on the HSL pages; only with the films in, nothing at
- * start-up). st_rd builds the strip only when something on it changed, into the bar's buffer not on screen (hb_b0 /
- * hb_b1), points GDESC at it and puts the 12 hues into palette 62's entries 108..119 (hbar.s's slots). The two share
- * GDESC and the slots, so each one's new picture makes the other's key stale (hb_key, st_key). hb_gsel gives GDESC
- * back to the camera's picture on any page change, as for the bar.
- *
- * Each row: its background row (st_rows / st_tok, the page's variant) into st_row, then the four sprites over it (two
- * dots, the caret, the value; 0 = see-through), then st_row as greedy runs of up to 16 (HB_PUT), as mkstwheel.stream. */
+/* ================================================================== the Split toning panel, test w2 (feature/split-tone-row)
+ * Owner (2026-11-23), mock-up C (two wheels and the Balance slider on one screen) -> w1 (a 400 x 64 strip under the
+ * camera's wheel; camera: "the info button only switches between shadow and light, no balance, and the wheels are super
+ * small and the big wheel is still there") -> w2:
+ *  - INFO on the row steps Shadows -> Highlights -> Balance -> Shadows. Balance is the Highlights page (P+AXIS 6) with
+ *    st_bal set (hb_next): there the readout and the dial read and write Tone Balance (slot +33, -5..5) in place of
+ *    the tint (tn_get -> st_bv, tn_set -> sp_all / st_tset, then the wheel's own refresh s_cur; the readout's -5..+5
+ *    glyphs: rd_a10 / rd_b10). Arriving on the row or leaving it clears st_bal (sp_sync).
+ *  - card/mkstwheel.py's panel, 400 x 200 (the guide picture's place, raised from 400 x 64 by build.py; the H / S / L
+ *    bar is now the bottom of a 400 x 200 picture with 136 clear rows over it): the two wheels (radius 72) with their
+ *    dots left and right, the upright Balance slider with its carets in the middle; the page white-marked. The
+ *    camera's own wheel stays: the widgets take their place when Picture Mode opens, so the picture cannot be moved
+ *    over it for this row only (om-emu, research/NOTES.md).
+ * When: the readout (916 + slice) on the row's pages goes through tn_get, whose dial-label call (vl_s) goes through
+ * st_vl -> st_rd first (only with the films in, nothing at start-up). st_rd builds the panel only when something on it
+ * changed, into the bar's heap buffer not on screen (hb_b0 / hb_b1, 16 KB each now), and puts the 12 hues into palette
+ * 62's entries 108..119 (the bar's slots; each one's new picture makes the other's key stale: hb_key, st_key).
+ * Each row: its three background parts (left wheel, Balance, right wheel; the page's variant) into st_row, then the
+ * four sprites over it (two dots, the caret, the value; 0 = see-through), then st_row as greedy runs of up to 16
+ * (HB_PUT), as mkstwheel.stream. A stream that would not fit its buffer is not drawn. */
 .section .ext15,"ax"
- .include "stwheel.inc"           /* ST_*, st_rows, st_bg, st_cx, st_tok, st_dxy, st_dot, st_car, st_vtab, st_pal */
+ .include "stwheel.inc"           /* ST_*, st_rows, st_bg, st_cy, st_tok, st_dxy, st_dot, st_car, st_vtab, st_pal */
 .set ST_F, 48                     /* st_rd's frame */
+.if ST_W - HB_W || ST_H - HB_PH
+ .error "the panel and the bar share the guide's descriptor and buffers: the same size"
+.endif
  .balign 4
-st_key:                           /* what the strip on screen shows (st_rd's key), -1 none */
+st_key:                           /* what the panel on screen shows (st_rd's key), -1 none */
  .long -1
-st_v:                             /* Shadows colour, strength, Highlights colour, strength, Balance + 5, page - 5 */
+st_boff:                          /* sp_all -> st_tset: P offset of the Tone Balance byte just written */
+ .long 0
+st_v:                             /* Shadows colour, strength, Highlights colour, strength, Balance + 5, mode */
  .byte 0, 0, 0, 0, 0, 0, 0, 0
+st_bal:                           /* 1: the row's Balance step (on the Highlights page) */
+ .byte 0
+ .balign 4
 st_sp:                            /* the four sprites: u32 picture, u16 x, u16 y */
  .space 32
 st_row:                           /* the row being built */
- .space 400
+ .space ST_W
 st_rend:
  .balign 2
 
-/* st_vl <- tn_get's readout `call st_vl,[d2,d3,a2,a3],20` (was vl_s; a2 = P): the strip, then vl_s in the same frame. */
+/* st_vl <- tn_get's readout `call st_vl,[d2,d3,a2,a3],20` (was vl_s; a2 = P): the panel, then vl_s in the same frame. */
 st_vl:
  call st_rd,[d2,d3,a2,a3],ST_F
  jmp vl_s
+
+/* st_bv <- tn_get after TONEV: `add -4,sp; call st_bv,[],0; add 4,sp`, d0 = the value shown, a2 = P + 64k + 2 (axis -
+ * 5): on the Balance step (the Highlights page) d0 = Tone Balance (slot +33 = P + 64k + 65) instead. Uses d3. */
+st_bv:
+ movbu (st_bal),d3
+ cmp 0,d3
+ beq 9f
+ movbu (63,a2),d0
+ extb d0
+ cmp -5,d0
+ bge 1f
+ mov -5,d0
+1:
+ cmp 5,d0
+ ble 9f
+ mov 5,d0
+9:
+ ret [],0
+
+/* rd_a10 / rd_b10 <- rd_a / rd_b on the row's pages (jmp; d0 = 5397, a2 back): the 0..10 strength glyphs (rd10_a /
+ * rd10_b, as before), or on the Balance step the wheel's own -5..+5 ones (the stock path at rd_a5 / rd_b5, d3 = 0). */
+rd_a10:
+ movbu (st_bal),d3
+ cmp 0,d3
+ bne 1f
+ mov rd10_a,a0
+ mov 11,d3
+ jmp rda_none
+1:
+ clr d3
+ jmp rd_a5
+rd_b10:
+ movbu (st_bal),d3
+ cmp 0,d3
+ bne 1f
+ mov rd10_b,a0
+ jmp rd_b10r
+1:
+ clr d3
+ jmp rd_b5
+
+/* st_tset <- tn_set (its frame 68) when sp_all answered non-zero: 2 = Tone Balance written (st_boff) -> the wheel's
+ * refresh s_cur for that byte (dirty, saved at the next half-press); else nothing, as tn_set's own exit. */
+st_tset:
+ cmp 2,d0
+ bne 8f
+ mov (st_boff),d2
+ jmp s_cur
+8:
+ clr d0
+ ret [d2,d3,a2,a3],68
 
 /* st_code: `call st_code,[],0`, d0 = a stored strength code (byte) -> d0 = strength 0..10 (tn_set's code undone:
  * even s -> s / 2, odd s -> -(s + 1) / 2). */
@@ -66,15 +129,20 @@ st_rd:
  mov (EMARK,a2),d0
  cmp EMAGIC,d0
  bne 9f
- movbu (AXIS,a2),d3
+ movbu (AXIS,a2),d3               /* mode: 0 Shadows, 1 Highlights, 2 Balance (Highlights with st_bal) */
  add -5,d3
  cmp 2,d3
  bcc 9f
+ cmp 0,d3
+ beq 4f
+ movbu (st_bal),d0
+ add d0,d3
+4:
  movbu d3,(st_v + 5)
  movbu (EDK,a2),d0
  cmp 4,d0
  bcc 9f
- mov GDESC,a0                     /* the camera's 14 / 175 x 50 / 8 descriptor, or ours (400 x 64) */
+ mov GDESC,a0                     /* the camera's 14 / 175 x 50 / 8 descriptor, or the bar's / ours (400 x 200) */
  movhu (a0),d1
  cmp 14,d1
  bne 9f
@@ -86,15 +154,15 @@ st_rd:
  beq 3f
  bra 9f
 1:
- cmp HB_W,d1
+ cmp ST_W,d1
  bne 9f
- cmp HB_H,d2
+ cmp ST_H,d2
  bne 9f
 3:
  movhu (6,a0),d1
  cmp 8,d1
  bne 9f
- mov (16,a0),d1                   /* holding the camera's guide, ours, GUIDES.BIN's or TONES.BIN's (else leave it) */
+ mov (16,a0),d1                   /* holding the camera's guide, the bar, ours, GUIDES.BIN's or TONES.BIN's */
  cmp GSTOCK_P,d1
  beq 2f
  mov (hb_b0),d2
@@ -145,8 +213,7 @@ st_rd:
  call hb_clamp,[],0
  add 5,d0
  movbu d0,(st_v + 4)
- clr d3                           /* key: the six values, base 12 / 11 / 12 / 11 / 11 / 2 */
- mov st_v,a1
+ mov st_v,a1                      /* key: the six values, base 12 / 11 / 12 / 11 / 11 / 3 */
  movbu (a1),d3
  mov 11,d1
  mul d1,d3
@@ -164,11 +231,12 @@ st_rd:
  mul d1,d3
  movbu (4,a1),d0
  add d0,d3
- add d3,d3
+ mov 3,d1
+ mul d1,d3
  movbu (5,a1),d0
  add d0,d3
  mov d3,(20,sp)
- mov (st_key),d0                  /* nothing changed and the strip on screen: done */
+ mov (st_key),d0                  /* nothing changed and the panel on screen: done */
  cmp d0,d3
  bne 5f
  mov GDESC,a0
@@ -187,9 +255,9 @@ st_rd:
  cmp 0,d0
  beq 9f
  mov GDESC,a0
- mov HB_W,d1
+ mov ST_W,d1
  movhu d1,(2,a0)
- mov HB_H,d1
+ mov ST_H,d1
  movhu d1,(4,a0)
  mov d0,(12,a0)
  mov a1,(16,a0)
@@ -234,7 +302,7 @@ st_put:
  ret [],0                         /* (st_dotp's mul changed MDR: not retf) */
 
 /* st_dotp: `call st_dotp,[],0`, a1 = st_v + 2i (colour, strength), d1 = the wheel's middle column, a0 = st_sp's entry:
- * the dot's place (st_dxy). Uses d0, a1. */
+ * the dot's place (st_dxy). Uses d0, d2, a1. */
 st_dotp:
  movbu (a1),d0
  mov 11,d2
@@ -254,16 +322,52 @@ st_dotp:
  mov st_dot,d0
  jmp st_put
 
-/* st_join: `call st_join,[d2,d3,a2,a3],64`, a1 = a stream buffer (HB_BUF bytes): st_v's strip as mkstwheel.stream ->
- * d0 = its length, 0 when it would not fit; a1 kept. Locals (4) y, (8) the buffer, (12) its limit, (16) the
- * background's row table, (20) tokens left in a background row, (24) sprite i. */
+/* st_half: `call st_half,[],8`, a0 = a background part's table entry (u16 st_rows index), a1 = where in st_row ->
+ * its pixels; a1 after them. Uses d0, d1, a0; local (4) the tokens left. */
+st_half:
+ movhu (a0),d0
+ asl2 d0
+ mov st_rows,a0
+ add d0,a0
+ mov (a0),d0
+ mov d0,d1
+ and 255,d1
+ lsr 8,d0
+ add d0,d0
+ add st_tok,d0
+ mov d0,a0
+ cmp 0,d1
+ beq 9f
+1:
+ movhu (a0),d0
+ add 2,a0
+ mov d1,(4,sp)                    /* tokens left */
+ mov d0,d1
+ and 15,d1
+ inc d1                           /* the run */
+ lsr 4,d0                         /* the colour */
+2:
+ movbu d0,(a1)
+ inc a1
+ add -1,d1
+ bne 2b
+ mov (4,sp),d1
+ add -1,d1
+ bne 1b
+9:
+ ret [],8
+
+/* st_join: `call st_join,[d2,d3,a2,a3],64`, a1 = a stream buffer (HB_BUF bytes): st_v's panel as mkstwheel.stream ->
+ * d0 = its length, 0 when it would not fit; a1 kept. Locals (4) y, (8) the buffer, (12) its limit, (16) the page's
+ * first part table (st_bg + 2 H mode; the next parts 6 H bytes on), (20) part k, (24) sprite i. */
 st_join:
  mov a1,(8,sp)
  mov a1,d0
  add HB_BUF - 16,d0
  mov d0,(12,sp)
- movbu (st_v + 5),d0              /* the page's background: st_bg + 128 (page - 5) */
- asl 7,d0
+ movbu (st_v + 5),d0              /* the page's parts */
+ mov ST_H * 2,d1
+ mul d1,d0
  add st_bg,d0
  mov d0,(16,sp)
  mov st_sp,a0                     /* the sprites */
@@ -278,12 +382,13 @@ st_join:
  call st_dotp,[],0
  mov (24,sp),a0
  add 16,a0
- movbu (st_v + 4),d0
+ movbu (st_v + 4),d0              /* the caret: its row from Tone Balance */
  add d0,d0
- mov st_cx,a1
+ mov st_cy,a1
  add d0,a1
- movhu (a1),d1
- mov ST_CTOP,a1
+ movhu (a1),d0
+ mov d0,a1
+ mov ST_CARX,d1
  mov st_car,d0
  call st_put,[],0
  mov (24,sp),a0
@@ -297,7 +402,7 @@ st_join:
  mov ST_VY,a1
  call st_put,[],0
  mov (8,sp),a1
- mov ST_HDR,d0                    /* 400 x 64, type 11 */
+ mov ST_HDR,d0                    /* ST_W x ST_H, type 11 */
  mov d0,(a1)
  mov a1,a3
  add 4,a3
@@ -306,42 +411,26 @@ st_join:
  mov 0,a2
  clr d0
  mov d0,(4,sp)
-10:                               /* a row: its background */
+10:                               /* a row: its three background parts */
+ mov st_row,a1
+ clr d0
+ mov d0,(20,sp)
+11:
+ mov (20,sp),d1                   /* part k's entry: (16) + 6 H k + 2 y */
+ mov ST_H * 6,d0
+ mul d0,d1
  mov (4,sp),d0
  add d0,d0
- mov (16,sp),a0
- add d0,a0
- movhu (a0),d0
- asl2 d0
- mov st_rows,a0
- add d0,a0
- mov (a0),d0
- mov d0,d1
- and 255,d1
- mov d1,(20,sp)
- lsr 8,d0
- add d0,d0
- add st_tok,d0
- mov d0,a0
- mov st_row,a1
-11:
- mov (20,sp),d1
- cmp 0,d1
- beq 20f
- add -1,d1
- mov d1,(20,sp)
- movhu (a0),d0
- add 2,a0
- mov d0,d1
- and 15,d1
- inc d1                           /* the run */
- lsr 4,d0                         /* the colour */
-12:
- movbu d0,(a1)
- inc a1
- add -1,d1
- bne 12b
- bra 11b
+ add d0,d1
+ mov (16,sp),d0
+ add d0,d1
+ mov d1,a0
+ call st_half,[],8
+ mov (20,sp),d0
+ inc d0
+ mov d0,(20,sp)
+ cmp 3,d0
+ bne 11b
 20:                               /* the sprites over it */
  clr d0
  mov d0,(24,sp)
@@ -414,7 +503,7 @@ st_join:
  mov (4,sp),d0
  inc d0
  mov d0,(4,sp)
- cmp HB_H,d0
+ cmp ST_H,d0
  bne 10b
 50:                               /* zero tokens to the end of the word */
  cmp 0,a2

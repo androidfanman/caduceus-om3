@@ -31,7 +31,8 @@
 .section .ext15,"ax"
  .include "hbar.inc"              /* HB_*, hb_rows, hb_gid, hb_swr, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
-.set HB_BUF, 8192                 /* each stream buffer (worst case HB_WORST, checked by build.py) */
+.set HB_BUF, 16384                /* each stream buffer (worst case HB_WORST, checked by build.py; w2: 400 x 200, shared
+                                   * with the Split toning panel, stwheel.s) */
 .set HB_F, 48                     /* hb_rd's frame */
 .set HB_UI_INFO, 0x25             /* the GUI key codes of INFO's press and release (Delete's: 0x27, 0x29) */
 .set HB_UI_INFOR, 0x26
@@ -187,10 +188,24 @@ hb_next:
  beq 9f
  movbu (hb_last),d1
  bra 9f
-5:
- mov 6,d1                         /* split-tone row: INFO steps only on its row, Shadows <-> Highlights (sp_inf) */
- cmp 5,d0
- beq 9f
+5:                                /* split-tone row: INFO steps only on its row (sp_inf): Shadows -> Highlights -> */
+ cmp 5,d0                         /* Balance (Highlights with st_bal, stwheel.s) -> Shadows (w2) */
+ bne 6f
+ clr d1
+ movbu d1,(st_bal)
+ mov 6,d1
+ bra 9f
+6:
+ movbu (st_bal),d1
+ cmp 0,d1
+ bne 7f
+ mov 1,d1
+ movbu d1,(st_bal)
+ mov 6,d1
+ bra 9f
+7:
+ clr d1
+ movbu d1,(st_bal)
  mov 5,d1
 9:
  jmp k_set
@@ -230,7 +245,7 @@ hb_rd:
 1:
  cmp HB_W,d1
  bne 9f
- cmp HB_H,d0
+ cmp HB_PH,d0
  bne 9f
 3:
  movhu (6,a0),d1
@@ -332,14 +347,14 @@ hb_rd:
  mov GDESC,a0
  mov HB_W,d1
  movhu d1,(2,a0)
- mov HB_H,d1
+ mov HB_PH,d1
  movhu d1,(4,a0)
  mov d0,(12,a0)
  mov a1,(16,a0)
  mov a1,(hb_cur)
  mov (20,sp),d0
  mov d0,(hb_key)
- mov -1,d1                        /* the Split toning strip's picture and colours are gone (stwheel.s) */
+ mov -1,d1                        /* the Split toning panel's picture and colours are gone (stwheel.s) */
  mov d1,(st_key)
  call hb_spal,[d2,d3,a2,a3],20    /* the colour's 13 palette entries */
 9:
@@ -481,6 +496,12 @@ hb_join:
  clr d2
  clr d3
  mov 0,a2
+ mov HB_PAD * 25,d1               /* w2: the clear rows over the bar (25 runs of 16 a row, entry 0) */
+5:
+ mov 15,d0
+ HB_PUT
+ add -1,d1
+ bne 5b
  clr d0
  mov d0,(4,sp)
 10:                               /* a row: the swatch column */

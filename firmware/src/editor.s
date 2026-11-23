@@ -6156,12 +6156,11 @@ rd_a:
  movm [a2],(sp)
  TONEPG 4f                        /* uses d3, a2 (d3: the stock path sets it again) */
  movm (sp),[a2]
- mov rd10_a,a0
- mov 11,d3
- jmp rda_none
+ jmp rd_a10                       /* w2: rd10_a, or on the row's Balance step -5..+5 (rd_a5; stwheel.s) */
 4:
  movm (sp),[a2]
  clr d3
+rd_a5:
 5:
  cmp HL_IT,d0                     /* v0.28 h6 Halation 0..5: +-0, then +1..+5 (no -1..-5 entries) */
  beq 51f
@@ -6210,7 +6209,8 @@ rd_b:
  movm [a2],(sp)
  TONEPG 4f
  movm (sp),[a2]
- mov rd10_b,a0
+ jmp rd_b10                       /* w2: rd10_b, or on the row's Balance step -5..+5 (rd_b5; stwheel.s) */
+rd_b10r:
  mov 11,d3
  cmp 5,a1                         /* strength 10 (dial +5): "+10" does not fit the readout's 3 characters (the */
  bne 7f                           /* text at record +2..+7, then its flags): rd10_a gives sign 0 (the caller writes */
@@ -6228,6 +6228,7 @@ rd_b:
 4:
  movm (sp),[a2]
  clr d3
+rd_b5:
 5:
  cmp HL_IT,d0                     /* v0.28 h6 Halation (as rd_a) */
  beq 51f
@@ -11322,6 +11323,9 @@ tn_get:
 3:
  movbu (AXIS,a2),d3
  TONEV
+ add -4,sp                        /* w2: on the row's Balance step, Tone Balance instead (stwheel.s) */
+ call st_bv,[],0
+ add 4,sp
  mov d0,(a1)
  movm (sp),[d2,d3,a2]
 t_ret:                            /* emu_test: the caller's d2, d3, a2 are back here */
@@ -11346,7 +11350,9 @@ tn_set:
  call sp_all,[d2,d3,a2,a3],20     /* dial's 12 writes would leave the tint on the last colour: nothing (splitrow.s; */
  add 4,sp                         /* keeps d1, a0, a1) */
  cmp 0,d0
- bne 8f
+ beq 7f
+ jmp st_tset                      /* w2: nothing, or Tone Balance written -> its refresh (stwheel.s) */
+7:
  cmp -5,d1                        /* v0.28 t2: the dial's -5..+5 = strength 0..10 (the wheels only add a colour) */
  blt 8f
  cmp 5,d1
