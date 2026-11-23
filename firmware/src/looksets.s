@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------ look sets (feature/look-sets, ls1)
  * Film sets as files in C:\OM3MOD\LOOKS (NAME.BIN, 8.3 names, the LOOKS.BIN format), C:\OM3MOD\LOOKS.BIN the default.
- * A "Looks Set" row at the end of the wrench tab's Card/Folder/File page (page 235, build.py) lists LOOKS.BIN, then
+ * A "Film Set" row at the end of the wrench tab's Card/Folder/File page (page 235, build.py) lists LOOKS.BIN, then
  * the folder's sets by name; a pick loads that set at the next shutter event (the half-press that closes the menu).
  * Design and edge cases: research/NOTES.md "Look sets".
  *
@@ -751,7 +751,7 @@ ls_cnt:
  movhu d0,(LS_DESC + 12)
  ret [],0
 
-/* ls_txt: `call ls_txt,[d2,d3,a2,a3],24` from the debug log writer: "Look sets: in use NAME, list N (files F, walk
+/* ls_txt: `call ls_txt,[d2,d3,a2,a3],24` from the debug log writer: "Film sets: in use NAME, list N (files F, walk
  * W, T us): A | B ..., picks loaded L, last pick NAME result R" (R: 1 taken, 2 the same films, 3 no file, 4 not
  * valid, 5 no memory; 0 none yet) */
 ls_txt:
@@ -806,7 +806,7 @@ ls_txt:
  LGD
  ret [d2,d3,a2,a3],24
 lsl_1:
- .asciz "\r\nLook sets: in use "
+ .asciz "\r\nFilm sets: in use "
 lsl_2:
  .asciz ", list "
 lsl_3:
@@ -875,7 +875,7 @@ ls_res:
  .byte 0
  .balign 4
 
-/* The menu row (build.py fills the page copies): page 235 "Card/Folder/File" gets "Looks Set" (1290) at its end. */
+/* The menu row (build.py fills the page copies): page 235 "Card/Folder/File" gets "Film Set" (1290) at its end. */
 lsm_lab:
  .space 7 * 12
 lsm_hlp:
@@ -897,7 +897,7 @@ lsm_vl:                           /* the row's texts per value: {u32 value, u16 
  .long ls_tx + 12 * \k
  .endr
 lss_title:
- .asciz "Looks Set"
+ .asciz "Film Set"
 lss_help:
  .asciz "The film set in use. Sets: OM3MOD\\LOOKS\\NAME.BIN (8 letters). Loads at the next half-press."
  .balign 4

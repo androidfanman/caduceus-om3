@@ -118,7 +118,7 @@ The gate and the digest have unit tests that need no firmware:
 | `halation-dial-steps-as-contrast` | The same for the Halation row, after Contrast: rear +1 up, front +1 down (experiment/perf-040, 2026-11-18) |
 | `tone-balance-dial-steps-as-contrast` | The same for the Split Tone Balance row, after Contrast: rear +1 up, front +1 down (experiment/perf-040, 2026-11-18) |
 | `grain-dial-steps-as-contrast` | The same for the Film Grain row, after Contrast: rear +1 up, front +1 down, and the debug log names the strength it ends on (experiment/perf-040, 2026-11-18) |
-| `look-set-row-lists-the-folder` | Look sets: the Looks Set row lists LOOKS.BIN, then `OM3MOD/LOOKS/*.BIN` by name (a .TXT left out) |
+| `look-set-row-lists-the-folder` | Film sets: the Film Set row lists LOOKS.BIN, then `OM3MOD/LOOKS/*.BIN` by name (a .TXT left out) |
 | `look-set-pick-loads-at-the-half-press-and-stays` | A pick loads at the next half-press (#86's new-set path) and stays after a power-off; a new `OM3MOD/LOOKS.BIN` is then not taken by itself |
 | `look-set-film-3-made-from-the-new-set` | COLOR 1 on FILM 3: after a switch it shows the new set's FILM 3, no '*' |
 | `look-set-not-valid-keeps-the-films` | A file that fails the check: the films stay, the row goes back to the set in use (1290 = 9) |

@@ -150,14 +150,14 @@ hold OK on it in Picture Mode.
 
 More on LookLab: [how to use it](CONTROL_PANEL.md).
 
-## Several film sets on one card: Looks Set (look sets, in testing)
+## Several film sets on one card: Film Set (film sets, in testing)
 
 Keep more than one set of films on the card and switch between them from the menu.
 
 1. Make a folder **`LOOKS`** inside `OM3MOD` and save each set there as **`NAME.BIN`** (a `LOOKS.BIN` from LookLab,
    renamed). Names: up to 8 letters or digits, then `.BIN`, for example `PORTRA.BIN`. Longer names may not show.
 2. Switch on and half-press once: the camera reads the folder.
-3. **MENU > wrench tab > 1. Card/Folder/File > Looks Set**: pick a set. It loads at your next half-press.
+3. **MENU > wrench tab > 1. Card/Folder/File > Film Set**: pick a set. It loads at your next half-press.
 
 `LOOKS.BIN` (the one in `OM3MOD` itself) is always first in the list and is the default. What to expect:
 
@@ -211,7 +211,7 @@ labels and guides are part of the firmware. The card only brings films in, in th
 | File | What it is | Where it comes from |
 |---|---|---|
 | `LOOKS.BIN` | Films FILM 1–20, with their names: the camera takes them once, if it never had that set | The release or LookLab |
-| `LOOKS/NAME.BIN` | More film sets, picked in MENU > Card/Folder/File > Looks Set (look sets, in testing) | LookLab (a `LOOKS.BIN`, renamed) |
+| `LOOKS/NAME.BIN` | More film sets, picked in MENU > Card/Folder/File > Film Set (film sets, in testing) | LookLab (a `LOOKS.BIN`, renamed) |
 | `EDITS.BIN`, `BUNDLES.BIN` | Your changes and Extras from versions before v0.29: copied into the camera at the first start | Written by the camera before v0.29 |
 | `GUIDES.BIN`, `LABELS.BIN`, `TONES.BIN` | Code, labels and guides of versions before v0.29 (ignored from v0.29) | The release, before v0.29 |
 

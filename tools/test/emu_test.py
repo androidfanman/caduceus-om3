@@ -382,7 +382,7 @@ def fv_not_run(hits):
     return [f'fv_add ran {len(hits)} times with no menu opened'] if hits else []
 
 
-# Look sets (looksets.s): the "Looks Set" row, last on the wrench tab's Card/Folder/File page, where a fresh camera's
+# Look sets (looksets.s): the "Film Set" row, last on the wrench tab's Card/Folder/File page, where a fresh camera's
 # menu opens, and again after each power-off (4 downs). OK opens the dropdown with the cursor on the
 # set in use; a pick ends with OK and the menu closes; the set loads at the next half-press. Setting 1290's values per
 # entry: 9 (LOOKS.BIN), 6, 3341, ... (looksets.s lsm_keys). Sets on the card: LOOKS/NAME.BIN.
@@ -390,8 +390,8 @@ LS_OPEN_FRESH = 'menu wait down wait down wait down wait down wait ok wait'
 LS_SCREEN = 'ok wait menu wait wait'   # a screen change after a load: #86 makes the COLORs at the next screen event
 LS_DONE = 'ok wait menu wait wait'
 LS_SETS = {'LOOKS/PORTRA.BIN': 'LOOKS_P', 'LOOKS/VELVIA.BIN': 'LOOKS_ONE', 'LOOKS/NOTES.TXT': 'LOOKS_P'}
-LS_LINE = lambda use, rest='': rf'^Look sets: in use {use}, {rest}'
-LS_PICKED = lambda name, n, res: rf'^Look sets: .*picks loaded {n}, last pick {name} result {res}$'
+LS_LINE = lambda use, rest='': rf'^Film sets: in use {use}, {rest}'
+LS_PICKED = lambda name, n, res: rf'^Film sets: .*picks loaded {n}, last pick {name} result {res}$'
 NEW_SET_20 = r'^New film sets taken this power-on: 1, films changed in the last 20 of 20, '
 NO_NEW_SET = r'^New film sets taken this power-on: 0, '
 LS_PICK_PORTRA = f'wait wait s1 wait wait {LS_OPEN_FRESH} down wait {LS_DONE} s1 wait wait'
@@ -1229,7 +1229,7 @@ TESTS = {
     'firmware-version-line-not-at-start-up': [
         Boot('wait poweroff', watch=('fv_add',), hits=fv_not_run),
     ],
-    # Look sets: the row lists LOOKS.BIN, then the folder's .BIN sets by name (NOTES.TXT left out).
+    # Film sets: the row lists LOOKS.BIN, then the folder's .BIN sets by name (NOTES.TXT left out).
     'look-set-row-lists-the-folder': [
         Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} {LS_DONE} s1 wait poweroff',
              expect=[LS_LINE(r'LOOKS\.BIN', r'list 3 \(files 2, walk 0, \d+ us\): LOOKS\.BIN \| PORTRA \| VELVIA \| picks loaded 0, ')],
