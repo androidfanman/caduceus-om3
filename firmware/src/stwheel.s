@@ -67,31 +67,58 @@ st_rend:
  .endm
 
 /* st_place: `call st_place,[d2,d3,a2,a3],28`, d0 = 1 the panel's places / 0 the camera's -> d1 = 1 done, 0 nothing
- * changed. The screen's widget parent: (ST_GUI) -> (+0xdc); its children (st_wt): the guide picture's widget (0x3c7)
- * goes to the panel's place, at the right of the screen where the camera's wheel was; the camera's button frame
- * (0x3c6) to 4 x 4 pixels under the Shadows wheel's middle (it would show where the bar was); and the camera's own
- * column there (the two dial marks, "Color" and its swatch, the page label, its value and its mark, Reset's two) ST_DX
- * to the left, beside the panel. Each widget only if it checks out (st_w1); the picture's decides the answer. om-emu,
- * 2026-11-23. Uses d0, d1, a0, a1. */
+ * changed. The widgets (st_wt): the guide picture's (0x3c7) goes to the panel's place, at the right of the screen
+ * where the camera's wheel was; the camera's button frame (0x3c6) to 4 x 4 pixels under the Shadows wheel's middle (it
+ * would show where the bar was); and the camera's own column there (the two dial marks, "Color" and its swatch, the
+ * page label, its value and its mark, Reset's two) ST_DX to the left, beside the panel. Each widget only if it checks
+ * out (st_w1); the picture's decides the answer.
+ * Where they are (w6): w4 / w5 went from (ST_GUI) through its +0xdc to the widgets' parent, as om-emu has it; on the
+ * camera (ST_GUI) is the same address as om-emu's, 0x62c5a140, but its +0xd0..+0xe0 and +0x130 are 0 (camera-tested,
+ * w5's readout). So each widget is looked for by what it is, in the heap from (ST_GUI) - 0x4000 to + 0xc000 (om-emu
+ * has them at + 0x7f8..+ 0x1838), once, and remembered (st_wp; 1 = not there). A remembered one is checked again
+ * before every use; when the picture's has to be found anew (a new screen), the others are forgotten. Uses d0, d1,
+ * a0, a1. */
 st_place:
  mov d0,d3
- mov (ST_GUI),d0
- ST_HP d0, 8f
- mov d0,a0
- mov (0xdc,a0),d0
- ST_HP d0, 8f
- mov d0,(st_par)
  mov st_wt,a1
+ mov st_wp,a0
+ mov a0,(st_wpc)
+ mov (a0),d0                      /* the picture's is always looked for */
+ cmp 1,d0
+ bne 1f
+ clr d0
+ mov d0,(a0)
+1:
+ mov (a0),d0
+ mov d0,(st_old)
  call st_w1,[],4
  cmp 0,d1
  beq 8f
-1:
+ mov (st_wp),a0
+ mov (0x14,a0),d0
+ mov d0,(st_par)
+ mov (st_wp),d0                   /* found anew: the others too */
+ mov (st_old),d1
+ cmp d0,d1
+ beq 3f
+ mov st_wp + 4,a0
+ mov ST_NW - 1,d1
+ clr d0
+2:
+ mov d0,(a0)
+ add 4,a0
+ add -1,d1
+ bne 2b
+3:
  add 40,a1
  cmp st_wte,a1
- beq 2f
+ beq 4f
+ mov (st_wpc),a0
+ add 4,a0
+ mov a0,(st_wpc)
  call st_w1,[],4                  /* (keeps a1, d3) */
- bra 1b
-2:
+ bra 3b
+4:
  mov 1,d1
  ret [d2,d3,a2,a3],28
 8:
@@ -113,8 +140,16 @@ st_place:
  .long (\xv + ST_DX) | (\y << 16), (\xr + ST_DX) | (\y << 16), \w | (\h << 16)
  .endm
  .balign 4
-st_par:                           /* the widget parent (st_place -> st_w1) */
+st_par:                           /* the picture widget's parent word (+0x14) */
  .long 0
+st_wpc:                           /* st_place -> st_w1: the widget's st_wp word */
+ .long 0
+st_old:                           /* st_place: the picture's st_wp word before the call */
+ .long 0
+st_end:                           /* st_w1: where its search ends */
+ .long 0
+st_wp:                            /* per st_wt entry: its widget (0 not looked for yet, 1 not there) */
+ .space 4 * ST_NW
 st_wt:
  .long 0x344, ST_WID, ST_WVT, 0x140              /* the guide picture: the bar's place, the panel's */
  .long ST_BARV, ST_BARR, ST_BARS
@@ -132,36 +167,30 @@ st_wt:
  ST_WT 0x338, 0x3be, 524, 604, 528, 180, 50    /* Reset */
  ST_WT 0x33c, 0x3bf, 524, 604, 528, 180, 50
 st_wte:
+.set ST_NW, 11                     /* (st_wte - st_wt) / 40 */
 
-/* st_w1: `call st_w1,[],4`, a1 = the widget's st_wt entry, d3 = 1 the panel's place / 0 the camera's, (st_par) the
- * parent -> d1 = 1 written, 0 not. The child must have the entry's method table and id word and hold one of the
- * entry's two places in its copy of the rectangles; +8 is the rectangle in use (viewfinder or rear screen), +12 its
- * size. Keeps a1, d3; uses d0, d1, d2, a0, a2, a3. */
-st_w1:
- mov (st_par),a0                  /* w5: the child with the entry's method table and id word in any of the parent's */
- add 0x300,a0                     /* slots +0x300..+0x35c (w4 took the slot om-emu has it in) */
- mov 24,d2
-0:
- mov (a0),d0
- ST_HP d0, 7f
- mov d0,a2
+/* st_wck: `call st_wck,[],4`, a2 = an object, a1 = a st_wt entry -> d1 = 1 when it has the entry's method table and
+ * id word, is the picture widget's sibling (or it) and holds one of the entry's two places in its copy of the rectangles (a3 = that copy: (0) viewfinder, (4)
+ * size, (8) rear screen, (12) size), else 0. Uses d0, d1, d2, a0, a3. */
+st_wck:
  mov (a2),d0
  mov (8,a1),d1
  cmp d1,d0
- bne 7f
+ bne 8f
  mov (4,a2),d0
  mov (4,a1),d1
  cmp d1,d0
- beq 9f
-7:
- add 4,a0
- add -1,d2
- bne 0b
- bra 8f
-9:
+ bne 8f
+ cmp st_wt,a1                     /* the others: the picture widget's own siblings (the same parent word, +0x14; */
+ beq 0f                           /* other screens have the same marks, labels and Reset at the same places) */
+ mov (0x14,a2),d0
+ mov (st_par),d1
+ cmp d1,d0
+ bne 8f
+0:
  mov (12,a1),d0
  mov a2,a3
- add d0,a3                        /* its copies: (0) viewfinder, (4) size, (8) rear screen, (12) size */
+ add d0,a3
  mov a1,a0
  add 16,a0
  mov 2,d2
@@ -185,7 +214,55 @@ st_w1:
  add 12,a0
  add -1,d2
  bne 1b
+8:
+ clr d1
+ ret [],4
+3:
+ mov 1,d1
+ ret [],4
+
+/* st_w1: `call st_w1,[],4`, a1 = the widget's st_wt entry, (st_wpc) its st_wp word, d3 = 1 the panel's place / 0 the
+ * camera's -> d1 = 1 written, 0 not. The remembered object if it still checks out (st_wck), else the first object in
+ * the heap from (ST_GUI) - 0x4000 to + 0xc000 that does; then its rectangles: the copies and the one in use (+8, +12).
+ * Keeps a1, d3; uses d0, d1, d2, a0, a2, a3. */
+st_w1:
+ mov (st_wpc),a0
+ mov (a0),d0
+ cmp 1,d0
+ beq 8f
+ ST_HP d0, 2f
+ mov d0,a2
+ call st_wck,[],4
+ cmp 0,d1
+ bne 3f
+2:
+ mov (ST_GUI),d0
+ ST_HP d0, 7f
+ add -0x4000,d0
+ mov d0,a2
+ add 0x10000,d0
+ mov d0,(st_end)
+4:
+ mov (a2),d0
+ mov (8,a1),d1
+ cmp d1,d0
+ bne 5f
+ call st_wck,[],4
+ cmp 0,d1
+ bne 6f
+5:
+ add 4,a2
+ mov (st_end),d0
+ cmp d0,a2
+ bne 4b
+7:
+ mov (st_wpc),a0                  /* not there */
+ mov 1,d0
+ mov d0,(a0)
  bra 8f
+6:
+ mov (st_wpc),a0
+ mov a2,(a0)
 3:
  mov (8,a2),d0                    /* in use: the viewfinder's (d2 = 1) or the rear screen's (0) */
  mov (a3),d1
@@ -489,10 +566,9 @@ st_rd:
  * When st_place does not find the guide picture's widget, the bar's place (400 x 64) shows 7 lines of 7 hex words
  * (st_hexf, 5 x 7 digits, white on black) for a photo of the screen:
  *  line 1: (ST_GUI), then its +0xdc, +0xd0, +0xd4, +0xd8, +0xe0, +0x130
- *  lines 2, 3: the parent's (+0xdc's) slots +0x310..+0x344
- *  line 4: slot +0x344's object: +0, +4, +8, +12, +0x140, +0x144, +0x148; line 5: slot +0x324's, the same;
- *  line 6: slot +0x330's: +0, +4, +8, +12, +0xc0, +0xc4, +0xc8; line 7: slot +0x340's, as line 4.
- * EEEEEEEE: not read (the pointer before it is not a heap address). */
+ *  line 2: in the heap st_w1 searches: picture-widget method tables seen, those with the guide picture's id word,
+ *  the last of those; line 3: that object's +0, +4, +8, +12, +0x140, +0x144, +0x148.
+ * EEEEEEEE: not read. (w5 read the parent's slots instead: on the camera the parent pointer is 0.) */
  .balign 4
 st_dw:
  .space 49 * 4
@@ -510,7 +586,7 @@ st_drend:
 st_dst:                           /* 0 the panel not asked for yet, 1 st_place moved the widgets, 2 it found none (st_dw) */
  .long 0
 st_ls:
- .asciz "\r\nSplit toning panel (w5; 1 placed, 2 not found, then st_diag's 49 words): "
+ .asciz "\r\nSplit toning panel (w6; 1 placed, 2 not found, then st_diag's 49 words): "
 st_lnl:
  .asciz "\r\n  "
 st_lsp:
@@ -594,23 +670,34 @@ st_diag:
  mov 6,d2
  mov st_dw + 4,a1
  call st_dcp,[],4
- mov (st_dw + 4),d0
- ST_HP d0, 5f
+ mov (st_dw),d0                   /* the heap st_w1 searches: how many picture-widget tables ([7]), how many with */
+ add -0x4000,d0                   /* the guide picture's id word ([8]), the last of those ([9]) and its words (line 3) */
  mov d0,a0
- add 0x310,a0
- mov st_dw + 28,a1
- mov 14,d2
+ add 0x10000,d0
+ mov d0,(st_end)
+ clr d2
+ clr d3
+ clr d0
+ mov d0,a1
 2:
  mov (a0),d0
- mov d0,(a1)
+ cmp ST_WVT,d0
+ bne 3f
+ inc d2
+ mov (4,a0),d0
+ cmp ST_WID,d0
+ bne 3f
+ inc d3
+ mov a0,a1
+3:
  add 4,a0
- add 4,a1
- add -1,d2
+ mov (st_end),d0
+ cmp d0,a0
  bne 2b
- ST_DW 20, st_doa, 21
- ST_DW 12, st_doa, 28
- ST_DW 15, st_dob, 35
- ST_DW 19, st_doa, 42
+ mov d2,(st_dw + 28)
+ mov d3,(st_dw + 32)
+ mov a1,(st_dw + 36)
+ ST_DW 9, st_doa, 14
 5:
  mov (8,sp),a1
  mov HB_HDR,d0                    /* 400 x 64, type 11 */
