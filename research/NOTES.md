@@ -10121,3 +10121,5 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   camera's own wheel above (not drawn there), so whether the small wheels' colour order matches it is a camera check.
 - Package: `test-builds/2026-11-23-split-tone-strip-1` (E1479999.BIN 67000f45…9156, GUIDES.BIN 34288c71…16af). Not on
   p3 (picture-mode branch, on the card): no five-point curve, Delete still steps H / S / L.
+- Suite (w1, built twice the same): 140 pass, 0 known, 1 FAIL static:changed-bytes, the same 12 runs as s2 (no new site).
+  It needs ~22.5 KB of .ext15; p3 (5632fad) has ~900 B free there, so it cannot go on p3 as it is (cad, 2026-11-23).
