@@ -9941,6 +9941,69 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
   the same byte for byte: E1479999.BIN 3f8a6093…1d63, GUIDES.BIN a8399cb7…8c52 (LABELS / TONES as beta 4). Suite
   (om-emu at the pin): 132 pass, 1 FAIL = static:changed-bytes (the 11 sites above, not yet in hooks.json).
 
+## The H / S / L bar, round 3 (h3): solid colours, 400 x 64 on one centre line (2026-11-22; emulator only, camera test pending; branch experiment/wheel-hsl-view)
+- **h2 camera result (owner, 2026-11-22):** "it works well" (camera-tested: bar, Delete, INFO; CADLOG nothing unusual).
+  Round 3 asked (owner): "the gradients look....bad. not smooth at all, and still a bit on the smallish side"; "they
+  arent inline vertically with the color square to the left". The owner's photo: h2's ground (palette 72 =
+  0x11282828) is almost clear on the camera (the live view shows through); the sliders sat low and short; the
+  alternating-row mixes read as rough stripes.
+- **The guide plane's palette (static + om-emu):** GUI palettes are records {count, colours} in a table from 0x60379538
+  (id 0 there); the guide's is id 62, record 0x614a6bf0 -> 256 ARGB words at 0x614a67f0. Entries 108..120 and
+  128..255 are 0x01010101 (not drawn). om-emu, all 141 made opaque magenta: none of 21 stock screens changed (live view
+  x 3 info views, Super Control Panel, Picture Mode rows, the wheel and its tint pages, menus on 5 tabs, playback).
+  But only entries 0..127 reach the screen: GPISetPalette (0x610f717b; om-emu ports E147 0x510d615b) is called with 256
+  and writes each entry through osddraw, yet om-emu's VSC palette bank holds 0 at 128..255 after it (whether the
+  camera's hardware takes 256 is not known: not used). So 13 free entries: **108..120**. Not enough for fixed
+  per-colour ramps (12 colours x 9 shades), and a fixed set cannot follow the Hue value.
+- **So the bar sets its colours when it draws (hbar.s hb_spal):** the picture always uses entries 108..120 (108 the
+  colour, 109..111 S: 25 / 50 / 75 % of the colour over grey, 112..115 L: 1/3, 2/3 of the colour and 1/3, 2/3 of the
+  way to white, 116..120 H: the slice's hue -22, -11, 0, +11, +22 degrees); each new bar writes the colour's 13 (table
+  hb_pal, per slice and Hue value, card/mkhbar.py argb) into palette 62's table (0x614a69a0.., so the camera's own
+  later loads of palette 62 carry them) and calls GPISetPalette(d0 108, d1 13, a1 the 13 words) with a GUI layer of
+  our own (hb_lobj: (72) -> the layer number, as om-emu's set_palette builds it). The layer is **1**: the layer
+  numbers' plane table 0x6135cce0 gives layer 0 -> osddraw plane 1, layer 1 -> plane 2, and om-emu's banks that hold
+  palette 62 are plane 2's (a first try with layer 0 wrote another plane's spare entries; nothing showed). The layers'
+  entry limits (0x6135ccf0: 256, 256, 64) pass 108 + 13. GPISetPalette is the end of every GUI palette load (the
+  wrapper at 0x610f4437 converts the colours first when the layer object's byte 661 is set; ours is 0, as om-emu's
+  layer 2 object at the start-up loads). Nothing at start-up: hb_spal runs only from hb_rd (the wheel's redraw, films
+  in). After the wheel the 13 entries keep the last colour; nothing else draws with them.
+- **The bar (card/mkhbar.py, firmware/src/hbar.s):** 400 x 64 (guide widgets (116 / 157, 514, 400, 64): raised 14 px,
+  the bottom edge where it was). Everything symmetric about the middle row line (31.5): swatch 38 x 38 (colour
+  34 x 34, rows 15..48); values cap 20 (rows 22..41), the page's in a white box (rows 14..49); gradients 64 x 34 in a
+  1-px outline (rows 14..49), H 5 bands, S 5 (grey, 25, 50, 75 %, the colour), L 7 (black .. the colour .. white),
+  each band one solid colour; carets above and below at the value's column (mirror images). Every row of the picture
+  is 7 fixed token parts (no colour in the picture any more): the stream depends on the values and the page only.
+  Worst stream 6,940 B (two 8 KB heap buffers). ext15 64,168 / 139,264.
+- **Cost (om-emu, instructions to GDESC's draw):** as h2 (Hue click 737,975 against h2's 736,747 and beta 4's 631,909
+  in the same script: +17 %; colour step 726,120; page change by Delete 1,375,829). The palette call adds about 1,000.
+- **Behaviour that differs from h2 (and so from beta 4, besides h2's list):** (1) the bar is 64 high and 14 px higher
+  (bottom where it was); the camera's own guides in that box (Shadows / Highlights [INFO], the stock "Color All
+  [INFO]" without films) sit 7 px higher (centred in it). (2) H, S and L are solid bands (5, 5, 7) instead of 11
+  mixed steps; carets above and below in place of the mark under. (3) palette 62's entries 108..120 change at run
+  time (unused by the camera).
+- **Tests:** `color-wheel-hsl-bar-shows-the-colour` (byte for byte, now 400 x 64; Shadows' guide back at 175 x 50),
+  new `color-wheel-hsl-bar-sets-its-own-colours` (the 13 words in palette 62's table for colour 1 Hue 0, Hue +2, colour
+  2; the swatch's middle differs from the bar's clear ground on the rear screen): passes on h3, fails on h2 (caught).
+- **Not known until the camera:** that the camera's guide is on GUI layer 1 as in om-emu (if not, the bands show
+  clear: the bar empty but harmless); whether the palette change shows at once (om-emu: the new bar and its colours in
+  the same frame); the colours' look on the real screen.
+- **Package h3:** VERSION "v0.40.3-h3 (beta 4 + H/S/L bar 3, own colours)", firmware from commit 52c0219, built twice,
+  the same byte for byte: E1479999.BIN bd6df55e…7916, GUIDES.BIN ee33c64e…05a1 (LABELS / TONES as beta 4). Suite
+  (om-emu at the pin): 133 pass, 1 FAIL = static:changed-bytes (h2's sites, still not in hooks.json; no new site).
+
+## The H / S / L bar, h4: Delete in the bar's order (2026-11-22; emulator only, camera test pending)
+- **Owner, 2026-11-22 (on h3):** "that looks great! The only thing id change is when you click the delete button to
+  cycle through the H/S/L it goes backwards. it should go from h to s to l."
+- **Change (hbar.s hb_next, Delete branch only):** Hue -> Saturation -> Luminance -> Hue (P+AXIS 2 -> 0 -> 1 -> 2),
+  the bar's left-to-right order; h2 / h3 went Saturation -> Hue -> Luminance. The wheel still opens on Saturation (the
+  camera's), so Delete from there goes to Luminance, then Hue. INFO unchanged.
+- **Tests:** `color-wheel-delete-steps-hue-saturation-luminance` (renamed from `...-saturation-hue-luminance`, the new
+  order) caught on h3 (`--without`); the tests that reach Hue by Delete press it twice; the INFO test's HSL page is
+  Luminance now.
+- **Package h4:** VERSION "v0.40.3-h4 (beta 4 + H/S/L bar 3, Delete H-S-L)", firmware from commit 8fdc37c, built
+  twice, the same byte for byte: E1479999.BIN 211d7fc8…07fd, GUIDES.BIN 2cf26bb9…8d34. Suite (om-emu at the pin):
+  133 pass, 1 FAIL = static:changed-bytes (h2's sites, still not in hooks.json; no new site).
+
 ## The Split toning row, s1: Shadows / Highlights on their own Picture Mode row (2026-11-22; camera-tested by the owner 2026-11-22; branch feature/split-tone-row from wheel-hsl-view h3 = 52c0219)
 
 **Camera result (2026-11-22):** s1 on the owner's OM-3 (card files matched the package's sha256). Owner: "That's
