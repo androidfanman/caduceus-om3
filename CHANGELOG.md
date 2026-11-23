@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.41-alpha](#v041-alpha-test-version) | 2026-11-23 (test version) | New Picture Mode pages: the H / S / L bar on the colour wheel, a five-point tone curve (Blacks and Whites in Highlight & Shadow), Split toning on its own row with Balance |
 | [v0.40.3](#v0403) | 2026-11-23 | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26) and faster Halation; WB compensation kept apart for films and the camera's own picture modes (#99); fixes: Film Grain on Drive Priority (#91), Magnify in the crop modes (#97), each photo's own film in playback (#93), Delete's long press (#101) |
 | [v0.40.3-beta4](#v0403-beta4-test-version) | 2026-11-21 (test version) | WB compensation kept apart for films and the camera's own picture modes: no half-press needed, the camera's own setting never written by us |
 | [v0.40.3-beta3](#v0403-beta3-test-version) | 2026-11-21 (test version) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99); Delete's long press (#101). Replaces beta2 |
@@ -53,6 +54,21 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.41-alpha (test version)
+An early test version (a GitHub pre-release; v0.40.3 stays the current version). v0.40.3 with the new Picture Mode
+pages, camera-tested 2026-11-23 (test build p4, the build before its release name).
+- **Colour wheel: the H / S / L bar** under the wheel shows the selected colour's Hue, Saturation and Lightness
+  together. INFO steps H, S, L; the front dial past the first colour gives all colours ("Sat. All"); Delete does
+  nothing on the wheel.
+- **Highlight & Shadow: a five-point tone curve.** Blacks and Whites are the curve's end points on a new Blk / Wht
+  page (INFO: Sh / Hi, Mid, Blk / Wht), with all five values in the top line. The row's "*" and the held-OK reset go
+  by the film's own values.
+- **Split toning on its own row** under the colour wheel, with a bar for the tint's colour, Shadows, Balance and
+  Highlights (INFO steps them). On Balance the rear dial sets Tone Balance.
+- The Blacks / Whites row and the Tone Balance row are gone from Picture Mode's list (they live on the pages above);
+  films' saved values are kept.
+- The Firmware Version screen shows "0.41-a1".
 
 ## v0.40.3
 2026-11-23. v0.40.2 plus everything from the v0.40.3 test versions; camera-tested as v0.40.3-beta4 (the build before

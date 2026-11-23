@@ -10690,3 +10690,14 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
   code it moves differ from beta4). Feedback on beta4 before release: crombach on #99, "does seem to work as you
   outlined"; the WB menu's stars on a film with a shift are cosmetic.
 
+
+## v0.41-alpha (2026-11-23; camera-tested as p4)
+- Owner (camera, p4, 2026-11-23): "That is brilliant!!!! Ok. Lets put this out as an alpha build on github .41".
+- Branch `try/v0.41-alpha` = `try/picture-mode-4` (p4: p3 + the Split toning bar w8 + no wheel on Balance + no Tone
+  Balance row; firmware commit 3cc4340) + main (v0.40.3: docs and release folders only, no firmware change) + VERSION
+  "v0.41-a1 (alpha: H/S/L bar, 5-point curve, Split toning)" (the short name is at most 9 letters). E1479999.BIN
+  b56d0236…8ed2 (GUIDES / LABELS / TONES built in); `patch.py --release v0.41-alpha` rebuilds it byte for byte. Card
+  files as v0.40.3. The release-name build itself was not flashed (the version name and the code it shifts differ
+  from p4).
+- `static:changed-bytes` still lists the Picture Mode pages' patch sites (p1's, w8's): `tools/test/hooks.json` is not
+  updated yet (it waits for a review of each site and the owner's OK).
