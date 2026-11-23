@@ -10096,3 +10096,6 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   after a visit to the row. Emulator only.
 - **Tests:** as s1, the wheel tests in h4's order (`color-wheel-delete-steps-hue-saturation-luminance`, caught on s1).
 - **No new hook or patch site** against s1 + h4.
+- **Package s2:** VERSION "v0.40.3-s2 (h4 + Split toning row)", firmware from commit fc27086, built twice, the same
+  byte for byte: E1479999.BIN 40699f65…a347, GUIDES.BIN 0935a569…43d7. Suite (om-emu at the pin): 139 pass, 0 known,
+  1 FAIL = static:changed-bytes (h2's 11 sites and s1's 15 runs, not in hooks.json; no new site).
