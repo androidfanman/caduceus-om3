@@ -31,12 +31,9 @@
 b5_hs:
  movbu (b5_pg),d0
  mov d0,(cv_on)
- cmp 0,d0
- beq 1f
- mov (cv_gen),d0
+ mov (cv_gen),d0                  /* test 5: on every page (the curve picture is ours on all three) */
  inc d0
  mov d0,(cv_gen)
-1:
  mov 1,d0                         /* test 3: on the row (b5_lk lays the header out), and the film with its Sh / */
  movbu d0,(b5_row)                /* Mid / Hi for the header's greyed values */
  call b5_rd,[d2,d3,a2,a3],36
@@ -671,7 +668,7 @@ b5_star:
  * 1, 2 flat. cv_draw doubles the step for this page (2 CV_STEP: +-7 = +-16 %, about the camera's own curve's bend).
  * Then cv_draw's locals: (4) k, (44) the record, (8) colour 0, (12) no selected point -> cvd_go. */
 b5_dr:
- mov (cv_k),d0
+ mov (b5_fk),d0                   /* test 5: the film of the row (cv_k is only set on the Blk / Wht page) */
  and 3,d0
  mov d0,(4,sp)
  mov b5_rec,a1
@@ -716,6 +713,74 @@ b5_dr:
  mov d0,(12,sp)
  jmp cvd_go
 
+/* ---- test 5 (owner, 2026-11-22, camera p1: "the black and white values dont show up on the curve when it is on
+ * shad/high or mid mode"): the one curve through all five points on the camera's own Sh / Hi and Mid pages too.
+ * There the camera draws (om-emu, p1) its graph 4145, then the Mid curve's object (4177..4191 white on the Mid page,
+ * 4192..4206 grey on Sh / Hi), then the Sh and Hi halves' objects (4147..4161 white, 4162..4176 grey), the crosses
+ * being part of the white pictures. On a film's H&S row (b5_row, b5_fk) the halves get the clear picture and the Mid
+ * curve's object ours (cv_pic), as on the RGB / Mix / Blk-Wht pages; the Mid object's id says which page it is, so
+ * which points are drawn big (b5_mk, bit = point 0..4: 0x0a Sh / Hi, 0x04 Mid, 0x11 Blk / Wht).
+ * b5_c0 <- cv_ic with cv_on 0 (d0 the id, kept; d1 the id; a0 free): -> the slot (`retf`), or on to cv_ic8. */
+.section .ext13,"ax"
+b5_c0:
+ cmp 4147,d1
+ bcs 9f
+ cmp 4207,d1
+ bcc 9f
+ mov (b5_fk),d1
+ cmp 0,d1
+ blt 9f
+ movbu (b5_row),d1
+ cmp 0,d1
+ beq 9f
+ mov d0,d1
+ exthu d1
+ cmp 4177,d1
+ bcc 1f
+ mov cv_ent,a0                    /* a half: clear */
+ retf [],0
+1:
+ cmp 4192,d1
+ bcc 2f
+ mov 0x04,d1
+ bra 3f
+2:
+ mov 0x0a,d1
+3:
+ movm [d2],(sp)
+ movbu (b5_mk),d2
+ cmp d1,d2
+ beq 4f
+ movbu d1,(b5_mk)
+ mov (cv_gen),d1
+ inc d1
+ mov d1,(cv_gen)
+4:
+ movm (sp),[d2]
+ jmp cv_pic
+9:
+ jmp cv_ic8
+
+/* b5_cd (`call b5_cd,[d2,d3,a2,a3],20`, from cv_pic in place of cv_draw): on the camera's two pages (cv_on 0) the
+ * picture is drawn as the Blk / Wht page's (cv_on 3 for the length of cv_draw), with b5_c0's big points */
+b5_cd:
+ mov (cv_on),d2
+ cmp 3,d2
+ bne 1f
+ mov 0x11,d0
+ movbu d0,(b5_mk)
+1:
+ cmp 0,d2
+ bne 2f
+ mov 3,d0
+ mov d0,(cv_on)
+2:
+ call cv_draw,[d2,d3,a2,a3],128
+ mov d2,(cv_on)
+ ret [d2,d3,a2,a3],20
+b5_mk:
+ .byte 0
+.section .ext15,"ax"
  .balign 4
 b5_fk:                            /* the film k at the last INFO off our pages, -1 not a film */
  .long -1

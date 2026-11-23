@@ -1395,7 +1395,9 @@ cv_ic_hd:
  exthu d1
  mov (cv_on),a0
  cmp 0,a0
- beq 8f
+ bne 121f
+ jmp b5_c0                        /* five-point curve test 5: a film's own H&S pages (-> a slot, or cv_ic8) */
+121:
  cmp 10912,d1                     /* mix test 6, a backstop: the middle look's full dial pictures (10912 / 10913, */
  beq 13f                          /* 10919) cleared on our pages, by any lookup */
  cmp 10913,d1
@@ -1463,6 +1465,7 @@ cv_ic_hd:
 7:
  retf [],0
 8:
+cv_ic8:
  movbu (b5_mid),d1                /* five-point curve: a film's own Mid page: the guide reads "B/W [INFO]" */
  cmp 0,d1
  beq 81f
@@ -1489,7 +1492,7 @@ cv_pic:
  cmp d1,d0
  beq 1f
  mov d0,(cv_dgen)
- call cv_draw,[d2,d3,a2,a3],128
+ call b5_cd,[d2,d3,a2,a3],20      /* five-point curve test 5: cv_draw, on the camera's two pages too */
 1:
  mov (4,sp),d2
  mov d2,mdr
@@ -1879,11 +1882,10 @@ cvd_37:
  bne 411f
  mov 5,d0
  mov 20,d1
- cmp 0,d2
- beq 410f
- cmp 4,d2
- bne 411f
-410:
+ movbu (b5_mk),d3                 /* test 5: the page's own points big (bit = point; b5_c0, b5_cd) */
+ lsr d2,d3
+ btst 1,d3
+ beq 411f
  mov 8,d0
  mov 14,d1
 411:

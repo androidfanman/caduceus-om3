@@ -259,6 +259,11 @@ FIVE_POINT_LEAVES = (HS_ROW + 'info wait info wait main+1 wait expect:p:79=01 do
 FIVE_POINT_HEADER = (HS_ROW + 'expect:ink:496,112,540,138 expect:ink:850,112,890,138 '
                      'info wait info wait expect:ink:660,112,730,138 poweroff')
 # The RGB row uses the same header: it gets the camera's places back (nothing left or right of x 544..847).
+# Test 5 (owner, camera p1: "the black and white values dont show up on the curve when it is on shad/high or mid
+# mode"): with Whites -7 (set on the Blk / Wht page) the curve's right end is about 48 px under the graph's corner on
+# the Sh / Hi page and on the Mid page too. The box is the graph's right edge there, empty under the camera's own curve.
+FIVE_POINT_ALL_PAGES = (HS_ROW + 'info wait info wait ' + 'sub+1 wait ' * 7 + 'expect:p:80=f9 expect:ink:836,188,842,210 '
+                        'info wait expect:ink:836,188,842,210 info wait expect:ink:836,188,842,210 poweroff')
 FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 5 +
                           'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
@@ -1312,6 +1317,9 @@ TESTS = {
     ],
     'five-point-curve-header-back-on-the-rgb-row': [
         Boot(FIVE_POINT_HEADER_BACK),
+    ],
+    'five-point-curve-on-the-sh-hi-and-mid-pages': [
+        Boot(FIVE_POINT_ALL_PAGES),
     ],
     'wb-to-highlight-shadow-sets-the-scene-in-the-row-refresh': [
         Boot(WB_HS_SWITCH, watch=SCENE_IN_UPDATE, hits=no_scene_set_in_update),
