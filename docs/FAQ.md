@@ -84,6 +84,13 @@ No. From v0.29 your films and changes live in the camera, and an update of Caduc
 from an older version, keep `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` on the card for the first start: the camera copies
 them in once. See [updating](INSTALL.md#updating-from-an-earlier-version).
 
+### Do I need to put my films on the card again when I update?
+
+No. Copy only the firmware (the `DCOLYMP` folder) and flash it: the films in the camera stay as they are, with your
+changes. A `LOOKS.BIN` (or `CURVES.BIN`) on the card matters only when the camera has never had that set: then it takes
+it in at the first half-press and it replaces your films. A set the camera already took in is ignored, so one left on
+the card does no harm. To change your films, put a new `LOOKS.BIN` from LookLab on the card.
+
 ### Can I use any SD card?
 
 From v0.29, yes: your films, your changes and the Extras are in the camera, and the rest is built into the firmware, so
