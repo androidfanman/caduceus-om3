@@ -276,6 +276,24 @@ def FIVE_POINT_STAR(looks):
 # What test 6 leaves alone: a COLOR with no film has the '*' as soon as Blacks or Whites is not 0, and loses it at 0.
 FIVE_POINT_STAR_NO_FILM = (HS_ROW + f'expect:noink:{HS_STAR_BOX} info wait info wait sub+1 wait expect:p:80=ff '
                            f'expect:ink:{HS_STAR_BOX} sub-1 wait expect:p:80=00 expect:noink:{HS_STAR_BOX} poweroff')
+# Test 7 (owner: "reset should go back to the film's values"): on FILM 4 (as above; it is on COLOR 1 here, so Sh is
+# setting 978) the page's "Reset [OK Hold]" guide is off as picked, on after a step, and OK held puts the film's value
+# back: guide and '*' off. The same on the Blk / Wht page for Whites. (c6: the guide is on as picked; OK held gives 0.)
+HS_RESET_BOX = '710,535,870,570'
+_SB = lambda v: v - 256 if v > 127 else v
+def FIVE_POINT_RESET(looks):
+    sh = _SB(looks[32 + 64 * 3 + 44])
+    assert sh and looks[32 + 64 * 3 + 40], 'FILM 4 needs Sh and Whites as built for this test'
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 7 +
+            f' expect:val:978={sh} expect:noink:{HS_RESET_BOX} main+1 wait expect:val:978={sh + 1} expect:ink:{HS_RESET_BOX}'
+            f' hold:ok wait wait expect:val:978={sh} expect:noink:{HS_RESET_BOX} expect:noink:{HS_STAR_BOX} poweroff')
+def FIVE_POINT_RESET_BW(looks):
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 7 + ' info wait info wait'
+            f' expect:noink:{HS_RESET_BOX} sub+1 wait expect:ink:{HS_RESET_BOX} expect:ink:{HS_STAR_BOX}'
+            f' hold:ok wait wait expect:noink:{HS_RESET_BOX} expect:noink:{HS_STAR_BOX} poweroff')
+# What test 7 leaves alone: on a COLOR with no film OK held gives 0, and the guide follows "not 0".
+FIVE_POINT_RESET_NO_FILM = (HS_ROW + f'expect:noink:{HS_RESET_BOX} main+1 wait expect:val:978=1 expect:ink:{HS_RESET_BOX} '
+                            f'hold:ok wait wait expect:val:978=0 expect:noink:{HS_RESET_BOX} poweroff')
 FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 5 +
                           'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
@@ -1335,6 +1353,15 @@ TESTS = {
     ],
     'five-point-curve-star-without-a-film-is-any-value-set': [
         Boot(FIVE_POINT_STAR_NO_FILM),
+    ],
+    'five-point-curve-reset-goes-back-to-the-film': [
+        Boot(FIVE_POINT_RESET(newest_looks().read_bytes())),
+    ],
+    'five-point-curve-reset-of-blacks-whites-goes-back-to-the-film': [
+        Boot(FIVE_POINT_RESET_BW(newest_looks().read_bytes())),
+    ],
+    'five-point-curve-reset-without-a-film-gives-0': [
+        Boot(FIVE_POINT_RESET_NO_FILM),
     ],
     'five-point-curve-on-the-sh-hi-and-mid-pages': [
         Boot(FIVE_POINT_ALL_PAGES),

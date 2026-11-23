@@ -1024,7 +1024,7 @@ cv_dflt:
  mov (cv_on),d0                   /* five-point curve: on Blk / Wht, either of them set */
  cmp 3,d0
  bne 40f
- call b5_chg,[],0
+ call b5_chg,[d2,d3,a2],20
  bra 42f
 40:
  mov (cv_k),d0
@@ -1056,7 +1056,7 @@ cv_dflt:
  clr d0
  rets
 9:
- jmp ed_default
+ jmp b5_df                        /* five-point curve test 7: a film's own H&S defaults, else ed_default */
 
 /* cv_sv <- .hook_set (the facade SetValue's manager call, entered as the manager: d0 id, d1 value, a0 inner, a1 mode;
  * d2 / d3 / a2 / a3 saved by the call, frame 68, the return address at (68,sp)): while our page is on, COLOR k's H&S

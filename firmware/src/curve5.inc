@@ -613,33 +613,140 @@ b5_val:
 9:
  ret [d2,d3],12
 
-/* b5_chg: `call b5_chg,[],0` (cv_dflt: the page's Reset guide) -> d0 != 0 when COLOR cv_k has Blacks or Whites set.
- * Uses d0, d1, a0. */
-b5_chg:
- clr d0
- B5P 9f
- mov (cv_k),d1
- and 3,d1
- asl 6,d1
- add d1,a0
- movbu (79,a0),d0
- movbu (80,a0),d1
- or d1,d0
-9:
- ret [],0
+/* ---- test 7 (owner, 2026-11-22: "reset should go back to the film's values"): on a film, the row's held-OK reset
+ * and its "Reset [OK Hold]" guide are against the film as built, not 0.
+ * The camera's own two pages (om-emu, c6): the reset reads GetDefault for Hi, Sh, Mid (return HS_RSD) and writes each
+ * back, on either page; the guide shows when a value differs from the page's GetDefault read (HS_DHI / HS_DSH /
+ * HS_DMD). b5_df gives those four callers the film's value (record +46 / +44 / +45) while the COLOR holds a film
+ * that is there; everyone else, and a COLOR without a film, the stock default as before.
+ * The Blk / Wht page: b5_zk writes the film's Blacks / Whites (record +39 / +40; 0 without a film), b5_chg (the
+ * guide) asks fl_isdef as the '*' does. */
+ .set HS_RSD, 0x611b88b6          /* the held-OK reset's GetDefault read (om-emu) */
 
-/* b5_zk (jumped to from cv_zx on the Blk / Wht page, its frame `ret [d2],8`; d0 = k): Blacks and Whites 0 */
+/* b5_chg: `call b5_chg,[d2,d3,a2],20` (cv_dflt: the Blk / Wht page's Reset guide) -> d0 1 when COLOR cv_k's Blacks or
+ * Whites differ from the film's (no film: from 0), else 0. Uses d0, d1, a0. */
+.section .ext13,"ax"
+b5_chg:
+ mov a1,(4,sp)                    /* cv_dflt's out pointer (fl_isdef uses a1) */
+ mov (cv_k),d0
+ and 3,d0
+ add BWB,d0
+ call fl_isdef,[d2,d3,a2],24
+ xor 1,d0
+ mov (4,sp),a1
+ ret [d2,d3,a2],20
+
+/* b5_frec: `call b5_frec,[d2,d3,a2],16`, d0 = k -> a0 = the record of the film COLOR k holds (LOOKS.BIN copy), 0 when
+ * it holds none or the film is not there. Uses d0, d1, a1. */
+b5_frec:
+ mov d0,d2
+ PVAL 9f
+ call fl_film,[],0
+ cmp 0,d0
+ blt 9f
+ mov d0,d3
+ mov (LPTR,a2),a0
+ call fl_has,[],0
+ cmp 0,d0
+ beq 9f
+ mov (LPTR,a2),a0
+ asl 6,d3
+ add d3,a0
+ add 32,a0
+ ret [d2,d3,a2],16
+9:
+ mov 0,a0
+ ret [d2,d3,a2],16
+
+/* b5_zk (jumped to from cv_zx on the Blk / Wht page, its frame `ret [d2],8`; d0 = k): Blacks and Whites to the
+ * film's as built, 0 without a film */
 b5_zk:
  mov d0,d2
+ call b5_frec,[d2,d3,a2],16
+ mov a0,a1
  B5P 9f
  and 3,d2
  asl 6,d2
  add d2,a0
+ clr d0
  clr d1
- movbu d1,(79,a0)
+ cmp 0,a1
+ beq 1f
+ movbu (39,a1),d0
+ movbu (40,a1),d1
+1:
+ movbu d0,(79,a0)
  movbu d1,(80,a0)
 9:
  ret [d2],8
+
+/* b5_df <- cv_dflt's way out to ed_default (the facade GetDefault, CALLS: d0 id, a0 facade, a1 out, MDR return; all
+ * kept for ed_default): on the camera's own pages (cv_on 0), COLOR k's Hi / Mid / Sh (976 + 3k ..) for the reset and
+ * the page's guide -> the film's value, `rets` as cv_dflt. Frame: (0) call slot, (4) id, (8) a0, (12) a1; a3 MDR. */
+b5_df:
+ cmp 0,a1
+ beq 9f
+ mov (cv_on),d1
+ cmp 0,d1
+ bne 9f
+ mov d0,d1
+ exthu d1
+ add -976,d1
+ cmp 12,d1
+ bcc 9f
+ mov mdr,d1
+ cmp HS_RSD,d1
+ beq 1f
+ cmp HS_DSH,d1
+ beq 1f
+ cmp HS_DHI,d1
+ beq 1f
+ cmp HS_DMD,d1
+ bne 9f
+1:
+ movm [d2,d3,a2,a3],(sp)
+ add -16,sp
+ mov d1,a3
+ mov d0,(4,sp)
+ mov a0,(8,sp)
+ mov a1,(12,sp)
+ exthu d0
+ add -976,d0
+ clr d2                           /* k */
+2:
+ cmp 3,d0
+ bcs 3f
+ add -3,d0
+ inc d2
+ bra 2b
+3:
+ mov 46,d3                        /* record +46 Hi, +45 Mid, +44 Sh */
+ sub d0,d3
+ mov d2,d0
+ call b5_frec,[d2,d3,a2],16
+ cmp 0,a0
+ beq 8f
+ movbu (d3,a0),d0
+ extb d0
+ mov (12,sp),a1
+ mov d0,(a1)
+ mov a3,d0
+ mov d0,mdr
+ add 16,sp
+ movm (sp),[d2,d3,a2,a3]
+ clr d0
+ rets
+8:
+ mov a3,d0
+ mov d0,mdr
+ mov (4,sp),d0
+ mov (8,sp),a0
+ mov (12,sp),a1
+ add 16,sp
+ movm (sp),[d2,d3,a2,a3]
+9:
+ jmp ed_default
+.section .ext15,"ax"
 
 /* b5_star: the column's "row changed?" switch (sw13) for the H&S row, in that function's frame ((12,sp) = setting
  * 903, the COLOR 1..4). Test 6 (owner, camera c5: "star only when its changed from the film"): Blacks / Whites are
