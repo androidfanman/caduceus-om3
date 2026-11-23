@@ -642,22 +642,20 @@ b5_zk:
  ret [d2],8
 
 /* b5_star: the column's "row changed?" switch (sw13) for the H&S row, in that function's frame ((12,sp) = setting
- * 903, the COLOR 1..4): Blacks or Whites set -> changed (d2 0 -> STAR_END), else the camera's own check (HS_STAR). */
+ * 903, the COLOR 1..4). Test 6 (owner, camera c5: "star only when its changed from the film"): Blacks / Whites are
+ * asked as the Blacks / Whites grid row asked them, fl_isdef with the row's id BWB + k (the call of the switch's own
+ * default case, 0x611d1ac3): on a film, both against the film as built; without one, either not 0 (ed_isdef).
+ * Changed -> d2 0, STAR_END; else the camera's own check (HS_STAR), whose three "is at default" calls for Sh / Mid /
+ * Hi already go through fl_isdef (build.py ISDEF_SITES), so they too are against the film. */
 b5_star:
  mov (12,sp),d0
  add -1,d0
  cmp 4,d0
  bcc 9f
- B5P 9f
- mov (12,sp),d0
- add -1,d0
- asl 6,d0
- add d0,a0
- movbu (79,a0),d0
- movbu (80,a0),d1
- or d1,d0
+ add BWB,d0
+ call fl_isdef,[d2,d3,a2],24
  cmp 0,d0
- beq 9f
+ bne 9f
  clr d2
  jmp STAR_END
 9:

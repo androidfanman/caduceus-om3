@@ -264,6 +264,18 @@ FIVE_POINT_HEADER = (HS_ROW + 'expect:ink:496,112,540,138 expect:ink:850,112,890
 # the Sh / Hi page and on the Mid page too. The box is the graph's right edge there, empty under the camera's own curve.
 FIVE_POINT_ALL_PAGES = (HS_ROW + 'info wait info wait ' + 'sub+1 wait ' * 7 + 'expect:p:80=f9 expect:ink:836,188,842,210 '
                         'info wait expect:ink:836,188,842,210 info wait expect:ink:836,188,842,210 poweroff')
+# Test 6 (owner, camera c5: "the tone curve has an * on it"; "star only when its changed from the film"): FILM 4 of
+# the release's LOOKS.BIN has Blacks, Whites and Sh as built (record +39, +40, +44). Its H&S row has no '*' until one
+# of the five values leaves the film's: Sh by a dial and back, then Whites on the Blk / Wht page. (c5: '*' at once.)
+HS_STAR_BOX = '90,232,104,248'
+def FIVE_POINT_STAR(looks):
+    assert looks[32 + 64 * 3 + 39] and looks[32 + 64 * 3 + 44], 'FILM 4 needs Blacks and Sh as built for this test'
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 7 +
+            f' expect:noink:{HS_STAR_BOX} main+1 wait expect:ink:{HS_STAR_BOX} main-1 wait expect:noink:{HS_STAR_BOX}'
+            f' info wait info wait expect:noink:{HS_STAR_BOX} sub+1 wait expect:ink:{HS_STAR_BOX} poweroff')
+# What test 6 leaves alone: a COLOR with no film has the '*' as soon as Blacks or Whites is not 0, and loses it at 0.
+FIVE_POINT_STAR_NO_FILM = (HS_ROW + f'expect:noink:{HS_STAR_BOX} info wait info wait sub+1 wait expect:p:80=ff '
+                           f'expect:ink:{HS_STAR_BOX} sub-1 wait expect:p:80=00 expect:noink:{HS_STAR_BOX} poweroff')
 FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 5 +
                           'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
@@ -1317,6 +1329,12 @@ TESTS = {
     ],
     'five-point-curve-header-back-on-the-rgb-row': [
         Boot(FIVE_POINT_HEADER_BACK),
+    ],
+    'five-point-curve-star-only-when-changed-from-the-film': [
+        Boot(FIVE_POINT_STAR(newest_looks().read_bytes())),
+    ],
+    'five-point-curve-star-without-a-film-is-any-value-set': [
+        Boot(FIVE_POINT_STAR_NO_FILM),
     ],
     'five-point-curve-on-the-sh-hi-and-mid-pages': [
         Boot(FIVE_POINT_ALL_PAGES),
