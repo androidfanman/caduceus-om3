@@ -10363,3 +10363,31 @@ Owner (through cad): "the info button should cycle through the H/S/L and the del
 - **Package (private) `test-builds/2026-11-22-picture-mode-2`:** VERSION "v0.40.3-p2", firmware from commit a48e1ef,
   built twice, the same byte for byte: E1479999.BIN 8ddde1fa…ce03, GUIDES.BIN 933c1272…86a4. Not on a camera. Suite
   (om-emu at the pin): 151 pass, 1 FAIL = `static:changed-bytes`, the same sites as c9 (hooks.json not updated).
+
+## 2026-11-22: Picture Mode p2, camera result: camera-tested (INFO steps H / S / L)
+p2 on the owner's OM-3 (cad copied it, sha256 checked on the card). Owner: "sd card in. looks good, but I changed my
+mind agan. lets just remove the delete key. spinning the wheel does it good enough". So INFO stepping Hue ->
+Saturation -> Luminance on the colour wheel row is camera-tested; Delete for all colours is dropped (p3). The card's
+log (build v0.40.3-p2): nothing unusual. No single TEST-STEPS step was reported apart.
+
+## 2026-11-22: Picture Mode p3 (on p2; emulator only): Delete off the colour wheel, its key words stock again
+- **Keys (om-emu):** Delete does nothing on the colour wheel row (Saturation, Hue, Luminance; one colour or all), as
+  stock. INFO as p2: Hue -> Saturation -> Luminance -> Hue; with all colours on, off first, then Luminance.
+- **All colours by the front dial (om-emu, as the owner said):** on Saturation, one click past colour 1 sets the
+  cursor 2197 = 255 (the camera's all-colours screen, "Sat. All"); one click back gives colour 1 and the H / S / L bar
+  again. On Hue / Luminance the dial steps over all colours (1 -> 12), as since film test 10.
+- **Fewer patch sites:** `KEYW` is empty, so the Picture Mode key state's Delete press / release (0x61322f1c,
+  0x61322f2c) and INFO press (0x61322f4c) handler words are the camera's again; hb_kdel / hb_krel / hb_kinf, hb_del /
+  hb_dcv and editor.ld's hb_info_stock are gone. sp_inf: all colours on -> k_all on the wheel pages, f_no on Shadows /
+  Highlights; else k_step (hb_next by the page).
+- **Guide:** the all-colours guide (SDESC, fl_sagd) is "Sat. All" alone, centred, no key (`mkguides.build(txt,
+  None)`): no key turns all colours off now. Other guides byte for byte as before.
+- **Tests:** `color-wheel-delete-does-nothing` (replaces `-delete-turns-all-colours-on-and-off`; also the dial's way
+  to all colours and back to the bar) and `color-wheel-info-from-all-colours-steps-to-luminance`;
+  `split-tone-row-all-colours-leave-the-tints` turns all colours on by the front dial.
+- **Space:** .ext13 80,960 / 81,920, .ext15 138,328 / 139,264.
+- **Checks:** `color-wheel-delete-does-nothing` and `color-wheel-saturation-guide-names-the-page` are `caught` on p2
+  (Delete turned all colours on; the bin guide). Suite (om-emu at the pin): 152 pass, 1 FAIL = `static:changed-bytes`,
+  p2's sites less the three key words (hooks.json not updated).
+- **Package (private) `test-builds/2026-11-22-picture-mode-3`:** VERSION "v0.40.3-p3", firmware from commit 5632fad,
+  built twice, the same byte for byte: E1479999.BIN e8b8bdb7…1a62, GUIDES.BIN 12acf535…dcec. Not on a camera.
