@@ -54,6 +54,13 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## LookLab update (2026-11-23)
+LookLab only; the firmware is unchanged.
+- **Save film sim:** a button next to Reset look keeps a copy of the look you are editing in your browser. Saving the
+  same name again asks before replacing it.
+- **Film sims > User created:** your saved film sims show first in the Film sims list (with their own filter), each
+  with a preview, + Add and a delete button. They stay in this browser only; nothing is uploaded.
+
 ## v0.40.3
 2026-11-23. v0.40.2 plus everything from the v0.40.3 test versions; camera-tested as v0.40.3-beta4 (the build before
 its release name).
