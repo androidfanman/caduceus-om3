@@ -10221,8 +10221,15 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   Highlights).
 - **Next, if w4 works (not built):** each wheel its own picture (the frame widget's picture list repointed to a
   descriptor of ours), for wheels of about 230 px.
-- **Right, not left (owner, the same day: "I meant the right side not left side"):** the panel's place x 116 -> 412
-  (rear screen (412, 97, 188, 481), viewfinder x 371): left of the camera's Color / Tint / Reset column (x 603..), which
-  it must not cover (GDESC is drawn last).
-- **Package:** `test-builds/2026-11-23-split-tone-panel-4` (commit 1b07e21; E1479999.BIN 28f1f8f9…c31a, GUIDES.BIN
-  f55dd728…6202). On s2 + w3, not p3.
+- **Right, not left (owner, the same day):** "I meant the right side not left side"; after a first try at x 412 (left
+  of the camera's column): "that looks center to me. I want it right, kind of like the position where the other things
+  go (wheels, grids, etc.)". The camera's wheel sat at x 545..849 between "Color" (y 112) and the page label (y 458),
+  306 px; the stacked panel is 481 tall, so the camera's column there has to move. All of it is children of the same
+  widget parent (slots 0x31c..0x33c: 0x179 / 0x3c0 dial marks, 0x3c1 "Color", 0x3c2 swatch, 0x3c3 the page label,
+  0x3c4 its value (a text widget: method table 0x6135946c, id word 0x03c48013, rectangle copies at +0xc0 / +0xc8),
+  0x3c5, 0x3be / 0x3bf Reset; the viewfinder's copies are 80 px left of the rear screen's). st_place (table st_wt, 11
+  widgets, each checked by its method table, id word and rectangles) puts the panel at rear (706, 97, 188, 481) /
+  viewfinder x 626 and the column 196 px left while the panel shows; hb_gsel puts all of it back. om-emu: the panel at
+  the right edge, "Color", "Tint" + value and Reset beside it, everything back on the colour wheel row and the other rows.
+- **Package:** `test-builds/2026-11-23-split-tone-panel-4` (commit 5a02877; E1479999.BIN 6b06ef27…b437, GUIDES.BIN
+  34d39c97…60cf). On s2 + w3, not p3.
