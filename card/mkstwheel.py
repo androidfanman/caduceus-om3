@@ -6,7 +6,7 @@ wheel should move with the value, not still stay in that center position"; "It's
 how small it is ... a better layout would the the wheels being on the left side of the screen and stacked. So
 highlight wheel on top. Shadow wheel below it. Balance below that (the balance bar horizontal instead of vertical."
 
-w4: a tall panel at the left of the screen (stwheel.s moves the guide picture's widget there while the panel shows):
+w4: a tall panel at the right of the screen (owner: "I meant the right side not left side") (stwheel.s moves the guide picture's widget there while the panel shows):
 the Highlights wheel on top, the Shadows wheel under it, the Balance bar (dark to light, left to right) under that;
 each with its name, the page's white-ringed / white-boxed. Each wheel: the 12 colours as a pie (yellow at 12 o'clock,
 clockwise, as the camera's wheel), each colour a small point on a ring round the middle; the tint's colour has a big
@@ -48,7 +48,8 @@ CTOP = SY0 - 12
 VW, VH = 34, 24                          # the value sprite, after "Balance" (VX below)
 WHITE = SLOT0 + 12
 CAP = 15
-PLACE = (116, 578)                       # the panel's left column and bottom row on the rear screen (viewfinder: 41 left)
+PLACE = (412, 578)                       # the panel's left column and bottom row on the rear screen (viewfinder: 41 left): the
+                                         # right side, left of the camera's Color / Tint / Reset column (x 603..)
 MODES = ('Shadows', 'Highlights', 'Balance')
 ST_BUF = 16448                           # hbar.s HB_BUF: the two heap buffers the bar and the panel share
 MAXSTREAM = ST_BUF - 16
