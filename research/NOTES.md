@@ -10323,3 +10323,5 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Tests:** `split-tone-row-balance-ignores-the-front-dial`, `split-tone-row-cursor-goes-back-to-the-tint` (both
   fail on w7 with `--without`).
 - **Package:** `test-builds/2026-11-23-split-tone-bar-8` (E1479999.BIN 0a04945a…a56b, GUIDES.BIN 37169c75…907b).
+- **Suite (w8, 94d843b, built twice the same):** 143 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w7.
+  On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified.
