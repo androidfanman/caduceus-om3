@@ -10305,3 +10305,6 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   `split-tone-bar-shows-and-sets-the-tints-and-balance`, `split-tone-row-keeps-the-camera-wheel` (d0 = 0 at
   0x60b1ced8 on the row), the INFO / opens tests.
 - **Package:** `test-builds/2026-11-23-split-tone-bar-7` (E1479999.BIN 17d0067f…819e, GUIDES.BIN d1e9d124…acff).
+- **Suite (w7, 43646a6, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as
+  w4..w6. On the owner's card 2026-11-23 (owner: "sd card is in. put the test build on when its ready"); checksums
+  verified.
