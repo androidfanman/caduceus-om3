@@ -1,5 +1,5 @@
 8c133084414533159f587bf46bfb4152714c4074312a47c8d8503e33d605696d  OLY_E_147_1100_0000_0000.BIN (official OM-3 firmware 1.1, the input; also downloaded as OLY_E_147_1100_0000_0000_3.BIN)
-977b25dda6f76b08a5abe59c523d1b89360cb7ff05b635da4fa4bd8c07144945  DCOLYMP/E1479999.BIN (what patch.py makes; GUIDES / LABELS / TONES are built into it from v0.29)
+1545404e934427a006b88b039487ccb4931c5813065c0127807d7a227f1cc933  DCOLYMP/E1479999.BIN (what patch.py makes; GUIDES / LABELS / TONES are built into it from v0.29)
 4c009f9c0e2f62f00bf5eb994b13c031ce34d3f2f2f7526d5d563ba8ac352291  OM3MOD/CURVES.BIN (optional, as v0.30 and v0.40: the 20 standard films regraded with Color Mix and RGB curves; the camera takes it once at a half-press)
 ee3f1bdef6083ffcfbf88e1c9617adbea10af0594d03424214baf5ed1cd70365  OM3MOD/LOOKS.BIN (optional: the 20 standard film sims, as v0.29; the camera takes them once, if it never had this set)
 29aa0c06c2fd15011e190cd08e25bc0738f629d43b759f95b86bead736a91359  OM3MOD/DEBUG.TXT (optional: turns the debug log on; leave it off the card normally)

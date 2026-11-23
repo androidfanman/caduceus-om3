@@ -157,7 +157,8 @@ function blurredCopy(src: Float32Array, w: number, h: number, sw: number, sigma:
 
 /** camera 'om3' (Caduceus for OM-3): hue turns toward the clockwise neighbour (OM-3 camera-tested direction), no
  *  noise filter preview; glow / clarity (v0.20) and the profile's Sharpness and Shading (vignette) are previewed. */
-export interface PreviewOptions { advice: boolean; camera?: 'ep7' | 'om3'; crop?: CropRect }
+/** `quiet`: leave lastHalation as it is (the small pictures of your own photos, so the editor's note follows the big one). */
+export interface PreviewOptions { advice: boolean; camera?: 'ep7' | 'om3'; crop?: CropRect; quiet?: boolean }
 /** OM-3 Image Aspect (preview): the part of the photo the camera keeps, centred, as the camera's JPEG sizes (4:3 = the
  *  whole photo; crops of the 5184 x 3888 frame: 3:2 5184 x 3456, 16:9 5184 x 2920, 1:1 3888 x 3888, 3:4 2912 x 3888, and
  *  v0.40's 5:4 4864 x 3888, XPan 5184 x 1920, 21:9 5184 x 2224; research/border/model.py). The look is made on the whole
@@ -272,7 +273,8 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
       }
     }
   }
-  lastHalation = om3 && look.halation ? om3Halation(img, w, h, look.halation) : null;   // OM-3 v0.28: after the Soft Focus blend, as the camera
+  const hal = om3 && look.halation ? om3Halation(img, w, h, look.halation) : null;
+  if (!opt.quiet) lastHalation = hal;   // OM-3 v0.28: after the Soft Focus blend, as the camera
   // 6. OM-3 Shading and Border (the camera's passes on the finished photo); grain (E-P7: Olympus xorshift32 luma grain)
   if (om3 && look.vignette) om3Shading(img, w, h, look.vignette);
   if (om3 && look.border) om3Border(img, w, h, look.border, opt.crop);

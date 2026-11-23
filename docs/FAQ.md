@@ -32,7 +32,7 @@ launcher adds them to your copy of OM's official file. It downloads that file fr
 
 ### Can I go back to the camera's own firmware?
 
-Yes, at any time: see [going back](INSTALL.md#going-back-to-the-cameras-own-firmware). It takes about two minutes.
+Yes, at any time: see [going back](INSTALL.md#going-back-to-the-cameras-own-firmware). It takes up to about five minutes.
 
 ## Films and settings
 
@@ -83,6 +83,13 @@ wait.
 No. From v0.29 your films and changes live in the camera, and an update of Caduceus keeps them. Updating to v0.29
 from an older version, keep `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` on the card for the first start: the camera copies
 them in once. See [updating](INSTALL.md#updating-from-an-earlier-version).
+
+### Do I need to put my films on the card again when I update?
+
+No. Copy only the firmware (the `DCOLYMP` folder) and flash it: the films in the camera stay as they are, with your
+changes. A `LOOKS.BIN` (or `CURVES.BIN`) on the card matters only when the camera has never had that set: then it takes
+it in at the first half-press and it replaces your films. A set the camera already took in is ignored, so one left on
+the card does no harm. To change your films, put a new `LOOKS.BIN` from LookLab on the card.
 
 ### Can I use any SD card?
 

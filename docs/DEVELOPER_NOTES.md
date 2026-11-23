@@ -4,7 +4,7 @@ All addresses: OM-3 runtime (decoded main + 0x60021020). E-P7 1.1 base 0x6002002
 Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 
 ## Proven on the camera
-- SD update: DCOLYMP/E1479999.BIN, hold OK at power-on; steady ~2 min, then blink. Restore = official file.
+- SD update: DCOLYMP/E1479999.BIN, hold OK at power-on; steady up to ~5 min, then blink. Restore = official file.
 - Hue/lightness: builder 0x60518381, single call 0x60518615 (call …,[d2,d3,a2,a3],96), resume 0x6051861a.
   Output records at output(=(12,a2))+836, stride 24; hue +18, sat +20, light +22. Record r = UI sector 2(r%6)+r/6.
   Hue raw = -1000*ui moves yellow->orange->red (toward the NEXT sector; opposite to Caduceus' sim convention).
@@ -853,3 +853,15 @@ Includes the v0.23 Picture Mode rows (never released alone). Full trail: `resear
 - **Effects:** XB_FX 0 in xblock.s: Glow / Clarity and Art Effect read 0 where they act. Grain: camera route (key 12)
   unless the COLOR's Shading (setting 912 + k) is not 0, then the CPU route (Shading + key 12 = monochrome, owner test).
 - Space: ext11 (proven 64 KiB) ~60.9 KB used; GUIDES.BIN 14200 B of the 16448 B malloc cap.
+
+## v0.40.3 release (try/v0.40.3-beta4 4570636 merged into main; 2026-11-23)
+
+- Firmware: v0.40.3-beta4's sources (camera-tested as test build w1, 2026-11-21; E1479999.BIN 7be6725d…8f16) with
+  `firmware/VERSION` "v0.40.3". E1479999.BIN 1545404e…c933; `patch.py --release v0.40.3` makes it byte for byte. The
+  shorter version name moves the code after `lg_ver`; nothing else differs (same sources).
+- What it holds since v0.40.2: Halation Radius and the faster Halation (beta), #93 playback film names (beta), #91 /
+  #97 / #99 / #101 (beta2, beta3), and the separate WB shifts that replace beta3's #99 switch (beta4). Details under
+  each test version in `research/NOTES.md`.
+- Known, cosmetic (crombach on #99): on a film with a WB shift the WB menu stars every WB mode, because the film's
+  one shift applies on all of them.
+
