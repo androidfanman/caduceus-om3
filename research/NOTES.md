@@ -10156,3 +10156,34 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Suite (w2, 7a68fcd, built twice the same):** 140 pass, 0 known, 1 FAIL static:changed-bytes. Its full list (26 runs
   on w1, 24 on w2) differs from w1's only at the picture widget's rectangle 0x61451e50 / 0x61451e58 (y and height
   now changed too); no new hook (static:hook-list passes).
+
+## The Split toning panel, w3: no camera wheel on the row, points and cursor, INFO left to right (2026-11-23; emulator only)
+- **w2 camera result (owner, 2026-11-23):** "tested it. its getting there. now if we can make the drawn wheels operate
+  with the points, and remove the big wheel. Also the info button goes backwards whrough shadow, balance, highlights".
+- **INFO order:** Shadows -> Balance -> Highlights -> Shadows (hb_next), left to right on the panel.
+- **Points and cursor (card/mkstwheel.py, stwheel.s):** each wheel has 12 small points on a ring (radius 18); the
+  tint's dot sits from the ring (strength 0: no dot, st_none) out to radius 62 (strength 10); on the page's wheel a
+  white ring (st_cur, 21 px) marks the cursor's colour (the readout's slice, d2 at st_vl), at that colour's point or
+  at the dot when it is the tint's. Front dial +1 steps the cursor counter-clockwise (colour 0 -> 11), -1 clockwise.
+- **The camera's wheel, how it is asked for (static + om-emu; the C3D side itself is not run by om-emu):**
+  - The display update 0x60b1ced8 (called at 0x60b1bdd6; a0 the display object, kind word at +424, jump table
+    0x60e157d0) takes d0: 0 = draw the Picture Mode wheel (then *(d1 + 36) -> kind 6, setting 903, the cursor 2197 + k
+    and the 12 sector reads through tn_poly), 1 = none (straight to its tail 0x60b1d414). om-emu: d0 = 1 on every row
+    without a wheel, 0 on the colour wheel row and (to w2) on the Split toning row.
+  - d0 comes down from 0x611356e6 (GUI): it copies setting 275 (a 288-byte block) into its object at +884 and reads
+    its words +264 (1 -> kind 7), +268 (1 -> kind 6 = the colour wheel), else passes 1 ("none") through 0x612981c8 ->
+    0x61104718 -> 0x60b75ef7 -> 0x60b1b70c.
+  - Setting 275 is published by the Picture Mode update's tail (0x611d0503: a0 = (8,sp), `mov 275,d0; mov 288,d1; call
+    0x610cd5c4`) right after the row's case. The wheel row's case (0x611d04d3 -> 0x611d1308) leaves +268 = 1.
+  - Which switch: with the Split toning row left out of one switch at a time (research builds), only the update
+    switch 0x615510cc changed d0; the wheel routine's record at screen + 4756 (bytes 11 / 12) did not.
+- **w3:** sp_case (the row's update case, our code), after WH_UPD: `mov (8,sp),a0; mov 0,(268,a0)`. om-emu: d0 = 1 at
+  0x60b1ced8 on the Split toning row at arrival, a dial click and INFO; 0 on the colour wheel row before and after;
+  the dials, INFO, the '*', a film's tints as before (tests). No new hook, no stock byte changed.
+- **Not known (camera only):** that the C3D wheel really goes; that nothing of it is left on screen; that the wheel
+  editor's dials and INFO work while no wheel is drawn (stock never has an open wheel editor without its wheel).
+- **Tests:** new `split-tone-row-asks-for-no-camera-wheel` (the watch at C3D_UPD = 0x60b1ced8 with each hit's step and
+  d0: Boot.regs); `split-tone-panel-shows-and-sets-the-tints-and-balance` (cursor, a new tint colour, Balance, the
+  bar back), `split-tone-row-info-steps-shadows-balance-highlights`.
+- **Package:** `test-builds/2026-11-23-split-tone-panel-3` (commit 74ab711; E1479999.BIN b470aa44…29ad, GUIDES.BIN
+  b7477658…c7b0). On s2 + w2, not p3.
