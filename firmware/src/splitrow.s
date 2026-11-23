@@ -50,10 +50,6 @@ sp_case:
  call WH_UPD,[d2,d3,a2,a3],56
  clr d0
  movbu d0,(sp_upd)
- mov (8,sp),a0                    /* w3: no camera wheel on this row. The update's 288-byte block (setting 275, */
- mov d0,(268,a0)                  /* published at WH_END): its word +268 = 1 asks the display for the colour wheel */
-                                  /* (0x61135744 -> kind 6); 0, as on a row without one, and the camera's own display */
-                                  /* update draws none (0x60b1ced8 with d0 = 1; research/NOTES.md, w3) */
  jmp WH_END
 sp_whl:
  mov 5397,d0

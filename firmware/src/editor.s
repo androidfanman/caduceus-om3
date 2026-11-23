@@ -12893,7 +12893,6 @@ lg_now:
  call lg_ckn,[d2,d3,a2,a3],24     /* v0.30 test 10: curves / mix */
  call lg_gsn,[d2,d3,a2,a3],24     /* better grain g2: each COLOR's Film Grain strength and Grain Size */
  call lg_rzn,[d2,d3,a2,a3],24     /* Halation Radius: each COLOR's (hrrow.s) */
- call st_lg,[d2,d3,a2,a3],24      /* split-tone panel w5: what st_place found (stwheel.s) */
 9:
  ret [d2,d3,a2,a3],24
 

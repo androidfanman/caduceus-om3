@@ -31,8 +31,8 @@
 .section .ext15,"ax"
  .include "hbar.inc"              /* HB_*, hb_rows, hb_gid, hb_swr, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
-.set HB_BUF, 16384                /* each stream buffer (worst case HB_WORST, checked by build.py; w2: 400 x 200, shared
-                                   * with the Split toning panel, stwheel.s) */
+.set HB_BUF, 8192                 /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
+                                   * toning bar, stwheel.s) */
 .set HB_F, 48                     /* hb_rd's frame */
 .set HB_UI_INFO, 0x25             /* the GUI key codes of INFO's press and release (Delete's: 0x27, 0x29) */
 .set HB_UI_INFOR, 0x26
@@ -90,10 +90,6 @@ hb_alloc:
 /* hb_gsel <- gd_set's `call hb_gsel,[d2,d3,a2,a3],24` (was gd_sel): GDESC holding a bar -> the camera's guide again
  * (175 x 50), then gd_sel (same frame). Keeps d0, a2; uses d1, d2, a0. */
 hb_gsel:
- mov d0,(st_sv)                   /* w4: the guide picture's widget back at the bar's place (stwheel.s; any page change) */
- clr d0
- call st_place,[d2,d3,a2,a3],28
- mov (st_sv),d0
  mov GDESC,a0
  mov (16,a0),d1
  mov (hb_b0),d2

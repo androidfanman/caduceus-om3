@@ -287,28 +287,20 @@ _HB = mkhbar.pieces()
 HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.PH)} '
                                              f'expect:mem:{GDESC + 12:x}={U32(len(b))} expect:mem:{GDESC:x}+10*={b.hex()}')(
     mkhbar.stream(c, h, s, l, axis, _HB))
-# split-tone panel w4 (2026-11-23): on the Split toning row the guide's descriptor holds card/mkstwheel.py's panel
-# (188 x 481: the Highlights wheel, the Shadows wheel, the Balance bar, stacked), byte for byte, for COLOR k's Shadows
-# colour / strength, Highlights colour / strength (strength 0..10), Tone Balance, the page mode (0 Shadows, 1
-# Highlights, 2 Balance) and the cursor's colour. The guide picture's widget (om-emu: its object at 0x62c5b978, the
-# rectangle in use at +8) is at the panel's place while it shows and back at the bar's on any other page; the static
-# rectangles stay the bar's.
+# split-tone bar w7 (2026-11-23): on the Split toning row the guide's descriptor holds card/mkstwheel.py's bar (the
+# H / S / L bar's place and style: S Shadows strength, B Tone Balance, H Highlights strength), byte for byte, for COLOR
+# k's Shadows colour / strength, Highlights colour / strength (strength 0..10), Tone Balance and the page mode (0
+# Shadows, 1 Highlights, 2 Balance); its colours in palette 62's 108..120 (PAL_STRIP). The guide widgets' static
+# rectangles are the bar's 400 x 64 (GUIDE_PLACE).
 import mkstwheel  # noqa: E402
 _ST = mkstwheel.pieces()
 RECT_IS = lambda a, xv, xr, y, w, h: f'expect:mem:{a:x}={U16(xv)}{U16(y)}{U16(w)}{U16(h)}{U16(xr)}{U16(y)}{U16(w)}{U16(h)}'
 GUIDE_PLACE = f'{RECT_IS(0x61451e40, 116, 157, 514, 400, 64)} {RECT_IS(0x61451e50, 116, 157, 514, 400, 64)}'
-_PAN = (mkstwheel.PLACE[0], mkstwheel.PLACE[1] - mkstwheel.H, mkstwheel.W, mkstwheel.H)
-WIDGET_AT = lambda o, xv, x, y, w, h: (f'expect:mem:{o + 8:x}={U16(x)}{U16(y)}{U16(w)}{U16(h)} '
-                                       f'{RECT_IS(o + 0x140, xv, x, y, w, h)}')
-# ... and the camera's own column (here "Color", 0x3c1 at 0x62c5ac78, and Reset, 0x3be at 0x62c5b498) is 196 px to the
-# left while the panel shows.
-PANEL_PLACE = (f'{WIDGET_AT(0x62c5b978, _PAN[0] - 80, *_PAN)} {WIDGET_AT(0x62c5ac78, 578 - 196, 658 - 196, 112, 70, 30)} '
-               f'{WIDGET_AT(0x62c5b498, 524 - 196, 604 - 196, 528, 180, 50)}')
-BAR_PLACE = (f'{WIDGET_AT(0x62c5b978, 116, 157, 514, 400, 64)} {WIDGET_AT(0x62c5ac78, 578, 658, 112, 70, 30)} '
-             f'{WIDGET_AT(0x62c5b498, 524, 604, 528, 180, 50)}')
-STRIP_IS = lambda sc, ss, hc, hs, b, mode, cur=0: (lambda s: f'expect:mem:{GDESC + 2:x}={U16(mkstwheel.W)}{U16(mkstwheel.H)} '
+STRIP_IS = lambda sc, ss, hc, hs, b, mode: (lambda s: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.PH)} '
                                                        f'expect:mem:{GDESC + 12:x}={U32(len(s))} expect:mem:{GDESC:x}+10*={s.hex()}')(
-    mkstwheel.stream(sc, ss, hc, hs, b, mode, cur, _ST))
+    mkstwheel.stream(sc, ss, hc, hs, b, mode, _ST))
+PAL_STRIP = lambda sc, ss, hc, hs, mode: (f'expect:mem:{mkhbar.PAL_TABLE + 4 * mkhbar.SLOT0:x}='
+                                          f'{"".join(U32(x) for x in mkstwheel.argb(sc, ss, hc, hs, mode))}')
 SHADOWS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Shadows').flatten()), 175, 50))
 WHEEL_HSL_BAR = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {HBAR_IS(0, 0, 3, 0, 0)} '
                  f'delete wait delete wait {HBAR_IS(0, 0, 3, 0, 2)} main+1 wait main+1 wait {HBAR_IS(0, 2, 3, 0, 2)} '
@@ -337,7 +329,7 @@ WHEEL_DELETE_OFF_ROW = (f'{OPEN_WHEEL} down wait down wait delete wait up wait u
 # Saturation when you return to it.
 HIGHLIGHTS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Highlights').flatten()), 175, 50))
 GUIDE_IS = lambda size: f'expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(size)}'
-SPLIT_ROW_OPENS = (f'{OPEN_SPLIT} {AXIS_IS(5)} {LABEL_IS("Tint")} {STRIP_IS(0, 0, 0, 0, 0, 0)} {PANEL_PLACE} up wait {AXIS_IS(0)} {GUIDE_PLACE} {BAR_PLACE} '
+SPLIT_ROW_OPENS = (f'{OPEN_SPLIT} {AXIS_IS(5)} {LABEL_IS("Tint")} {STRIP_IS(0, 0, 0, 0, 0, 0)} up wait {AXIS_IS(0)} {GUIDE_PLACE} '
                    f'{LABEL_IS("Sat")} delete wait {AXIS_IS(1)} down wait {AXIS_IS(5)} info wait {AXIS_IS(6)} '
                    f'down wait up wait {AXIS_IS(5)} up wait {AXIS_IS(0)} poweroff')
 SPLIT_ROW_INFO = (f'{OPEN_SPLIT} info wait {AXIS_IS(6)} {STRIP_IS(0, 0, 0, 0, 0, 2)} info wait {AXIS_IS(6)} '
@@ -367,25 +359,23 @@ WHEEL_INFO_ALL = (f'{OPEN_WHEEL} info wait expect:val:{2197}=255 {AXIS_IS(0)} in
 SPLIT_ROW_ALL = (f'{OPEN_WHEEL} info wait expect:val:{2197}=255 down wait {AXIS_IS(5)} main+1 wait '
                  f'{TINTS_ARE("00000000")} info wait expect:val:{2197}=1 {AXIS_IS(5)} main+1 wait '
                  f'{TINTS_ARE("00010000")} poweroff')
-# w3: the panel follows the tints, the cursor and Tone Balance: strength 3 on Shadows' first colour; the front dial moves
-# the cursor's ring (colour 2), a click there makes that colour the tint (strength 1); INFO -> Balance (left to right):
-# the dial sets Tone Balance (slot +33, P + 65), the tints stay; INFO -> Highlights: strength 2 on the cursor's colour;
-# Tone Balance + 1 on its own row; the H / S / L bar is back (colours, place) on the colour wheel row.
-PAL_STRIP = f'expect:mem:{mkhbar.PAL_TABLE + 4 * mkhbar.SLOT0:x}={"".join(U32(x) for x in mkstwheel.argb())}'
-SPLIT_STRIP = (f'{OPEN_SPLIT} {STRIP_IS(0, 0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {STRIP_IS(0, 3, 0, 0, 0, 0)} '
-               f'sub-1 wait sub-1 wait {STRIP_IS(0, 3, 0, 0, 0, 0, 2)} main+1 wait {STRIP_IS(2, 1, 0, 0, 0, 0, 2)} '
-               f'info wait {STRIP_IS(2, 1, 0, 0, 0, 2, 2)} main-1 wait {STRIP_IS(2, 1, 0, 0, -1, 2, 2)} expect:p:65=ff '
-               f'{TINTS_ARE("02ff0000")} info wait {STRIP_IS(2, 1, 0, 0, -1, 1, 2)} main+1 wait main+1 wait '
-               f'{STRIP_IS(2, 1, 2, 2, -1, 1, 2)} {PAL_STRIP} down wait main+1 wait up wait {STRIP_IS(2, 1, 2, 2, 0, 0, 2)} '
-               f'up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} {BAR_PLACE} down wait {STRIP_IS(2, 1, 2, 2, 0, 0, 2)} {PANEL_PLACE} {PAL_STRIP} down wait {BAR_PLACE} '
-               f'poweroff')
-# w3: no camera wheel on the Split toning row. The camera's display update (0x60b1ced8) gets d0 = 1 ("no wheel", as on
-# every row without one) on that row, and still 0 on the colour wheel row. om-emu does not draw the camera's wheel, so
-# its argument is what can be checked.
-SPLIT_NO_WHEEL = f'{OPEN_WHEEL} down wait main+1 wait info wait up wait poweroff'
-def split_row_asks_no_wheel(hits):
+# w7: the bar follows the tints and Tone Balance: strength 3 on Shadows' first colour; the front dial to colour 2 and a
+# click there makes it the tint (strength 1); INFO -> Balance: the dial sets Tone Balance (slot +33, P + 65), the
+# tints stay; INFO -> Highlights: strength 2 on colour 2; Tone Balance +1 on its own row; the H / S / L bar is back
+# (its colours, its place) on the colour wheel row. Each bar's colours in palette 62's 108..120.
+SPLIT_STRIP = (f'{OPEN_SPLIT} {STRIP_IS(0, 0, 0, 0, 0, 0)} {PAL_STRIP(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait '
+               f'{STRIP_IS(0, 3, 0, 0, 0, 0)} {PAL_STRIP(0, 3, 0, 0, 0)} sub-1 wait sub-1 wait main+1 wait '
+               f'{STRIP_IS(2, 1, 0, 0, 0, 0)} info wait {STRIP_IS(2, 1, 0, 0, 0, 2)} {PAL_STRIP(2, 1, 0, 0, 2)} main-1 wait '
+               f'{STRIP_IS(2, 1, 0, 0, -1, 2)} expect:p:65=ff {TINTS_ARE("02ff0000")} info wait {STRIP_IS(2, 1, 0, 0, -1, 1)} '
+               f'main+1 wait main+1 wait {STRIP_IS(2, 1, 2, 2, -1, 1)} {PAL_STRIP(2, 1, 2, 2, 1)} down wait main+1 wait up wait '
+               f'{STRIP_IS(2, 1, 2, 2, 0, 0)} up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} down wait '
+               f'{STRIP_IS(2, 1, 2, 2, 0, 0)} {PAL_STRIP(2, 1, 2, 2, 0)} poweroff')
+# w7: the camera's own wheel stays on the Split toning row (as on the colour wheel row; w3..w6 asked for none): its
+# display update (0x60b1ced8) gets d0 = 0 ("the wheel") there, 1 on the rows without a wheel.
+SPLIT_KEEPS_WHEEL = f'{OPEN_WHEEL} down wait main+1 wait info wait up wait poweroff'
+def split_row_keeps_wheel(hits):
     got = [(step, d0) for _, _, step, d0 in hits if step in ('down', 'main+1', 'info', 'up')]
-    want = [('down', 1), ('down', 1), ('down', 0), ('down', 1), ('main+1', 1), ('info', 1), ('up', 0)]
+    want = [('down', 1), ('down', 1), ('down', 0), ('down', 0), ('main+1', 0), ('info', 0), ('up', 0)]
     return [] if got == want else [f'the display update\'s "no wheel" argument per step: {got}, not {want}']
 def newest_looks():
     def key(d):
@@ -1402,11 +1392,11 @@ TESTS = {
     'split-tone-row-all-colours-leave-the-tints': [
         Boot(SPLIT_ROW_ALL),
     ],
-    'split-tone-panel-shows-and-sets-the-tints-and-balance': [
+    'split-tone-bar-shows-and-sets-the-tints-and-balance': [
         Boot(SPLIT_STRIP),
     ],
-    'split-tone-row-asks-for-no-camera-wheel': [
-        Boot(SPLIT_NO_WHEEL, watch=('C3D_UPD',), regs=True, hits=split_row_asks_no_wheel),
+    'split-tone-row-keeps-the-camera-wheel': [
+        Boot(SPLIT_KEEPS_WHEEL, watch=('C3D_UPD',), regs=True, hits=split_row_keeps_wheel),
     ],
     'split-tone-row-shows-a-films-tints': [
         Boot(SPLIT_ROW_FILM(newest_looks().read_bytes())),
