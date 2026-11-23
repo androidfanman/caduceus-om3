@@ -1,29 +1,37 @@
-/* ================================================================== the Split toning panel, test w2 (feature/split-tone-row)
- * Owner (2026-11-23), mock-up C (two wheels and the Balance slider on one screen) -> w1 (a 400 x 64 strip under the
- * camera's wheel; camera: "the info button only switches between shadow and light, no balance, and the wheels are super
- * small and the big wheel is still there") -> w2:
- *  - INFO on the row steps Shadows -> Highlights -> Balance -> Shadows. Balance is the Highlights page (P+AXIS 6) with
+/* ================================================================== the Split toning panel, test w4 (feature/split-tone-row)
+ * Owner (2026-11-23), mock-up C (two wheels and the Balance slider on one screen) -> w1 (a strip under the camera's
+ * wheel) -> w2 (INFO to Balance, 400 x 200) -> w3 (no camera wheel on the row, camera-tested; points and cursor) ->
+ * w4 (owner: the wheels stacked at the left of the screen, Highlights on top, Shadows, then the Balance bar; the
+ * colour's point moves with its value):
+ *  - INFO on the row steps Shadows -> Balance -> Highlights -> Shadows. Balance is the Highlights page (P+AXIS 6) with
  *    st_bal set (hb_next): there the readout and the dial read and write Tone Balance (slot +33, -5..5) in place of
  *    the tint (tn_get -> st_bv, tn_set -> sp_all / st_tset, then the wheel's own refresh s_cur; the readout's -5..+5
  *    glyphs: rd_a10 / rd_b10). Arriving on the row or leaving it clears st_bal (sp_sync).
- *  - card/mkstwheel.py's panel, 400 x 200 (the guide picture's place, raised from 400 x 64 by build.py; the H / S / L
- *    bar is now the bottom of a 400 x 200 picture with 136 clear rows over it): the two wheels (radius 72) with their
- *    dots left and right, the upright Balance slider with its carets in the middle; the page white-marked. The
- *    camera's own wheel stays: the widgets take their place when Picture Mode opens, so the picture cannot be moved
- *    over it for this row only (om-emu, research/NOTES.md).
+ *  - card/mkstwheel.py's panel (188 x 481) goes into the guide's descriptor (GDESC) as the H / S / L bar does, and the
+ *    guide picture's widget moves to the panel's place while it shows (st_place): the widgets copy their rectangles
+ *    when Picture Mode opens, so the static ones (build.py: the bar's 400 x 64) cannot follow the row. st_place
+ *    reaches the widget from the GUI's own pointers and changes nothing unless every step checks out; without it
+ *    the panel is not drawn (the page's guide stays). hb_gsel puts the bar's place back on any page change.
  * When: the readout (916 + slice) on the row's pages goes through tn_get, whose dial-label call (vl_s) goes through
  * st_vl -> st_rd first (only with the films in, nothing at start-up). st_rd builds the panel only when something on it
- * changed, into the bar's heap buffer not on screen (hb_b0 / hb_b1, 16 KB each now), and puts the 12 hues into palette
- * 62's entries 108..119 (the bar's slots; each one's new picture makes the other's key stale: hb_key, st_key).
- * Each row: its three background parts (left wheel, Balance, right wheel; the page's variant) into st_row, then the
- * five sprites over it (two dots, the caret, the value, the cursor's ring; 0 = see-through), then st_row as greedy runs of up to 16
- * (HB_PUT), as mkstwheel.stream. A stream that would not fit its buffer is not drawn. */
+ * changed, into the bar's heap buffer not on screen (hb_b0 / hb_b1, 16448 B each: malloc's largest), and puts the 12
+ * hues into palette 62's entries 108..119 (the bar's slots; each one's new picture makes the other's key stale:
+ * hb_key, st_key).
+ * Each row: its three background parts (the page's variant) into st_row, then the seven sprites over it (per wheel an
+ * eraser over the tint colour's point and its dot; the caret, the value, the cursor's ring; 0 = see-through), then
+ * st_row as greedy runs of up to 16 (HB_PUT), as mkstwheel.stream. A stream that would not fit its buffer is not drawn. */
 .section .ext15,"ax"
- .include "stwheel.inc"           /* ST_*, st_rows, st_bg, st_cy, st_tok, st_dxy, st_dot, st_car, st_cur, st_none, st_vtab, st_pal */
+ .include "stwheel.inc"           /* ST_*, st_rows, st_bg, st_cx, st_tok, st_dxy, st_exy, st_dot, st_car, st_cur, st_etab, st_none, st_vtab, st_pal */
 .set ST_F, 48                     /* st_rd's frame */
-.if ST_W - HB_W || ST_H - HB_PH
- .error "the panel and the bar share the guide's descriptor and buffers: the same size"
-.endif
+.set ST_GUI, 0x608546f8            /* the GUI's pointer to the open screen's layout object (om-emu: 0x62c5a140) */
+.set ST_WVT, 0x6135993c            /* a picture widget's method table */
+.set ST_WID, 0x03c78003            /* the guide picture's id word (widget 0x3c7) */
+.set ST_BARV, 116 | (514 << 16)    /* the bar's place (build.py): viewfinder, rear screen, size */
+.set ST_BARR, 157 | (514 << 16)
+.set ST_BARS, 400 | (64 << 16)
+.set ST_PANV, (ST_PX - 41) | (ST_PY << 16)   /* the panel's */
+.set ST_PANR, ST_PX | (ST_PY << 16)
+.set ST_PANS, ST_W | (ST_H << 16)
  .balign 4
 st_key:                           /* what the panel on screen shows (st_rd's key), -1 none */
  .long -1
@@ -34,12 +42,134 @@ st_v:                             /* Shadows colour, strength, Highlights colour
 st_bal:                           /* 1: the row's Balance step (on the Highlights page) */
  .byte 0
  .balign 4
-st_sp:                            /* the five sprites: u32 picture, u16 x, u16 y */
- .space 40
+st_sv:                            /* hb_gsel's d0 over st_place */
+ .long 0
+st_wxy:                           /* the wheels' middles: Shadows x, y, Highlights x, y */
+ .short ST_CX0, ST_CY0, ST_CX1, ST_CY1
+st_sp:                            /* the seven sprites: u32 picture, u16 x, u16 y */
+ .space 56
 st_row:                           /* the row being built */
  .space ST_W
 st_rend:
  .balign 2
+
+/* ST_HP reg, miss: reg is a word-aligned pointer into the GUI's heap (0x62......), else miss. Uses d1. */
+ .macro ST_HP reg, miss
+ mov \reg,d1
+ and 0xff000003,d1
+ cmp 0x62000000,d1
+ bne \miss
+ .endm
+
+/* st_place: `call st_place,[d2,d3,a2,a3],28`, d0 = 1 the panel's place / 0 the bar's -> d1 = 1 done, 0 nothing
+ * changed. The screen's widget parent: (ST_GUI) -> (+0xdc); its child 7 is the guide picture's widget (0x3c7), child
+ * 6 the camera's button frame behind it (0x3c6): for the panel the picture goes to the panel's place and the frame to
+ * 4 x 4 pixels under the Shadows wheel's middle (it would show where the bar was). Each widget only if it checks out
+ * (st_w1); the picture's decides the answer. om-emu, 2026-11-23. Uses d0, d1, a0, a1. */
+st_place:
+ mov d0,d3
+ mov (ST_GUI),d0
+ ST_HP d0, 8f
+ mov d0,a0
+ mov (0xdc,a0),d0
+ ST_HP d0, 8f
+ mov d0,a3
+ mov st_wt7,a1
+ call st_w1,[],4
+ cmp 0,d1
+ beq 8f
+ mov st_wt6,a1
+ call st_w1,[],4
+ mov 1,d1
+ ret [d2,d3,a2,a3],28
+8:
+ clr d1
+ ret [d2,d3,a2,a3],28
+
+ .balign 4
+st_wt7:                           /* the child's place in the parent, its id word; the bar's rectangles (viewfinder */
+ .long 0x344, ST_WID              /* x | y << 16, rear screen, w | h << 16), the panel's */
+ .long ST_BARV, ST_BARR, ST_BARS
+ .long ST_PANV, ST_PANR, ST_PANS
+st_wt6:
+ .long 0x340, 0x03c68003
+ .long ST_BARV, ST_BARR, ST_BARS
+ .long (ST_PX - 41 + ST_CX0 - 2) | ((ST_PY + ST_CY0 - 2) << 16), (ST_PX + ST_CX0 - 2) | ((ST_PY + ST_CY0 - 2) << 16), 4 | (4 << 16)
+
+/* st_w1: `call st_w1,[],4`, a3 = the parent, a1 = the widget's table (st_wt7 / st_wt6), d3 = 1 the panel's place / 0
+ * the bar's -> d1 = 1 written, 0 not. The child must be a picture widget (ST_WVT) with the table's id and hold one of
+ * the table's two places in its copy of the rectangles (+0x140 viewfinder, +0x148 rear screen: x, y, w, h shorts);
+ * +8 is the one in use. Uses d0, d1, d2, a0, a2. */
+st_w1:
+ mov (a1),d0
+ mov a3,a0
+ add d0,a0
+ mov (a0),d0
+ ST_HP d0, 8f
+ mov d0,a2
+ mov (a2),d0
+ cmp ST_WVT,d0
+ bne 8f
+ mov (4,a2),d0
+ mov (4,a1),d1
+ cmp d1,d0
+ bne 8f
+ mov a1,a0
+ add 8,a0
+ mov 2,d2
+1:
+ mov (a0),d0                      /* this place? (all four words) */
+ mov (0x140,a2),d1
+ cmp d0,d1
+ bne 2f
+ mov (4,a0),d0
+ mov (0x148,a2),d1
+ cmp d0,d1
+ bne 2f
+ mov (8,a0),d0
+ mov (0x144,a2),d1
+ cmp d0,d1
+ bne 2f
+ mov (0x14c,a2),d1
+ cmp d0,d1
+ beq 3f
+2:
+ add 12,a0
+ add -1,d2
+ bne 1b
+ bra 8f
+3:
+ mov (8,a2),d0                    /* in use: the viewfinder's (d2 = 1) or the rear screen's (0) */
+ mov (0x140,a2),d1
+ clr d2
+ cmp d0,d1
+ bne 4f
+ inc d2
+4:
+ mov a1,a0
+ add 8,a0
+ cmp 0,d3
+ beq 5f
+ add 12,a0
+5:
+ mov (a0),d0
+ mov d0,(0x140,a2)
+ mov (4,a0),d1
+ mov d1,(0x148,a2)
+ cmp 0,d2
+ bne 6f
+ mov d1,d0
+6:
+ mov d0,(8,a2)
+ mov (8,a0),d0
+ mov d0,(0x144,a2)
+ mov d0,(0x14c,a2)
+ mov d0,(12,a2)
+ mov 1,d1
+ ret [],4
+8:
+ clr d1
+ ret [],4
 
 /* st_vl <- tn_get's readout `call st_vl,[d2,d3,a2,a3],20` (was vl_s; a2 = P): the panel, then vl_s in the same frame. */
 st_vl:
@@ -145,7 +275,7 @@ st_rd:
  movbu (EDK,a2),d0
  cmp 4,d0
  bcc 9f
- mov GDESC,a0                     /* the camera's 14 / 175 x 50 / 8 descriptor, or the bar's / ours (400 x 200) */
+ mov GDESC,a0                     /* the camera's 14 / 175 x 50 / 8 descriptor, or the bar's, or ours */
  movhu (a0),d1
  cmp 14,d1
  bne 9f
@@ -154,6 +284,12 @@ st_rd:
  cmp 175,d1
  bne 1f
  cmp 50,d2
+ beq 3f
+ bra 9f
+1:
+ cmp HB_W,d1
+ bne 1f
+ cmp HB_PH,d2
  beq 3f
  bra 9f
 1:
@@ -261,6 +397,14 @@ st_rd:
  call st_join,[d2,d3,a2,a3],64    /* a1 = the buffer -> d0 = the stream's length (0: too long, nothing) */
  cmp 0,d0
  beq 9f
+ mov d0,d2                        /* the widget to the panel's place first: not there, no panel (uses d0, d1, a0, a1) */
+ mov a1,d3
+ mov 1,d0
+ call st_place,[d2,d3,a2,a3],28
+ cmp 0,d1
+ beq 9f
+ mov d2,d0
+ mov d3,a1
  mov GDESC,a0
  mov ST_W,d1
  movhu d1,(2,a0)
@@ -308,30 +452,80 @@ st_put:
  movhu d0,(6,a0)
  ret [],0                         /* (st_dotp's mul changed MDR: not retf) */
 
-/* st_dotp: `call st_dotp,[],0`, a1 = st_v + 2i (colour, strength), d1 = the wheel's middle column, a0 = st_sp's entry:
- * the dot's place (st_dxy); strength 0: no dot (st_none). Uses d0, d2, a1. */
-st_dotp:
- movbu (a1),d0
+/* st_wh: `call st_wh,[],4`, d3 = wheel i (0 Shadows, 1 Highlights): its two sprites, st_sp's entries i (the eraser
+ * over the tint colour's point) and 2 + i (the dot); strength 0: neither (st_none). Uses d0, d1, d2, a0, a1, a2, a3. */
+st_wh:
+ mov d3,d0
+ asl2 d0
+ add st_wxy,d0
+ mov d0,a3                        /* the wheel's middle: x, y */
+ mov d3,d0
+ add d0,d0
+ add st_v,d0
+ mov d0,a2                        /* its tint: colour, strength */
+ mov d3,d0
+ asl 3,d0
+ add st_sp,d0
+ mov d0,a0
+ movbu (1,a2),d2
+ cmp 0,d2
+ bne 1f
+ mov st_none,d0
+ clr d1
+ mov d1,a1
+ call st_put,[],0
+ add 16,a0
+ mov st_none,d0
+ clr d1
+ mov d1,a1
+ call st_put,[],0
+ ret [],4
+1:
+ movbu (a2),d2                    /* the eraser: st_etab[colour] at the colour's point (st_exy) */
+ mov d2,d0
+ add d0,d0
+ add st_exy,d0
+ mov d0,a1
+ movbu (a1),d1
+ extb d1
+ movhu (a3),d0
+ add d0,d1
+ movbu (1,a1),d0
+ extb d0
+ mov d0,a1
+ movhu (2,a3),d0
+ add d0,a1
+ mov d2,d0
+ asl2 d0
+ add st_etab,d0
+ mov d0,a2
+ mov (a2),d0
+ call st_put,[],0
+ add 16,a0                        /* the dot: at st_dxy[colour * 11 + strength] */
+ mov d3,d0
+ add d0,d0
+ add st_v,d0
+ mov d0,a2
+ movbu (a2),d0
  mov 11,d2
  mul d2,d0
- movbu (1,a1),d2
+ movbu (1,a2),d2
  add d2,d0
  add d0,d0
  add st_dxy,d0
  mov d0,a1
- movbu (a1),d0
- extb d0
+ movbu (a1),d1
+ extb d1
+ movhu (a3),d0
  add d0,d1
  movbu (1,a1),d0
  extb d0
- add ST_CY,d0
  mov d0,a1
+ movhu (2,a3),d0
+ add d0,a1
  mov st_dot,d0
- cmp 0,d2                         /* (d2: the strength) */
- bne 1f
- mov st_none,d0
-1:
- jmp st_put
+ call st_put,[],0
+ ret [],4
 
 /* st_half: `call st_half,[],8`, a0 = a background part's table entry (u16 st_rows index), a1 = where in st_row ->
  * its pixels; a1 after them. Uses d0, d1, a0; local (4) the tokens left. */
@@ -381,29 +575,20 @@ st_join:
  mul d1,d0
  add st_bg,d0
  mov d0,(16,sp)
- mov st_sp,a0                     /* the sprites */
- mov a0,(24,sp)
- mov st_v,a1
- mov ST_CX0,d1
- call st_dotp,[],0
- mov (24,sp),a0
- add 8,a0
- mov st_v + 2,a1
- mov ST_CX1,d1
- call st_dotp,[],0
- mov (24,sp),a0
- add 16,a0
- movbu (st_v + 4),d0              /* the caret: its row from Tone Balance */
+ clr d3                           /* the sprites: per wheel its eraser and dot */
+ call st_wh,[],4
+ mov 1,d3
+ call st_wh,[],4
+ mov st_sp + 32,a0                /* the caret: its column from Tone Balance */
+ movbu (st_v + 4),d0
  add d0,d0
- mov st_cy,a1
+ mov st_cx,a1
  add d0,a1
- movhu (a1),d0
- mov d0,a1
- mov ST_CARX,d1
+ movhu (a1),d1
+ mov ST_CTOP,a1
  mov st_car,d0
  call st_put,[],0
- mov (24,sp),a0
- add 24,a0
+ mov st_sp + 40,a0                /* the value */
  movbu (st_v + 4),d0
  asl2 d0
  mov st_vtab,a1
@@ -412,10 +597,10 @@ st_join:
  mov ST_VX,d1
  mov ST_VY,a1
  call st_put,[],0
- mov st_sp + 32,a0                /* w3: the cursor's ring on the page's wheel (none on Balance): at the cursor */
+ mov st_sp + 48,a0                /* the cursor's ring on the page's wheel (none on Balance): at the cursor */
  mov st_none,d0                   /* colour's point, or at the dot when that colour is the tint's */
  clr d1
- mov 0,a1
+ mov d1,a1
  movbu (st_v + 5),d2
  cmp 2,d2
  bcc 4f
@@ -437,20 +622,21 @@ st_join:
  add d0,d0
  add st_dxy,d0
  mov d0,a1
- mov ST_CX0,d1
  movbu (st_v + 5),d0
- cmp 0,d0
- beq 3f
- mov ST_CX1,d1
-3:
- movbu (a1),d0
- extb d0
+ asl2 d0
+ add st_wxy,d0
+ mov d0,a3
+ movbu (a1),d1
+ extb d1
+ movhu (a3),d0
  add d0,d1
  add ST_CURD,d1
  movbu (1,a1),d0
  extb d0
- add ST_CY + ST_CURD,d0
  mov d0,a1
+ movhu (2,a3),d0
+ add d0,a1
+ add ST_CURD,a1
  mov st_cur,d0
 4:
  call st_put,[],0
@@ -521,7 +707,7 @@ st_join:
  mov (24,sp),d0
  inc d0
  mov d0,(24,sp)
- cmp 5,d0
+ cmp 7,d0
  bne 21b
  mov st_row,a0                    /* the row as runs of up to 16 */
 30:

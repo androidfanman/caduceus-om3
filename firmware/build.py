@@ -134,12 +134,10 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
         # for the H / S / L bar, between the left column and Reset: viewfinder place (310 -> 116), rear screen (360 ->
         # 157); h3 raised 14 px (528 -> 514), the bottom edge where it was. The camera's guides (175 x 50) stay centred
         # in them, so they sit left of (and 7 px above) where they were (research/NOTES.md).
-        # split-tone panel w2: the picture's (0x3c7) 200 high (378..578, the bottom edge where it was), for the Split
-        # toning panel's bigger wheels; the bar is the bottom of a 400 x 200 picture (mkhbar.PAD), so it stays put. The
-        # frame (0x3c6, the camera's button frame behind it) keeps 400 x 64. The widgets take these when Picture Mode
-        # opens (om-emu: changing them later moves nothing), so the place cannot follow the row.
-        0x61451e40: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64)),
-        0x61451e50: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 378, 400, 200, 157, 378, 400, 200))}
+        # (split-tone panel w2 / w3 made the picture's 400 x 200; w4: as h3 again. The widgets copy these when Picture
+        # Mode opens; stwheel.s st_place moves the picture widget's own copy while its panel shows.)
+        **{a: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64))
+           for a in (0x61451e40, 0x61451e50)}}
 # wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
 # {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
 KEYW = {0x61322f1c: ((0x01000026, 0x27, 1, 0), 'hb_kdel'), 0x61322f2c: ((0x01000027, 0x29, 1, 0), 'hb_krel'),

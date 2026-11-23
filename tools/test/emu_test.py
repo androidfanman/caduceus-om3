@@ -287,14 +287,20 @@ _HB = mkhbar.pieces()
 HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.PH)} '
                                              f'expect:mem:{GDESC + 12:x}={U32(len(b))} expect:mem:{GDESC:x}+10*={b.hex()}')(
     mkhbar.stream(c, h, s, l, axis, _HB))
-# split-tone panel w2 (2026-11-23): on the Split toning row the guide's descriptor holds card/mkstwheel.py's panel
-# (400 x 200: two wheels, the upright Balance slider), byte for byte, for COLOR k's Shadows colour / strength,
-# Highlights colour / strength (strength 0..10), Tone Balance and the page mode (0 Shadows, 1 Highlights, 2 Balance).
-# The guide picture's place is 400 x 200 (the frame's 400 x 64), fixed when Picture Mode opens.
+# split-tone panel w4 (2026-11-23): on the Split toning row the guide's descriptor holds card/mkstwheel.py's panel
+# (188 x 481: the Highlights wheel, the Shadows wheel, the Balance bar, stacked), byte for byte, for COLOR k's Shadows
+# colour / strength, Highlights colour / strength (strength 0..10), Tone Balance, the page mode (0 Shadows, 1
+# Highlights, 2 Balance) and the cursor's colour. The guide picture's widget (om-emu: its object at 0x62c5b978, the
+# rectangle in use at +8) is at the panel's place while it shows and back at the bar's on any other page; the static
+# rectangles stay the bar's.
 import mkstwheel  # noqa: E402
 _ST = mkstwheel.pieces()
 RECT_IS = lambda a, xv, xr, y, w, h: f'expect:mem:{a:x}={U16(xv)}{U16(y)}{U16(w)}{U16(h)}{U16(xr)}{U16(y)}{U16(w)}{U16(h)}'
-GUIDE_PLACE = f'{RECT_IS(0x61451e40, 116, 157, 514, 400, 64)} {RECT_IS(0x61451e50, 116, 157, 378, 400, 200)}'
+GUIDE_PLACE = f'{RECT_IS(0x61451e40, 116, 157, 514, 400, 64)} {RECT_IS(0x61451e50, 116, 157, 514, 400, 64)}'
+_PAN = (mkstwheel.PLACE[0], mkstwheel.PLACE[1] - mkstwheel.H, mkstwheel.W, mkstwheel.H)
+WIDGET_AT = lambda x, y, w, h: (f'expect:mem:62c5b980={U16(x)}{U16(y)}{U16(w)}{U16(h)} '
+                                f'{RECT_IS(0x62c5b978 + 0x140, x - 41, x, y, w, h)}')
+PANEL_PLACE, BAR_PLACE = WIDGET_AT(*_PAN), WIDGET_AT(157, 514, 400, 64)
 STRIP_IS = lambda sc, ss, hc, hs, b, mode, cur=0: (lambda s: f'expect:mem:{GDESC + 2:x}={U16(mkstwheel.W)}{U16(mkstwheel.H)} '
                                                        f'expect:mem:{GDESC + 12:x}={U32(len(s))} expect:mem:{GDESC:x}+10*={s.hex()}')(
     mkstwheel.stream(sc, ss, hc, hs, b, mode, cur, _ST))
@@ -326,7 +332,7 @@ WHEEL_DELETE_OFF_ROW = (f'{OPEN_WHEEL} down wait down wait delete wait up wait u
 # Saturation when you return to it.
 HIGHLIGHTS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Highlights').flatten()), 175, 50))
 GUIDE_IS = lambda size: f'expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(size)}'
-SPLIT_ROW_OPENS = (f'{OPEN_SPLIT} {AXIS_IS(5)} {LABEL_IS("Tint")} {STRIP_IS(0, 0, 0, 0, 0, 0)} up wait {AXIS_IS(0)} {GUIDE_PLACE} '
+SPLIT_ROW_OPENS = (f'{OPEN_SPLIT} {AXIS_IS(5)} {LABEL_IS("Tint")} {STRIP_IS(0, 0, 0, 0, 0, 0)} {PANEL_PLACE} up wait {AXIS_IS(0)} {GUIDE_PLACE} {BAR_PLACE} '
                    f'{LABEL_IS("Sat")} delete wait {AXIS_IS(1)} down wait {AXIS_IS(5)} info wait {AXIS_IS(6)} '
                    f'down wait up wait {AXIS_IS(5)} up wait {AXIS_IS(0)} poweroff')
 SPLIT_ROW_INFO = (f'{OPEN_SPLIT} info wait {AXIS_IS(6)} {STRIP_IS(0, 0, 0, 0, 0, 2)} info wait {AXIS_IS(6)} '
@@ -366,7 +372,7 @@ SPLIT_STRIP = (f'{OPEN_SPLIT} {STRIP_IS(0, 0, 0, 0, 0, 0)} main+1 wait main+1 wa
                f'info wait {STRIP_IS(2, 1, 0, 0, 0, 2, 2)} main-1 wait {STRIP_IS(2, 1, 0, 0, -1, 2, 2)} expect:p:65=ff '
                f'{TINTS_ARE("02ff0000")} info wait {STRIP_IS(2, 1, 0, 0, -1, 1, 2)} main+1 wait main+1 wait '
                f'{STRIP_IS(2, 1, 2, 2, -1, 1, 2)} {PAL_STRIP} down wait main+1 wait up wait {STRIP_IS(2, 1, 2, 2, 0, 0, 2)} '
-               f'up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} down wait {STRIP_IS(2, 1, 2, 2, 0, 0, 2)} {PAL_STRIP} '
+               f'up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} {BAR_PLACE} down wait {STRIP_IS(2, 1, 2, 2, 0, 0, 2)} {PANEL_PLACE} {PAL_STRIP} down wait {BAR_PLACE} '
                f'poweroff')
 # w3: no camera wheel on the Split toning row. The camera's display update (0x60b1ced8) gets d0 = 1 ("no wheel", as on
 # every row without one) on that row, and still 0 on the colour wheel row. om-emu does not draw the camera's wheel, so
