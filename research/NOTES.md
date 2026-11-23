@@ -10624,3 +10624,26 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
 - **Package:** `test-builds/2026-11-23-split-tone-bar-8` (E1479999.BIN 0a04945a…a56b, GUIDES.BIN 37169c75…907b).
 - **Suite (w8, 94d843b, built twice the same):** 143 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w7.
   On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified.
+
+## p4: p3 + the Split toning bar (w8), no wheel on Balance, no Tone Balance row (2026-11-23; emulator only)
+- **w8 camera result (owner, to cad, 2026-11-23):** "the latest split tone test went perfect! The only thing I'd want to
+  change is right now when balance is selected, it shows the shadows tone. lets make it show nothing on the wheel. but
+  we can test that when we combine everything. so now combine it all. We can also now remove the tone balance row as
+  well" (test-builds/2026-11-23-split-tone-bar-8/camera-results).
+- **The combination (try/picture-mode-4, worktree caduceus-pm4):** feature/split-tone-row (w8) merged into p3
+  (feature/picture-mode e3e30f0). Conflicts: hb_next (p3's INFO H / S / L + w8's S -> B -> H), VERSION, NOTES, tests.
+- **Code space:** p3 + w8 was .ext15 205,928 B of 139,264 (the two bars' own pools: hbar 62 KB, stwheel 58 KB).
+  card/mkbars.py: one pool for both bars, 9-bit tokens (bar_cmap: 20 colours, 5 bits + the run, 4 bits), no row
+  records (an entry is the token index of the part's first token; bar_row decodes until the part's width, 40 / 50 /
+  70, is filled), text tables only rows 14..49 (BAR_TXB: the empty row above / below), the split bar's swatch and
+  marks = the H / S / L bar's (asserted identical): 56 KB for 126 KB. .ext15 135,232. The streams are unchanged byte
+  for byte (the color-wheel-hsl-bar-* and split-tone-bar-* tests compare them with mkhbar.stream / mkstwheel.stream).
+- **No wheel on Balance:** sp_case clears the update block's +268 word while st_bal (w3's write, camera-tested for the
+  whole row there). om-emu: the display update gets d0 = 1 on Balance, 0 on Shadows / Highlights.
+- **No Tone Balance row:** pm_list without TB_IT (TB_IT's switch cases stay, unused). Tone Balance (slot +33) is the
+  Split toning row's Balance step; LOOKS / EDITS unchanged.
+- **Tests:** split-tone-row-wheel-except-on-balance ('caught' on the merge build without the change),
+  split-tone-balance-dial-steps-as-contrast (the old row's dial test, on the Balance step),
+  split-tone-balance-kept-over-a-power-cycle (new); row counts under the Split toning row one less in the tests.
+- **Package:** `test-builds/2026-11-23-picture-mode-4` (commit 3cc4340; E1479999.BIN 9fc3a34e…661c, GUIDES.BIN
+  6e488644…0ba0).
