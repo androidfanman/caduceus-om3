@@ -244,7 +244,7 @@ SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
 # value, as Sh) and Whites (P + 80; sub +1 = -1, the right value, as Hi) and leave Sh (978) and Hi (976) alone; on the
 # camera's own pages the dials still set Sh / Hi and leave Blacks / Whites alone. The Blacks / Whites row is gone:
 # the eighth row is Contrast (its bar's scene in the holder, not the grid's).
-HS_ROW = 's1 wait wait ok wait ok wait ' + 'down wait ' * 7   # the eighth row with the Split toning row above it
+HS_ROW = 's1 wait wait ok wait ok wait ' + 'down wait ' * 6   # the seventh row (p4: no Tone Balance row above it)
 FIVE_POINT_PAGE = (HS_ROW + 'main+1 wait expect:val:978=1 expect:p:79=00 expect:p:80=00 '
                    'info wait info wait main+1 wait main+1 wait sub+1 wait expect:p:79=02 expect:p:80=ff '
                    'expect:val:978=1 expect:val:976=0 '
@@ -270,7 +270,7 @@ FIVE_POINT_ALL_PAGES = (HS_ROW + 'info wait info wait ' + 'sub+1 wait ' * 7 + 'e
 HS_STAR_BOX = '90,232,104,248'
 def FIVE_POINT_STAR(looks):
     assert looks[32 + 64 * 3 + 39] and looks[32 + 64 * 3 + 44], 'FILM 4 needs Blacks and Sh as built for this test'
-    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 7 +
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 6 +
             f' expect:noink:{HS_STAR_BOX} main+1 wait expect:ink:{HS_STAR_BOX} main-1 wait expect:noink:{HS_STAR_BOX}'
             f' info wait info wait expect:noink:{HS_STAR_BOX} sub+1 wait expect:ink:{HS_STAR_BOX} poweroff')
 # What test 6 leaves alone: a COLOR with no film has the '*' as soon as Blacks or Whites is not 0, and loses it at 0.
@@ -284,11 +284,11 @@ _SB = lambda v: v - 256 if v > 127 else v
 def FIVE_POINT_RESET(looks):
     sh = _SB(looks[32 + 64 * 3 + 44])
     assert sh and looks[32 + 64 * 3 + 40], 'FILM 4 needs Sh and Whites as built for this test'
-    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 7 +
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 6 +
             f' expect:val:978={sh} expect:noink:{HS_RESET_BOX} main+1 wait expect:val:978={sh + 1} expect:ink:{HS_RESET_BOX}'
             f' hold:ok wait wait expect:val:978={sh} expect:noink:{HS_RESET_BOX} expect:noink:{HS_STAR_BOX} poweroff')
 def FIVE_POINT_RESET_BW(looks):
-    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 7 + ' info wait info wait'
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 6 + ' info wait info wait'
             f' expect:noink:{HS_RESET_BOX} sub+1 wait expect:ink:{HS_RESET_BOX} expect:ink:{HS_STAR_BOX}'
             f' hold:ok wait wait expect:noink:{HS_RESET_BOX} expect:noink:{HS_STAR_BOX} poweroff')
 # What test 7 leaves alone: on a COLOR with no film OK held gives 0, and the guide follows "not 0".
@@ -303,7 +303,7 @@ FIVE_POINT_GUIDE_KEY = HS_ROW + 'info wait info wait expect:noink:506,545,508,56
 FIVE_POINT_GUIDE_NAMES = (HS_ROW + 'expect:ink:380,540,386,566 info wait expect:noink:380,540,389,566 '
                           'expect:ink:389,540,392,566 info wait expect:noink:380,540,386,566 expect:ink:386,540,389,566 '
                           'info wait expect:ink:380,540,386,566 poweroff')
-FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 5 +
+FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 4 +
                           'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
 
@@ -435,14 +435,14 @@ SPLIT_ROW_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:{2197}=255 down wait {AXIS
                  f'{TINTS_ARE("00010000")} poweroff')
 # w7: the bar follows the tints and Tone Balance: strength 3 on Shadows' first colour; the front dial to colour 2 and a
 # click there makes it the tint (strength 1); INFO -> Balance: the dial sets Tone Balance (slot +33, P + 65), the
-# tints stay; INFO -> Highlights: strength 2 on colour 2; Tone Balance +1 on its own row; the H / S / L bar is back
+# tints stay; INFO -> Highlights: strength 2 on colour 2; Tone Balance +1 on the Balance step again; the H / S / L bar is back
 # (its colours, its place) on the colour wheel row. Each bar's colours in palette 62's 108..120.
 SPLIT_STRIP = (f'{OPEN_SPLIT} {STRIP_IS(0, 0, 0, 0, 0, 0)} {PAL_STRIP(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait '
                f'{STRIP_IS(0, 3, 0, 0, 0, 0)} {PAL_STRIP(0, 3, 0, 0, 0)} sub-1 wait sub-1 wait main+1 wait '
                f'{STRIP_IS(2, 1, 0, 0, 0, 0)} info wait {STRIP_IS(2, 1, 0, 0, 0, 2)} {PAL_STRIP(2, 1, 0, 0, 2)} main-1 wait '
                f'{STRIP_IS(2, 1, 0, 0, -1, 2)} expect:p:65=ff {TINTS_ARE("02ff0000")} info wait {STRIP_IS(2, 1, 0, 0, -1, 1)} '
-               f'main+1 wait main+1 wait {STRIP_IS(2, 1, 2, 2, -1, 1)} {PAL_STRIP(2, 1, 2, 2, 1)} down wait main+1 wait up wait '
-               f'{STRIP_IS(2, 1, 2, 2, 0, 0)} up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} down wait '
+               f'main+1 wait main+1 wait {STRIP_IS(2, 1, 2, 2, -1, 1)} {PAL_STRIP(2, 1, 2, 2, 1)} info wait info wait main+1 wait '
+               f'info wait {STRIP_IS(2, 1, 2, 2, 0, 1)} up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} down wait '
                f'{STRIP_IS(2, 1, 2, 2, 0, 0)} {PAL_STRIP(2, 1, 2, 2, 0)} poweroff')
 # w8 (owner, w7 on the camera): on the Balance step the front dial does nothing (the cursor 2197 + k and the bar stay);
 # when INFO goes to Shadows or Highlights the cursor goes back to that tint's colour (value = slice + 1), when it has one.
@@ -452,13 +452,20 @@ SPLIT_BALANCE_NO_DIAL = (f'{OPEN_SPLIT} sub-1 wait sub-1 wait main+1 wait {CUR_I
 SPLIT_CURSOR_BACK = (f'{OPEN_SPLIT} sub-1 wait sub-1 wait main+1 wait {CUR_IS(3)} info wait info wait {AXIS_IS(6)} {CUR_IS(3)} '
                      f'sub-1 wait sub-1 wait sub-1 wait main+1 wait {CUR_IS(6)} {TINTS_ARE("02ff05ff")} info wait {AXIS_IS(5)} '
                      f'{CUR_IS(3)} info wait {CUR_IS(3)} info wait {AXIS_IS(6)} {CUR_IS(6)} poweroff')
-# w7: the camera's own wheel stays on the Split toning row (as on the colour wheel row; w3..w6 asked for none): its
-# display update (0x60b1ced8) gets d0 = 0 ("the wheel") there, 1 on the rows without a wheel.
-SPLIT_KEEPS_WHEEL = f'{OPEN_WHEEL} down wait main+1 wait info wait up wait poweroff'
+# w7 / p4: the camera's own wheel stays on the Split toning row's Shadows and Highlights (as on the colour wheel row),
+# and on its Balance step there is none (owner, w8: "lets make it show nothing on the wheel"): the display update
+# (0x60b1ced8) gets d0 = 0 ("the wheel") on Shadows / Highlights, 1 on Balance and on the rows without a wheel.
+SPLIT_KEEPS_WHEEL = f'{OPEN_WHEEL} down wait main+1 wait info wait main+1 wait info wait info wait up wait poweroff'
 def split_row_keeps_wheel(hits):
     got = [(step, d0) for _, _, step, d0 in hits if step in ('down', 'main+1', 'info', 'up')]
-    want = [('down', 1), ('down', 1), ('down', 0), ('down', 0), ('main+1', 0), ('info', 0), ('up', 0)]
+    want = [('down', 1), ('down', 1), ('down', 0), ('down', 0), ('main+1', 0), ('info', 1), ('main+1', 1),
+            ('info', 0), ('info', 0), ('up', 0)]
     return [] if got == want else [f'the display update\'s "no wheel" argument per step: {got}, not {want}']
+# p4: Tone Balance set on the Balance step is kept (saved at the half-press, there after a power cycle) and shows
+# on the bar's B field and in P + 65 as before.
+BALANCE_KEPT = (f'{OPEN_SPLIT} info wait main+1 wait main+1 wait expect:p:65=02 {STRIP_IS(0, 0, 0, 0, 2, 2)} '
+                f'menu wait wait s1 wait wait poweroff')
+BALANCE_KEPT_AGAIN = f's1 wait wait expect:p:65=02 {OPEN_SPLIT} {STRIP_IS(0, 0, 0, 0, 2, 0)} info wait {STRIP_IS(0, 0, 0, 0, 2, 2)} poweroff'
 def newest_looks():
     def key(d):
         n, _, pre = d.name.lstrip('v').partition('-')
@@ -693,7 +700,7 @@ WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wa
 OPEN_RGB = 'ok wait ok wait down wait down wait'
 # borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
 # Radius); COLOR 1's slot +50 is P + 82
-OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 18
+OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 17   # p4: one row less (no Tone Balance row)
 # border preview (2026-11-17): with a Border on the look, the shooting screen's grid shows the border's inner edge as
 # a frame line. Rear screen 900 x 600, 4:3: the picture x 50..850, y 0..599; Border 3 is 26 px in (bd_run's width), so
 # the left line is on x 75..76 and the top one on y 25..26. Each line is checked against a point beside it on om-emu's
@@ -721,7 +728,7 @@ BORDER_TO_0 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=00 menu wait w
 BORDER_TO_M3 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=fd menu wait wait s1 wait wait'   # black -3
 BORDER_FROM_M3 = f'{OPEN_BORDER}' + ' right wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
 # gentler Shading: Picture Mode's Shading row (the camera's own, item 5399), the 13th (pm_list); setting 912 = COLOR 1's
-OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 12
+OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 11   # p4: one row less
 SHADING_TO_M3 = f'{OPEN_SHADING}' + ' left wait' * 3 + ' expect:val:912=-3 menu wait wait s1 wait wait'
 # border-dial-direction (2026-11-18): a dial click on the Border row steps it the way it steps the camera's own
 # Contrast row (the 9th since the five-point curve took the Blacks / Whites row out, 2026-11-22; COLOR 1's setting
@@ -729,10 +736,10 @@ SHADING_TO_M3 = f'{OPEN_SHADING}' + ' left wait' * 3 + ' expect:val:912=-3 menu 
 CONTRAST_COLOR_1 = 908
 # #86: FILM 2 picked on COLOR 1, then its Contrast (the camera's own row) one step up, saved at the half-press. Set ONE
 # leaves FILM 2 as it is, so the change and its '*' stay.
-CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 8 +
+CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 7 +
                       ' main+1 wait menu wait wait s1 wait wait poweroff')
 FILM_2_CHANGED = r'^Films with changes \(a \* in the camera\): 2$'
-DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
+DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 7 +
                     f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1 sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1' +
                     ' down wait' * 10 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
                     ' sub+1 wait sub+1 wait expect:p:82=01 menu wait wait s1 wait wait poweroff')
@@ -740,22 +747,25 @@ DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
 # the row (moves from Contrast, the 9th row): right twice, the rear dial once (+1), the front dial twice (-2). The
 # values: COLOR 1's slot byte (P + 32 + slot) after each step. Glow keeps Glow as -1..-5 (the screen shows +1..+5).
 # Film Grain's byte is its level (strength 2, 3, 1 -> 1, 2, 1), so its strength is also checked in the debug log.
-CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
+CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 7 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
                    f' sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1')
 BAR_DIAL = lambda moves, off, two, three, one: (
     f'{CONTRAST_CLICKS} {moves} right wait right wait expect:p:{off}={two} main+1 wait expect:p:{off}={three}'
     f' sub+1 wait sub+1 wait expect:p:{off}={one} menu wait wait s1 wait wait poweroff')
 GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
 HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
-BALANCE_DIAL = BAR_DIAL('up wait ' * 3, 65, '02', '03', '01')
+# p4: Tone Balance has no row of its own: on the Split toning row's Balance step the rear dial steps it as Contrast
+# (+1 up), and the front dial does nothing there (w8).
+BALANCE_DIAL = (f'{CONTRAST_CLICKS} up wait up wait up wait info wait main+1 wait expect:p:65=01 main+1 wait expect:p:65=02 '
+                f'sub+1 wait sub+1 wait expect:p:65=02 main-1 wait expect:p:65=01 menu wait wait s1 wait wait poweroff')
 GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
 # better grain g2: the Film Grain strength row, the 17th (Grain Size under it); COLOR 1's level byte +53 is P + 85
-OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 16
+OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 15   # p4: one row less
 GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
 # Halation Radius: its row, the 15th (under Halation, Film Grain under it); kept in the curves record's spare byte G
 # with the grain (the debug log's NOW lines)
-OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 15
+OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 14   # p4: one row less
 RADIUS_LINE = lambda r: f'^Halation Radius on COLOR 1-4: {r}, Bloom, Bloom, Bloom$'
 GRAIN_2_MEDIUM = '^Film Grain on COLOR 1-4: 2 Medium, Off, Off, Off$'
 EDIT_RGB = f'{OPEN_RGB} main+1 wait menu wait wait'
@@ -1191,7 +1201,7 @@ TESTS = {
     # dial direction: the rear and front dials step Glow, Halation, Split Tone Balance and Film Grain as Contrast.
     'glow-dial-steps-as-contrast': [Boot(GLOW_DIAL)],
     'halation-dial-steps-as-contrast': [Boot(HALATION_DIAL)],
-    'tone-balance-dial-steps-as-contrast': [Boot(BALANCE_DIAL)],
+    'split-tone-balance-dial-steps-as-contrast': [Boot(BALANCE_DIAL)],
     'grain-dial-steps-as-contrast': [Boot(GRAIN_DIAL, expect=[GRAIN_1_MEDIUM])],
     # border preview: the frame line is there at Border 3 and gone at Border 0 (and not there before the Border).
     'border-preview-on-at-3-off-at-0': [
@@ -1524,8 +1534,12 @@ TESTS = {
     'split-tone-row-cursor-goes-back-to-the-tint': [
         Boot(SPLIT_CURSOR_BACK),
     ],
-    'split-tone-row-keeps-the-camera-wheel': [
+    'split-tone-row-wheel-except-on-balance': [
         Boot(SPLIT_KEEPS_WHEEL, watch=('C3D_UPD',), regs=True, hits=split_row_keeps_wheel),
+    ],
+    'split-tone-balance-kept-over-a-power-cycle': [
+        Boot(BALANCE_KEPT),
+        Boot(BALANCE_KEPT_AGAIN),
     ],
     'split-tone-row-shows-a-films-tints': [
         Boot(SPLIT_ROW_FILM(newest_looks().read_bytes())),

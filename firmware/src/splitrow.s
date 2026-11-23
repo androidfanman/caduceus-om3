@@ -50,6 +50,12 @@ sp_case:
  call WH_UPD,[d2,d3,a2,a3],56
  clr d0
  movbu d0,(sp_upd)
+ movbu (st_bal),d1                /* p4 (owner, w8 on the camera: on Balance "lets make it show nothing on the wheel"): */
+ cmp 0,d1                         /* on the Balance step no camera wheel. The update's 288-byte block (setting 275, */
+ beq 1f                           /* published at WH_END): its word +268 = 1 asks the display for the colour wheel */
+ mov (8,sp),a0                    /* (0x61135744 -> kind 6); 0, as on a row without one, and the camera's display */
+ mov d0,(268,a0)                  /* update draws none (0x60b1ced8 with d0 = 1; camera-tested for the whole row in w3) */
+1:
  jmp WH_END
 sp_whl:
  mov 5397,d0

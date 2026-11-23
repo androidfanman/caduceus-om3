@@ -2633,7 +2633,9 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * the colour wheel), tone (Contrast, Highlight & Shadow, Blacks, Whites), white balance
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
- .long 111, MX_IT, RG_IT, 5397, ST_IT, TB_IT, AB_IT, 5398, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
+ /* p4 (owner, 2026-11-23: "We can also now remove the tone balance row as well"): no Tone Balance row (TB_IT); Tone
+  * Balance (slot +33) is the Split toning row's Balance step */
+ .long 111, MX_IT, RG_IT, 5397, ST_IT, AB_IT, 5398, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 
