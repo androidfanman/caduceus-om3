@@ -10279,3 +10279,29 @@ Owner (camera, c5): "the tone curve has an * on it"; asked which: "star only whe
 - Package (private) `test-builds/2026-11-22-curve-5-points-6`: VERSION "v0.40.3-c6", build of 0b0f080, E1479999.BIN
   0aca0b9d...dfaf, GUIDES.BIN aa87d318...447c. Not on a camera. Suite: 146 pass, one FAIL, `static:changed-bytes` with p1's
   twelve sites (as c5 and p1; c6 adds none).
+
+## 2026-11-22: five-point curve test 7 (c7, on c6; emulator only): the H&S row's Reset goes back to the film
+
+Owner (to cad, on the question c6 left open): "reset should go back to the film's values".
+
+- **How the camera's reset and guide work (om-emu, c6, FILM 4 on COLOR 1, watch on cv_dflt / cv_sv):** OK held reads
+  GetDefault for 976, 978, 977 (Hi, Sh, Mid; return 0x611b88b6 = HS_RSD) and writes each value back through SetValue,
+  on the Sh / Hi page and the Mid page alike (all three, whichever page). The page's "Reset [OK Hold]" guide: its
+  GetDefault reads at HS_DHI / HS_DSH / HS_DMD against its values.
+- **c7:** `b5_df` (cv_dflt's way out to ed_default) answers those four callers, with cv_on 0, with the film's value
+  (LOOKS record +46 / +44 / +45) while COLOR k holds a film that is there (`b5_frec`: fl_film, fl_has); everything
+  else gets ed_default as before. So the reset and the guide both follow, with no new hook. The Blk / Wht page:
+  `b5_zk` writes the film's Blacks / Whites (record +39 / +40; 0 without a film), `b5_chg` (the guide, through Mid's
+  default as before) asks `fl_isdef` with BWB + k, as the '*'. Code in .ext13 (81,728 / 81,920; .ext15 138,992).
+- **Same as our other rows now:** the RGB curves (ck_zk) and Split toning rows already reset to the film as built.
+- **Unchanged:** which values a reset covers (the camera's: Sh, Mid, Hi together; ours on Blk / Wht: those two); a
+  COLOR without a film (0).
+- A slip on the way: fl_isdef uses a1, cv_dflt's out pointer; b5_chg keeps it (the Blk / Wht dials went dead on a film
+  and om-emu stopped in cv_dflt before that).
+- **Emulator:** FILM 4: no guide as picked; a Sh step -> guide and '*'; OK held -> Sh the film's, both off; the same
+  for Whites on Blk / Wht, and the dials go on from the film's values. Tests
+  `five-point-curve-reset-goes-back-to-the-film`, `...-reset-of-blacks-whites-goes-back-to-the-film` (both `caught` on
+  c6), `...-reset-without-a-film-gives-0` (pass).
+- Package (private) `test-builds/2026-11-22-curve-5-points-7`: VERSION "v0.40.3-c7", build of a0a7035, E1479999.BIN
+  224b2ed3...3b21, GUIDES.BIN 053b6c23...d208. Not on a camera. Suite: 149 pass, one FAIL, `static:changed-bytes` with p1's
+  twelve sites (as p1, c5, c6; c7 adds none).
