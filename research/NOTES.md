@@ -10187,3 +10187,5 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   bar back), `split-tone-row-info-steps-shadows-balance-highlights`.
 - **Package:** `test-builds/2026-11-23-split-tone-panel-3` (commit 74ab711; E1479999.BIN b470aa44…29ad, GUIDES.BIN
   b7477658…c7b0). On s2 + w2, not p3.
+- **Suite (w3, 74ab711, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 24 runs as w2.
+  On the owner's card 2026-11-23 (owner, in the session: "put w3 on the card when the suite passes"); checksums verified.
