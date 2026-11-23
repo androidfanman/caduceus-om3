@@ -10273,3 +10273,5 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - om-emu: panel, bar, labels as w4, also after leaving Picture Mode and coming back (a new search finds the same
   objects).
 - **Package:** `test-builds/2026-11-23-split-tone-panel-6` (E1479999.BIN 342d0bc3…97cc, GUIDES.BIN 0ffad2c6…08c9).
+- **Suite (w6, fb34439, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w5.
+  On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified.
