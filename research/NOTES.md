@@ -9883,3 +9883,6 @@ owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-bet
   digit 549; right: dial 860, name 814 w 50, sign 864, digit 877, ending at 893). Nothing else changes. VERSION
   "v0.40.3-c4", build of 9d84e8b: E1479999.BIN 67123102...7225, GUIDES.BIN b0117967...65b4, ext15 75,216 / 139,264.
   Private package `test-builds/2026-11-22-curve-5-points-4`. Suite **133 pass**, exit 0.
+- **Test 4 camera (owner, 2026-11-22): camera-tested.** "c4 looked great! no notes." The card's log showed build
+  v0.40.3-c4 and nothing unusual. So the header's draw order and greying on the camera match om-emu as far as the
+  owner saw (tests 3 and 4).
