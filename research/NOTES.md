@@ -10305,3 +10305,12 @@ Owner (to cad, on the question c6 left open): "reset should go back to the film'
 - Package (private) `test-builds/2026-11-22-curve-5-points-7`: VERSION "v0.40.3-c7", build of a0a7035, E1479999.BIN
   224b2ed3...3b21, GUIDES.BIN 053b6c23...d208. Not on a camera. Suite: 149 pass, one FAIL, `static:changed-bytes` with p1's
   twelve sites (as p1, c5, c6; c7 adds none).
+
+## 2026-11-22: five-point curve tests 5 to 7, camera result (c7): camera-tested
+
+Owner (camera, c7, 2026-11-22): "it looks good." c7 = p1 + c5 (the one curve on all three H&S pages) + c6 (the row's
+'*' against the film) + c7 (Reset back to the film). c5 was flashed on its own before it (its result was the '*'
+remark that led to c6); c6 was never flashed on its own, c7 holds its change. So the redraw of our curve on the
+camera's Sh / Hi and Mid pages, and the reset and its guide through GetDefault, behave on the camera as in om-emu as
+far as the owner saw.
+
