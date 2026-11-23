@@ -31,7 +31,7 @@
 .section .ext15,"ax"
  .include "hbar.inc"              /* HB_*, hb_rows, hb_gid, hb_swr, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
-.set HB_BUF, 16448                /* each stream buffer (worst case HB_WORST, checked by build.py; w2: 400 x 200, shared
+.set HB_BUF, 16384                /* each stream buffer (worst case HB_WORST, checked by build.py; w2: 400 x 200, shared
                                    * with the Split toning panel, stwheel.s) */
 .set HB_F, 48                     /* hb_rd's frame */
 .set HB_UI_INFO, 0x25             /* the GUI key codes of INFO's press and release (Delete's: 0x27, 0x29) */

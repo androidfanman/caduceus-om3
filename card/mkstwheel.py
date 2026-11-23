@@ -51,7 +51,7 @@ CAP = 15
 PLACE = (706, 578)                       # the panel's left column and bottom row on the rear screen (viewfinder: 80 left): the
                                          # right edge, where the camera's wheel was; stwheel.s moves the camera's column aside
 MODES = ('Shadows', 'Highlights', 'Balance')
-ST_BUF = 16448                           # hbar.s HB_BUF: the two heap buffers the bar and the panel share
+ST_BUF = 16384                           # hbar.s HB_BUF: the two heap buffers the bar and the panel share
 MAXSTREAM = ST_BUF - 16
 
 
@@ -337,7 +337,27 @@ def inc(P=None):
             ''.join(spr(f'st_v{b + 5}', P['val'][b + 5]) for b in range(-5, 6)) +
             '.balign 4\nst_vtab:\n' + ''.join(f' .long st_v{b + 5}\n' for b in range(-5, 6)) +
             'st_etab:\n' + ''.join(f' .long st_e{c}\n' for c in range(12)) +
+            'st_hexf:\n' + bw(hexfont()) +
             '.balign 4\nst_pal:\n .long ' + ','.join(f'{x:#010x}' for x in argb()) + '\n')
+
+
+HEXF = {'0': '.###. #...# #..## #.#.# ##..# #...# .###.', '1': '..#.. .##.. ..#.. ..#.. ..#.. ..#.. .###.',
+        '2': '.###. #...# ....# ...#. ..#.. .#... #####', '3': '####. ....# ....# .###. ....# ....# ####.',
+        '4': '...#. ..##. .#.#. #..#. ##### ...#. ...#.', '5': '##### #.... ####. ....# ....# #...# .###.',
+        '6': '.###. #.... #.... ####. #...# #...# .###.', '7': '##### ....# ...#. ..#.. ..#.. .#... .#...',
+        '8': '.###. #...# #...# .###. #...# #...# .###.', '9': '.###. #...# #...# .#### ....# ....# .###.',
+        'A': '.###. #...# #...# ##### #...# #...# #...#', 'B': '####. #...# #...# ####. #...# #...# ####.',
+        'C': '.###. #...# #.... #.... #.... #...# .###.', 'D': '####. #...# #...# #...# #...# #...# ####.',
+        'E': '##### #.... #.... ####. #.... #.... #####', 'F': '##### #.... #.... ####. #.... #.... #....'}
+
+
+def hexfont():
+    """st_hexf: 16 digits x 7 rows, 5 bits a row (bit 4 the left pixel): stwheel.s st_diag."""
+    out = []
+    for ch in '0123456789ABCDEF':
+        for row in HEXF[ch].split():
+            out.append(int(row.replace('#', '1').replace('.', '0'), 2))
+    return out
 
 
 def preview(pics, path, scale=2):

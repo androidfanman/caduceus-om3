@@ -54,12 +54,16 @@ st_row:                           /* the row being built */
 st_rend:
  .balign 2
 
-/* ST_HP reg, miss: reg is a word-aligned pointer into the GUI's heap (0x62......), else miss. Uses d1. */
+/* ST_HP reg, miss: reg is a word-aligned pointer into the heap's RAM (0x62000000..0x65ffffff; om-emu's GUI objects
+ * are at 0x62c5...., w4 took only 0x62...... and found nothing on the camera), else miss. Uses d1. */
  .macro ST_HP reg, miss
  mov \reg,d1
- and 0xff000003,d1
- cmp 0x62000000,d1
+ and 3,d1
  bne \miss
+ mov \reg,d1
+ add -0x62000000,d1
+ cmp 0x04000000,d1
+ bcc \miss
  .endm
 
 /* st_place: `call st_place,[d2,d3,a2,a3],28`, d0 = 1 the panel's places / 0 the camera's -> d1 = 1 done, 0 nothing
@@ -134,20 +138,27 @@ st_wte:
  * entry's two places in its copy of the rectangles; +8 is the rectangle in use (viewfinder or rear screen), +12 its
  * size. Keeps a1, d3; uses d0, d1, d2, a0, a2, a3. */
 st_w1:
- mov (st_par),a0
- mov (a1),d0
- add d0,a0
+ mov (st_par),a0                  /* w5: the child with the entry's method table and id word in any of the parent's */
+ add 0x300,a0                     /* slots +0x300..+0x35c (w4 took the slot om-emu has it in) */
+ mov 24,d2
+0:
  mov (a0),d0
- ST_HP d0, 8f
+ ST_HP d0, 7f
  mov d0,a2
  mov (a2),d0
  mov (8,a1),d1
  cmp d1,d0
- bne 8f
+ bne 7f
  mov (4,a2),d0
  mov (4,a1),d1
  cmp d1,d0
- bne 8f
+ beq 9f
+7:
+ add 4,a0
+ add -1,d2
+ bne 0b
+ bra 8f
+9:
  mov (12,a1),d0
  mov a2,a3
  add d0,a3                        /* its copies: (0) viewfinder, (4) size, (8) rear screen, (12) size */
@@ -437,9 +448,21 @@ st_rd:
  mov d0,d2                        /* the widget to the panel's place first: not there, no panel (uses d0, d1, a0, a1) */
  mov a1,d3
  mov 1,d0
+ .ifdef ST_DIAGTEST
+ clr d1                           /* (a research build: as if the widgets were not found) */
+ .else
  call st_place,[d2,d3,a2,a3],28
+ .endif
  cmp 0,d1
- beq 9f
+ bne 7f
+ mov 2,d0
+ mov d0,(st_dst)
+ mov d3,a1                        /* not found: what is there, as hex, in the bar's place and the debug log (st_diag) */
+ call st_diag,[d2,d3,a2,a3],64
+ bra 9f
+7:
+ mov 1,d0
+ mov d0,(st_dst)
  mov d2,d0
  mov d3,a1
  mov GDESC,a0
@@ -461,6 +484,284 @@ st_rd:
  mov (12,sp),a0
  mov (16,sp),a1
  ret [d2,d3,a2,a3],ST_F
+
+/* ------------------------------------------------------------------ w5: what the camera has, on the screen
+ * When st_place does not find the guide picture's widget, the bar's place (400 x 64) shows 7 lines of 7 hex words
+ * (st_hexf, 5 x 7 digits, white on black) for a photo of the screen:
+ *  line 1: (ST_GUI), then its +0xdc, +0xd0, +0xd4, +0xd8, +0xe0, +0x130
+ *  lines 2, 3: the parent's (+0xdc's) slots +0x310..+0x344
+ *  line 4: slot +0x344's object: +0, +4, +8, +12, +0x140, +0x144, +0x148; line 5: slot +0x324's, the same;
+ *  line 6: slot +0x330's: +0, +4, +8, +12, +0xc0, +0xc4, +0xc8; line 7: slot +0x340's, as line 4.
+ * EEEEEEEE: not read (the pointer before it is not a heap address). */
+ .balign 4
+st_dw:
+ .space 49 * 4
+st_do1:
+ .short 0xdc, 0xd0, 0xd4, 0xd8, 0xe0, 0x130
+st_doa:
+ .short 0, 4, 8, 12, 0x140, 0x144, 0x148
+st_dob:
+ .short 0, 4, 8, 12, 0xc0, 0xc4, 0xc8
+st_drow:
+ .space 400
+st_drend:
+ .balign 2
+
+st_dst:                           /* 0 the panel not asked for yet, 1 st_place moved the widgets, 2 it found none (st_dw) */
+ .long 0
+st_ls:
+ .asciz "\r\nSplit toning panel (w5; 1 placed, 2 not found, then st_diag's 49 words): "
+st_lnl:
+ .asciz "\r\n  "
+st_lsp:
+ .asciz " "
+ .balign 2
+
+/* st_lg: `call st_lg,[d2,d3,a2,a3],24` from the debug log's NOW section (lg_now): st_dst and st_dw, 7 words a line. */
+st_lg:
+ LGS st_ls
+ mov (st_dst),d0
+ call lg_h,[],0
+ mov (st_dst),d0                  /* the words only when it found none */
+ cmp 2,d0
+ bne 3f
+ mov st_dw,a2
+ clr d2
+1:
+ mov d2,d0
+ mov 7,d1
+ clr d3
+ mov d3,mdr
+ divu d1,d0
+ mov mdr,d0
+ cmp 0,d0
+ bne 2f
+ LGS st_lnl
+2:
+ mov (a2),d0
+ call lg_h,[],0
+ LGS st_lsp
+ add 4,a2
+ inc d2
+ cmp 49,d2
+ bne 1b
+3:
+ ret [d2,d3,a2,a3],24
+
+/* st_dcp: `call st_dcp,[],4`, a0 = an object, a2 = d2 offsets (u16), a1 = where: its words there. Uses d0, d2, a1, a2, a3. */
+st_dcp:
+ movhu (a2),d0
+ add 2,a2
+ mov a0,a3
+ add d0,a3
+ mov (a3),d0
+ mov d0,(a1)
+ add 4,a1
+ add -1,d2
+ bne st_dcp
+ ret [],4
+
+/* ST_DW src, offs, dst: st_dw[src] a heap pointer -> its 7 words at offs into st_dw[dst..]. */
+ .macro ST_DW src, offs, dst
+ mov (st_dw + 4 * \src),d0
+ ST_HP d0, 91f
+ mov d0,a0
+ mov \offs,a2
+ mov 7,d2
+ mov st_dw + 4 * \dst,a1
+ call st_dcp,[],4
+91:
+ .endm
+
+/* st_diag: `call st_diag,[d2,d3,a2,a3],64`, a1 = a stream buffer: the words above into it and into GDESC (400 x 64).
+ * Locals (4) y, (8) the buffer, (12) the digit row, (16) the line's next word, (20) word i, (24) digits left, (28) the
+ * word. Uses d0, d1, a0, a1. */
+st_diag:
+ mov a1,(8,sp)
+ mov st_dw,a0
+ mov 49,d0
+ mov 0xeeeeeeee,d1
+1:
+ mov d1,(a0)
+ add 4,a0
+ add -1,d0
+ bne 1b
+ mov (ST_GUI),d0
+ mov d0,(st_dw)
+ ST_HP d0, 5f
+ mov d0,a0
+ mov st_do1,a2
+ mov 6,d2
+ mov st_dw + 4,a1
+ call st_dcp,[],4
+ mov (st_dw + 4),d0
+ ST_HP d0, 5f
+ mov d0,a0
+ add 0x310,a0
+ mov st_dw + 28,a1
+ mov 14,d2
+2:
+ mov (a0),d0
+ mov d0,(a1)
+ add 4,a0
+ add 4,a1
+ add -1,d2
+ bne 2b
+ ST_DW 20, st_doa, 21
+ ST_DW 12, st_doa, 28
+ ST_DW 15, st_dob, 35
+ ST_DW 19, st_doa, 42
+5:
+ mov (8,sp),a1
+ mov HB_HDR,d0                    /* 400 x 64, type 11 */
+ mov d0,(a1)
+ mov a1,a3
+ add 4,a3
+ clr d2
+ clr d3
+ mov 0,a2
+ clr d0
+ mov d0,(4,sp)
+10:                               /* a row: black */
+ mov st_drow,a0
+ mov 400,d1
+ mov 7,d0
+11:
+ movbu d0,(a0)
+ inc a0
+ add -1,d1
+ bne 11b
+ mov (4,sp),d0                    /* line y / 9, digit row y % 9 (rows 7, 8 of a line and lines 7.. stay black) */
+ clr d1
+12:
+ cmp 9,d0
+ bcs 13f
+ add -9,d0
+ inc d1
+ bra 12b
+13:
+ cmp 7,d0
+ bcc 30f
+ cmp 7,d1
+ bcc 30f
+ mov d0,(12,sp)
+ mov 28,d0
+ mul d0,d1
+ add st_dw,d1
+ mov d1,(16,sp)
+ clr d0
+ mov d0,(20,sp)
+ mov st_drow + 4,a0
+14:                               /* a word: 8 digits */
+ mov (16,sp),a1
+ mov (a1),d1
+ add 4,a1
+ mov a1,(16,sp)
+ mov 8,d0
+ mov d0,(24,sp)
+15:
+ mov d1,d0
+ lsr 28,d0
+ asl 4,d1
+ mov d1,(28,sp)
+ mov 7,d1
+ mul d1,d0
+ mov (12,sp),d1
+ add d1,d0
+ add st_hexf,d0
+ mov d0,a1
+ movbu (a1),d0                    /* the digit's row: 5 pixels, bit 4 the left one */
+ mov 10,d1
+ mov a0,a1
+ add 5,a1
+16:
+ btst 16,d0
+ beq 17f
+ movbu d1,(a0)
+17:
+ add d0,d0
+ inc a0
+ cmp a1,a0
+ bne 16b
+ inc a0
+ mov (28,sp),d1
+ mov (24,sp),d0
+ add -1,d0
+ mov d0,(24,sp)
+ bne 15b
+ add 8,a0
+ mov (20,sp),d0
+ inc d0
+ mov d0,(20,sp)
+ cmp 7,d0
+ bne 14b
+30:                               /* the row as runs of up to 16 */
+ mov st_drow,a0
+31:
+ movbu (a0),d1
+ mov a0,a1
+ inc a1
+32:
+ cmp st_drend,a1
+ beq 33f
+ mov a1,d0
+ sub a0,d0
+ cmp 16,d0
+ beq 33f
+ movbu (a1),d0
+ cmp d1,d0
+ bne 33f
+ inc a1
+ bra 32b
+33:
+ mov a1,d0
+ sub a0,d0
+ add -1,d0
+ asl 4,d1
+ or d1,d0
+ HB_PUT
+ mov a1,a0
+ cmp st_drend,a0
+ bne 31b
+ mov (4,sp),d0
+ inc d0
+ mov d0,(4,sp)
+ cmp HB_H,d0
+ bne 10b
+50:                               /* zero tokens to the end of the word */
+ cmp 0,a2
+ beq 60f
+ add 12,d3
+ add 1,a2
+ cmp 5,a2
+ bne 51f
+ mov 0,a2
+ add 4,d3
+51:
+ cmp 8,d3
+ bcs 50b
+ movbu d2,(a3)
+ inc a3
+ lsr 8,d2
+ add -8,d3
+ bra 51b
+60:
+ mov (8,sp),a1
+ mov a3,d0
+ mov a1,d1
+ sub d1,d0
+ mov GDESC,a0
+ mov HB_W,d1
+ movhu d1,(2,a0)
+ mov HB_PH,d1
+ movhu d1,(4,a0)
+ mov d0,(12,a0)
+ mov a1,(16,a0)
+ mov a1,(hb_cur)
+ mov -1,d0                        /* neither the panel nor the bar is on screen */
+ mov d0,(st_key)
+ mov d0,(hb_key)
+ ret [d2,d3,a2,a3],64
 
 /* st_spal: `call st_spal,[d2,d3,a2,a3],20`: st_pal into palette 62's entries 108..120 (table and screen), as hb_spal. */
 st_spal:
