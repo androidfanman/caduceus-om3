@@ -11307,7 +11307,7 @@ tn_get:
  cmp 4,d3
  bcc 8f
  add -4,sp                        /* the call's return slot: it would overwrite the saved a2 */
- call vl_s,[d2,d3,a2,a3],20
+ call st_vl,[d2,d3,a2,a3],20      /* split-tone strip w1: the strip, then vl_s (stwheel.s) */
  add 4,sp
  mov d3,d0
  add d0,d0
@@ -23427,4 +23427,5 @@ bl_v:                             /* the value */
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
  .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
  .include "hbar.s"                /* wheel-hsl-view: the H / S / L bar under the colour wheel (ext15) */
+ .include "stwheel.s"             /* split-tone strip w1: two small wheels and Balance on the Split toning row (ext15) */
  .include "splitrow.s"            /* the Split toning row: the Shadows / Highlights wheels on their own row (ext15) */

@@ -272,6 +272,8 @@ def build(defaults, testfile, out):
     hb = mkhbar.inc()
     assert int(hb.split('.set HB_WORST, ')[1].split()[0]) < 8192    # hbar.s HB_BUF
     (out / 'hbar.inc').write_text(hb)
+    import mkstwheel                              # split-tone strip w1: the two small wheels and Balance (stwheel.s)
+    (out / 'stwheel.inc').write_text(mkstwheel.inc())
     (out / 'wheeldef.inc').write_text(f'.set XL_N, {len(mklabels.LABELS)}\n.set WLL, {len(wl)}\n.set XL_W0, {w0}\n.set SAS, {len(sagd)}\n'
                                       + ''.join(f'.set XL_{t.upper()}, {mklabels.LABELS.index(t)}\n' for t in ('Sat', 'Lum', 'Hue', 'Tint')))
     fwp, fwi, boxes, dw = mkicons.sp_parts()     # the quick menu's "FILM n" (fl_sp draws it)

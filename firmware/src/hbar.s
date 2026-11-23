@@ -339,6 +339,8 @@ hb_rd:
  mov a1,(hb_cur)
  mov (20,sp),d0
  mov d0,(hb_key)
+ mov -1,d1                        /* the Split toning strip's picture and colours are gone (stwheel.s) */
+ mov d1,(st_key)
  call hb_spal,[d2,d3,a2,a3],20    /* the colour's 13 palette entries */
 9:
  mov (4,sp),d0
