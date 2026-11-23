@@ -295,9 +295,14 @@ def FIVE_POINT_RESET_BW(looks):
 FIVE_POINT_RESET_NO_FILM = (HS_ROW + f'expect:noink:{HS_RESET_BOX} main+1 wait expect:val:978=1 expect:ink:{HS_RESET_BOX} '
                             f'hold:ok wait wait expect:val:978=0 expect:noink:{HS_RESET_BOX} poweroff')
 # Test 8 (owner, camera c7: "the text on all the Info icons looks different"): the row's own guides are drawn to the
-# camera's "Mid [INFO]" (rgbpics.py guide5): on the Mid page ("B/W [INFO]") the white key is 60 px wide as the
-# camera's, x 449..508, so its right edge falls between x 508 and 509 (c7: 62 px, white on both).
-FIVE_POINT_GUIDE_KEY = HS_ROW + 'info wait expect:noink:506,545,508,560 expect:ink:508,545,509,560 poweroff'
+# camera's "Mid [INFO]" (rgbpics.py guide5): on "B/W [INFO]" the white key is 60 px wide as the
+# camera's, x 449..508, so its right edge falls between x 508 and 509 (c7: 62 px, white on both). Since test 9 that guide is on Blk / Wht.
+FIVE_POINT_GUIDE_KEY = HS_ROW + 'info wait info wait expect:noink:506,545,508,560 expect:ink:508,545,509,560 poweroff'
+# Test 9 (owner: the guide names the "Page I am on"; the camera's names the page INFO goes to next): "Sh/Hi" on the
+# Sh / Hi page (its edge starts at x 379), the camera's "Mid" on the Mid page (x 390), "B/W" on Blk / Wht (x 387).
+FIVE_POINT_GUIDE_NAMES = (HS_ROW + 'expect:ink:380,540,386,566 info wait expect:noink:380,540,389,566 '
+                          'expect:ink:389,540,392,566 info wait expect:noink:380,540,386,566 expect:ink:386,540,389,566 '
+                          'info wait expect:ink:380,540,386,566 poweroff')
 FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 5 +
                           'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
@@ -1369,6 +1374,9 @@ TESTS = {
     ],
     'five-point-curve-guide-key-is-the-cameras-size': [
         Boot(FIVE_POINT_GUIDE_KEY),
+    ],
+    'five-point-curve-guide-names-the-page-that-is-on': [
+        Boot(FIVE_POINT_GUIDE_NAMES),
     ],
     'five-point-curve-on-the-sh-hi-and-mid-pages': [
         Boot(FIVE_POINT_ALL_PAGES),

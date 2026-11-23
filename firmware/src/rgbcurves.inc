@@ -1455,10 +1455,10 @@ cv_ic_hd:
  cmp 16248,d1
  bne 8f
 6:
- mov (cv_on),d1                   /* five-point curve: on Blk / Wht the guide reads "Sh/Hi [INFO]" */
+ mov (cv_on),d1                   /* five-point curve test 9: the guide names the page that is on: "B/W [INFO]" */
  cmp 3,d1
  bne 61f
- mov cv_ent + 4 * 18,a0
+ mov cv_ent + 4 * 19,a0
  retf [],0
 61:
  add 20,a0                        /* the guide */
@@ -1466,17 +1466,26 @@ cv_ic_hd:
  retf [],0
 8:
 cv_ic8:
- movbu (b5_mid),d1                /* five-point curve: a film's own Mid page: the guide reads "B/W [INFO]" */
- cmp 0,d1
- beq 81f
- mov d0,d1
- exthu d1
- cmp 16247,d1
- beq 82f
+ mov d0,d1                        /* five-point curve test 9 (owner: the guide names "Page I am on"; the camera's */
+ exthu d1                         /* names the next page): a film's own two pages. Mid (b5_mid): the camera's own */
+ cmp 16247,d1                     /* "Mid [INFO]", its Sh / Hi page's picture 16247, in place of 16248 "Hi/Sh"; */
+ beq 82f                          /* Sh / Hi (on the row, a film): our "Sh/Hi [INFO]" */
  cmp 16248,d1
  bne 81f
 82:
- mov cv_ent + 4 * 19,a0
+ movbu (b5_mid),d1
+ cmp 0,d1
+ beq 83f
+ mov 16247,d0
+ bra 81f
+83:
+ movbu (b5_row),d1
+ cmp 0,d1
+ beq 81f
+ mov (b5_fk),d1
+ cmp 0,d1
+ blt 81f
+ mov cv_ent + 4 * 18,a0
  retf [],0
 81:
  jmp ar_ic
