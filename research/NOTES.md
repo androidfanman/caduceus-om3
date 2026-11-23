@@ -10190,7 +10190,7 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Suite (w3, 74ab711, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 24 runs as w2.
   On the owner's card 2026-11-23 (owner, in the session: "put w3 on the card when the suite passes"); checksums verified.
 
-## The Split toning panel, w4: stacked at the left, the point moves; the widget moved at run time (2026-11-23; emulator only)
+## The Split toning panel, w4: stacked (at the right), the point moves; the widget moved at run time (2026-11-23; emulator only)
 - **w3 camera result (owner, 2026-11-23, photo in test-builds/2026-11-23-split-tone-panel-3/camera-results):** the
   camera's wheel is gone on the Split toning row (camera-tested: the +268 word of setting 275's block), the panel,
   points, cursor ring and dial work. Owner: "When I adjust the value on the wheel the dot from the wheel should move
@@ -10221,5 +10221,8 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   Highlights).
 - **Next, if w4 works (not built):** each wheel its own picture (the frame widget's picture list repointed to a
   descriptor of ours), for wheels of about 230 px.
-- **Package:** `test-builds/2026-11-23-split-tone-panel-4` (commit 2003efc; E1479999.BIN 216ff695…540e, GUIDES.BIN
-  b6c9f6b9…cc9f). On s2 + w3, not p3.
+- **Right, not left (owner, the same day: "I meant the right side not left side"):** the panel's place x 116 -> 412
+  (rear screen (412, 97, 188, 481), viewfinder x 371): left of the camera's Color / Tint / Reset column (x 603..), which
+  it must not cover (GDESC is drawn last).
+- **Package:** `test-builds/2026-11-23-split-tone-panel-4` (commit 1b07e21; E1479999.BIN 28f1f8f9…c31a, GUIDES.BIN
+  f55dd728…6202). On s2 + w3, not p3.
