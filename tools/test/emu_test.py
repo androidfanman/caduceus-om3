@@ -224,11 +224,12 @@ DEBUG_LOG_RELEASES_ONLY = (r'^Written at shutter button event 5 \(a half-press a
 # camera's Off: the row is starred, as the profile is.
 NF_BYTE, NR_ROW_COLOR2, NR_SLOT_COLOR2 = 0x6295942d, 0x7e11, 32 + 64 + 51
 NR_ROW_STAR = lambda star: f'expect:isdef:{{ed_isdef}}:{NR_ROW_COLOR2:x}={0 if star else 1}'
-# The Blacks / Whites row (the ninth in Picture Mode) shows the camera's WB grid scene (element 24813) in the bottom
-# bar's holder, and Contrast, the next row, gets the bar's own scene (element 24771) back. gr_end does that at the end
+# The WB Compensation row (the seventh in Picture Mode; until the five-point curve the Blacks / Whites grid row, the
+# ninth, was checked here) shows the camera's WB grid scene (element 24813) in the bottom bar's holder, and Highlight
+# & Shadow, the next row, gets the bar's own scene (element 24771) back. gr_end does that at the end
 # of the screen update: a flash before it is camera-only (research/TESTING.md, "Past regressions").
 HOLDER_SCENE = lambda element: f'expect:mem:{{gr_cont}}+0*+308*+4={element & 255:02x}{element >> 8:02x}'
-GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 8 + HOLDER_SCENE(24813) +
+GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 6 + HOLDER_SCENE(24813) +
                      ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 # WB Compensation (the seventh row) <-> Highlight & Shadow (the eighth): the holder's scene changes in the row refresh,
 # not in the screen update. A scene set during the update makes the camera draw a pass without grid or curve before
@@ -238,6 +239,28 @@ WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 6 + HOLDER_SCEN
                 ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) +
                 ' down up down wait ' + HOLDER_SCENE(24771) + ' up down up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
+# Five-point curve (2026-11-22): on a film the Highlight & Shadow row (the seventh) steps Sh / Hi -> Mid -> Blk / Wht ->
+# Sh / Hi with INFO. On Blk / Wht the dials set the film's Blacks (P + 79, COLOR 1's slot +47; main +1 = +1, the left
+# value, as Sh) and Whites (P + 80; sub +1 = -1, the right value, as Hi) and leave Sh (978) and Hi (976) alone; on the
+# camera's own pages the dials still set Sh / Hi and leave Blacks / Whites alone. The Blacks / Whites row is gone:
+# the eighth row is Contrast (its bar's scene in the holder, not the grid's).
+HS_ROW = 's1 wait wait ok wait ok wait ' + 'down wait ' * 7   # the eighth row with the Split toning row above it
+FIVE_POINT_PAGE = (HS_ROW + 'main+1 wait expect:val:978=1 expect:p:79=00 expect:p:80=00 '
+                   'info wait info wait main+1 wait main+1 wait sub+1 wait expect:p:79=02 expect:p:80=ff '
+                   'expect:val:978=1 expect:val:976=0 '
+                   'info wait main+1 wait sub+1 wait expect:val:978=2 expect:val:976=-1 expect:p:79=02 expect:p:80=ff '
+                   'down wait ' + HOLDER_SCENE(24771) + ' poweroff')
+# Leaving the row ends the Blk / Wht page: back on the row the dials are Sh / Hi's again.
+FIVE_POINT_LEAVES = (HS_ROW + 'info wait info wait main+1 wait expect:p:79=01 down wait up wait main+1 wait '
+                     'expect:val:978=1 expect:p:79=01 poweroff')
+# Test 3: the header shows all five values in one line (slots of 80 px from x 494; the camera's own header is three
+# slots, x 544..844). On Sh / Hi the first and last slots hold Blk and Wht (nothing there before); on Blk / Wht the
+# middle slot holds Mid (empty there before).
+FIVE_POINT_HEADER = (HS_ROW + 'expect:ink:496,112,540,138 expect:ink:850,112,890,138 '
+                     'info wait info wait expect:ink:660,112,730,138 poweroff')
+# The RGB row uses the same header: it gets the camera's places back (nothing left or right of x 544..847).
+FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 5 +
+                          'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
 
 def no_scene_set_in_update(hits):
@@ -573,9 +596,9 @@ ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wai
 WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
-# borders: Picture Mode's Border row, the 20th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
+# borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
 # Radius); COLOR 1's slot +50 is P + 82
-OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 19
+OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 18
 # border preview (2026-11-17): with a Border on the look, the shooting screen's grid shows the border's inner edge as
 # a frame line. Rear screen 900 x 600, 4:3: the picture x 50..850, y 0..599; Border 3 is 26 px in (bd_run's width), so
 # the left line is on x 75..76 and the top one on y 25..26. Each line is checked against a point beside it on om-emu's
@@ -602,41 +625,42 @@ SI_EV_ON = 'expect:pxdiff:623,566,300,450'
 BORDER_TO_0 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
 BORDER_TO_M3 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=fd menu wait wait s1 wait wait'   # black -3
 BORDER_FROM_M3 = f'{OPEN_BORDER}' + ' right wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
-# gentler Shading: Picture Mode's Shading row (the camera's own, item 5399), the 14th (pm_list); setting 912 = COLOR 1's
-OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 13
+# gentler Shading: Picture Mode's Shading row (the camera's own, item 5399), the 13th (pm_list); setting 912 = COLOR 1's
+OPEN_SHADING = 'ok wait ok wait' + ' down wait' * 12
 SHADING_TO_M3 = f'{OPEN_SHADING}' + ' left wait' * 3 + ' expect:val:912=-3 menu wait wait s1 wait wait'
 # border-dial-direction (2026-11-18): a dial click on the Border row steps it the way it steps the camera's own
-# Contrast row (the 10th, COLOR 1's setting 908). From Contrast nine rows down to Border.
+# Contrast row (the 9th since the five-point curve took the Blacks / Whites row out, 2026-11-22; COLOR 1's setting
+# 908). The row counts below are one less than before for every row under Highlight & Shadow.
 CONTRAST_COLOR_1 = 908
 # #86: FILM 2 picked on COLOR 1, then its Contrast (the camera's own row) one step up, saved at the half-press. Set ONE
 # leaves FILM 2 as it is, so the change and its '*' stay.
-CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 9 +
+CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait' + ' down wait' * 8 +
                       ' main+1 wait menu wait wait s1 wait wait poweroff')
 FILM_2_CHANGED = r'^Films with changes \(a \* in the camera\): 2$'
-DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 9 +
+DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
                     f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1 sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1' +
                     ' down wait' * 10 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
                     ' sub+1 wait sub+1 wait expect:p:82=01 menu wait wait s1 wait wait poweroff')
 # dial direction (2026-11-18): the same for Glow, Halation, Split Tone Balance and Film Grain. Contrast first, then
-# the row (moves from Contrast, the 10th row): right twice, the rear dial once (+1), the front dial twice (-2). The
+# the row (moves from Contrast, the 9th row): right twice, the rear dial once (+1), the front dial twice (-2). The
 # values: COLOR 1's slot byte (P + 32 + slot) after each step. Glow keeps Glow as -1..-5 (the screen shows +1..+5).
 # Film Grain's byte is its level (strength 2, 3, 1 -> 1, 2, 1), so its strength is also checked in the debug log.
-CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 9 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
+CONTRAST_CLICKS = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 + f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1'
                    f' sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1')
 BAR_DIAL = lambda moves, off, two, three, one: (
     f'{CONTRAST_CLICKS} {moves} right wait right wait expect:p:{off}={two} main+1 wait expect:p:{off}={three}'
     f' sub+1 wait sub+1 wait expect:p:{off}={one} menu wait wait s1 wait wait poweroff')
 GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
 HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
-BALANCE_DIAL = BAR_DIAL('up wait ' * 4, 65, '02', '03', '01')
+BALANCE_DIAL = BAR_DIAL('up wait ' * 3, 65, '02', '03', '01')
 GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
-# better grain g2: the Film Grain strength row, the 18th (Grain Size under it); COLOR 1's level byte +53 is P + 85
-OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 17
+# better grain g2: the Film Grain strength row, the 17th (Grain Size under it); COLOR 1's level byte +53 is P + 85
+OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 16
 GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
-# Halation Radius: its row, the 16th (under Halation, Film Grain under it); kept in the curves record's spare byte G
+# Halation Radius: its row, the 15th (under Halation, Film Grain under it); kept in the curves record's spare byte G
 # with the grain (the debug log's NOW lines)
-OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 16
+OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 15
 RADIUS_LINE = lambda r: f'^Halation Radius on COLOR 1-4: {r}, Bloom, Bloom, Bloom$'
 GRAIN_2_MEDIUM = '^Film Grain on COLOR 1-4: 2 Medium, Off, Off, Off$'
 EDIT_RGB = f'{OPEN_RGB} main+1 wait menu wait wait'
@@ -1276,6 +1300,18 @@ TESTS = {
     ],
     'grid-row-gives-the-bottom-bar-back': [
         Boot(GRID_ROW_AND_BACK),
+    ],
+    'five-point-curve-info-reaches-blacks-whites': [
+        Boot(FIVE_POINT_PAGE),
+    ],
+    'five-point-curve-page-ends-on-leaving-the-row': [
+        Boot(FIVE_POINT_LEAVES),
+    ],
+    'five-point-curve-header-shows-five-values': [
+        Boot(FIVE_POINT_HEADER),
+    ],
+    'five-point-curve-header-back-on-the-rgb-row': [
+        Boot(FIVE_POINT_HEADER_BACK),
     ],
     'wb-to-highlight-shadow-sets-the-scene-in-the-row-refresh': [
         Boot(WB_HS_SWITCH, watch=SCENE_IN_UPDATE, hits=no_scene_set_in_update),

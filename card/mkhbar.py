@@ -258,8 +258,8 @@ def inc(P=None):
             f'.set HB_SWF0, {SWF0}\n.set HB_SWF1, {SWF1}\n.set HB_SLF0, {SLF0}\n.set HB_SLF1, {SLF1}\n'
             '.balign 4\nhb_rows:\n' + ''.join(f' .long {r}\n' for r in rec) +
             '.balign 2\nhb_gid:\n' + hw(gid) + 'hb_swr:\n' + hw(swr) + 'hb_tx:\n' + hw(tx) + 'hb_mk:\n' + hw(mk) +
-            'hb_tok:\n' + hw([x for t in toks for x in t]) + '.balign 4\nhb_pal:\n' +
-            ''.join(' .long ' + ','.join(f'{x:#010x}' for x in argb(c, h)) + '\n' for c in range(12) for h in range(-5, 6)))
+            'hb_tok:\n' + hw([x for t in toks for x in t]) + 'hb_pal:\n' +   # picture-mode p1: 3 bytes a colour (B, G, R; hb_spal adds the 0xff), 1716 B less in .ext15
+            ''.join(' .byte ' + ','.join(f'{x & 255},{x >> 8 & 255},{x >> 16 & 255}' for x in argb(c, h)) + '\n' for c in range(12) for h in range(-5, 6)) + '.balign 4\n')
 
 
 def preview(bars, path, scale=3, ground=(96, 110, 120)):

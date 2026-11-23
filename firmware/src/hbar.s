@@ -359,16 +359,23 @@ hb_spal:
  extb d1
  add 5,d1
  add d1,d0
- mov HB_NSLOT * 4,d1
+ mov HB_NSLOT * 3,d1               /* picture-mode p1: hb_pal holds 3 bytes a colour (B, G, R), the 0xff added here */
  mul d1,d0
  add hb_pal,d0
  mov d0,a0
  mov HB_PALT,a1
  mov HB_NSLOT,d1
 1:
- mov (a0),d0
+ movbu (2,a0),d0
+ or 0xff00,d0
+ asl 8,d0
+ movbu (1,a0),d2
+ or d2,d0
+ asl 8,d0
+ movbu (a0),d2
+ or d2,d0
  mov d0,(a1)
- add 4,a0
+ add 3,a0
  add 4,a1
  add -1,d1
  bne 1b

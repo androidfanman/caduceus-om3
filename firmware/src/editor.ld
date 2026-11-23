@@ -105,6 +105,7 @@ WH_END        = 0x611d04ec;
 WH_STAR       = 0x611d184e;
 WH_CASE       = 0x611d04d3;   /* split-tone row: the wheel row's case in the column update switch 0x615510cc */
 STAR_END      = 0x611d1acb;
+HS_STAR       = 0x611d1ab1;   /* five-point curve: the H&S row's own "changed?" case (sw13) */
 INF_GO        = 0x611c29cf;   /* rgb-curves: the row event function (0x611c28xx): INFO to the row's panel */
 INF_NO        = 0x611c29fb;   /* ... not */
 RSI_GO        = 0x611c298e;   /* its held-OK reset to the row's panel */

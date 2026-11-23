@@ -279,5 +279,5 @@ sp_def:
 
  .balign 8
 sp_pay:                           /* the cell picture's stream (build.py) */
- .space 2048
+ .space 952                       /* picture-mode p1: the picture's size (948), was 2048 */
 sp_pend:

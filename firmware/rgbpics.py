@@ -51,8 +51,8 @@ def label(parts):
     return letters(parts, 38, 30, 23, 26)
 
 
-def guide():
-    g = mkguides.build('Color')                     # 175 x 50: the word right-aligned to col 102, the key at 107..172
+def guide(word='Color'):
+    g = mkguides.build(word)                     # 175 x 50: the word right-aligned to col 102, the key at 107..172
     cols = np.nonzero(g.any(axis=0))[0]
     g = g[:, max(0, cols.min() - 2):]
     assert g.shape[1] <= 160, g.shape
@@ -118,6 +118,43 @@ def name_label(t, fill, cap=20):
     return a
 
 
+def wide_label(t, fill, w):
+    """five-point curve test 4 (owner: the selected "Sh" / "Hi" / "Mid" are larger; "have the black/white do the
+    same"): "Blk" / "Wht" at the camera's own selected size (om-emu: its "Sh" and "Mid" are 24 px tall, rows 3..26 of
+    the 30, 3 px stems), in a box of their own width (the header's objects are moved and resized by b5_lk)"""
+    a = letters([(t, fill)], w, 30, 24, 27, maxw=w - 4)
+    cols = np.nonzero(a.any(axis=0))[0]
+    assert cols.min() >= 0 and cols.max() <= w - 1 and not a[29].any(), (t, cols.min(), cols.max())
+    return a
+
+
+FIVE = (('Blk', 2, 46), ('Sh', 6, 38), ('Mid', 1, 50), ('Hi', 6, 38), ('Wht', 2, 46))   # name, its label's x and box
+
+
+def five_item(n, v, fill=WHITE):
+    """five-point curve test 3 (owner: "I want it to look like" the first mock-up, five values in one line): a value
+    the page is not on, its name and number in one 80 x 30 picture (one header slot; curve5.inc b5_lk shows it in a
+    spare object of the header, which the camera greys). Laid out as the camera's own slot: the name's box, then a
+    13 px sign and a 16 px digit."""
+    name, lx, lw = FIVE[n]
+    px = np.zeros((30, 80), dtype=np.uint8)
+    px[:, lx:lx + lw] = letters([(name, fill)], lw, 30, 20, 26, maxw=lw - 6, sx=0.92)
+    sign = '\u00b1' if v == 0 else '+' if v > 0 else '\u2212'
+    px[:, lx + lw:lx + lw + 13] = letters([(sign, fill)], 13, 30, 15, 23, maxw=10)
+    px[:, lx + lw + 13:lx + lw + 29] = letters([(str(abs(v)), fill)], 16, 30, 21, 26, maxw=13)
+    return px
+
+
+def five_items():
+    """the 75 pictures of five_item, name by name, each -7..+7 (curve5.inc b5_cmp)"""
+    return [(f'{FIVE[n][0]} {v:+d}', five_item(n, v)) for n in range(5) for v in range(-7, 8)]
+
+
+def five_streams():
+    return [(name, a.shape[1], a.shape[0], mkicons.encode11(bytes(a.flatten().tolist()), a.shape[1], a.shape[0]))
+            for name, a in five_items()]
+
+
 MID_CX = 38.5                 # test 11: the header's middle (x 693.5) less the middle label box's left edge (x 655)
 
 
@@ -151,7 +188,9 @@ def pictures():
            [(n + ' mid', name_label(n, c)) for n, c in (('R', RED), ('G', GREEN), ('B', BLUE))] + \
            [('Mix cell', mixcell())] + \
            [('clear 50 x 34', np.zeros((34, 50), dtype=np.uint8))] + \
-           [('clear 14 x 30', np.zeros((30, 14), dtype=np.uint8))]   # test 7: RGB's right "±" / "+" sign, cleared
+           [('clear 14 x 30', np.zeros((30, 14), dtype=np.uint8))] + \
+           [('Blk', wide_label('Blk', WHITE, 40)), ('Wht', wide_label('Wht', WHITE, 50)),
+            ('guide Sh/Hi', guide('Sh/Hi')), ('guide B/W', guide('B/W'))]   # five-point curve (curve5.inc): 16..19
 
 
 def streams():

@@ -10099,3 +10099,135 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Package s2:** VERSION "v0.40.3-s2 (h4 + Split toning row)", firmware from commit fc27086, built twice, the same
   byte for byte: E1479999.BIN 40699f65…a347, GUIDES.BIN 0935a569…43d7. Suite (om-emu at the pin): 139 pass, 0 known,
   1 FAIL = static:changed-bytes (h2's 11 sites and s1's 15 runs, not in hooks.json; no new site).
+
+## Five-point curve: Blacks / Whites as the Highlight & Shadow curve's ends (2026-11-22; emulator only)
+Owner: "brings the black/white grid into the shadow curves as a 1st and 5th point"; from a mock-up (private) the
+owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-beta4. Code `firmware/src/curve5.inc`
+(its head comment is the spec), small changes in rgbcurves.inc / colourmix.inc.
+- **What it does (om-emu):** on a film (COLOR 1-4) the H&S row's INFO steps Sh / Hi -> Mid -> Blk / Wht -> Sh / Hi.
+  The Blk / Wht page is the camera's H&S page in a mode of ours, as the RGB and Mix pages (cv_on 3): the left value
+  = Blacks (slot +47; event 0x9032, om-emu "main" +1 = +1), the right = Whites (+48; 0x9031, "sub" +1 = -1), as the
+  camera pairs Sh / Hi; -7..+7, they stop at the ends. Header "Blk" / "Wht" (the labels' 38 px box: the size of
+  "Sat" / "Hue"), the middle empty; guide "Sh/Hi [INFO]", and on a film's Mid page "B/W [INFO]" ("Blk/Wht" is too wide
+  for the guide's word). Hold OK on the page: Blacks and Whites 0 (cv_rst -> cv_zx -> b5_zk); the Reset guide shows
+  when either is set. The row's '*' counts them (b5_star before the camera's own case 0x611d1ab1). The Blacks /
+  Whites grid row is out of pm_list (its code stays). Other picture modes: the row as stock (b5_fk < 0).
+- **The picture:** cv_draw's RGB code on a made-up record (b5_dr): one white curve through Blacks, Sh, Mid, Hi,
+  Whites at 0 / 25 / 50 / 75 / 100 %, each value x 2 RGB steps (+-7 = +-16 %, about the camera's own bend), the ends'
+  dots big and white, the three between small and grey. The ends only move up / down (a minus Blacks lies on the
+  floor, a plus Whites on the ceiling); the end dots are half outside the picture, as the RGB page's. The camera's own
+  Sh / Hi and Mid pages keep the camera's three-point pictures (their ends do not follow Blacks / Whites).
+- **The mock-up's five labels in one row are not built:** the camera's header has three slots (38 / 50 / 38 px
+  label boxes); the page shows the pair it is on. Our own header was tried and dropped for the Mix page (mix test 4).
+- **The panel's value selectors (om-emu):** the H&S panel ((4, the column), 0x6247a290 here) holds four selectors,
+  +124 its look (2 entries), +128 Hi, +132 Sh, +136 Mid: 15 entries each, the entry 7 - value (count u16 at +92,
+  entry u16 at +94). A dial moves the entry and the panel writes the entry's value. On the Blk / Wht page they
+  follow the dials while the writes are refused, so the first build came back to Sh / Hi with a stale entry (Sh 1,
+  three clicks on Blk / Wht, then one click on Sh / Hi wrote 4). cv_inf now sets the Sh / Hi entries to Blacks /
+  Whites on entering and to the film's Sh / Hi on leaving (b5_sel).
+- **Space:** cv_ic / cv_pic moved from the full .ext12 to .ext15 with the new code and its four pictures (rgbpics
+  entries 16..19, curve5pics.inc). b1: ext12 261,688 / 262,144, ext15 9,156 / 139,264.
+- **Hooks / patch sites:** no new hook. Table words changed: sw13's H&S entry (0x611d1ab1 -> b5_star); the H&S update
+  case already pointed at cv_hs. Nothing runs before Picture Mode's H&S row is open on a film (start-up rule).
+- **Tests:** `five-point-curve-info-reaches-blacks-whites`, `five-point-curve-page-ends-on-leaving-the-row`;
+  `grid-row-gives-the-bottom-bar-back` now uses the WB row (the Blacks / Whites row is gone).
+- **Camera-only / open:** how the page looks on the camera (the panel's look flips were camera-only trouble on the
+  Mix page: mix tests 3..6); live view following the dials (lv_ref's fingerprint has +47 / +48); photos. Owner's
+  calls: the two stock pages' curve (ours with five points there too?), the labels' size, hold OK on Sh / Hi leaving
+  Blacks / Whites as they are.
+- **Test 1 (c1; emulator only):** VERSION "v0.40.3-c1 (five-point curve test 1, on beta 4)". E1479999.BIN
+  `d950d51b…83be`, GUIDES.BIN `5b5d1cf7…ca8b` (build of dd675a4; d3beb77 changes tests only). Suite: **131 pass**, exit
+  0, static checks pass (the 13 tests that count rows under H&S now count one less); the new page's test on
+  v0.40.3-beta4: `caught`. Package (private) `test-builds/2026-11-22-curve-5-points-1`, go-back v0.40.3-beta4. Not on
+  a camera yet.
+- **Test 1 camera (owner, 2026-11-22, c1; a photo of the Blk / Wht page at Blk +7 / Wht -7, not kept):** "this is looking
+  good and works, but has some quirks": (1) "The black/white text doesn't show up with the shad/mid/high text";
+  (2) "The curves for the end don't keep up with the dot". Camera-tested: the three INFO pages, the Blk / Wht page's
+  header (labels, dials over both, the middle empty) and guide, the dials, the curve picture drawn. In the photo the
+  end dots sit at +-16 % while the curve ends about half way: cv_prm keeps a value to -7..+7, and b5_dr had doubled
+  the values in its record (the dots, from the record itself, were not clamped), so the curve stopped at +-3.5.
+- **Fix for (2) (emulator only, VERSION c2, not packaged yet):** the record holds the plain values; cv_draw doubles
+  the step on this page for both the curve (after cv_d) and the dots. om-emu: at +7 / -7, -7 / +7 and +3 / -3 the
+  curve ends on its dots. (1) is the header's three slots: a proposal (the other values written inside the graph by
+  their points, our curve on all three pages) is with the owner as a mock-up.
+- **Owner (2026-11-22) on the in-graph proposal:** no: "I want it to look like" mock-up A (five labels in one top line).
+  Two tries, om-emu, both dead ends:
+  - A taller picture reaching up over the header. Descriptor pokes (the stream still 300 x 300): the middle-curve
+    element is not clipped to the graph box, and its place follows the descriptor's size (w or h 200: 150 px right /
+    down; h 364 or 456: 22 px down; w 400: 23 px left), so a bigger one does not move up. A real 300 x 364 picture
+    (64 band rows first) is not drawn at all.
+  - The header's records 0x61466480.. are 16-byte {-1, 46, 46, picture id} lists (a value's glyphs), not positions; the
+    positions are in the scene's own data. Variable 175's 508 bytes read all zero on the open page.
+  Open route (not started, uncertain): the scene's layout data for the header's objects.
+- **Test 2 (c2; emulator only):** c1 + the curve fix. E1479999.BIN `176b7b04…7281`, GUIDES.BIN `2354da8f…1830` (build
+  of b1d51ec). Suite 131 pass, exit 0. Package (private) `test-builds/2026-11-22-curve-5-points-2`. Not on the card.
+- **Test 2 camera (owner, 2026-11-22):** "tested the curve fix. it looks good". The curve reaching its end dots is
+  camera-tested. "now lets try to fix that top line".
+- **Test 3 (c3; emulator only): five values in the header's one line, as the mock-up.** What made it possible
+  (om-emu, c2):
+  - The header is not one drawing: it is 12 picture objects (class word 0x6135993c, ids 971..982: a dial symbol, a
+    name, a sign and a digit for each of the camera's three slots; 975, the middle's dial, is shown only in the Mid
+    look, bit 0 of the byte at +16) of the H&S page's container (object 47, class 0x61466f24, 0x62c56d58 here), whose
+    object pointers lie in the container itself from +796 (971 first; 958 / 967, the two guides, and 983 follow). An
+    object holds its place x / y at +8 / +10 and its box w / h at +12 / +14 (stock: dials 578 / 701 / 811 at y 86 or 76,
+    names 544 / 655 / 777 (38 / 50 / 38 wide), signs 582 / 705 / 815 (13), digits 595 / 718 / 828 (16), y 110, h 30).
+    A draw (0x610da912, a0 = the object) uses these as they are at that moment: x written by hand moved the "Blk"
+    name and a dial symbol, the old place wiped clean. The 38 px box that cut wide labels is the name object's w.
+  - The camera greys the objects of the slots its look is not on (a white picture of ours in such an object shows
+    grey 178), so our pictures need no grey of their own.
+  - The containers form a chain at +32 / +36 in draw order: the left column's (object 237, class 0x61456090), then
+    object 5118, then the header's. The left column's objects are drawn first in every pass seen.
+  - The standard picture modes' list (Natural ...) has no H&S row (Sharpness, Contrast, Saturation, Gradation): this
+    header is only on the films' H&S, RGB and Mix rows.
+  **What c3 does (curve5.inc, b5_lk):** every picture object's draw looks its picture up through cv_ic (return
+  0x610daa1f) with the object at (16,sp). While the H&S row is open on a film (b5_row; or the header is still in a
+  layout of ours, b5_cur) b5_lk finds the header's container from the object being drawn (a left-column object:
+  two steps along +36; a header object: its own container; each checked by its class word), and puts the 12 objects
+  where the page wants them (b5_lt: x and w; each object checked by class and id before it is written; nothing is
+  searched). Five 80 px slots from x 494: Sh / Hi page = the left slot's four objects in slot 1, the right's in slot
+  3, and the middle's name / sign / digit objects (widened to 80) show "Blk v", "Mid v", "Wht v" in slots 0 / 2 / 4;
+  Mid page (the middle's dial object is shown) = the middle's four stay, the left and right name and digit objects
+  show Blk / Sh and Hi / Wht, the two signs nothing; Blk / Wht page = left four in slot 0, right four in slot 4, the
+  middle three show Sh / Mid / Hi. The RGB and Mix rows get the stock places back (layout 0, at the first
+  left-column object of their first pass). The greyed values are 75 pictures of ours (rgbpics.five_item: name and
+  number, 80 x 30, 5 names x -7..+7; 62 KB in .ext15); Blacks / Whites from the film's slot bytes, Sh / Mid / Hi read
+  at every update of the row (b5_rd in b5_hs: sget 111, then 976..978 + 3k), so a hold-OK reset shows at once. The
+  draw's second lookup (return HS_DRAW2) gets the same picture (b5_nx). "Blk" / "Wht" are now cap 20 in a 46 px box
+  (the camera's own label size). b5_mid (the Mid page's "B/W [INFO]" guide) now follows the look that is drawn: the
+  panel keeps its Mid look while another row is open, and c2 then showed the camera's "Hi/Sh [INFO]" on coming back.
+  - om-emu: the three pages as the mock-up (active pair white under its dial symbols, the rest grey), right at the
+    row's first draw; values follow the dials and hold OK; RGB / Mix rows, WB row, menu and back: stock header.
+  - Start-up rule: no new hook. cv_ic already runs at every picture lookup; b5_lk adds one store and one load there
+    until the H&S row has been opened on a film. sget calls only in the H&S row's update.
+  - Not known (camera only): whether the camera's draw order and greying match om-emu (the Mix page's header did
+    differ on the camera: mix tests 3..6); a wrong order would show a slot at its old place for one draw.
+  - Seen in passing (om-emu, c2 the same): "main+7" as one dial event moves Blacks by 1, "sub+7" Whites by 7; single
+    clicks and +3 are right. Not looked into.
+  - Tests: `five-point-curve-header-shows-five-values` (on c2: `caught`), `five-point-curve-header-back-on-the-rgb-row`.
+  - Package (c3; emulator only): VERSION "v0.40.3-c3 (five-point curve test 3, on beta 4)", build of 224e4b9:
+    E1479999.BIN `d8cb6e13…5101`, GUIDES.BIN `4ddd86d7…c8ff`. Suite **133 pass**, exit 0. ext12 261,712 / 262,144,
+    ext15 74,976 / 139,264. Private package `test-builds/2026-11-22-curve-5-points-3`. Not on a camera yet.
+- **Test 3 camera (owner, 2026-11-22):** "that is looking good"; one quirk: the selected Sh / Hi / Mid are slightly
+  larger than the others, the selected Blk / Wht are not ("have the black/white do the same").
+- **Test 4 (c4; emulator only):** om-emu, c3: the camera's own selected names are 24 px tall (rows 3..26 of the 30 px
+  box, 3 px stems); our Blk / Wht were cap 20 with 2 px stems. `wide_label` now draws them at cap 24, baseline row 27,
+  in boxes of 40 (Blk) and 50 (Wht) px; `b5_lt`'s Blk / Wht row places them (left: dial 532, name 496 w 40, sign 536,
+  digit 549; right: dial 860, name 814 w 50, sign 864, digit 877, ending at 893). Nothing else changes. VERSION
+  "v0.40.3-c4", build of 9d84e8b: E1479999.BIN 67123102...7225, GUIDES.BIN b0117967...65b4, ext15 75,216 / 139,264.
+  Private package `test-builds/2026-11-22-curve-5-points-4`. Suite **133 pass**, exit 0.
+- **Test 4 camera (owner, 2026-11-22): camera-tested.** "c4 looked great! no notes." The card's log showed build
+  v0.40.3-c4 and nothing unusual. So the header's draw order and greying on the camera match om-emu as far as the
+  owner saw (tests 3 and 4).
+
+## 2026-11-22: Picture Mode combination p1 (h4 + Split toning row s2 + five-point curve c4; emulator only)
+
+`try/picture-mode-1` = `feature/split-tone-row` (s2, camera-tested) with `feature/curve-5-points` (c4, camera-tested)
+merged in. Nothing new in behaviour. The joins:
+- `pm_list`: the Split toning row stays, the Blacks / Whites row is out (19 rows). Highlight & Shadow is the eighth.
+- `cv_inf` (curve5.inc, the curve's) also takes the Split toning row (ST_IT) to the row's panel, as the wheel's.
+- **.ext15 was 2680 B over** (141944 of 139264) with both. Made to fit (139152, 112 B free), nothing removed:
+  `hb_pal` holds 3 bytes a colour (B, G, R) and `hb_spal` adds the 0xff (1716 B); `sp_pay`'s room is the picture's
+  size, 952 B, not 2048. The next feature in section 6 needs space found first (the curve's 75 greyed header pictures
+  are 62 KB, the bar's tokens 40 KB).
+- Tests: row counts for the 19-row list. Suite: 143 pass, the one FAIL is `static:changed-bytes` with s2's sites
+  (hooks.json not updated: before a release, with the owner's OK).
