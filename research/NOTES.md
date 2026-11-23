@@ -10256,3 +10256,20 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Package:** `test-builds/2026-11-23-split-tone-panel-5` (E1479999.BIN f98486f6…bebd, GUIDES.BIN c2907d27…f873).
 - **Suite (w5, aecf2bf, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w4.
   On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified; DEBUG.TXT is on the card.
+
+## The Split toning panel, w6: the camera's layout object has no parent pointer; the widgets found in the heap (2026-11-23; emulator only)
+- **w5 camera result (owner, 2026-11-23, photo in test-builds/2026-11-23-split-tone-panel-5/camera-results):** the
+  readout showed instead of the panel. Line 1: 62C5A140 00000000 00000000 00000000 00000000 00000000 00000000, the rest
+  EEEEEEEE. **Camera-tested:** (0x608546f8) = 0x62C5A140, om-emu's own address (so the GUI heap is laid out as om-emu's
+  at least to there), and that object's +0xdc (om-emu: the widgets' parent 0x62c5a578), +0xd0, +0xd4, +0xd8, +0xe0,
+  +0x130 are 0 on the camera. om-emu fills fields there that the camera does not (or not at that moment).
+- **w6 (fb34439):** st_w1 looks for each widget in the heap from (0x608546f8) - 0x4000 to + 0xc000 (om-emu has the ten
+  at + 0x7f8..+ 0x1838): st_wck = method table, id word, one of its two known places in its rectangle copies, and for
+  all but the picture widget the picture widget's parent word (+0x14; other screens' layouts have the same Reset,
+  marks and labels at the same places: the first try moved another screen's Reset, caught by the test). Remembered in
+  st_wp (1 = not there), checked again before every use; a newly found picture widget clears the others.
+  The readout's lines 2 / 3 now: picture-widget method tables in that range, those with the guide picture's id word,
+  the last one's address and words.
+- om-emu: panel, bar, labels as w4, also after leaving Picture Mode and coming back (a new search finds the same
+  objects).
+- **Package:** `test-builds/2026-11-23-split-tone-panel-6` (E1479999.BIN 342d0bc3…97cc, GUIDES.BIN 0ffad2c6…08c9).
