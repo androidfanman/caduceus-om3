@@ -10236,3 +10236,21 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Suite (w4, 5a02877, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes: 26 runs, the same list
   as w1 (the picture widget's static rectangle is the bar's again). On the owner's card 2026-11-23 (owner, in the
   session: "put w4 on the card when the suite passes"); checksums verified.
+
+## The Split toning panel, w5: w4 found no widget on the camera; a wider search and a readout (2026-11-23; emulator only)
+- **w4 camera result (owner, 2026-11-23):** "sd card loaded. Nothing showed up." The panel was not drawn: st_place
+  answered 0 (st_rd draws only after it). The camera's CADLOG.TXT (test-builds/2026-11-23-split-tone-panel-4/
+  camera-results) shows w4 running with the films in; it says nothing about the widgets. So om-emu's picture of the GUI
+  heap (the pointer at 0x608546f8, its +0xdc, the child slots, 0x62c5.... addresses) does not hold on the camera in at
+  least one step: camera-tested as "not as om-emu", which step is not known.
+- **w5 (aecf2bf):** ST_HP takes word-aligned pointers 0x62000000..0x65ffffff; st_w1 finds each widget by method table
+  and id word among the parent's slots +0x300..+0x35c; the write still needs the widget's own rectangle copies to hold
+  one of its two known places. HB_BUF 16384 again.
+- **The readout:** when st_place still answers 0, st_diag reads 49 words into st_dw (read-only, each pointer checked
+  by ST_HP first; EEEEEEEE = not read): (0x608546f8) and that object's +0xdc, +0xd0, +0xd4, +0xd8, +0xe0, +0x130; the
+  +0xdc object's +0x310..+0x344; and of the objects in its slots +0x344, +0x324, +0x330, +0x340 the words +0, +4, +8,
+  +12 and the rectangle copies (+0x140.. / +0xc0.. for the text widget). They show as 7 lines of hex (st_hexf, 5 x 7)
+  in the bar's place and st_lg prints them in the debug log's NOW section ("Split toning panel (w5; ...)": 1 placed,
+  2 not found + the words). om-emu, with the search forced to fail: the words are om-emu's known ones (0x62C5A140,
+  0x62C5A578, the ten slots, 0x6135993C / 0x03C78003 / the rectangles).
+- **Package:** `test-builds/2026-11-23-split-tone-panel-5` (E1479999.BIN f98486f6…bebd, GUIDES.BIN c2907d27…f873).
