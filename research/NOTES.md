@@ -10254,3 +10254,5 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   2 not found + the words). om-emu, with the search forced to fail: the words are om-emu's known ones (0x62C5A140,
   0x62C5A578, the ten slots, 0x6135993C / 0x03C78003 / the rectangles).
 - **Package:** `test-builds/2026-11-23-split-tone-panel-5` (E1479999.BIN f98486f6…bebd, GUIDES.BIN c2907d27…f873).
+- **Suite (w5, aecf2bf, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w4.
+  On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified; DEBUG.TXT is on the card.
