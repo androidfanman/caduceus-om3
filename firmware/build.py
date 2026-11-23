@@ -138,8 +138,8 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
            for a in (0x61451e40, 0x61451e50)}}
 # wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
 # {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
-KEYW = {0x61322f1c: ((0x01000026, 0x27, 1, 0), 'hb_kdel'), 0x61322f2c: ((0x01000027, 0x29, 1, 0), 'hb_krel'),
-        0x61322f4c: ((0x0100002e, 0x25, 1, 0x610b3ddb), 'hb_kinf')}
+KEYW = {}   # picture-mode p3: Delete is the camera's again on the colour wheel (h2..p2: 0x61322f1c / 2c hb_kdel /
+            # hb_krel, 0x61322f4c hb_kinf); {address: ((key state entry), symbol)} for a key state entry's handler word
 EXT2 = (0x607187a8, 0x60718800)            # section-2 tail (FF from 0x607187a4, end 0x60718800; v0.20)
 EXT7 = (0x6164afd0, 0x6164b000)            # section-7 tail (FF from 0x6164afcc, end 0x6164b000; v0.20)
 EXT9 = (0x619a9670, 0x619a97f0)            # section-9 tail (FF from 0x619a966c, end 0x619a9800)

@@ -357,8 +357,8 @@ def sat_pictures():
     import mklabels, mkguides
     lab = np.asarray(mklabels.build('Saturation'), dtype=np.uint8)
     gd = np.asarray(mkguides.build('Saturation'), dtype=np.uint8)   # film test 11: 175 x 50, for the one-colour page
-    gda = np.asarray(mkguides.build('Sat. All', 'del'), dtype=np.uint8)  # #64: the same page with all colours;
-    # feature/picture-mode: Delete turns them off there now (INFO steps H / S / L), so its key is the Delete key
+    gda = np.asarray(mkguides.build('Sat. All', None), dtype=np.uint8)  # #64: the same page with all colours;
+    # picture-mode p3: no key turns them off now (INFO steps H / S / L, the front dial leaves them), so the word alone
     assert lab.shape == (30, 70) and gd.shape == gda.shape == (50, 175)
     return lab, gd, gda
 

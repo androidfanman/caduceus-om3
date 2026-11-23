@@ -21,21 +21,15 @@
  * at it (400 x 64). gd_set's gd_sel call goes through hb_gsel, which gives GDESC back to the camera's picture (175 x
  * 50) first. Leaving the wheel with MENU / OK keeps the bar in GDESC until the next half-press, as before.
  *
- * Keys (feature/picture-mode, the owner's swap of h4's): INFO on the wheel row steps Hue -> Saturation -> Luminance ->
- * Hue (the bar's H, S, L); Delete turns all colours on / off on Saturation, nothing on Hue / Luminance (sp_inf). Delete's
- * press had no handler in the Picture Mode screen's key state (block 0x61322da0, entry 23 {0x01000026, 39, 1, 0}).
- * build.py's KEYW gives that entry hb_kdel: on the wheel row (GUI state 0x0418, Picture Mode's current item 5397,
- * films in) it turns the press into INFO's (GUI code 37 -> event 0x9014 to the wheel) and marks it (hb_del); its
- * release (entry 24) into INFO's release. INFO's own press (entry 26) goes through hb_kinf, which clears the mark,
- * then the stock 0x610b3ddb. sp_inf reads the mark; ed_info's k_step asks hb_next for the page. */
+ * Keys (feature/picture-mode p3): INFO on the wheel row steps Hue -> Saturation -> Luminance -> Hue (the bar's H, S,
+ * L; sp_inf, hb_next). Delete is the camera's own again (owner, p2 on the camera: "lets just remove the delete key.
+ * spinning the wheel does it good enough"): all colours by the front dial, as stock. h2..p2 had Delete's key state
+ * entries (0x61322f1c / 2c) and INFO's (0x61322f4c) patched (hb_kdel / hb_krel / hb_kinf); p3 leaves them stock. */
 .section .ext15,"ax"
  .include "hbar.inc"              /* HB_*, hb_rows, hb_gid, hb_swr, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
 .set HB_BUF, 8192                 /* each stream buffer (worst case HB_WORST, checked by build.py) */
 .set HB_F, 48                     /* hb_rd's frame */
-.set HB_UI_INFO, 0x25             /* the GUI key codes of INFO's press and release (Delete's: 0x27, 0x29) */
-.set HB_UI_INFOR, 0x26
-.set PM_WHEEL, 5397               /* Picture Mode's wheel row */
  .balign 4
 hb_b0:                            /* the two stream buffers (heap, hb_alloc), 0 = none: no bar */
  .long 0
@@ -49,10 +43,6 @@ hb_val:                           /* h, s, l (-5..5), the page's field (0..2), t
  .byte 0, 0, 0, 0, 0, 0, 0, 0
 hb_item:                          /* Picture Mode's current item (pu_hook's screen update, via hb_pu) */
  .short 0
-hb_del:                           /* 1: the INFO now reaching the wheel was a Delete press */
- .byte 0
-hb_dcv:                           /* 1: a Delete press was turned into INFO's: its release too */
- .byte 0
  .balign 4
 hb_lobj:                          /* GUI layer 1 as GPISetPalette reads it: (72) -> the layer number (as om-emu's) */
  .space 72
@@ -117,52 +107,6 @@ hb_pu:
  call sp_sync,[d2,d3,a2,a3],20
  mov (sp_a0),a0
  jmp gr_upd
-
-/* hb_kdel <- the Delete press entry of the Picture Mode screen's key state (CALLS: a1 = the key event, its GUI code at
- * (32,a1), already 0x27). On the wheel row with the films in: INFO's code, marked. Else nothing, as stock. */
-hb_kdel:
- movm [d2,d3,a2,a3],(sp)
- mov (0x603713a4),a0              /* GUI state 0x0418: Picture Mode */
- cmp 0,a0
- beq 9f
- movbu (a0),d0
- cmp 4,d0
- bne 9f
- movbu (1,a0),d0
- cmp 0x18,d0
- bne 9f
- movhu (hb_item),d0
- cmp PM_WHEEL,d0
- bne 9f
- PVAL 9f                          /* (uses d3, a2) */
- mov (EMARK,a2),d0
- cmp EMAGIC,d0
- bne 9f
- mov HB_UI_INFO,d0
- mov d0,(32,a1)
- mov 1,d0
- movbu d0,(hb_del)
- movbu d0,(hb_dcv)
-9:
- ret [d2,d3,a2,a3],16
-
-/* hb_krel <- the Delete release entry (CALLS, a1 the event): after a turned press, INFO's release code. */
-hb_krel:
- movbu (hb_dcv),d0
- cmp 0,d0
- beq 9f
- clr d0
- movbu d0,(hb_dcv)
- mov HB_UI_INFOR,d0
- mov d0,(32,a1)
-9:
- rets
-
-/* hb_kinf <- the INFO press entry (CALLS): a real INFO, not a Delete: the mark off, then the stock handler. */
-hb_kinf:
- clr d0
- movbu d0,(hb_del)
- jmp hb_info_stock
 
 /* hb_next <- jmp from ed_info's k_step (its frame; a2 = P, d0 = the page now) -> jmp k_set with d1 = the next page.
  * By the page (feature/picture-mode: INFO steps the HSL pages, sp_inf): the bar's order H -> S -> L, Hue -> Saturation

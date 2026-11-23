@@ -196,7 +196,6 @@ manager       = 0x60bb528f;
 sget          = 0x603f0111;
 stock_init    = 0x6122393a;
 stock_info    = 0x6122661b;
-hb_info_stock = 0x610b3ddb;   /* wheel-hsl-view h2: the Picture Mode key state's INFO press handler (hb_kinf goes on to it) */
 gpi_setpal = 0x610f717b;          /* wheel-hsl-view h3: GPISetPalette (om-emu ports E147 0x510d615b) */
 refresh       = 0x611b20ea;
 facade        = 0x60b8696a;

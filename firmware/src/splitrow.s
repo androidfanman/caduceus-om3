@@ -111,39 +111,21 @@ sp_sync:
  ret [d2,d3,a2,a3],20
 
 /* sp_inf <- jmp from ed_info's k_6b (its frame: (16) the cursor's value, 255 = all colours; (20) P; a3 the editor).
- * feature/picture-mode (owner: "the info button should cycle through the H/S/L and the delete switch to the sat all"):
- * the two keys swapped on the colour wheel row. A real INFO there (Saturation / Hue / Luminance): all colours off
- * first, then the next HSL page (k_step, hb_next; h4's Delete). A Delete turned into INFO (hb_del, only on the wheel
- * row): all colours on -> the stock handler turns them off; Saturation with one colour -> the stock handler turns all
- * on; Hue / Luminance -> nothing (c9's INFO). Shadows / Highlights (the Split toning row, no Delete there): as c9,
- * all colours left on -> the stock handler turns them off, else INFO steps to the other one. */
+ * feature/picture-mode (owner: "the info button should cycle through the H/S/L"; p3: Delete is the camera's again,
+ * all colours by the front dial). Colour wheel (Saturation / Hue / Luminance): all colours off first (k_all, the stock
+ * handler), then the next HSL page (k_step, hb_next). Shadows / Highlights (the Split toning row): all colours left
+ * on -> the stock handler turns them off, else the other page. */
 sp_inf:
  mov (20,sp),a2
  movbu (AXIS,a2),d1
  mov (16,sp),d0
- movbu (hb_del),d2
- clr d3
- movbu d3,(hb_del)
- cmp 5,d1
- bcs 2f
- cmp 255,d0                       /* Shadows / Highlights: all colours left on -> off (stock), else step */
- beq 8f
- bra 3f
-2:
- cmp 0,d2
- bne 1f                           /* Delete on the wheel row: all colours */
  cmp 255,d0
  bne 3f
+ cmp 5,d1
+ bcc 8f
  jmp k_all
 3:
  jmp k_step
-1:
- cmp 255,d0
- beq 8f
- cmp 0,d1
- beq 8f
- mov 1,d0
- ret [d2,d3,a2,a3],40
 8:
  jmp f_no
 

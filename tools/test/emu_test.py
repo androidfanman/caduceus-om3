@@ -402,15 +402,19 @@ SPLIT_ROW_DIAL = (f'{OPEN_SPLIT} {TINTS_ARE("00000000")} main+1 wait main+1 wait
 SPLIT_STAR, WHEEL_STAR = '90,380,104,396', '90,306,104,322'
 SPLIT_ROW_STAR = (f'{OPEN_SPLIT} expect:noink:{SPLIT_STAR} main+1 wait expect:ink:{SPLIT_STAR} up wait '
                   f'expect:noink:{WHEEL_STAR} expect:ink:{SPLIT_STAR} main+1 wait expect:ink:{WHEEL_STAR} poweroff')
-# feature/picture-mode (owner: "the delete switch to the sat all"): on the colour wheel Delete is "all colours": on
-# Saturation it turns them on (cursor 255) and off; on Luminance it does nothing. INFO from all colours steps to the
-# next page (Luminance) with one colour.
-WHEEL_DELETE_ALL = (f'{OPEN_WHEEL} delete wait expect:val:{2197}=255 {AXIS_IS(0)} delete wait expect:val:{2197}=1 '
-                    f'{AXIS_IS(0)} info wait {AXIS_IS(1)} delete wait {AXIS_IS(1)} expect:val:{2197}=1 info wait info wait '
-                    f'delete wait expect:val:{2197}=255 info wait {AXIS_IS(1)} expect:val:{2197}=1 poweroff')
+# picture-mode p3 (owner, p2 on the camera: "lets just remove the delete key. spinning the wheel does it good
+# enough"): Delete does nothing on the colour wheel, on any page, one colour or all. All colours come and go by the
+# front dial on Saturation (cursor 255 past colour 1, then colour 1 and the H / S / L bar again).
+WHEEL_DELETE_NOTHING = (f'{OPEN_WHEEL} delete wait {AXIS_IS(0)} expect:val:2197=1 sub+1 wait expect:val:2197=255 '
+                        f'delete wait {AXIS_IS(0)} expect:val:2197=255 sub-1 wait expect:val:2197=1 {HBAR_IS(0, 0, 0, 0, 0)} '
+                        f'info wait {AXIS_IS(1)} delete wait {AXIS_IS(1)} info wait {AXIS_IS(2)} delete wait {AXIS_IS(2)} '
+                        f'expect:val:2197=1 poweroff')
+# INFO with all colours on (from the front dial): all colours off, then the next page, Luminance, with one colour.
+WHEEL_INFO_FROM_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:2197=255 info wait {AXIS_IS(1)} expect:val:2197=1 '
+                       f'{HBAR_IS(0, 0, 0, 0, 1)} poweroff')
 # All colours left on from the colour wheel row: on this row the dial's click (12 writes, one a colour) changes no tint;
 # INFO turns all colours off and stays on Shadows, and the dial sets the tint again.
-SPLIT_ROW_ALL = (f'{OPEN_WHEEL} delete wait expect:val:{2197}=255 down wait {AXIS_IS(5)} main+1 wait '
+SPLIT_ROW_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:{2197}=255 down wait {AXIS_IS(5)} main+1 wait '
                  f'{TINTS_ARE("00000000")} info wait expect:val:{2197}=1 {AXIS_IS(5)} main+1 wait '
                  f'{TINTS_ARE("00010000")} poweroff')
 def newest_looks():
@@ -434,7 +438,7 @@ SDESC_IS = lambda width, size: f'expect:mem:{SDESC + 2:x}={U16(width)} expect:me
 WHEEL_SAT_GUIDES = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} {SDESC_IS(175, SAT_ALL_GUIDE)} '
                     f'sub+1 wait expect:val:2197=255 {SDESC_IS(175, SAT_ALL_GUIDE)} sub-1 wait '
                     f'info wait {SDESC_IS(180, SDESC_STOCK_SIZE)} poweroff')   # h2: all colours from the dial only
-# (feature/picture-mode: SAT_ALL_GUIDE is "Sat. All" with the Delete key, mkguides.del_box, as Delete turns them off)
+# (picture-mode p3: SAT_ALL_GUIDE is "Sat. All" alone, no key: mkguides.build('Sat. All', None))
 # On Hue, ed_get calls the label code (vl_s). Its caller gets a2 back as it was. v0.20..v0.30.3 handed back the call's
 # return address in a2: the call wrote it over ed_get's saved a2.
 WHEEL_READOUT_KEEPS_A2 = f'keep:{{ed_get}}:{{g_ret}}:a2 {OPEN_WHEEL} info wait info wait wait expect:kept poweroff'
@@ -1447,8 +1451,11 @@ TESTS = {
     'color-wheel-info-steps-hue-saturation-luminance': [
         Boot(WHEEL_INFO_STEPS_HSL),
     ],
-    'color-wheel-delete-turns-all-colours-on-and-off': [
-        Boot(WHEEL_DELETE_ALL),
+    'color-wheel-delete-does-nothing': [
+        Boot(WHEEL_DELETE_NOTHING),
+    ],
+    'color-wheel-info-from-all-colours-steps-to-luminance': [
+        Boot(WHEEL_INFO_FROM_ALL),
     ],
     'split-tone-row-opens-the-shadows-wheel': [
         Boot(SPLIT_ROW_OPENS),
