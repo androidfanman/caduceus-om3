@@ -1,5 +1,3 @@
-> **Branch `feature/look-sets` (2026-11-22): work meant to ship, camera-tested (h2, 2026-11-22).** Switch film sets kept in `OM3MOD/LOOKS/` from MENU > Card/Folder/File > Film Set (`docs/USING.md`). Emulator: all look-set tests pass. Not released.
-
 <h1 align="center">Caduceus for OM-3</h1>
 
 

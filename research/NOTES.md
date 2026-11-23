@@ -8975,16 +8975,13 @@ Built on probe w1 (above). Code `firmware/src/looksets.s`, menu tables in `build
 - **Suites (om-emu 0819080):** feature/look-sets (out-ls1): 128 of 128 (after hooks.json took the pointer word at
   0x6154a8dc whole: its low byte now differs from stock, the same site). Test build **h2** = `try/v0.40.2-h265-ls1`
   (this branch + feature/v0.40.2-h265): 133 of 133; E1479999.BIN 142d4236…, GUIDES.BIN 94f4a4f5…; package
-  `~/om3-work/test-builds/2026-11-22-h2/` (private; sets REVERSE / SAME / BROKEN made from the release films, and
-  PORTRAIT.BIN, 20 portrait looks made for buburun's field test, generator kept with the package). Camera test pending.
+  kept privately (sets REVERSE / SAME / BROKEN made from the release films, as in the tests). Camera test pending.
 - **Camera (buburun, 2026-11-22/23, h2 = E1479999.BIN 142d4236…, a day of use): all eight steps passed.** Start-ups in
   photo and video, H.265 + Bitrate (remaining time right; CADLOG "Video: codec 1, bitrate choice 3200 … recorded as
   33333333"), the list in order, FILM 3 made from REVERSE with no '*', BROKEN refused, a Contrast change back with
-  LOOKS.BIN, the set kept over power-offs (PORTRAIT all day). CADLOG: 128 GB exFAT card, "walk 0, 9187 us" (the folder
+  LOOKS.BIN, the set kept over power-offs (a set of buburun's own in use all day). CADLOG: 128 GB exFAT card, "walk 0, 9187 us" (the folder
   listed in 9 ms at the first half-press), "picks loaded 4, last pick LOOKS.BIN result 1", "New film sets taken this
   power-on: 4 … COLORs made from the new films 4", "Films with changes: 3" (the step-6 change).
 - **Renamed (buburun, 2026-11-23): the row "Film Set", the log line "Film sets:"** (the maintainer's word: "a new film
   set", #86). h3 = h2 + the name (`try/v0.40.2-h265-ls1`, VERSION "v0.40.2-h3"); film-set and video tests pass on it;
-  om-emu screen: "Film Set" with LOOKS.BIN | NIGHT | PORTRAIT.
-- Field sets made for buburun (kept with the private packages, not in the repo): PORTRAIT.BIN (20 portrait looks; liked
-  on the camera: Golden Hour, Blue Hour, Xmas Candle) and NIGHT.BIN (20 Tokyo night looks).
+  om-emu screen: "Film Set" with LOOKS.BIN and two sets.
