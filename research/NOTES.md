@@ -10099,3 +10099,25 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Package s2:** VERSION "v0.40.3-s2 (h4 + Split toning row)", firmware from commit fc27086, built twice, the same
   byte for byte: E1479999.BIN 40699f65…a347, GUIDES.BIN 0935a569…43d7. Suite (om-emu at the pin): 139 pass, 0 known,
   1 FAIL = static:changed-bytes (h2's 11 sites and s1's 15 runs, not in hooks.json; no new site).
+
+## The Split toning strip, w1: mock-up C's two small wheels and Balance (2026-11-23; emulator only)
+- Owner asked for mock-ups showing Shadows, Highlights and Tone Balance on one screen (no build); three were drawn (A three
+  boxes, B a dark-to-light strip, C two small wheels and a slider). Owner: C, "its exactly what i am really envisioning",
+  then "Yes, try it" for a first test that only draws it.
+- w1 (b041bed, on s2): on the Split toning row's pages (P+AXIS 5 / 6) the guide's place under the camera's wheel (400 x 64,
+  the H / S / L bar's widened widgets) shows card/mkstwheel.py's strip: the Shadows wheel (12-colour pie, yellow at 12
+  o'clock clockwise, radius 26) with a dot at slot +55 / +56 (angle = colour, distance = strength 0..10, tn_set's code
+  undone), the Balance slider with a caret at slot +33 and its value, the Highlights wheel (+57 / +58); the page's wheel
+  white-ringed, its name white-boxed.
+- When: tn_get's readout path (916 + slice on pages 5 / 6) called vl_s; it now calls st_vl (stwheel.s, .ext15), which runs
+  st_rd, then jumps to vl_s in the same frame. st_rd checks as hb_rd (films in, GDESC the camera's / ours / GUIDES.BIN's /
+  TONES.BIN's), keys the six values, and rebuilds only on a change: per row the background row (two variants), four
+  sprites over it (dots, caret, value; 0 = see-through), then greedy runs of 16 (HB_PUT). Into hb_b0 / hb_b1 (the one not
+  on screen); palette 62's entries 108..119 = the 12 hues (st_spal). hb_rd and st_rd each make the other's key stale.
+  A stream over HB_BUF - 16 is not drawn (largest of 1,500 random states: 6,172 B).
+- Emulator: test `split-tone-strip-shows-the-tints-and-balance` (byte for byte against mkstwheel.stream: strength 3 on
+  Shadows, INFO, strength 1 on Highlights, Tone Balance +2, the bar and its colours back on the wheel row, the strip and
+  its colours again); the row's guide checks (opens, INFO, hsl-bar) now expect the strip. Not seen in om-emu: the
+  camera's own wheel above (not drawn there), so whether the small wheels' colour order matches it is a camera check.
+- Package: `test-builds/2026-11-23-split-tone-strip-1` (E1479999.BIN 67000f45…9156, GUIDES.BIN 34288c71…16af). Not on
+  p3 (picture-mode branch, on the card): no five-point curve, Delete still steps H / S / L.
