@@ -351,14 +351,28 @@ GDESC, SDESC = 0xa49ecdf8, 0xa49edf88
 # the half-press the camera's.
 import mkguides, mkhbar  # noqa: E402
 _HB = mkhbar.pieces()
-HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.H)} '
+HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.PH)} '
                                              f'expect:mem:{GDESC + 12:x}={U32(len(b))} expect:mem:{GDESC:x}+10*={b.hex()}')(
     mkhbar.stream(c, h, s, l, axis, _HB))
+# split-tone bar w7 (2026-11-23): on the Split toning row the guide's descriptor holds card/mkstwheel.py's bar (the
+# H / S / L bar's place and style: S Shadows strength, B Tone Balance, H Highlights strength), byte for byte, for COLOR
+# k's Shadows colour / strength, Highlights colour / strength (strength 0..10), Tone Balance and the page mode (0
+# Shadows, 1 Highlights, 2 Balance); its colours in palette 62's 108..120 (PAL_STRIP). The guide widgets' static
+# rectangles are the bar's 400 x 64 (GUIDE_PLACE).
+import mkstwheel  # noqa: E402
+_ST = mkstwheel.pieces()
+RECT_IS = lambda a, xv, xr, y, w, h: f'expect:mem:{a:x}={U16(xv)}{U16(y)}{U16(w)}{U16(h)}{U16(xr)}{U16(y)}{U16(w)}{U16(h)}'
+GUIDE_PLACE = f'{RECT_IS(0x61451e40, 116, 157, 514, 400, 64)} {RECT_IS(0x61451e50, 116, 157, 514, 400, 64)}'
+STRIP_IS = lambda sc, ss, hc, hs, b, mode: (lambda s: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.PH)} '
+                                                       f'expect:mem:{GDESC + 12:x}={U32(len(s))} expect:mem:{GDESC:x}+10*={s.hex()}')(
+    mkstwheel.stream(sc, ss, hc, hs, b, mode, _ST))
+PAL_STRIP = lambda sc, ss, hc, hs, mode: (f'expect:mem:{mkhbar.PAL_TABLE + 4 * mkhbar.SLOT0:x}='
+                                          f'{"".join(U32(x) for x in mkstwheel.argb(sc, ss, hc, hs, mode))}')
 SHADOWS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Shadows').flatten()), 175, 50))
 WHEEL_HSL_BAR = (f'{OPEN_WHEEL} {HBAR_IS(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait {HBAR_IS(0, 0, 3, 0, 0)} '
                  f'info wait info wait {HBAR_IS(0, 0, 3, 0, 2)} main+1 wait main+1 wait {HBAR_IS(0, 2, 3, 0, 2)} '
                  f'sub-1 wait {HBAR_IS(1, 0, 0, 0, 2)} sub+1 wait info wait info wait main-1 wait {HBAR_IS(0, 2, 3, -1, 1)} '
-                 f'down wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(SHADOWS_GUIDE)} '
+                 f'down wait {STRIP_IS(0, 0, 0, 0, 0, 0)} '
                  f's1 wait expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} '
                  f'expect:mem:{GDESC + 12:x}={U32(4022)}{U32(0xa49ebe40)} poweroff')
 # wheel-hsl-view h3: the bar's colours are palette 62's entries 108..120, which hb_spal sets to the colour under the
@@ -384,18 +398,20 @@ WHEEL_DELETE_OFF_ROW = (f'{OPEN_WHEEL} down wait down wait delete wait up wait u
 # Saturation when you return to it.
 HIGHLIGHTS_GUIDE = len(mkguides.encode11(bytes(mkguides.build('Highlights').flatten()), 175, 50))
 GUIDE_IS = lambda size: f'expect:mem:{GDESC + 2:x}={U16(175)}{U16(50)} expect:mem:{GDESC + 12:x}={U32(size)}'
-SPLIT_ROW_OPENS = (f'{OPEN_SPLIT} {AXIS_IS(5)} {LABEL_IS("Tint")} {GUIDE_IS(SHADOWS_GUIDE)} up wait {AXIS_IS(0)} '
+SPLIT_ROW_OPENS = (f'{OPEN_SPLIT} {AXIS_IS(5)} {LABEL_IS("Tint")} {STRIP_IS(0, 0, 0, 0, 0, 0)} up wait {AXIS_IS(0)} {GUIDE_PLACE} '
                    f'{LABEL_IS("Sat")} info wait {AXIS_IS(1)} down wait {AXIS_IS(5)} info wait {AXIS_IS(6)} '
                    f'down wait up wait {AXIS_IS(5)} up wait {AXIS_IS(0)} poweroff')
-SPLIT_ROW_INFO = (f'{OPEN_SPLIT} info wait {AXIS_IS(6)} {GUIDE_IS(HIGHLIGHTS_GUIDE)} info wait {AXIS_IS(5)} '
-                  f'{GUIDE_IS(SHADOWS_GUIDE)} delete wait {AXIS_IS(5)} info wait {AXIS_IS(6)} poweroff')
+SPLIT_ROW_INFO = (f'{OPEN_SPLIT} info wait {AXIS_IS(6)} {STRIP_IS(0, 0, 0, 0, 0, 2)} info wait {AXIS_IS(6)} '
+                  f'{STRIP_IS(0, 0, 0, 0, 0, 1)} info wait {AXIS_IS(5)} {STRIP_IS(0, 0, 0, 0, 0, 0)} delete wait {AXIS_IS(5)} '
+                  f'info wait {AXIS_IS(6)} {STRIP_IS(0, 0, 0, 0, 0, 2)} up wait down wait {AXIS_IS(5)} '
+                  f'{STRIP_IS(0, 0, 0, 0, 0, 0)} poweroff')
 # The rear dial on the row sets the page's tint: COLOR 1's slot +55..+58 (P + 87: Shadows colour, strength code,
 # Highlights colour, strength code; three clicks = strength 3 = code -2, one click = code -1), where the wheel pages
 # kept them since v0.26. The colour wheel's own values stay: Saturation of the first colour (setting 928) 0, the
 # H / S / L bar 0 / 0 / 0.
 TINTS_ARE = lambda hx: f'expect:p:87={hx}'
 SPLIT_ROW_DIAL = (f'{OPEN_SPLIT} {TINTS_ARE("00000000")} main+1 wait main+1 wait main+1 wait {TINTS_ARE("00fe0000")} '
-                  f'info wait main+1 wait {TINTS_ARE("00fe00ff")} expect:val:928=0 up wait {AXIS_IS(0)} '
+                  f'info wait info wait main+1 wait {TINTS_ARE("00fe00ff")} expect:val:928=0 up wait {AXIS_IS(0)} '
                   f'{HBAR_IS(0, 0, 0, 0, 0)} {TINTS_ARE("00fe00ff")} poweroff')
 # The row's '*' (rear screen, right of its picture; the box is plain without it) follows the tints alone, and the colour
 # wheel row's '*' the wheel's values alone (before: one row, one '*' for both).
@@ -417,6 +433,32 @@ WHEEL_INFO_FROM_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:2197=255 info wait {
 SPLIT_ROW_ALL = (f'{OPEN_WHEEL} sub+1 wait expect:val:{2197}=255 down wait {AXIS_IS(5)} main+1 wait '
                  f'{TINTS_ARE("00000000")} info wait expect:val:{2197}=1 {AXIS_IS(5)} main+1 wait '
                  f'{TINTS_ARE("00010000")} poweroff')
+# w7: the bar follows the tints and Tone Balance: strength 3 on Shadows' first colour; the front dial to colour 2 and a
+# click there makes it the tint (strength 1); INFO -> Balance: the dial sets Tone Balance (slot +33, P + 65), the
+# tints stay; INFO -> Highlights: strength 2 on colour 2; Tone Balance +1 on its own row; the H / S / L bar is back
+# (its colours, its place) on the colour wheel row. Each bar's colours in palette 62's 108..120.
+SPLIT_STRIP = (f'{OPEN_SPLIT} {STRIP_IS(0, 0, 0, 0, 0, 0)} {PAL_STRIP(0, 0, 0, 0, 0)} main+1 wait main+1 wait main+1 wait '
+               f'{STRIP_IS(0, 3, 0, 0, 0, 0)} {PAL_STRIP(0, 3, 0, 0, 0)} sub-1 wait sub-1 wait main+1 wait '
+               f'{STRIP_IS(2, 1, 0, 0, 0, 0)} info wait {STRIP_IS(2, 1, 0, 0, 0, 2)} {PAL_STRIP(2, 1, 0, 0, 2)} main-1 wait '
+               f'{STRIP_IS(2, 1, 0, 0, -1, 2)} expect:p:65=ff {TINTS_ARE("02ff0000")} info wait {STRIP_IS(2, 1, 0, 0, -1, 1)} '
+               f'main+1 wait main+1 wait {STRIP_IS(2, 1, 2, 2, -1, 1)} {PAL_STRIP(2, 1, 2, 2, 1)} down wait main+1 wait up wait '
+               f'{STRIP_IS(2, 1, 2, 2, 0, 0)} up wait {HBAR_IS(2, 0, 0, 0, 0)} {PAL_IS(2, 0)} {GUIDE_PLACE} down wait '
+               f'{STRIP_IS(2, 1, 2, 2, 0, 0)} {PAL_STRIP(2, 1, 2, 2, 0)} poweroff')
+# w8 (owner, w7 on the camera): on the Balance step the front dial does nothing (the cursor 2197 + k and the bar stay);
+# when INFO goes to Shadows or Highlights the cursor goes back to that tint's colour (value = slice + 1), when it has one.
+CUR_IS = lambda v: f'expect:val:2197={v}'
+SPLIT_BALANCE_NO_DIAL = (f'{OPEN_SPLIT} sub-1 wait sub-1 wait main+1 wait {CUR_IS(3)} info wait {STRIP_IS(2, 1, 0, 0, 0, 2)} '
+                         f'sub-1 wait sub+1 wait sub+1 wait {CUR_IS(3)} {STRIP_IS(2, 1, 0, 0, 0, 2)} poweroff')
+SPLIT_CURSOR_BACK = (f'{OPEN_SPLIT} sub-1 wait sub-1 wait main+1 wait {CUR_IS(3)} info wait info wait {AXIS_IS(6)} {CUR_IS(3)} '
+                     f'sub-1 wait sub-1 wait sub-1 wait main+1 wait {CUR_IS(6)} {TINTS_ARE("02ff05ff")} info wait {AXIS_IS(5)} '
+                     f'{CUR_IS(3)} info wait {CUR_IS(3)} info wait {AXIS_IS(6)} {CUR_IS(6)} poweroff')
+# w7: the camera's own wheel stays on the Split toning row (as on the colour wheel row; w3..w6 asked for none): its
+# display update (0x60b1ced8) gets d0 = 0 ("the wheel") there, 1 on the rows without a wheel.
+SPLIT_KEEPS_WHEEL = f'{OPEN_WHEEL} down wait main+1 wait info wait up wait poweroff'
+def split_row_keeps_wheel(hits):
+    got = [(step, d0) for _, _, step, d0 in hits if step in ('down', 'main+1', 'info', 'up')]
+    want = [('down', 1), ('down', 1), ('down', 0), ('down', 0), ('main+1', 0), ('info', 0), ('up', 0)]
+    return [] if got == want else [f'the display update\'s "no wheel" argument per step: {got}, not {want}']
 def newest_looks():
     def key(d):
         n, _, pre = d.name.lstrip('v').partition('-')
@@ -550,6 +592,7 @@ class Boot:
     card: dict = field(default_factory=dict)   # OM3MOD file name -> a FIXTURES key put on the card before this boot,
                                                # or None to remove the file
     watch: tuple = ()                              # build symbols: each time the code reaches one is a hit
+    regs: bool = False                             # each hit also carries its step's token and d0
     hits: object = None                            # fn([(symbol, path at a0)] in run order) -> errors
     tids: bool = False                             # hits get (symbol, path at a0, task id, the HLS_EVENT task's id)
     env: tuple = ()                                # (name, value) pairs added to the driver's environment
@@ -1460,7 +1503,7 @@ TESTS = {
     'split-tone-row-opens-the-shadows-wheel': [
         Boot(SPLIT_ROW_OPENS),
     ],
-    'split-tone-row-info-steps-shadows-and-highlights': [
+    'split-tone-row-info-steps-shadows-balance-highlights': [
         Boot(SPLIT_ROW_INFO),
     ],
     'split-tone-row-dial-sets-the-tints-only': [
@@ -1471,6 +1514,18 @@ TESTS = {
     ],
     'split-tone-row-all-colours-leave-the-tints': [
         Boot(SPLIT_ROW_ALL),
+    ],
+    'split-tone-bar-shows-and-sets-the-tints-and-balance': [
+        Boot(SPLIT_STRIP),
+    ],
+    'split-tone-row-balance-ignores-the-front-dial': [
+        Boot(SPLIT_BALANCE_NO_DIAL),
+    ],
+    'split-tone-row-cursor-goes-back-to-the-tint': [
+        Boot(SPLIT_CURSOR_BACK),
+    ],
+    'split-tone-row-keeps-the-camera-wheel': [
+        Boot(SPLIT_KEEPS_WHEEL, watch=('C3D_UPD',), regs=True, hits=split_row_keeps_wheel),
     ],
     'split-tone-row-shows-a-films-tints': [
         Boot(SPLIT_ROW_FILM(newest_looks().read_bytes())),
@@ -1728,7 +1783,8 @@ def run_boot(emu, build, d, i, boot, card, syms, fixtures=None):
         errors.append(f'boot {i}: the firmware did not power off (boot{i}.json)')
     if boot.hits:
         name = {int(syms[n], 16): n for n in boot.watch}
-        hits = [(name[int(h['pc'], 16)], h.get('s'), *((h.get('tid'), h.get('hls')) if boot.tids else ()))
+        hits = [(name[int(h['pc'], 16)], h.get('s'), *((h.get('tid'), h.get('hls')) if boot.tids else ()),
+                 *((h['step'].split('#')[0], h['d0']) if boot.regs else ()))
                 for h in json.loads((d / f'boot{i}.json').read_text())['hits']]
         errors += [f'boot {i}: {e} (boot{i}.json)' for e in boot.hits(hits)]
     return nxt, read_log(emu, nxt, d / f'cadlog{i}.txt'), errors, None

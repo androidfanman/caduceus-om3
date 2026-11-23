@@ -950,6 +950,7 @@ k_set:
  call k_cur,[a2],8                  /* poke: the cursor setting re-written with its own value */
  cmp 0,d0
  bne 10f                          /* no value (yet): no poke */
+ call st_kc,[],0                  /* w8: on the Split toning row's Shadows / Highlights, the tint's colour (stwheel.s) */
  call facade,[],4
  mov (a0),a2
  mov (4,a2),a2                    /* SetValue(id, mode 0, value) */
@@ -6156,12 +6157,11 @@ rd_a:
  movm [a2],(sp)
  TONEPG 4f                        /* uses d3, a2 (d3: the stock path sets it again) */
  movm (sp),[a2]
- mov rd10_a,a0
- mov 11,d3
- jmp rda_none
+ jmp rd_a10                       /* w2: rd10_a, or on the row's Balance step -5..+5 (rd_a5; stwheel.s) */
 4:
  movm (sp),[a2]
  clr d3
+rd_a5:
 5:
  cmp HL_IT,d0                     /* v0.28 h6 Halation 0..5: +-0, then +1..+5 (no -1..-5 entries) */
  beq 51f
@@ -6210,7 +6210,8 @@ rd_b:
  movm [a2],(sp)
  TONEPG 4f
  movm (sp),[a2]
- mov rd10_b,a0
+ jmp rd_b10                       /* w2: rd10_b, or on the row's Balance step -5..+5 (rd_b5; stwheel.s) */
+rd_b10r:
  mov 11,d3
  cmp 5,a1                         /* strength 10 (dial +5): "+10" does not fit the readout's 3 characters (the */
  bne 7f                           /* text at record +2..+7, then its flags): rd10_a gives sign 0 (the caller writes */
@@ -6228,6 +6229,7 @@ rd_b:
 4:
  movm (sp),[a2]
  clr d3
+rd_b5:
 5:
  cmp HL_IT,d0                     /* v0.28 h6 Halation (as rd_a) */
  beq 51f
@@ -11307,7 +11309,7 @@ tn_get:
  cmp 4,d3
  bcc 8f
  add -4,sp                        /* the call's return slot: it would overwrite the saved a2 */
- call vl_s,[d2,d3,a2,a3],20
+ call st_vl,[d2,d3,a2,a3],20      /* split-tone strip w1: the strip, then vl_s (stwheel.s) */
  add 4,sp
  mov d3,d0
  add d0,d0
@@ -11322,6 +11324,9 @@ tn_get:
 3:
  movbu (AXIS,a2),d3
  TONEV
+ add -4,sp                        /* w2: on the row's Balance step, Tone Balance instead (stwheel.s) */
+ call st_bv,[],0
+ add 4,sp
  mov d0,(a1)
  movm (sp),[d2,d3,a2]
 t_ret:                            /* emu_test: the caller's d2, d3, a2 are back here */
@@ -11346,7 +11351,9 @@ tn_set:
  call sp_all,[d2,d3,a2,a3],20     /* dial's 12 writes would leave the tint on the last colour: nothing (splitrow.s; */
  add 4,sp                         /* keeps d1, a0, a1) */
  cmp 0,d0
- bne 8f
+ beq 7f
+ jmp st_tset                      /* w2: nothing, or Tone Balance written -> its refresh (stwheel.s) */
+7:
  cmp -5,d1                        /* v0.28 t2: the dial's -5..+5 = strength 0..10 (the wheels only add a colour) */
  blt 8f
  cmp 5,d1
@@ -23428,4 +23435,5 @@ bl_v:                             /* the value */
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
  .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
  .include "hbar.s"                /* wheel-hsl-view: the H / S / L bar under the colour wheel (ext15) */
+ .include "stwheel.s"             /* split-tone strip w1: two small wheels and Balance on the Split toning row (ext15) */
  .include "splitrow.s"            /* the Split toning row: the Shadows / Highlights wheels on their own row (ext15) */

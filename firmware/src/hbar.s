@@ -26,11 +26,15 @@
  * spinning the wheel does it good enough"): all colours by the front dial, as stock. h2..p2 had Delete's key state
  * entries (0x61322f1c / 2c) and INFO's (0x61322f4c) patched (hb_kdel / hb_krel / hb_kinf); p3 leaves them stock. */
 .section .ext15,"ax"
- .include "hbar.inc"              /* HB_*, hb_rows, hb_gid, hb_swr, hb_tx, hb_mk, hb_tok (card/mkhbar.py) */
+ .include "bars.inc"              /* HB_*, BAR_*, hb_gid, hb_swr, hb_mk, hb_tx, hb_pal, the Split toning bar's st_*,
+                                   * bar_cmap, bar_pool (card/mkbars.py: both bars' rows in one pool) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
-.set HB_BUF, 8192                 /* each stream buffer (worst case HB_WORST, checked by build.py) */
+.set HB_BUF, 8192                 /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
+                                   * toning bar, stwheel.s) */
 .set HB_F, 48                     /* hb_rd's frame */
  .balign 4
+bar_left:                         /* bar_row: the part's pixels left */
+ .long 0
 hb_b0:                            /* the two stream buffers (heap, hb_alloc), 0 = none: no bar */
  .long 0
 hb_b1:
@@ -110,7 +114,8 @@ hb_pu:
 
 /* hb_next <- jmp from ed_info's k_step (its frame; a2 = P, d0 = the page now) -> jmp k_set with d1 = the next page.
  * By the page (feature/picture-mode: INFO steps the HSL pages, sp_inf): the bar's order H -> S -> L, Hue -> Saturation
- * -> Luminance -> Hue (h4, owner: "it should go from h to s to l"); the Split toning row's Shadows <-> Highlights. */
+ * -> Luminance -> Hue (h4, owner: "it should go from h to s to l"); the Split toning row's Shadows -> Balance ->
+ * Highlights -> Shadows (w8). */
 hb_next:
  mov 1,d1                         /* Saturation -> Luminance */
  cmp 0,d0
@@ -121,12 +126,26 @@ hb_next:
  clr d1                           /* Hue -> Saturation */
  cmp 2,d0
  beq 9f
- mov 6,d1                         /* Shadows -> Highlights */
- cmp 5,d0
- beq 9f
- mov 5,d1                         /* Highlights -> Shadows */
+ cmp 5,d0                         /* the Split toning row (w8): Shadows -> Balance (the Highlights page with st_bal, */
+ bne 6f                           /* stwheel.s) -> Highlights -> Shadows */
+ mov 1,d1
+ movbu d1,(st_bal)
+ mov 6,d1
+ bra 9f
+6:
  cmp 6,d0
- beq 9f
+ bne 8f
+ movbu (st_bal),d1
+ cmp 0,d1
+ beq 7f
+ clr d1                           /* Balance -> Highlights */
+ movbu d1,(st_bal)
+ mov 6,d1
+ bra 9f
+7:
+ mov 5,d1                         /* Highlights -> Shadows */
+ bra 9f
+8:
  clr d1
 9:
  jmp k_set
@@ -166,7 +185,7 @@ hb_rd:
 1:
  cmp HB_W,d1
  bne 9f
- cmp HB_H,d0
+ cmp HB_PH,d0
  bne 9f
 3:
  movhu (6,a0),d1
@@ -268,13 +287,15 @@ hb_rd:
  mov GDESC,a0
  mov HB_W,d1
  movhu d1,(2,a0)
- mov HB_H,d1
+ mov HB_PH,d1
  movhu d1,(4,a0)
  mov d0,(12,a0)
  mov a1,(16,a0)
  mov a1,(hb_cur)
  mov (20,sp),d0
  mov d0,(hb_key)
+ mov -1,d1                        /* the Split toning panel's picture and colours are gone (stwheel.s) */
+ mov d1,(st_key)
  call hb_spal,[d2,d3,a2,a3],20    /* the colour's 13 palette entries */
 9:
  mov (4,sp),d0
@@ -357,25 +378,46 @@ hb_clamp:
 82:
  .endm
 
-/* hb_trow: `call hb_trow,[],0`, d0 = a fixed row part (hb_rows index): its tokens. Uses d0, d1, a0. */
-hb_trow:
- asl2 d0
- mov hb_rows,a0
- mov (d0,a0),d1
- mov d1,d0
- lsr 8,d0
- add d0,d0
- mov hb_tok,a0
- add d0,a0
- and 255,d1
- beq 9f
+/* bar_row: `call bar_row,[],0`, d0 = a row part's first token in bar_pool (9 bits a token: bar_cmap code << 4 | run - 1;
+ * card/mkbars.py), d1 = the part's width: its tokens (palette index << 4 | run - 1) through HB_PUT until their runs
+ * fill the width. Uses d0, d1, a0, a1 (HB_PUT: d2, d3, a2, a3, the packer's state). */
+bar_row:
+ mov d1,(bar_left)
+ mov d0,d1
+ asl 3,d0
+ add d1,d0                        /* the bit: 9 a token */
+ mov d0,a0
 1:
- movhu (a0),d0
- add 2,a0
+ mov a0,d0
+ lsr 3,d0
+ add bar_pool,d0
+ mov d0,a1
+ movbu (a1),d0
+ movbu (1,a1),d1
+ asl 8,d1
+ or d1,d0
+ mov a0,d1
+ and 7,d1
+ lsr d1,d0
+ and 0x1ff,d0
+ mov d0,d1
+ and 15,d1                        /* run - 1 */
+ lsr 4,d0                         /* the colour's code */
+ add bar_cmap,d0
+ mov d0,a1
+ movbu (a1),d0
+ asl 4,d0
+ or d1,d0                         /* the token */
+ inc d1
+ mov d1,a1                        /* the run */
  HB_PUT
- add -1,d1
+ mov (bar_left),d1
+ mov a1,d0
+ sub d0,d1
+ mov d1,(bar_left)
+ add 9,a0
+ cmp 0,d1
  bne 1b
-9:
  retf [],0
 
 /* hb_join: `call hb_join,[d2,d3,a2,a3],64`, a1 = a stream buffer (HB_BUF bytes): hb_val's bar as mkhbar.stream ->
@@ -405,7 +447,7 @@ hb_join:
  mov 22,d2
  mul d1,d2
  add d2,d0
- mov HB_H * 2,d2                  /* H rows of u16 */
+ mov BAR_TXN * 2,d2               /* BAR_TXN rows of u16 (mkbars.py) */
  mul d2,d0
  add hb_tx,d0
  mov d0,(a0)
@@ -422,6 +464,14 @@ hb_join:
  clr d2
  clr d3
  mov 0,a2
+ .if HB_PAD
+ mov HB_PAD * 25,d1               /* clear rows over the bar (25 runs of 16 a row, entry 0): w2 / w3 */
+5:
+ mov 15,d0
+ HB_PUT
+ add -1,d1
+ bne 5b
+ .endif
  clr d0
  mov d0,(4,sp)
 10:                               /* a row: the swatch column */
@@ -439,7 +489,8 @@ hb_join:
  add d0,d0
  movhu (d0,a0),d0
 12:
- call hb_trow,[],0
+ mov BAR_SWW,d1
+ call bar_row,[],0
  clr d0
  mov d0,(44,sp)
 20:                               /* a field: its text part */
@@ -449,9 +500,17 @@ hb_join:
  add d0,a0
  mov (12,a0),a1
  mov (4,sp),d0
+ add -BAR_TX0,d0
+ cmp BAR_TXN,d0
+ bcc 23f
  add d0,d0
  movhu (d0,a1),d0
- call hb_trow,[],0
+ bra 24f
+23:
+ mov BAR_TXB,d0                   /* above and below the words: the empty row */
+24:
+ mov BAR_TW,d1
+ call bar_row,[],0
  mov (4,sp),d1                    /* its slider part */
  cmp HB_SLF0,d1
  bcs 21f
@@ -473,7 +532,8 @@ hb_join:
  add d0,d0
  movhu (d0,a1),d0
 22:
- call hb_trow,[],0
+ mov BAR_SLW,d1
+ call bar_row,[],0
  mov (44,sp),d0
  inc d0
  mov d0,(44,sp)

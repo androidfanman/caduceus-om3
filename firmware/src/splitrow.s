@@ -15,6 +15,8 @@
  * The row's '*' and Reset guide: its tints against the film's as built (no film: any strength), sp_star / sp_isdef /
  * sp_def; the colour wheel row's '*' no longer counts the tints (ed_isdef). The held-OK reset is the wheel's own,
  * unchanged (the film as built, or the whole COLOR). */
+.set C3D_UPD, 0x60b1ced8          /* the camera's display update (d0 = 1: no wheel); the test watches it */
+ .globl C3D_UPD
 .section .ext15,"ax"
  .balign 4
 sp_cell:                          /* the row's cell picture list, as 5397's 0x6154be9c */
@@ -85,6 +87,8 @@ sp_sync:
 21:
  clr d0                           /* (the wheel row's editor opens on Saturation anyway, ei_page) */
 3:
+ clr d1                           /* w2: arriving on the row or leaving it: not on Balance (stwheel.s) */
+ movbu d1,(st_bal)
  movbu d0,(AXIS,a2)
  call gd_set,[d2,a2],8
  mov (sp_ed),a3
@@ -143,6 +147,24 @@ sp_all:
  inc d3
  bra 1b
 2:
+ movbu (st_bal),d0                /* w2: the row's Balance step (the Highlights page): the dial's value is Tone */
+ cmp 0,d0                         /* Balance, -5..5 -> slot +33 (P + 64k + 65); 2 -> st_tset (the refresh) */
+ beq 3f
+ movbu (AXIS,a2),d0
+ cmp 6,d0
+ bne 3f
+ cmp -5,d1
+ blt 7f
+ cmp 5,d1
+ bgt 7f
+ mov d3,d0
+ asl 6,d0
+ add 65,d0
+ mov d0,(st_boff)
+ movbu d1,(d0,a2)
+ mov 2,d0
+ bra 8f
+3:
  mov d3,d0
  add 2201,d0
  call sget,[],4                   /* (keeps d2, d3, a2, a3) */

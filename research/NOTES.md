@@ -10398,3 +10398,229 @@ Delete doing nothing, all colours by the front dial on Saturation (and back to t
 Hue -> Saturation -> Luminance are camera-tested. The card's log (build v0.40.3-p3): nothing unusual, 0 photos. No
 single TEST-STEPS step was reported apart. `feature/picture-mode` is still on beta4's sources (v0.40.3 was released
 2026-11-23 from them).
+
+## The Split toning strip, w1: mock-up C's two small wheels and Balance (2026-11-23; emulator only)
+- Owner asked for mock-ups showing Shadows, Highlights and Tone Balance on one screen (no build); three were drawn (A three
+  boxes, B a dark-to-light strip, C two small wheels and a slider). Owner: C, "its exactly what i am really envisioning",
+  then "Yes, try it" for a first test that only draws it.
+- w1 (b041bed, on s2): on the Split toning row's pages (P+AXIS 5 / 6) the guide's place under the camera's wheel (400 x 64,
+  the H / S / L bar's widened widgets) shows card/mkstwheel.py's strip: the Shadows wheel (12-colour pie, yellow at 12
+  o'clock clockwise, radius 26) with a dot at slot +55 / +56 (angle = colour, distance = strength 0..10, tn_set's code
+  undone), the Balance slider with a caret at slot +33 and its value, the Highlights wheel (+57 / +58); the page's wheel
+  white-ringed, its name white-boxed.
+- When: tn_get's readout path (916 + slice on pages 5 / 6) called vl_s; it now calls st_vl (stwheel.s, .ext15), which runs
+  st_rd, then jumps to vl_s in the same frame. st_rd checks as hb_rd (films in, GDESC the camera's / ours / GUIDES.BIN's /
+  TONES.BIN's), keys the six values, and rebuilds only on a change: per row the background row (two variants), four
+  sprites over it (dots, caret, value; 0 = see-through), then greedy runs of 16 (HB_PUT). Into hb_b0 / hb_b1 (the one not
+  on screen); palette 62's entries 108..119 = the 12 hues (st_spal). hb_rd and st_rd each make the other's key stale.
+  A stream over HB_BUF - 16 is not drawn (largest of 1,500 random states: 6,172 B).
+- Emulator: test `split-tone-strip-shows-the-tints-and-balance` (byte for byte against mkstwheel.stream: strength 3 on
+  Shadows, INFO, strength 1 on Highlights, Tone Balance +2, the bar and its colours back on the wheel row, the strip and
+  its colours again); the row's guide checks (opens, INFO, hsl-bar) now expect the strip. Not seen in om-emu: the
+  camera's own wheel above (not drawn there), so whether the small wheels' colour order matches it is a camera check.
+- Package: `test-builds/2026-11-23-split-tone-strip-1` (E1479999.BIN 67000f45…9156, GUIDES.BIN 34288c71…16af). Not on
+  p3 (picture-mode branch, on the card): no five-point curve, Delete still steps H / S / L.
+- Suite (w1, built twice the same): 140 pass, 0 known, 1 FAIL static:changed-bytes, the same 12 runs as s2 (no new site).
+  It needs ~22.5 KB of .ext15; p3 (5632fad) has ~900 B free there, so it cannot go on p3 as it is (cad, 2026-11-23).
+
+## The Split toning panel, w2: INFO to Balance, wheels x3, the big wheel stays (2026-11-23; emulator only)
+- **w1 camera result (owner, 2026-11-23, photo in test-builds/2026-11-23-split-tone-strip-1/camera-results):** "Ok.
+  It's getting there for split toning. But the info button only switches between shadow and light, no balance, and the
+  wheels are super small and the big wheel is still there." The strip drew on the camera (wheels, dots, slider, value).
+- **INFO -> Balance (done):** INFO on the row: Shadows -> Highlights -> Balance -> Shadows. Balance = page 6 with
+  st_bal (hb_next; cleared in sp_sync when the row's page is set on arrival / leaving). On it tn_get's value (after
+  TONEV) is Tone Balance (st_bv: slot +33 = TONEV's a2 + 63), tn_set's write goes to slot +33 through sp_all (answers 2)
+  and st_tset (-> s_cur with that byte: dirty + the cursor refresh), and the readout uses the stock -5..+5 glyphs
+  (rd_a10 / rd_b10; on the tone pages rd10 shows 0..10, so Balance -2 read "+3" before this).
+- **Moving the picture over the camera's wheel does not work (om-emu):** the guide widgets copy their rectangles
+  (0x61451e40 / 0x61451e50) into heap objects (vtable 0x6135993c, id word 0x03c78003, rect at +8; om-emu at 0x62c5b978,
+  in the screen's child list at parent + 0x340) when Picture Mode opens; writing the static rectangles later, even on
+  arrival on the row, changed nothing on screen (the 320 x 300 panel was drawn clipped into the old 400 x 64 box). No
+  fixed pointer chain to those objects was found (4 levels). So the place is fixed per Picture Mode visit, and an
+  opaque cover over the C3D wheel would also need about 31 KB of stream (one picture is one 16 KB heap block). Hiding the
+  camera's wheel needs the C3D side (see "The colour wheel with H / S / L at once", part 2): not tried.
+- **Bigger wheels (done):** the picture widget (0x61451e50) 400 x 200 at y 378 (bottom edge unchanged); the frame
+  (0x61451e40) stays 400 x 64. The H / S / L bar is the bottom of a 400 x 200 picture (136 rows of entry 0, alpha 0:
+  mkhbar.PAD, 3,400 more tokens), so it stays put; HB_BUF 8 -> 16 KB; the panel shares hb_b0 / hb_b1 (same size). The
+  panel (card/mkstwheel.py): wheels radius 72 at x 82 / 318, the upright slider (light top, dark bottom; + at the top)
+  in the middle with carets either side, names and "Balance" + value under them; background rows stored as three parts
+  (0..161, 162..240, 241..399) per page (42.9 KB of data); largest stream of 400 random states 13,828 B.
+- **Emulator:** tests `split-tone-panel-shows-and-sets-the-tints-and-balance` (byte for byte: strengths, Tone Balance
+  +2 from its row, then the Balance step sets -1: slot +33 = 0xff, the tints kept; the bar back with its colours and the
+  widgets' rectangles as built), `split-tone-row-info-steps-shadows-highlights-balance`; the bar's tests check 400 x 200.
+  Screens: the bar where it was; the panel; the readout -2 on Balance. Not seen in om-emu: the camera's big wheel and
+  how the panel sits next to it.
+- **Package:** `test-builds/2026-11-23-split-tone-panel-2` (commit 7a68fcd; E1479999.BIN eb18f777…28f2, GUIDES.BIN
+  63918da6…306b). On s2 + w1, not p3 (needs ~45 KB of .ext15; p3 has ~900 B).
+- **Suite (w2, 7a68fcd, built twice the same):** 140 pass, 0 known, 1 FAIL static:changed-bytes. Its full list (26 runs
+  on w1, 24 on w2) differs from w1's only at the picture widget's rectangle 0x61451e50 / 0x61451e58 (y and height
+  now changed too); no new hook (static:hook-list passes).
+
+## The Split toning panel, w3: no camera wheel on the row, points and cursor, INFO left to right (2026-11-23; emulator only)
+- **w2 camera result (owner, 2026-11-23):** "tested it. its getting there. now if we can make the drawn wheels operate
+  with the points, and remove the big wheel. Also the info button goes backwards whrough shadow, balance, highlights".
+- **INFO order:** Shadows -> Balance -> Highlights -> Shadows (hb_next), left to right on the panel.
+- **Points and cursor (card/mkstwheel.py, stwheel.s):** each wheel has 12 small points on a ring (radius 18); the
+  tint's dot sits from the ring (strength 0: no dot, st_none) out to radius 62 (strength 10); on the page's wheel a
+  white ring (st_cur, 21 px) marks the cursor's colour (the readout's slice, d2 at st_vl), at that colour's point or
+  at the dot when it is the tint's. Front dial +1 steps the cursor counter-clockwise (colour 0 -> 11), -1 clockwise.
+- **The camera's wheel, how it is asked for (static + om-emu; the C3D side itself is not run by om-emu):**
+  - The display update 0x60b1ced8 (called at 0x60b1bdd6; a0 the display object, kind word at +424, jump table
+    0x60e157d0) takes d0: 0 = draw the Picture Mode wheel (then *(d1 + 36) -> kind 6, setting 903, the cursor 2197 + k
+    and the 12 sector reads through tn_poly), 1 = none (straight to its tail 0x60b1d414). om-emu: d0 = 1 on every row
+    without a wheel, 0 on the colour wheel row and (to w2) on the Split toning row.
+  - d0 comes down from 0x611356e6 (GUI): it copies setting 275 (a 288-byte block) into its object at +884 and reads
+    its words +264 (1 -> kind 7), +268 (1 -> kind 6 = the colour wheel), else passes 1 ("none") through 0x612981c8 ->
+    0x61104718 -> 0x60b75ef7 -> 0x60b1b70c.
+  - Setting 275 is published by the Picture Mode update's tail (0x611d0503: a0 = (8,sp), `mov 275,d0; mov 288,d1; call
+    0x610cd5c4`) right after the row's case. The wheel row's case (0x611d04d3 -> 0x611d1308) leaves +268 = 1.
+  - Which switch: with the Split toning row left out of one switch at a time (research builds), only the update
+    switch 0x615510cc changed d0; the wheel routine's record at screen + 4756 (bytes 11 / 12) did not.
+- **w3:** sp_case (the row's update case, our code), after WH_UPD: `mov (8,sp),a0; mov 0,(268,a0)`. om-emu: d0 = 1 at
+  0x60b1ced8 on the Split toning row at arrival, a dial click and INFO; 0 on the colour wheel row before and after;
+  the dials, INFO, the '*', a film's tints as before (tests). No new hook, no stock byte changed.
+- **Not known (camera only):** that the C3D wheel really goes; that nothing of it is left on screen; that the wheel
+  editor's dials and INFO work while no wheel is drawn (stock never has an open wheel editor without its wheel).
+- **Tests:** new `split-tone-row-asks-for-no-camera-wheel` (the watch at C3D_UPD = 0x60b1ced8 with each hit's step and
+  d0: Boot.regs); `split-tone-panel-shows-and-sets-the-tints-and-balance` (cursor, a new tint colour, Balance, the
+  bar back), `split-tone-row-info-steps-shadows-balance-highlights`.
+- **Package:** `test-builds/2026-11-23-split-tone-panel-3` (commit 74ab711; E1479999.BIN b470aa44…29ad, GUIDES.BIN
+  b7477658…c7b0). On s2 + w2, not p3.
+- **Suite (w3, 74ab711, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 24 runs as w2.
+  On the owner's card 2026-11-23 (owner, in the session: "put w3 on the card when the suite passes"); checksums verified.
+
+## The Split toning panel, w4: stacked (at the right), the point moves; the widget moved at run time (2026-11-23; emulator only)
+- **w3 camera result (owner, 2026-11-23, photo in test-builds/2026-11-23-split-tone-panel-3/camera-results):** the
+  camera's wheel is gone on the Split toning row (camera-tested: the +268 word of setting 275's block), the panel,
+  points, cursor ring and dial work. Owner: "When I adjust the value on the wheel the dot from the wheel should move
+  with the value, not still stay in that center position"; "still hard to read and see based on how small it is ...
+  the wheels being on the left side of the screen and stacked. So highlight wheel on top. Shadow wheel below it. Balance
+  below that (the balance bar horizontal instead of vertical."
+- **The point moves:** per colour an eraser sprite (the 7 x 7 patch of the wheel without points at that colour's point);
+  with a tint (strength > 0) it is laid over the tint colour's point before the dot is drawn.
+- **Size limits (static):** malloc 0x60024068 has pools <= 192 / 2112 / 16448 B, larger -> 0, so one picture's stream
+  is at most 16448 B; type 11 runs are at most 16 px, so a picture costs at least width / 16 tokens a row. Sharing one
+  static 400-wide place with the bar made a tall place impossible (the bar would need ~20 KB of clear rows).
+- **The widgets (om-emu dumps):** the guide's two widgets are heap objects (method table 0x6135993c, id word
+  0x03c68003 frame / 0x03c78003 picture at +4, the rectangle in use at +8, their copies of the layout's rectangles at
+  +0x140 viewfinder / +0x148 rear screen), children 6 and 7 of the screen's widget parent (list at parent + 0x328).
+  The static word 0x608546f8 points at the open screen's layout object, whose +0xdc is that parent. Widget records
+  0x6145213c (frame: rect 0x61451e40, pictures 0x27bc / 0x27bd) and 0x61452194 (picture: rect 0x61451e50, pictures
+  0x3f75 / 0x3f76 = GDESC / SDESC in the descriptor pointer table near 0xa46a3b60).
+- **w4:** st_place (stwheel.s) walks 0x608546f8 -> +0xdc -> child, checks every step (0x62...... word-aligned pointers,
+  method table, id word, the rectangles' copies = one of our two places) and writes the place: the picture widget to
+  the panel's (rear (116, 97, 188, 481), viewfinder x 75), the frame to 4 x 4 under the Shadows wheel (it showed as an
+  empty box where the bar was). st_rd calls it after a good join and draws only if it answered; hb_gsel (every gd_set)
+  puts the bar's place back. om-emu: the panel draws whole at the new place on the same update, the bar back at its
+  place on the wheel row, nothing left behind. Static rectangles: both the bar's 400 x 64 again; mkhbar.PAD 0.
+- **The panel:** 188 x 481, wheels radius 84 at x 94 (Highlights y 92, Shadows y 298), names under them, the Balance bar
+  and "Balance" + value at the bottom; largest stream of 1,500 random states 15,884 B (HB_BUF 16448).
+- **Not known (camera only):** the same heap layout and pointer on the camera; that the camera redraws from the
+  object's rectangle as om-emu does; the viewfinder's place; INFO order on this layout (kept: Shadows -> Balance ->
+  Highlights).
+- **Next, if w4 works (not built):** each wheel its own picture (the frame widget's picture list repointed to a
+  descriptor of ours), for wheels of about 230 px.
+- **Right, not left (owner, the same day):** "I meant the right side not left side"; after a first try at x 412 (left
+  of the camera's column): "that looks center to me. I want it right, kind of like the position where the other things
+  go (wheels, grids, etc.)". The camera's wheel sat at x 545..849 between "Color" (y 112) and the page label (y 458),
+  306 px; the stacked panel is 481 tall, so the camera's column there has to move. All of it is children of the same
+  widget parent (slots 0x31c..0x33c: 0x179 / 0x3c0 dial marks, 0x3c1 "Color", 0x3c2 swatch, 0x3c3 the page label,
+  0x3c4 its value (a text widget: method table 0x6135946c, id word 0x03c48013, rectangle copies at +0xc0 / +0xc8),
+  0x3c5, 0x3be / 0x3bf Reset; the viewfinder's copies are 80 px left of the rear screen's). st_place (table st_wt, 11
+  widgets, each checked by its method table, id word and rectangles) puts the panel at rear (706, 97, 188, 481) /
+  viewfinder x 626 and the column 196 px left while the panel shows; hb_gsel puts all of it back. om-emu: the panel at
+  the right edge, "Color", "Tint" + value and Reset beside it, everything back on the colour wheel row and the other rows.
+- **Package:** `test-builds/2026-11-23-split-tone-panel-4` (commit 5a02877; E1479999.BIN 6b06ef27…b437, GUIDES.BIN
+  34d39c97…60cf). On s2 + w3, not p3.
+- **Suite (w4, 5a02877, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes: 26 runs, the same list
+  as w1 (the picture widget's static rectangle is the bar's again). On the owner's card 2026-11-23 (owner, in the
+  session: "put w4 on the card when the suite passes"); checksums verified.
+
+## The Split toning panel, w5: w4 found no widget on the camera; a wider search and a readout (2026-11-23; emulator only)
+- **w4 camera result (owner, 2026-11-23):** "sd card loaded. Nothing showed up." The panel was not drawn: st_place
+  answered 0 (st_rd draws only after it). The camera's CADLOG.TXT (test-builds/2026-11-23-split-tone-panel-4/
+  camera-results) shows w4 running with the films in; it says nothing about the widgets. So om-emu's picture of the GUI
+  heap (the pointer at 0x608546f8, its +0xdc, the child slots, 0x62c5.... addresses) does not hold on the camera in at
+  least one step: camera-tested as "not as om-emu", which step is not known.
+- **w5 (aecf2bf):** ST_HP takes word-aligned pointers 0x62000000..0x65ffffff; st_w1 finds each widget by method table
+  and id word among the parent's slots +0x300..+0x35c; the write still needs the widget's own rectangle copies to hold
+  one of its two known places. HB_BUF 16384 again.
+- **The readout:** when st_place still answers 0, st_diag reads 49 words into st_dw (read-only, each pointer checked
+  by ST_HP first; EEEEEEEE = not read): (0x608546f8) and that object's +0xdc, +0xd0, +0xd4, +0xd8, +0xe0, +0x130; the
+  +0xdc object's +0x310..+0x344; and of the objects in its slots +0x344, +0x324, +0x330, +0x340 the words +0, +4, +8,
+  +12 and the rectangle copies (+0x140.. / +0xc0.. for the text widget). They show as 7 lines of hex (st_hexf, 5 x 7)
+  in the bar's place and st_lg prints them in the debug log's NOW section ("Split toning panel (w5; ...)": 1 placed,
+  2 not found + the words). om-emu, with the search forced to fail: the words are om-emu's known ones (0x62C5A140,
+  0x62C5A578, the ten slots, 0x6135993C / 0x03C78003 / the rectangles).
+- **Package:** `test-builds/2026-11-23-split-tone-panel-5` (E1479999.BIN f98486f6…bebd, GUIDES.BIN c2907d27…f873).
+- **Suite (w5, aecf2bf, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w4.
+  On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified; DEBUG.TXT is on the card.
+
+## The Split toning panel, w6: the camera's layout object has no parent pointer; the widgets found in the heap (2026-11-23; emulator only)
+- **w5 camera result (owner, 2026-11-23, photo in test-builds/2026-11-23-split-tone-panel-5/camera-results):** the
+  readout showed instead of the panel. Line 1: 62C5A140 00000000 00000000 00000000 00000000 00000000 00000000, the rest
+  EEEEEEEE. **Camera-tested:** (0x608546f8) = 0x62C5A140, om-emu's own address (so the GUI heap is laid out as om-emu's
+  at least to there), and that object's +0xdc (om-emu: the widgets' parent 0x62c5a578), +0xd0, +0xd4, +0xd8, +0xe0,
+  +0x130 are 0 on the camera. om-emu fills fields there that the camera does not (or not at that moment).
+- **w6 (fb34439):** st_w1 looks for each widget in the heap from (0x608546f8) - 0x4000 to + 0xc000 (om-emu has the ten
+  at + 0x7f8..+ 0x1838): st_wck = method table, id word, one of its two known places in its rectangle copies, and for
+  all but the picture widget the picture widget's parent word (+0x14; other screens' layouts have the same Reset,
+  marks and labels at the same places: the first try moved another screen's Reset, caught by the test). Remembered in
+  st_wp (1 = not there), checked again before every use; a newly found picture widget clears the others.
+  The readout's lines 2 / 3 now: picture-widget method tables in that range, those with the guide picture's id word,
+  the last one's address and words.
+- om-emu: panel, bar, labels as w4, also after leaving Picture Mode and coming back (a new search finds the same
+  objects).
+- **Package:** `test-builds/2026-11-23-split-tone-panel-6` (E1479999.BIN 342d0bc3…97cc, GUIDES.BIN 0ffad2c6…08c9).
+- **Suite (w6, fb34439, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w5.
+  On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified.
+- **w6 camera result (owner, 2026-11-23):** "the issue still persists": no panel. The debug log was written before the
+  row was opened (status 0), so it has no readout. Asked the owner whether the readout showed (a photo of its lines 2 /
+  3 says whether any guide-picture widget is in (0x608546f8) +- the searched range on the camera).
+- **Where this stands:** static rectangle changes work on the camera (w2 / w3: the 400 x 200 place); moving the
+  widgets at run time (w4..w6) has not, because the camera's GUI heap does not match om-emu's past (0x608546f8) =
+  0x62C5A140: that object's fields om-emu fills are 0 on the camera. Unexplained; guesses: the camera's live layout
+  object is elsewhere and that pointer is stale, or a cache / other-CPU effect (om-emu has no cache).
+- **w6 readout (camera, owner's photo):** in (0x608546f8) - 0x4000 .. + 0xc000 the camera has 100 picture widgets
+  (method table 0x6135993c; om-emu 130 in the same range) and none with the id word 0x03c78003 (om-emu 2). So the GUI
+  heap is in the same area on the camera, but the wheel screen's widgets are not where om-emu has them. om-emu: all 834
+  picture widgets in 0x62bef478..0x62cc23b8 (within +- 1 MB of 0x62C5A140). Next try, if the owner wants it: search
+  +- 1 MB once per arrival on the row, by method table + id high half 0x03c7 + the record back-pointer (+0x18 =
+  0x61451c0c), and report what it finds.
+
+## The Split toning bar, w7: the H / S / L bar's style for Shadows / Balance / Highlights (2026-11-23; emulator only)
+- Owner, after w6's readout: "lets reevalute this. lets build something that looks very identical to the new HSL wheel
+  ... but instead of HSL as the bottom bars, we would have Shadow, balance and highlight." The run-time widget move
+  (w4..w6) is dropped.
+- **w7 (43646a6):** card/mkstwheel.py builds the bar from mkhbar's parts (swatch column, text style, slider frames,
+  carets): S (Shadows strength 0..10, grey -> the tint colour), B (Tone Balance -5..+5, the shadow tint dark ->
+  grey -> the highlight tint light), H (Highlights strength); the swatch is the page's tint colour (grey on Balance);
+  strength 0 = grey. Palette 62's 108..120 per bar from st_ctab (8 role colours per tint colour, 12 = grey). stwheel.s:
+  st_rd / st_join / st_spal follow hb_rd / hb_join / hb_spal (own tables: st_rows, st_gid, st_swr, st_tx, st_mk,
+  st_tok), in hb_b0 / hb_b1 and GDESC (400 x 64); the key is the two colours, the mode and the three values. The
+  camera's own wheel is back on the row (sp_case's +268 write taken out). INFO and the Balance step as w3.
+  Largest stream 7,012 B (HB_BUF 8192). .ext15 126,728 / 139,264.
+- om-emu: the colour wheel row's bar unchanged; on Split toning the bar on each page, its colours, the readout; tests
+  `split-tone-bar-shows-and-sets-the-tints-and-balance`, `split-tone-row-keeps-the-camera-wheel` (d0 = 0 at
+  0x60b1ced8 on the row), the INFO / opens tests.
+- **Package:** `test-builds/2026-11-23-split-tone-bar-7` (E1479999.BIN 17d0067f…819e, GUIDES.BIN d1e9d124…acff).
+- **Suite (w7, 43646a6, built twice the same):** 141 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as
+  w4..w6. On the owner's card 2026-11-23 (owner: "sd card is in. put the test build on when its ready"); checksums
+  verified.
+
+## The Split toning bar, w8: +, no front dial on Balance, the cursor back to the tint (2026-11-23; emulator only)
+- **w7 camera result (owner, 2026-11-23):** "that is looking good" (camera-tested: the bar draws under the camera's
+  wheel and works). Asked: "the is no + next to the numbers"; "remove the option to spin the dial on the wheel when
+  balance is selected"; "when we switch back to shadow or highlight, can the slice selector go back to the color we had
+  selected".
+- **w8 (94d843b):** (1) S / H read "S+6" / "S±0". (2) The COLOR1-4 editor records' left / right (+20 / +24, the
+  front dial's events 0x9008 / 0x900a) -> st_l / st_r: on the Balance step (st_bal, page 6) d0 = 1 (nothing), else
+  ed_l / ed_r. (A first version restored d2 from the stack after st_lb and lost its answer; the test caught it.) (3)
+  k_set calls st_kc before its cursor poke: on page 5, or 6 without st_bal, a tint with a strength makes the poked
+  value its colour + 1 (the cursor 2197 + k holds slice + 1: om-emu, slice 0 -> 1, two steps -> 3). Arrival on the row
+  leaves the cursor as it was (not asked).
+- **Tests:** `split-tone-row-balance-ignores-the-front-dial`, `split-tone-row-cursor-goes-back-to-the-tint` (both
+  fail on w7 with `--without`).
+- **Package:** `test-builds/2026-11-23-split-tone-bar-8` (E1479999.BIN 0a04945a…a56b, GUIDES.BIN 37169c75…907b).
+- **Suite (w8, 94d843b, built twice the same):** 143 pass, 0 known, 1 FAIL static:changed-bytes, the same 26 runs as w7.
+  On the owner's card 2026-11-23 (owner: "Yes, put it on"); checksums verified.
