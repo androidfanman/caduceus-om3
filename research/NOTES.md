@@ -9946,6 +9946,9 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
 **Camera result (2026-11-22):** s1 on the owner's OM-3 (card files matched the package's sha256). Owner: "That's
 beautiful. It worked great". No single step of TEST-STEPS was reported apart, and no debug log was read; the rough
 edge with "all colours" left on and the held-OK Reset question stay open.
+Later the same day the owner tried the "all colours" case on the camera and did not see the rough edge ("still
+don't see what your talking about"). Which wheel page INFO was pressed on is not known, and the card's CADLOG.TXT is
+from before s1, so there is no log of it: the rough edge stays emulator only, not seen on the camera. Not fixed.
 - Owner: "moves the two split toning wheels to a new row. I want them seperate from HSL". Their choices (asked with a
   mock-up before building): the row right under the colour wheel, Tone Balance its own row below it; INFO steps
   Shadows <-> Highlights; on the colour wheel INFO is "Color All" again; the row's picture a circle half orange, half
