@@ -10650,3 +10650,5 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
 - **Suite:** on 3cc4340 six tests failed (row counts under the Split toning row, Highlight & Shadow's '*' box: test-side
   only); fixed in 9aba4f7 (firmware byte for byte the same). Clean run on 9aba4f7: 157 pass, 0 known, 1 FAIL
   static:changed-bytes, exactly p3's 23 sites (p3 rebuilt from e3e30f0 for the comparison: e8b8bdb7…, as its package).
+- **On the owner's card 2026-11-23** (cad, owner: "Yes, when it passes"; sha256 checked there; backup
+  card-backups/2026-11-23-before-p4 = w8). Camera test pending.
