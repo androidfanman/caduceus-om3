@@ -10636,7 +10636,7 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
   card/mkbars.py: one pool for both bars, 9-bit tokens (bar_cmap: 20 colours, 5 bits + the run, 4 bits), no row
   records (an entry is the token index of the part's first token; bar_row decodes until the part's width, 40 / 50 /
   70, is filled), text tables only rows 14..49 (BAR_TXB: the empty row above / below), the split bar's swatch and
-  marks = the H / S / L bar's (asserted identical): 56 KB for 126 KB. .ext15 135,232. The streams are unchanged byte
+  marks = the H / S / L bar's (asserted identical): 56 KB for 126 KB. .ext15 135,248. The streams are unchanged byte
   for byte (the color-wheel-hsl-bar-* and split-tone-bar-* tests compare them with mkhbar.stream / mkstwheel.stream).
 - **No wheel on Balance:** sp_case clears the update block's +268 word while st_bal (w3's write, camera-tested for the
   whole row there). om-emu: the display update gets d0 = 1 on Balance, 0 on Shadows / Highlights.
