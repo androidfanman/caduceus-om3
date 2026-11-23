@@ -8,7 +8,8 @@ format (YCbYCr 4:2:2, rows `pitch` bytes apart: the padding past 2 W bytes must 
 odd sizes, a frame that fades out (8..24 % bright cells), daylight (no halation), dark (no glow), chroma at the clamp
 ends, and five CC0 / public-domain sample photos from webapp/public/samples. emu_hl.mjs runs `hl_run` on each in om-emu
 (single steps = instructions; FLUSH stubbed) and the result must equal model.halate's byte for byte, with the
-callee-saved registers, sp and a guard after the frame intact. Prints one line per case: steps, LOCK / FLUSH calls,
+callee-saved registers, sp and a guard after the frame intact, and every block malloc handed out during the case given
+back to free exactly once (speed-1: hl_run's grids come from hl_ga / hl_gf). Prints one line per case: steps, LOCK / FLUSH calls,
 the most instructions run under one lock. --profile adds steps per function (and per phase label in hl_run).
 Exit 0 when every case is bit-exact.
 """
@@ -139,7 +140,8 @@ def run_driver(build, cards, out, spec_cases, profile):
     res = out / f'res-{spec_cases[0]["name"]}.json'
     syms = elf_symbols(build / 'p.elf')
     spec.write_text(json.dumps({'hl_run': syms['hl_run'], 'flush': syms['FLUSH'], 'lock': syms['LOCK'],
-                                'unlock': syms['UNLOCK'], 'cases': spec_cases}))
+                                'unlock': syms['UNLOCK'], 'malloc': syms['malloc'], 'free': syms['free'],
+                                'cases': spec_cases}))
     env = {**os.environ, 'OM_EMU_MODEL': 'E147', **({'PROFILE': '1'} if profile else {})}
     r = subprocess.run(['node', DRIVER, os.environ['OM3_EMU'], build / 'main.bin', cards, spec, res], env=env,
                        capture_output=True, text=True)
@@ -201,13 +203,14 @@ def main():
         orig = (out / f'{cs["name"]}.in').read_bytes()
         diff = np.flatnonzero(np.frombuffer(got, np.uint8) != np.frombuffer(want, np.uint8))
         changed = int((np.frombuffer(want, np.uint8) != np.frombuffer(orig, np.uint8)).sum())
-        ok = o['done'] and o['regsBack'] and o['guard'] and diff.size == 0
+        heap_ok = o.get('heap') is None or o['heap']['same']   # speed-1: every block malloc gave, freed once
+        ok = o['done'] and o['regsBack'] and o['guard'] and diff.size == 0 and heap_ok
         bad += not ok
         where = '' if not diff.size else f' first at row {diff[0] // cs["pitch"]} byte {diff[0] % cs["pitch"]}'
         print(f'{"exact" if ok else "DIFF":<6}{cs["name"]:<11} {cs["W"]}x{cs["H"]} L{cs["level"]} {status:<4} '
               f'{changed:>8} B changed  steps {o["steps"]:>11,}  locks {o["locks"]:>5}  flushes {o["flushes"]:>5}  '
               f'max under lock {o["maxLock"]:>8,}' + ('' if ok else f'  [{diff.size} bytes differ{where}; done '
-              f'{o["done"]} regs {o["regsBack"]} guard {o["guard"]}]'))
+              f'{o["done"]} regs {o["regsBack"]} guard {o["guard"]} heap {o.get("heap")}]'))
         if a.profile and 'profile' in o:
             print('      ' + ', '.join(f'{k} {v:,}' for k, v in profile_lines(o['profile'], syms)[:12]))
     (out / 'results.json').write_text(json.dumps([{k: v for k, v in r.items() if k != 'profile'} for r in results], indent=1))

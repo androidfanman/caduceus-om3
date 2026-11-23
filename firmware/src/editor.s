@@ -558,10 +558,15 @@ i_out:
 /* wb_get <- the 12 WB fine-tune reads (`mov 34041|38521,d0; mov 0,a0; clr d1; call 0x60063380,[d2,d3],12`): capture
  * WB resolution 0x60457982.., pipeline params 0x604631b2/c5, WB record 0x604876c3/d8; and the 9 Auto WB ones (keys
  * 7401 / 7433 A-B, 7417 / 7449 G-M, v0.21). Entered with the getter's own frame: d0 key, d1 idx, a0 0.
- * #88 (owner, 2026-11-19): a film's A-B / G-M is now the camera's own WB fine-tune (fw_ft and the rest, ext13), so the
- * super control panel shows it; v0.21..v0.40 added the active COLOR's slot +26 / +27 here, which would now count it
- * twice. The stock read only (the sites keep pointing here: the reviewed patch sites stay as they are). */
+ * v0.21..v0.40 added the active COLOR's slot +26 / +27 to the stock value here; #88 (v0.40.1..v0.40.3-beta3) made the
+ * film's shift the camera's own fine-tune and left the stock read. Separate WB shifts (2026-11-21): on COLOR k the
+ * slot's shift in place of the camera's (fw_wbg, .ext15, behind the section-6 gate). */
 wb_get:
+ mov (SEC_READY),d2               /* section 6 (fw_wbg, .ext15) ready? Else the stock read (d2 / d3: the site's) */
+ and 0x20,d2
+ beq 1f
+ jmp fw_wbg
+1:
  jmp getter
 
 .balign 2
@@ -2621,7 +2626,7 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * the colour wheel), tone (Contrast, Highlight & Shadow, Blacks, Whites), white balance
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
- .long 111, MX_IT, RG_IT, 5397, TB_IT, AB_IT, 5398, BK_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, GS_IT, SZ_IT, FR_IT   /* better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
+ .long 111, MX_IT, RG_IT, 5397, TB_IT, AB_IT, 5398, BK_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 
@@ -2665,6 +2670,14 @@ pm_list:                          /* item ids, in the order the owner reads them
 .set SZ_IT, 5387                  /* g2: the Grain Size choice row (class 16: 0 Fine, 1 Medium, 2 Coarse) */
 .set GSB, 0x7e90                  /* g2: their bar ids + k (row 9: the films' FLB rows end at 0x7e83) */
 .set SZB, 0x7e98
+.set RZ_IT, 5376                  /* Halation Radius: the choice row (class 17: 0 Bloom, 1 Tight, 2 Medium, 3 Wide; hrrow.s) */
+.set RZB, 0x7ed8                  /* its bar ids + k (row 13, after Halation's HLB + 0..3; fl_isdef sends them to rz_def) */
+.set ST_RZT, 0x7f6c               /* Halation Radius: "Halation Radius", ST_RZ0 + r "Halation Radius: Bloom" .. "...: Wide", */
+.set ST_RZ0, 0x7f6d               /* ST_RZS + r the strip's "Bloom" / "Tight" / "Med" / "Wide" (rz_strs; after crop's */
+.set ST_RZS, 0x7f71               /* CR_ST0 0x7f68..0x7f6a) */
+.set IC_RZ0, 0x7f79               /* Halation Radius: its left cells Bloom / Tight / Med / Wide (mkicons PICTURES[15..18], ic_ent 15..18) */
+.set IC_RZS, 0x7fdc               /* r4: its strip cells (mkicons PICTURES[19..22], ic_ent 19..22): free between the body diagrams
+                                   * (DG0 + NDG = 0x7fdc) and AR_IC0 0x7fe0; ar_ic -> cr_ic (crop's CR_IC0 0x7fc4..0x7fcc) -> ic_get */
 .set RG_IT, 5378                  /* rgb-curves: the RGB curves row (the H&S row's cases; rgbcurves.inc) */
 .set MX_IT, 5377                  /* colour mix: the Mix row (the H&S row's cases too; colourmix.inc) */
 .set TBB, 0x7ee0                  /* its bar ids + k (row 14) */
@@ -2778,6 +2791,7 @@ gs_tab:                           /* g2 */
  .long 54, GSB, 55, GSB + 1, 56, GSB + 2, 64, GSB + 3
 sz_tab:
  .long 54, SZB, 55, SZB + 1, 56, SZB + 2, 64, SZB + 3
+.section .ext14,"ax"               /* Halation Radius: the row switches and the item table moved out of the full .ext11 */
 .balign 8
 sw11_tab:                         /* the row switches 0x615511cc and 0x6155134c (16 entries, full with our rows) */
  .space 32 * 8                    /* re-hashed by build.py into 32 entries */
@@ -2800,6 +2814,8 @@ it_tab:                           /* the stock 17 item entries (filled by build.
  .long SZ_IT, sz_title, sz_l0, 3, 0, sz_l1, 3, 0, sz_l2, 3    /* g2: a choice row as Noise Filter */
  .long RG_IT, 0, 0, 0, 0x6154bd18, 0x1b, 0, 0, 0, 0             /* rgb-curves: as H&S's entry (item 5398) */
  .long MX_IT, 0, 0, 0, 0x6154bd18, 0x1b, 0, 0, 0, 0             /* colour mix: the same */
+ .long RZ_IT, rz_title, rz_l0, 4, 0, rz_l1, 4, 0, rz_l2, 4    /* Halation Radius: a choice row as Grain Size (hrrow.s) */
+.section .ext11,"ax"
 bk_title:
  .short 4, ST_BKS
  .long 0x6154b480
@@ -2976,15 +2992,25 @@ gr_lc:
  bra 9f
 13:
  cmp SZ_IT,d0                     /* g2 Grain Size */
- bne 9f
+ bne 14f
  mov sz_tab,a3
  mov 4,d2
 9:
  jmp lc_back                      /* 0x611d19b4: cmp 0,a3 */
+14:
+ cmp RZ_IT,d0                     /* Halation Radius (hrrow.s) */
+ bne 9b
+ jmp rz_lc
 
 /* st_get <- jmp from the string getter 0x610f56a6 (its frame: `call ..,[d2],8`; d0 id -> a0 the UTF-16 string):
  * our own strings, else as stock (language index 0x610f56bd, then the table lookup at 0x610f56ac). */
 st_get:
+ cmp ST_RZT,d0                    /* Halation Radius: its strings (hrrow.s rz_str) */
+ bcs 48f
+ cmp ST_RZS + 4,d0
+ bcc 48f
+ jmp rz_str
+48:
  cmp ST_GZT,d0                    /* g2: "Grain Size" .. "Coarse" (gs_strs) */
  bcs 50f
  cmp ST_CRS + 1,d0
@@ -3203,6 +3229,7 @@ lc_bw:
  bra 1f
 lc_sz:                            /* g2 Grain Size */
  mov SZ_IT,d2
+lc_go:                            /* Halation Radius: lc_rz (hrrow.s) joins here */
 1:
  mov (20,sp),a3
  mov 1,d0
@@ -3301,6 +3328,11 @@ sl_slot:
  add -SZB,d2
  cmp 4,d2
  bcs 2f
+ mov 17,d1                        /* Halation Radius */
+ mov d3,d2
+ add -RZB,d2
+ cmp 4,d2
+ bcs 2f
  mov 1,d1
  cmp 7,d3
  beq 1f
@@ -3340,6 +3372,9 @@ sl_slot:
  mov 16,d1
  cmp SZ_IT,d3
  beq 1f
+ mov 17,d1                        /* Halation Radius */
+ cmp RZ_IT,d3
+ beq 1f
  mov 13,d1                        /* v0.28 Tone Balance */
  cmp TB_IT,d3
  bne 8f
@@ -3375,6 +3410,11 @@ sl_slot:
 
 /* sl_val: d1 class, a0 slot -> d0 the row's value (Sharp -5..+2, Grain 0..3, NR -2..+1, VigFix -1..0). */
  .macro SL_VAL
+ cmp 17,d1                        /* Halation Radius 0..3 (rz_eff: the curves record's spare byte, bits 5..6) */
+ bne 79f
+ call rz_eff,[d2,d3,a2],16        /* keeps a3 */
+ bra 99f
+79:
  cmp 15,d1                        /* g2: Film Grain strength 0..5 / Grain Size 0..2 (gs_eff: the slot's level and the
                                      curves record's spare byte) */
  bcs 80f
@@ -3555,6 +3595,13 @@ sl_gb:
  add 4,sp
  movm (sp),[d2,d3,a2,a3]
 9:
+ cmp 1580,d0                      /* separate WB shifts: a stills WB fine-tune (1580..1605) the camera's screens read ->
+                                   * fw_get (.ext15: on a film, its own shift) */
+ blt 91f
+ cmp 1606,d0
+ bge 91f
+ jmp fw_get
+91:
  jmp vf_get                       /* Vignette Correction before the load, else tn_get (v0.26: the Shadows / Highlights
                                    * wheel pages, else ed_get) */
 
@@ -3658,6 +3705,12 @@ sl_gb:
  exthu d2
  add -SZB,d2
  cmp 4,d2
+ bcs 90f
+ mov 17,a3                        /* Halation Radius */
+ mov d0,d2
+ exthu d2
+ add -RZB,d2
+ cmp 4,d2
  bcc \miss
 90:
  .if \p
@@ -3694,6 +3747,9 @@ sl_cnt:
  beq 6f
  mov 3,d0                         /* g2: 16 Grain Size Fine / Medium / Coarse */
  cmp 16,a3
+ beq 6f
+ mov 4,d0                         /* 17 Halation Radius Bloom / Tight / Medium / Wide */
+ cmp 17,a3
  beq 6f
  mov 11,d0                        /* v0.28: 13 Tone Balance -5..+5 */
  cmp 13,a3
@@ -3741,6 +3797,9 @@ sl_cnt:
  beq 99f
  mov 3,d1                         /* g2: 16 Grain Size 0, 3 */
  cmp 16,a3
+ beq 99f
+ mov 4,d1                         /* 17 Halation Radius 0, 4 */
+ cmp 17,a3
  beq 99f
  mov -5,d0                        /* v0.28: 13 Tone Balance -5, 11 */
  mov 11,d1
@@ -3933,6 +3992,12 @@ sl_set:
 1:
  jmp sx_set                       /* v0.24 901 (films, COLOR 1-4) -> fl_set; v0.27 897 (the Creative Dial) -> dm_set */
 sl_set0:
+ mov d0,d2                        /* a stills WB fine-tune (1580..1605) the camera's screens write -> fw_ued (on a film: into it) */
+ add -1580,d2                     /* (d2 is free here: sl_set0b sets it from MDR) */
+ cmp 26,d2
+ bcc sl_set0b
+ jmp fw_ued
+sl_set0b:
  mov mdr,d2                       /* v0.25 grid: the WB grid's ids -> our A-B / G-M bars (gr_id; MDR kept) */
  mov d2,a3
  add -4,sp                        /* its return address slot (else it lands on the saved d2: the choice strips broke) */
@@ -3948,11 +4013,17 @@ sl_set0:
  beq 7f
  cmp 14,a3                        /* v0.28 Blacks / Whites grid row: nothing either */
  beq 7f
+ cmp 17,a3                        /* Halation Radius -> rz_row (hrrow.s) */
+ bne 40f
+ call rz_row,[d2,d3,a2,a3],40     /* keeps d0, a0, a1, a2 -> d1 0 stored */
+ bra 42f
+40:
  cmp 15,a3                        /* g2 Film Grain strength / Grain Size -> gs_row */
  bcs 41f
  cmp 17,a3
  bcc 41f
  call gs_row,[d2,d3,a2,a3],40     /* keeps d0, a0, a1, a2 -> d1 0 stored */
+42:
  cmp 0,d1
  bne 7f
  jmp s_dirty
@@ -4023,7 +4094,6 @@ sl_set0:
  and 0x7f,d3
  movbu d3,(57,a3)
  call gr_now,[d2,d3,a2,a3],20     /* v0.25: the grid's dot and the title's numbers follow */
- call fw_row,[d2,d3,a2,a3],40     /* #88: on the camera's COLOR, the camera's WB fine-tune too (keeps d0, a0, a1) */
  jmp s_dirty
 10:
  cmp 1,a3
@@ -4312,6 +4382,88 @@ rv_chk:
 /* ic_get <- jmp from the picture lookup 0x610f5611 (`call ..,[],0`, d0 picture id -> a0 = its slot: a word holding
  * the picture's descriptor; 0 for id 0): our ids IC_BK .. IC_END - 1 -> their word in ic_ent, else as stock
  * ((0x60379740) + 4 id). */
+/* r4 (2026-11-20, debug log only): hl_xrec `call hl_xrec,[d2,d3],12` from hl_tk(3): when this Halation photo (tv0 -
+ * tv3) is the longest yet, its parts and pauses -> hl_xt .. hl_xym. lg_hlx `call lg_hlx,[d2,d3,a2,a3],20` from lg_sum:
+ * "; Halation's longest photo T (pass A a, map b, pass C c, pauses for the camera n (s ms)); longest single pause P ms"
+ * (hl_ysx, from hl_yld). After speed-1's 4388 ms photo, whose parts the log did not keep. */
+hl_xrec:
+ mov (hl_tv),d0
+ mov (hl_tv + 12),d1
+ sub d1,d0
+ call lg_ums,[],0
+ mov (hl_xt),d1
+ cmp d1,d0
+ bls 9f
+ mov d0,(hl_xt)
+ mov (hl_ma),d0
+ mov d0,(hl_xa)
+ mov (hl_mb),d0
+ mov d0,(hl_xb)
+ mov (hl_mc),d0
+ mov d0,(hl_xc)
+ mov (hl_lyn),d0
+ mov d0,(hl_xyn)
+ mov (hl_lym),d0
+ mov d0,(hl_xym)
+9:
+ ret [d2,d3],12
+lg_hlx:
+ mov hx_t1,a0
+ call lg_s,[],0
+ mov (hl_xt),d0
+ call lg_d,[d2,d3],12
+ mov hx_t2,a0
+ call lg_s,[],0
+ mov (hl_xa),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t2,a0
+ call lg_s,[],0
+ mov (hl_xb),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t3,a0
+ call lg_s,[],0
+ mov (hl_xc),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t4,a0
+ call lg_s,[],0
+ mov (hl_xyn),d0
+ call lg_d,[d2,d3],12
+ mov gs2_t6,a0
+ call lg_s,[],0
+ mov (hl_xym),d0
+ call lg_d,[d2,d3],12
+ mov hx_t3,a0
+ call lg_s,[],0
+ mov (hl_ysx),d0
+ call lg_ums,[],0
+ call lg_d,[d2,d3],12
+ mov hx_t4,a0
+ call lg_s,[],0
+ ret [d2,d3,a2,a3],20
+ .balign 4
+hl_xt:                            /* the longest Halation photo this power-on (ms), its parts (ms), sleeps and their ms */
+ .long 0
+hl_xa:
+ .long 0
+hl_xb:
+ .long 0
+hl_xc:
+ .long 0
+hl_xyn:
+ .long 0
+hl_xym:
+ .long 0
+hl_ysx:                           /* the longest single sleep (us) */
+ .long 0
+hx_t1:
+ .asciz "; Halation's longest photo "
+hx_t2:
+ .asciz " (pass A "
+hx_t3:
+ .asciz " ms)); longest single pause "
+hx_t4:
+ .asciz " ms"
+ .balign 2
 ic_get:
  mov d0,d1
  exthu d1
@@ -4408,9 +4560,9 @@ ic_get:
  add d1,a0
  retf [],0
 20:
- cmp IC_GR,d1                     /* g2: IC_GR -> ic_ent entry 14 */
+ cmp IC_GR,d1                     /* g2: IC_GR -> ic_ent entry 14; Halation Radius: IC_RZ0 .. + 3 -> 15..18 */
  bcs 24f
- cmp IC_GR + 1,d1
+ cmp IC_RZ0 + 4,d1
  bcc 24f
  add 14 - IC_GR,d1
  asl2 d1
@@ -4418,6 +4570,16 @@ ic_get:
  add d1,a0
  retf [],0
 24:
+ cmp IC_RZS,d1                    /* r4: the Halation Radius strip cells IC_RZS .. + 3 -> ic_ent 19..22 */
+ bcs 25f
+ cmp IC_RZS + 4,d1
+ bcc 25f
+ add 19 - IC_RZS,d1
+ asl2 d1
+ mov ic_ent,a0
+ add d1,a0
+ retf [],0
+25:
  cmp IC_BK,d1
  bcs ic_stk
  cmp IC_END,d1
@@ -5312,21 +5474,6 @@ gx_map:
  exthu d1
  cmp 0,d1
  beq 9f
- cmp 0x0418,d1                    /* #88: Picture Mode opens: the COLOR on screen's A-B / G-M <- the camera's */
- bne 04f                          /* fine-tune (fw_pm), so its row and '*' show a change made in the WB screen */
- mov (8,sp),a0
- movhu (a0),d1
- cmp 0x1804,d1
- beq 04f                          /* already open */
- mov mdr,d2
- mov a1,d3
- mov d0,(rc_d0)
- add -4,sp
- call fw_pm,[d2,d3,a2,a3],20
- add 4,sp
- mov d2,mdr
- mov d3,a1
- mov (rc_d0),d0
 04:
  mov (8,sp),a0
  movhu (a0),d1
@@ -5420,6 +5567,8 @@ ic_lend:
 ic_ent:                           /* the slot word of each of our pictures, in firmware/mkicons.py PICTURES order */
  .long ic_d0, ic_d1, ic_d2, ic_d3, ic_d4, ic_d5, ic_d6, ic_d7, ic_d8, ic_d9, ic_d10, ic_d11, ic_d12, ic_d13
  .long ic_d14                     /* g2: id IC_GR (ic_get) */
+ .long ic_d15, ic_d16, ic_d17, ic_d18   /* Halation Radius: ids IC_RZ0 .. + 3 */
+ .long ic_d19, ic_d20, ic_d21, ic_d22   /* r4: its strip, ids IC_RZS .. + 3 */
 /* descriptors <6H3I> as the stock pictures': format 14, w, h, 8, 0, 0, size, payload, flags; build.py fills w, h,
  * size and payload (the streams from firmware/mkicons.py, packed into ic_pay, by their uncached address 0xa...) */
  .macro ICD n
@@ -5442,6 +5591,14 @@ ic_d\n:
  ICD 12
  ICD 13
  ICD 14
+ ICD 15
+ ICD 16
+ ICD 17
+ ICD 18
+ ICD 19
+ ICD 20
+ ICD 21
+ ICD 22
 .balign 8
 /* ------------------------------------------------------------------ v0.28 film WB (w3)
  * Owner: a film (and each COLOR's own settings) remembers the camera's WB last used with it, as its HSL does; one
@@ -5568,20 +5725,16 @@ fw_keep:
  FWENC
  movbu d0,(2,a0)
  movbu d1,(3,a0)
- mov (12,sp),d0                   /* #88: and the camera's fine-tune of its WB mode -> that slot's A-B / G-M */
- call fw_kft,[d2,d3,a2,a3],36     /* (keeps a2 = P) */
  mov 1,d0
  movbu d0,(DIRTY,a2)
  ret [d2,d3,a2,a3],48
 /* fw_apply: `call fw_apply,[d2,d3,a2,a3],32` from fl_set after a change, a2 = P, d0 = k, a0 inner, a1 mode: COLOR k's
  * slot (the new look, put there by fl_sw) -> the camera's WB through the settings manager (as pf_put): Kelvin first
- * for CWB, then the mode; none -> Auto. #88: first the slot's A-B / G-M into the camera's fine-tune of that WB mode
- * (fw_ft). Locals (4) a0, (8) a1, (12) k, then the mode. */
+ * for CWB, then the mode; none -> Auto. (The slot's A-B / G-M stay in the slot: separate WB shifts.) Locals (4) a0, (8) a1, (12) k, then the mode. */
 fw_apply:
  mov a0,(4,sp)
  mov a1,(8,sp)
  mov d0,(12,sp)
- call fw_ft,[d2,d3,a2,a3],36      /* #88 (keeps a2) */
  mov (12,sp),d0
  asl 6,d0
  add 66,d0
@@ -5640,30 +5793,9 @@ fw_apply:
  call manager,[d2,d3,a2,a3],68
  ret [d2,d3,a2,a3],32
 
-/* ------------------------------------------------------------------ #88 film WB Compensation = the camera's fine-tune
- * Issue #88 (novaldemar): a film's WB Compensation did not show in the super control panel (v0.21..v0.40 added the
- * film's A-B / G-M invisibly at the capture reads, wb_get). Owner (2026-11-19): "if we shift it in the film sim it
- * should shift on the super control panel". The film's shift (slot +25 & 0x81 == 1 on, +26 A-B, +27 G-M; LOOKS / EDITS
- * record +36..+38, in the camera's own directions) is now the camera's own stills WB fine-tune:
- * - picking a film (fl_set's fw_apply -> fw_ft): set for the film's own WB mode (none: Auto; no shift: 0 / 0);
- * - leaving it (fw_keep -> fw_kft): the camera's fine-tune of the camera's WB mode goes back into the film with that
- *   mode, as the mode itself (owner: the film remembers a change made in the panel; its '*' follows);
- * - the first half-press of each power-on (ex_live -> fw_sync, fw_done 0) puts the COLOR on screen's shift into the
- *   camera: a film from v0.40, whose shift the camera never had, keeps it; and the camera does not keep a fine-tune
- *   written outside its own menus over a power-off (om-emu 2026-11-19: written at a half-press or in rc_go, 1592 came
- *   back with its old value at the next power-on; written from the Picture Mode list or the WB screen it stayed);
- * - after that the COLOR on screen follows the camera when Picture Mode opens (gx_map -> fw_pm) and at each
- *   half-press (fw_sync), so its row, its '*' and the photo code show what the camera uses; before it, the camera's
- *   value may be the old one, so nothing is taken from it (fw_kft returns at once, fw_keep keeps the film's own);
- * - the Picture Mode row's A-B / G-M writes the camera's fine-tune too (sl_set -> fw_row);
- * - a new film set's film on screen gets its WB (nf_post -> fw_apply; before: the old film's WB stayed, and leaving
- *   the film stored it into the new one with a '*', om-emu 2026-11-19).
- * The camera keeps one fine-tune per WB mode: table 0x615d1944 {mode, stills A-B id, movie id} (13 modes), stills G-M
- * id = A-B id + 13 (1580..1592 / 1593..1605). Owner: stills only (video's ids, the table's third column, are never
- * written); the camera's own picture modes keep what the film left (fl_set's stock path does nothing). Writes go
- * through the settings manager only where the camera's value differs. Nothing at start-up: all of it runs at a film
- * pick (fl_set), a half-press (HLS task), a GUI state change with the films in (P valid), or rc_go; and not while a
- * mode-dial switch waits (rc_pend: the camera then holds the new mode's values, our slots the old mode's). */
+/* #88 (v0.40.1) put a film's WB Compensation into the camera's own stills fine-tune so the super control panel showed
+ * it, and #99's fixes swapped it with the camera modes' own; both are gone (2026-11-21, "separate WB shifts" below).
+ * Kept from them: fw_cur, fw_nf (a new film set's film on screen gets its WB mode and Kelvin, fw_apply). */
 .section .ext13,"ax"
  .balign 2
  .macro FWCL r                    /* -7..7 kept, else 0 (as wb_get skipped a slot value out of range) */
@@ -5675,23 +5807,6 @@ fw_apply:
  clr \r
 96:
  .endm
-/* fw_tab: `call fw_tab,[d2],8`, d0 = a WB mode -> d0 = its stills A-B fine-tune id (G-M = + 13), -1 when not in the
- * table. Uses d1, a0. */
-fw_tab:
- mov 0x615d1944,a0
- mov 13,d1
-1:
- mov (a0),d2
- cmp d2,d0
- beq 2f
- add 12,a0
- add -1,d1
- bne 1b
- mov -1,d0
- ret [d2],8
-2:
- mov (4,a0),d0
- ret [d2],8
 /* fw_cur: `call fw_cur,[d2,d3,a2,a3],20` -> d0 = the COLOR (0..3) the camera is on (setting 111 in fl_cvt), -1 when
  * on none of them. */
 fw_cur:
@@ -5710,241 +5825,6 @@ fw_cur:
 2:
  mov d2,d0
  ret [d2,d3,a2,a3],20
-/* fw_wr: `call fw_wr,[d2,d3,a2,a3],36`, d0 = a setting id, d1 = the value, a0 / a1 the manager's handle / mode: the
- * manager writes it when the camera's value differs. Locals (4) id, (8) value, (12) a0, (16) a1. */
-fw_wr:
- mov d0,(4,sp)
- mov d1,(8,sp)
- mov a0,(12,sp)
- mov a1,(16,sp)
- call sget,[],4
- mov (8,sp),d1
- cmp d1,d0
- beq 9f
- mov (4,sp),d0
- mov (12,sp),a0
- mov (16,sp),a1
- call manager,[d2,d3,a2,a3],68
-9:
- ret [d2,d3,a2,a3],36
-/* fw_sh: `call fw_sh,[d2,d3,a2,a3],36`, d0 = a stills A-B fine-tune id, a3 = a slot, a0 / a1 the manager's: the slot's
- * shift (0 / 0 when off) -> that id and its G-M id (fw_wr). Locals (4) a0, (8) a1, (12) id, (16) G-M. */
-fw_sh:
- mov a0,(4,sp)
- mov a1,(8,sp)
- mov d0,(12,sp)
- clr d2
- clr d3
- movbu (25,a3),d0
- and 0x81,d0
- cmp 1,d0
- bne 1f
- movbu (26,a3),d2
- extb d2
- FWCL d2
- movbu (27,a3),d3
- extb d3
- FWCL d3
-1:
- mov d3,(16,sp)
- mov d2,d1
- mov (12,sp),d0
- mov (4,sp),a0
- mov (8,sp),a1
- call fw_wr,[d2,d3,a2,a3],36
- mov (16,sp),d1
- mov (12,sp),d0
- add 13,d0
- mov (4,sp),a0
- mov (8,sp),a1
- call fw_wr,[d2,d3,a2,a3],36
- ret [d2,d3,a2,a3],36
-/* fw_ft: `call fw_ft,[d2,d3,a2,a3],36` from fw_apply, d0 = k, a2 = P, a0 / a1 the manager's: COLOR k's shift ->
- * the camera's fine-tune of COLOR k's own WB mode (slot +36 / +37 as fw_apply reads it; none -> Auto). */
-fw_ft:
- asl 6,d0
- add 32,d0
- mov a2,a3
- add d0,a3                        /* COLOR k's slot */
- mov a0,(4,sp)
- movbu (36,a3),d0
- extb d0
- movbu (37,a3),d1
- extb d1
- FWDEC
- cmp 1,d0
- blt 1f
- cmp 13,d0
- blt 2f
-1:
- clr d0                           /* none: Auto */
-2:
- mov d0,d1
- asl2 d1
- mov d1,d2
- add d1,d1
- add d2,d1                        /* 12 x code */
- mov 0x615d1944 + 4,a0
- add d1,a0
- mov (a0),d0                      /* its stills A-B id */
- mov (4,sp),a0
- call fw_sh,[d2,d3,a2,a3],36
- ret [d2,d3,a2,a3],36
-/* fw_put: `call fw_put,[d2,d3,a2,a3],36`, d0 = 64 x k, a2 = P, a0 / a1 the manager's: COLOR k's shift -> the camera's
- * fine-tune of the camera's WB mode now (1578; a mode not in the table: nothing). Locals (4) a0, (8) a1, (12) 64 k,
- * (16) P (sget does not keep a2). */
-fw_put:
- mov a0,(4,sp)
- mov a1,(8,sp)
- mov d0,(12,sp)
- mov a2,(16,sp)
- mov 1578,d0
- call sget,[],4
- call fw_tab,[d2],8
- cmp -1,d0
- beq 9f
- mov (12,sp),d1
- mov (16,sp),a3
- add d1,a3
- add 32,a3                        /* COLOR k's slot */
- mov (4,sp),a0
- mov (8,sp),a1
- call fw_sh,[d2,d3,a2,a3],36
-9:
- ret [d2,d3,a2,a3],36
-/* fw_kft: `call fw_kft,[d2,d3,a2,a3],36`, d0 = 64 x k, a2 = P: the camera's fine-tune of the camera's WB mode now ->
- * COLOR k's slot: +26 A-B, +27 G-M (-7..7, else 0), +25 bit 0 on when either is not 0 (bit 7 off, as the row's
- * writes), off when both are 0 -> d0 1 when a byte changed, else 0. A mode not in the table: nothing (0).
- * Locals (4) P, (8) 64 k, (12) A-B id, (16) A-B value. */
-fw_kft:
- movbu (fw_done),d1               /* not before the first half-press put the films' shift into the camera */
- cmp 0,d1
- beq 8f
- mov a2,(4,sp)
- mov d0,(8,sp)
- mov 1578,d0
- call sget,[],4
- call fw_tab,[d2],8
- cmp -1,d0
- beq 8f
- mov d0,(12,sp)
- call sget,[],4
- FWCL d0
- mov d0,(16,sp)
- mov (12,sp),d0
- add 13,d0
- call sget,[],4
- FWCL d0                          /* G-M */
- mov (4,sp),a0
- mov (8,sp),d1
- add d1,a0
- add 32,a0                        /* the slot */
- mov (16,sp),d1                   /* A-B */
- clr d3
- movbu (26,a0),d2
- extb d2
- cmp d1,d2
- beq 1f
- movbu d1,(26,a0)
- mov 1,d3
-1:
- movbu (27,a0),d2
- extb d2
- cmp d0,d2
- beq 2f
- movbu d0,(27,a0)
- mov 1,d3
-2:
- or d1,d0                         /* 0: both are 0 */
- movbu (25,a0),d2
- mov d2,d1
- cmp 0,d0
- beq 3f
- or 1,d1
- and 0x7f,d1
- bra 4f
-3:
- and 0xfe,d1
-4:
- cmp d2,d1
- beq 5f
- movbu d1,(25,a0)
- mov 1,d3
-5:
- mov d3,d0
- ret [d2,d3,a2,a3],36
-8:
- clr d0
- ret [d2,d3,a2,a3],36
-/* fw_sync: `call fw_sync,[d2,d3,a2,a3],20` from ex_live (each half-press, HLS task) and fw_pm, d0 = 64 x k (the COLOR
- * the camera is on), a2 = P: not while a mode-dial switch waits. The first time in a power-on (fw_done 0; from
- * ex_live only, once the manager's handle is seen): COLOR k's shift -> the camera's fine-tune of its WB mode (fw_put,
- * handle rc_in, mode 0 as rc_put), fw_done 1. Afterwards: COLOR k's shift <- the camera's (fw_kft), P+DIRTY on a
- * change (saved at the next half-press, as the row's own edits). */
-fw_sync:
- movbu (rc_pend),d1
- cmp 0,d1
- bne 9f
- movbu (fw_done),d1
- cmp 0,d1
- bne 1f
- mov (rc_in),a0
- cmp 0,a0
- beq 9f
- mov 0,a1
- call fw_put,[d2,d3,a2,a3],36
- mov 1,d0
- movbu d0,(fw_done)
- bra 9f
-1:
- call fw_kft,[d2,d3,a2,a3],36
- cmp 0,d0
- beq 9f
- mov 1,d0
- movbu d0,(DIRTY,a2)
-9:
- ret [d2,d3,a2,a3],20
-/* fw_pm: `call fw_pm,[d2,d3,a2,a3],20` from gx_map as Picture Mode (0x0418) opens (GUI task): with the films in, on
- * COLOR k, no mode-dial switch waiting -> fw_sync for it, so the Picture Mode row and the films' '*' show the
- * camera's fine-tune (changed in the super control panel's WB screen, say). Keeps nothing (gx_map saves its own). */
-fw_pm:
- movbu (fw_done),d0               /* not before the first half-press (fw_sync from ex_live puts the shift in then) */
- cmp 0,d0
- beq 9f
- PVAL 9f
- call fw_cur,[d2,d3,a2,a3],20     /* (gives a2 = P back) */
- cmp 0,d0
- blt 9f
- asl 6,d0
- call fw_sync,[d2,d3,a2,a3],20
-9:
- ret [d2,d3,a2,a3],20
-/* fw_row: `call fw_row,[d2,d3,a2,a3],40` from sl_set after the Picture Mode row (or the fine-tune screen opened from
- * it) wrote COLOR k's A-B / G-M, d2 = P + 64 k, a2 = P, a0 / a1 the manager's: when the camera is on COLOR k, its
- * fine-tune of its WB mode now <- the slot (fw_put). Keeps d0, d1, a0, a1 (s_dirty needs them). Locals (4) d0, (8) d1,
- * (12) a0, (16) a1, (20) 64 k. */
-fw_row:
- mov d0,(4,sp)
- mov d1,(8,sp)
- mov a0,(12,sp)
- mov a1,(16,sp)
- mov a2,d3
- sub d3,d2                        /* 64 k */
- mov d2,(20,sp)
- call fw_cur,[d2,d3,a2,a3],20
- asl 6,d0
- mov (20,sp),d1
- cmp d1,d0
- bne 9f
- mov (12,sp),a0
- mov (16,sp),a1
- call fw_put,[d2,d3,a2,a3],36
-9:
- mov (4,sp),d0
- mov (8,sp),d1
- mov (12,sp),a0
- mov (16,sp),a1
- ret [d2,d3,a2,a3],40
 /* fw_nf: `call fw_nf,[d2,d3,a2,a3],24` from nf_post after it made COLORs from a new film set, d0 = those COLORs (bit
  * k), a2 = P (rc_go): when the camera is on one of them, that film's WB to the camera (fw_apply: mode, Kelvin and now
  * the shift), handle rc_in, mode 0 as rc_put. Before: the old film's WB stayed, and leaving the film stored it into the
@@ -5965,9 +5845,217 @@ fw_nf:
  call fw_apply,[d2,d3,a2,a3],32
 9:
  ret [d2,d3,a2,a3],24
-fw_done:                          /* 1 once a half-press of this power-on put the shift into the camera (fw_sync); 0 at
-                                     each power-on (the section is loaded again) */
- .byte 0
+/* ------------------------------------------------------------------ separate WB shifts (2026-11-21), in place of #88's
+ * and #99's swapping. Owner: a film's WB shift and the camera's own are two things, each there at once when you are on
+ * it, each changed at once, no half-press between. #88 (v0.40.1) made a film's shift the camera's own fine-tune so the
+ * panel showed it; then the camera's own picture modes had the film's (#99), and every moment tried for swapping them
+ * (the 897 write, Picture Mode opening, a pick) restarted the owner's camera except the half-press (fix99-1..5).
+ * Now nothing is swapped and the camera's own fine-tunes (1580..1605, one per WB mode) are never written by us:
+ * - the film's shift lives in its slot (+25 flag, +26 A-B, +27 G-M; one per film, whatever the WB mode), as to v0.40;
+ * - photos: on COLOR k the capture's fine-tune reads answer the slot's shift in place of the camera's (wb_get ->
+ *   fw_wbg; v0.21..v0.40 added it on top);
+ * - the camera's screens (super control panel, WB screen): on COLOR k their reads of a stills fine-tune answer the
+ *   slot's (sl_get's chain -> fw_get), and their writes go into the slot (sl_set0 -> fw_ued), the camera's own value
+ *   written back as it is (s_dirty, as the Picture Mode row's writes);
+ * - on the camera's own picture modes everything is stock.
+ * No state, nothing at a dial turn or a pick, nothing saved by us but the film's own edits (P+DIRTY, as its HSL). */
+.section .ext15,"ax"
+ .balign 2
+/* fw_cs: `call fw_cs,[d2,d3,a2,a3],20` -> a0 = the slot of the COLOR the camera is on (P + 32 + 64 k), a1 = P; a0 0
+ * when the films are not in or the camera is on one of its own picture modes. Reads only. */
+fw_cs:
+ PVAL 8f
+ call fw_cur,[d2,d3,a2,a3],20     /* (keeps a2 = P) */
+ cmp 0,d0
+ blt 8f
+ asl 6,d0
+ add 32,d0
+ mov a2,a0
+ add d0,a0
+ mov a2,a1
+ ret [d2,d3,a2,a3],20
+8:
+ mov 0,a0
+ ret [d2,d3,a2,a3],20
+/* fw_sv: `call fw_sv,[],0`, a0 = a slot, d0 = a stills fine-tune id - 1580 (0..25) -> d0 = the slot's shift for it
+ * (A-B for 0..12, G-M for 13..25; -7..7), 0 when the slot's shift is off (+25 & 0x81 != 1). Uses d0, d1. */
+fw_sv:
+ movbu (25,a0),d1
+ and 0x81,d1
+ cmp 1,d1
+ bne 8f
+ cmp 13,d0
+ bcc 1f
+ movbu (26,a0),d0
+ bra 2f
+1:
+ movbu (27,a0),d0
+2:
+ extb d0
+ FWCL d0
+ ret [],0
+8:
+ clr d0
+ ret [],0
+/* fw_get <- jmp from sl_get's chain for a stills fine-tune id 1580..1605, where it went on to vf_get (GetValue as it
+ * came: d0 id, a0 facade, a1 out, `rets`): read by the camera's screens while the camera is on COLOR k -> the
+ * slot's shift, d0 0. Everything else: on to vf_get as it came (MDR too). */
+fw_get:
+ cmp 0,a1
+ beq 9f
+ movm [d2,d3,a2,a3],(sp)
+ add -20,sp                       /* (0) call slot, (4) d0, (8) a0, (12) a1, (16) MDR */
+ mov d0,(4,sp)
+ mov a0,(8,sp)
+ mov a1,(12,sp)
+ mov mdr,d0
+ mov d0,(16,sp)
+ call fw_cs,[d2,d3,a2,a3],20
+ cmp 0,a0
+ beq 7f
+ mov (4,sp),d0
+ add -1580,d0
+ call fw_sv,[],0
+ mov (4,sp),d1
+ add -1580,d1
+fw_gv:                            /* (the tests' mark: d0 = the shift given, d1 = id - 1580) */
+ mov (12,sp),a1
+ mov d0,(a1)
+ mov (16,sp),d0
+ mov d0,mdr
+ add 20,sp
+ movm (sp),[d2,d3,a2,a3]
+ clr d0
+ rets
+7:
+ mov (16,sp),d0
+ mov d0,mdr
+ mov (4,sp),d0
+ mov (8,sp),a0
+ mov (12,sp),a1
+ add 20,sp
+8:
+ movm (sp),[d2,d3,a2,a3]
+9:
+ jmp vf_get
+/* fw_ued <- jmp from sl_set0 (the settings manager's frame: its return address at (68,sp)) for a stills WB
+ * fine-tune id the camera's screens write, d2 = id - 1580 (0..25), d0 the id, d1 the value, a0 / a1 the SetValue's;
+ * d2, d3, a2, a3 free. On COLOR k (not in the Picture Mode row's own screen, gr_flag, whose path stores it): the
+ * value -7..7 into the slot's A-B / G-M, its flag on (+25 bit 0 on, bit 7 off, as the row), then s_dirty (the film's
+ * edit to save; the manager gets the camera's own value back as it is, as for the row). Else on at sl_set0b with
+ * d0, d1, a0, a1 and MDR as they came. */
+fw_ued:
+ movbu (gr_flag),d3
+ cmp 0,d3
+ bne fw_ueb
+ cmp -7,d1
+ blt fw_ueb
+ cmp 7,d1
+ bgt fw_ueb
+ add -20,sp                       /* (0) call slot, (4) d0, (8) d1, (12) a0, (16) a1 */
+ mov d0,(4,sp)
+ mov d1,(8,sp)
+ mov a0,(12,sp)
+ mov a1,(16,sp)
+ call fw_cs,[d2,d3,a2,a3],20
+ cmp 0,a0
+ beq 7f
+ mov a0,a3                        /* the slot */
+ mov a1,a2                        /* P (s_dirty) */
+ mov (8,sp),d1
+ mov (4,sp),d0
+ add -1580,d0
+ cmp 13,d0
+ bcc 1f
+ movbu d1,(26,a3)
+ bra 2f
+1:
+ movbu d1,(27,a3)
+2:
+ movbu (25,a3),d3
+ or 1,d3
+ and 0x7f,d3
+ movbu d3,(25,a3)
+ mov (4,sp),d0
+ mov (12,sp),a0
+ mov (16,sp),a1
+ add 20,sp
+ jmp s_dirty
+7:
+ mov (4,sp),d0
+ mov (8,sp),d1
+ mov (12,sp),a0
+ mov (16,sp),a1
+ add 20,sp
+ mov (68,sp),d2                   /* MDR = the setter's return address again, as sl_set0b reads it */
+ mov d2,mdr
+fw_ueb:
+ jmp sl_set0b
+/* fw_wbg <- jmp from wb_get (the capture's WB fine-tune reads, the getter's own frame: d0 key, d1 idx, a0 0; d2 / d3
+ * saved by the site's call; section 6 in): the stock value; on a COLOR profile with the films in, the profile's slot
+ * shift in its place (A-B: 34041 and Auto's 7401 / 7433; G-M: 38521 and Auto's 7417 / 7449), 0 when its shift is
+ * off. As v0.21..v0.40's wb_get, which added it to the stock value. */
+fw_wbg:
+ mov d0,d2                        /* key */
+ call getter,[d2,d3],12           /* the stock value */
+ mov d0,d3
+ clr d1                           /* any slot: P valid? */
+ mov 32,a0
+ call slot_any,[d2,d3,a2],16
+ cmp 0,d0
+ beq 9f
+ mov 38017,d0                     /* picture mode (6 -> 40209), as capture population reads it */
+ clr d1
+ mov 0,a0
+ call getter,[d2,d3],12
+ extbu d0
+ cmp 6,d0
+ bne 1f
+ mov 40209,d0
+ clr d1
+ mov 0,a0
+ call getter,[d2,d3],12
+ extbu d0
+1:
+ cmp 11,d0                        /* COLOR profiles only */
+ bne 9f
+ mov 63153,d0
+ clr d1
+ mov 0,a0
+ call getter,[d2,d3],12
+ extbu d0
+ add -1,d0
+ cmp 4,d0
+ bcc 9f
+ mov d0,d1                        /* slot 0..3 */
+ movhu (STATE),d0                 /* P, valid since slot_any */
+ add -1,d0
+ mov d0,a0
+ add POOL,a0
+ asl 6,d1
+ add d1,a0
+ add 32,a0                        /* the slot */
+ clr d0                           /* A-B */
+ cmp 34041,d2
+ beq 2f
+ cmp 7401,d2
+ beq 2f
+ cmp 7433,d2
+ beq 2f
+ mov 13,d0                        /* G-M */
+ cmp 38521,d2
+ beq 2f
+ cmp 7417,d2
+ beq 2f
+ cmp 7449,d2
+ bne 9f
+2:
+ call fw_sv,[],0
+ mov d0,d3
+9:
+ mov d3,d0
+ ret [d2,d3],12
+.section .ext13,"ax"
 
 .section .ext13,"ax"               /* g2: moved to ext13 (the GX4-proven reserve; ext12 is nearly full); v0.28: out of the full ext11 */
  .balign 8
@@ -7822,6 +7910,33 @@ fl_lvp:
  mov d0,(12,sp)
  mov mdr,d0
  mov d0,(8,sp)
+ call pb_lbl,[],4                 /* #93: playback labels a photo by its own film (playfilm.s): d0 n, 0 none, -1 here */
+ cmp 0,d0
+ blt 77f
+ beq 80f                          /* a photo taken with no film: the camera's own "COLOR k" */
+ mov d0,(20,sp)                   /* N, the photo's "FILM n" (no star: the photo does not say) */
+ mov (12,sp),d2
+ add -15706,d2
+ and 3,d2
+ mov d2,(16,sp)
+ mov fl_LVL,d0
+ mov d0,(24,sp)
+ mov LV_SLOT,d0
+ mov d0,(28,sp)
+ mov LVB,d0
+ mov d0,(32,sp)
+ PVAL 80f
+ mov (TORG,a2),d0
+ cmp 0,d0
+ beq 80f
+ mov a2,a0
+ add LVB,a0
+ mov (a0),d0                      /* the block */
+ cmp 0,d0
+ beq 80f
+ mov (20,sp),d3
+ jmp fl_pdw
+77:
  call lv_chk,[],4                 /* #54: no picture while the dial's mode is not the one whose films are in */
  cmp 0,d0
  beq 78f
@@ -7896,6 +8011,7 @@ fl_pcp:
  or 0x100,d3                      /* the drawn key: N | star << 8 */
  mov (4,sp),d0
  mov d0,(24,sp)
+fl_pdw:                           /* #93: fl_lvp's photo label joins here (a2 P, d3 N, frame as above) */
 6:
  mov (32,sp),d0
  mov a2,a0
@@ -8616,6 +8732,15 @@ fl_isdef:
  inc d2
  cmp 18,d2
  bcs 1b
+ mov (4,sp),d0                    /* Halation Radius: its bars -> rz_def (hrrow.s) */
+ exthu d0
+ mov d0,d1
+ add -RZB,d1
+ cmp 4,d1
+ bcc 44f
+ call rz_def,[d2,d3,a2],16
+ ret [d2,d3,a2],24
+44:
  mov (4,sp),d0                    /* g2: the Film Grain / Grain Size bars -> gs_def */
  exthu d0
  mov d0,d1
@@ -9010,6 +9135,109 @@ tr_ld2:                           /* 0x604ce6c9's frame: the builder's (4,sp) / 
  mov (32,sp),d1
  ret [d2,d3,a2,a3],24
 
+/* ---- #91 fix91-1 (2026-11-20): Film Grain with Low ISO Processing = Drive Priority (research/NOTES.md "#91").
+ * The camera turns Low ISO Processing (menu setting 1496 = internal id 38993, copied per photo to capture+38249: 0 Drive
+ * Priority, 1 Detail Priority) into one choice per photo request, 0x6055aa5c (a0 = the request) -> 1 = the Detail
+ * processing, 0 = Drive Priority's: 1 for Single (capture+38216 = 0), some special modes and request kinds, and with
+ * Detail Priority; else 0. Its two callers keep it: 0x6054fffd in the development parameters +323 (the passes' noise
+ * reduction set-ups 0x6051ab95 read it with the ISO), 0x60558041 in capture+7482. On the camera (#91) a sequential JPEG
+ * with our grain at ISO 1600 and below shut the camera off with Drive Priority and saved with Detail Priority. fd_dec
+ * answers 1 where the camera chose 0 for a photo that takes our grain texture (fd_g: the code block's xb_cap sets it for
+ * this request, just before): such a photo is processed as with Detail Priority, as the camera does for Single shots.
+ * Every other photo keeps the camera's own choice. Runs only while a photo's requests are made: nothing at start-up. */
+.section .hook_dp1,"ax"
+ call fd_g1,[d2,d3,a2,a3],40      /* stock 0x6054fffd: call 0x6055aa5c,[d2,d3,a2,a3],40 */
+
+.section .hook_dp2,"ax"
+ jmp fd_g2                        /* stock 0x60558041: call 0x6055aa5c,[d2,d3,a2,a3],40 */
+
+.section .ext1,"ax"
+/* Section gates (as mx_g / tn_g): both sites are in section 2 and fd_dec is in section 6; until section 6 is ready (never
+ * the case while a photo is made, but the rule holds) the stock call. d0 is free at both (the choice is made from a0). */
+fd_g1:                            /* `call fd_g1,[d2,d3,a2,a3],40` from .hook_dp1: the stock choice's frame */
+ mov (SEC_READY),d0
+ and 0x20,d0
+ beq 1f
+ jmp fd_dec
+1:
+ jmp FD_DEC                       /* the stock 0x6055aa5c in this call's frame */
+fd_g2:                            /* jmp from .hook_dp2, in its function's frame */
+ mov (SEC_READY),d0
+ and 0x20,d0
+ beq 1f
+ call fd_dec,[d2,d3,a2,a3],40
+ jmp FD2_BACK
+1:
+ call FD_DEC,[d2,d3,a2,a3],40     /* the stock 0x60558041 */
+ jmp FD2_BACK
+
+.section .ext11,"ax"
+fd_dec:                           /* the stock choice's frame and a0 (the request) */
+ call FD_DEC,[d2,d3,a2,a3],40
+ exthu d0
+ movbu (fd_g),d1
+ cmp 0,d1
+ beq 9f                           /* not a photo with our grain: the camera's choice */
+ cmp 0,d0
+ bne 8f
+ mov (fd_n),d1                    /* Drive Priority's processing chosen: Detail instead */
+ inc d1
+ mov d1,(fd_n)
+ mov 1,d0
+ bra 9f
+8:
+ mov (fd_k),d1                    /* the camera chose Detail itself */
+ inc d1
+ mov d1,(fd_k)
+9:
+ ret [d2,d3,a2,a3],40
+fd_log:                           /* `call fd_log,[d2,d3],12` from the debug log's report (uses d0, d1, a0, a1, MDR) */
+ mov fd_l1,a0
+ call lg_s,[],0
+ movbu (fd_lo),d0
+ mov fd_dr,a0
+ cmp 0,d0
+ beq 1f
+ mov fd_de,a0
+ cmp 1,d0
+ beq 1f
+ mov fd_no,a0
+1:
+ call lg_s,[],0
+ mov fd_l2,a0
+ call lg_s,[],0
+ mov (fd_n),d0
+ call lg_d,[d2,d3],12
+ mov fd_l3,a0
+ call lg_s,[],0
+ mov (fd_k),d0
+ call lg_d,[d2,d3],12
+ ret [d2,d3],12
+fd_l1:
+ .asciz "\r\n#91 Low ISO Processing at the last photo: "
+fd_l2:
+ .asciz "; grain photos given the Detail processing "
+fd_l3:
+ .asciz ", Detail already "
+fd_dr:
+ .asciz "Drive Priority"
+fd_de:
+ .asciz "Detail Priority"
+fd_no:
+ .asciz "none yet"
+ .balign 4
+fd_n:                             /* #91: requests of photos with our grain whose Drive Priority processing became Detail */
+ .long 0
+fd_k:                             /* #91: the same with the camera's own Detail choice */
+ .long 0
+fd_g:                             /* #91: 1 = this request's photo takes our grain texture (the code block's xb_cap) */
+ .byte 0
+fd_lo:                            /* #91: the last photo's Low ISO Processing as the camera copied it (capture+38249):
+                                   * 0 Drive Priority, 1 Detail Priority, 0xff none yet */
+ .byte 0xff
+ .balign 4
+
+.section .ext12,"ax"
 /* tg_fill: `call tg_fill,[d2,d3,a2,a3],40`, d0 = the tile buffer's 32-bit bus address. Our tile (1536 x 1536, YCbYCr,
  * 3072 B a row): Y = 48 + noise (sigma 16), Cb / Cr = 128 + noise (sigma 16), seamless, rows y and y + 768 the same.
  * g4 (2026-11-19, owner: "lets work on better grain"; research/NOTES.md "Better grain g4"; exact model
@@ -9068,6 +9296,8 @@ tr_ld2:                           /* 0x604ce6c9's frame: the builder's (4,sp) / 
  .set G4_PAR, 52
 tg_fill:
  mov d0,(4,sp)
+ mov sp,a1                        /* speed-1: this task's stack address, for the debug log */
+ mov a1,(tg_spv)
  clr d0
  mov d0,(8,sp)
  mov d0,(20,sp)
@@ -9894,8 +10124,7 @@ tg_str:
  add \k,d0
  asr 8,d0
  TGCL d0
- movbu d0,(\q,a0)
- movbu d0,(TG_HALF + \q,a0)
+ movbu d0,(\q,a1)                 /* speed-1: into p's byte (read already; W is scratch here), stored below */
  .endm
 tg_bl:
  mov d1,d3
@@ -9925,6 +10154,9 @@ tg_bl:
  TGBB 1, a2
  TGBB 2, a3
  TGBB 3, a2
+ mov (a1),d0                      /* speed-1: two word stores through the window (were eight byte stores) */
+ mov d0,(a0)
+ mov d0,(TG_HALF,a0)
  add 4,a1
  add 4,a0
  mov (4,sp),d0
@@ -10597,7 +10829,7 @@ gs_wr:
  call gs_ga,[d2,d3,a2],16
  cmp 0,a0
  beq 9f
- movbu d3,(a0)
+ call rz_gk,[],0                  /* Halation Radius: G <- d3 with its radius bits kept (hrrow.s) */
 9:
  ret [d2,d3,a2],16
 
@@ -12182,19 +12414,67 @@ pt_mx:                            /* the longest (us) */
  * (analysis): live view / AF work there, and Single (S-AF) waits for them. So:
  *   - hl_yld at the end of each of hl_run's lock groups (passes A and C, lock given back): while the shutter button
  *     is half-pressed (hl_hp), sleep one tick (sdl_dly_tsk 1: the OS's delay, as the log writer and the SDLOAD worker
- *     call it; it does nothing with dispatch off) so the camera's tasks get this CPU; at most HL_YMAX a photo (a long
- *     half-press slows the pass by about the sleeps' time, well under the 10 s an E-P7 watchdog allowed).
+ *     call it; it does nothing with dispatch off) so the camera's tasks get this CPU; until the photo's sleeps add up
+ *     to HL_YUS (r1, 2026-11-20; was at most 800 sleeps: a held burst stretched a photo to 4.9 s on the camera, each
+ *     sleep lasting ~5 ms while the burst's own work ran). The measured time decides, so a long tick can't stretch it.
  *   - hl_tk: the times of pass A (reading the frame), the map (blur, curve) and pass C (drawing) for the log.
  * The picture is the same byte for byte (only when the pass runs changes). research/NOTES.md, "glow-shots-2". */
- .set HL_YMAX, 800                /* sleeps a photo at most */
+ .set HL_YUS, 300000              /* r1: the photo's sleeps stop once they add up to 0.3 s (us, hl_yus) */
+ .balign 8
+rz_pay2:                          /* r4: the Halation Radius cells that rz_pay (.ext14) has no room for (build.py) */
+ .space 4352
+rz_pend2:
+ .balign 2
+.section .ext11,"ax"               /* r5: hl_ga .. hl_c2 moved here from .ext13 (room for rz_pay2) */
+ .balign 4
+/* hl_ga (speed-1, 2026-11-19): `call hl_ga,[d2],8`, d0 = bytes -> a0 = a 64-byte aligned buffer of at least that many
+ * bytes, through its cached alias, or 0. malloc gives the uncached heap (0xa...; every access ~50 ns on the camera):
+ * hl_run's grids are now used through the cached alias, as tg_fill's work buffer. The buffer is malloc(d0 + HL_GA)
+ * rounded up to 64 bytes, so no line it touches through the cache holds a neighbour's bytes (a write-back would
+ * otherwise put a stale copy of them back); malloc's pointer is kept in the 4 bytes before it, written uncached.
+ * Not the uncached heap (never seen): given back, 0. hl_gf: `call hl_gf,[],4`, a0 = hl_ga's buffer: free. The
+ * caller writes the lines back (FLUSH) before hl_gf. */
+ .set HL_GA, 128
+hl_ga:
+ add HL_GA,d0
+ call malloc,[],4
+ mov a0,d0
+ cmp 0,d0
+ beq 9f
+ cmp 0xa0000000,d0
+ bcs 8f
+ cmp 0xb8000000,d0
+ bcc 8f
+ mov d0,d2
+ add 64,d0
+ and -64,d0
+ mov d0,a0
+ mov d2,(-4,a0)                   /* malloc's pointer (uncached) */
+ add -0x40000000,d0
+ mov d0,a0                        /* the cached alias */
+ ret [d2],8
+8:
+ call free,[],4
+ mov 0,a0
+9:
+ ret [d2],8
+hl_gf:
+ mov a0,d0
+ add 0x40000000,d0
+ mov d0,a0
+ mov (-4,a0),a0
+ call free,[],4
+ ret [],4
+
 /* hl_yld: `call hl_yld,[d2,d3,a2,a3],20`, no lock held (capture job's task): the sleep above; counts hl_yn, hl_yus. */
 hl_yld:
  movbu (hl_hp + 0x40000000),d0    /* the uncached alias (written by lg_pr on another CPU) */
  cmp 0,d0
  beq 9f
- mov (hl_yn),d0
- cmp HL_YMAX,d0
+ mov (hl_yus),d0                  /* r1: at most HL_YUS of sleeps a photo (measured, not counted) */
+ cmp HL_YUS,d0
  bcc 9f
+ mov (hl_yn),d0
  inc d0
  mov d0,(hl_yn)
  mov (USCLK),d2
@@ -12207,6 +12487,10 @@ hl_ydl:                           /* the sleep (tests stop here) */
  mov (hl_yus),d0
  add d2,d0
  mov d0,(hl_yus)
+ mov (hl_ysx),d0                  /* r4: the longest single sleep this power-on (us, debug log) */
+ cmp d0,d2
+ bls 9f
+ mov d2,(hl_ysx)
 9:
  ret [d2,d3,a2,a3],20
 
@@ -12280,6 +12564,7 @@ hl_tk:
  mov (hl_tn),d0
  inc d0
  mov d0,(hl_tn)
+ call hl_xrec,[d2,d3],12          /* r4: the longest photo's parts and pauses (debug log) */
 9:
  ret [d2,d3],12
  .balign 4
@@ -12301,8 +12586,13 @@ hl_lym:                           /* their time (ms) */
  .long 0
 hl_tn:                            /* photos timed */
  .long 0
+hl_spv:                           /* speed-1: the stack address seen by the last hl_run / tg_fill (debug log) */
+ .long 0
+tg_spv:
+ .long 0
 hl_c2:                            /* pass C reached on this photo */
  .byte 0
+.section .ext13,"ax"
  .balign 64
 hl_hp:                            /* 1 while the shutter button is half-pressed (lg_pr): written and read through the
                                    * uncached alias only, alone in its 64-byte line (no cached neighbour's write-back
@@ -12567,6 +12857,7 @@ lg_now:
  LGY
  call lg_ckn,[d2,d3,a2,a3],24     /* v0.30 test 10: curves / mix */
  call lg_gsn,[d2,d3,a2,a3],24     /* better grain g2: each COLOR's Film Grain strength and Grain Size */
+ call lg_rzn,[d2,d3,a2,a3],24     /* Halation Radius: each COLOR's (hrrow.s) */
 9:
  ret [d2,d3,a2,a3],24
 
@@ -13190,6 +13481,7 @@ lg_sum:
  LGS tg_l5                        /* g3: tiles made the fast way */
  mov (tg_nf),d0
  LGD
+ call fd_log,[d2,d3],12           /* #91: Low ISO Processing and the photos given the Detail processing (ext4) */
  LGS vg_l1                        /* gentler Shading s1: our vignettes */
  mov (vg_n),d0
  LGD
@@ -13256,6 +13548,13 @@ lg_sum:
  mov (hl_lym),d0
  LGD
  LGS gs2_t5
+ LGS sp1_t1                       /* speed-1: where the stacks are (0x6.. cached, 0xa.. uncached) */
+ mov (hl_spv),d0
+ call lg_h,[],0
+ LGS sp1_t2
+ mov (tg_spv),d0
+ call lg_h,[],0
+ call lg_hlx,[d2,d3,a2,a3],20     /* r4: Halation's longest photo and longest single pause */
  LGS lg_y0                        /* now: mode, exposure, WB, picture, screen */
  call lg_new,[],0
  movbu (14,a3),d0
@@ -15222,6 +15521,10 @@ gs2_t5:
  .asciz " ms)"
 gs2_t6:
  .asciz " ("
+sp1_t1:                           /* speed-1 */
+ .asciz "; stacks at Halation "
+sp1_t2:
+ .asciz ", grain tile "
 lg_t4:
  .asciz "\r\n\r\nSTART-UP (this power-on)\r\nSettings block: "
 lg_found:
@@ -16476,16 +16779,17 @@ dl_lv:                            /* live view's Delete press handler (a0, a1 as
 1:
  jmp dl_fn
 dl_look:                          /* .hook_dl (a3 = found, a2 = its handler, d0 = the event, a1 = the block's end,
-                                   * d1 = its length): a shooting state with no entry for a Delete press / release
-                                   * walks its block again for AF-ON's, so Delete leaves a function's state as AF-ON
-                                   * does. Playback (0x57xx) keeps its own. */
+                                   * d1 = its length): a shooting state with no entry for a Delete press / release /
+                                   * long press walks its block again for AF-ON's, so Delete leaves a function's state
+                                   * as AF-ON does. #101: the long press too (AF-ON's runs the function's long-press
+                                   * step, e.g. Keystone off, by the pressed button's own setting). Playback (0x57xx)
+                                   * keeps its own. */
  cmp 0,a3
  bne 8f
- cmp DL_PRESS,d0
- beq 1f
- cmp DL_PRESS + 1,d0
- bne 9f
-1:
+ cmp DL_PRESS,d0                  /* d0 = DL_PRESS .. DL_PRESS + 2 (press, release, long press); d0 kept otherwise */
+ bcs 9f
+ cmp DL_PRESS + 3,d0
+ bcc 9f
  mov (40,sp),a0                   /* the state machine; (188) = the current state */
  mov (188,a0),d2
  add -0x5100,d2
@@ -16765,7 +17069,7 @@ ex_cd1:
  movbu d0,(56,a0)
  or 2,d1
 5:
- movbu d1,(63,a0)
+ call ex_rz,[],0                  /* Halation Radius: byte 63 <- d1 | COLOR k's radius << 2 (hrrow.s) */
  mov ex_nb,a1
  clr d2
 1:
@@ -16911,9 +17215,6 @@ ex_live:
  bra 9f                           /* not COLOR 1-4 */
 2:
  mov d2,(20,sp)
- mov d2,d0
- asl 6,d0
- call fw_sync,[d2,d3,a2,a3],20    /* #88: its A-B / G-M <- the camera's fine-tune (keeps d2, a2) */
  mov ex_rec,a3
  call pf_capto,[d2,d3,a2,a3],28   /* COLOR k now -> ex_rec (keeps d2, d3, a2, a3) */
  mov 1578,d0
@@ -17976,6 +18277,8 @@ dg_bend:
  .set HL_C_PAIR, 44               /* h7: pass C's estimate per pair, per segment and per row (hl_sp, hl_row) */
  .set HL_C_SEG, 120
  .set HL_C_ROW, 100
+ .set HL_XB, 64 + 512             /* speed-1: hl_row's context (in mem1, just before the band's list): 64 B of values,
+                                     then this photo's copy of hl_cb / hl_cr */
 
 /* hl_run: `call hl_run,[d2,d3,a2,a3],124`, a0 = buffer record, d0 = strength 1..5 (124 = 16 for the saved registers
  * + 108 of locals; a callee's frame is likewise 16 + its locals).
@@ -17989,6 +18292,8 @@ dg_bend:
  * hl_row read these through the frame pointer. */
 hl_run:
  mov a0,(4,sp)
+ mov sp,a1                        /* speed-1: this task's stack address, for the debug log */
+ mov a1,(hl_spv)
  cmp 1,d0
  bcs 99f
  cmp 5,d0
@@ -18019,6 +18324,11 @@ hl_run:
  mov (12,sp),d0
  cmp d0,d1
  bcs 99f
+ btst 1,d1                        /* speed-1: memHw even and the buffer 4-byte aligned (word stores in pass C) */
+ bne 99f
+ mov (a0),d0
+ btst 3,d0
+ bne 99f
  add d1,d1
  mov d1,(20,sp)
  movhu (22,a0),d1                 /* H >= 64 */
@@ -18052,37 +18362,41 @@ hl_run:
  asl2 d0                          /* two lines (the list's room too) */
  add d2,d0
  add d3,d0
- add 3,d0
+ add HL_XB + 6,d0                 /* speed-1: + hl_row's context (HL_XB, 4-byte aligned) before the list */
  and -4,d0
- cmp 16384,d0
+ cmp 16384 - HL_GA,d0             /* speed-1: hl_ga adds HL_GA (the malloc cap 16448) */
  bhi 99f
- call malloc,[],4
+ call hl_ga,[d2],8                /* speed-1: 64-byte aligned, the cached alias (was malloc, the uncached heap) */
  cmp 0,a0
  beq 99f
  mov a0,(40,sp)
  mov a0,d0
  add d2,d0
- mov d0,(44,sp)                   /* the list */
+ add 3,d0
+ and -4,d0
+ add HL_XB,d0
+ mov d0,(44,sp)                   /* the list (hl_row's context, 4-byte aligned, just before it) */
  mov d2,d0
- call malloc,[],4                 /* Q / w grid */
+ call hl_ga,[d2],8                /* Q / w grid */
  cmp 0,a0
  bne 2f
  mov (40,sp),a0
- call free,[],4
+ call hl_gf,[],4
  bra 99f
 2:
  mov a0,(80,sp)
  mov d2,d0
- call malloc,[],4                 /* h4: the broad layer's copy of E */
+ call hl_ga,[d2],8                /* h4: the broad layer's copy of E */
  cmp 0,a0
  bne 4f
  mov (80,sp),a0
- call free,[],4
+ call hl_gf,[],4
  mov (40,sp),a0
- call free,[],4
+ call hl_gf,[],4
  bra 99f
 4:
  mov a0,(104,sp)
+ call FLUSH,[d2,d3],16            /* no stale lines in the window's cached view (and none for the grids') */
  mov (80,sp),a0
  mov (72,sp),d1                   /* zero both grids */
  mov (40,sp),a1
@@ -18094,7 +18408,6 @@ hl_run:
  add 2,a1
  add -1,d1
  bne 3b
- call FLUSH,[d2,d3],16            /* no stale lines in the window's cached view */
  clr d0                           /* glow-shots-2: pass A starts */
  call hl_tk,[d2,d3],12
 
@@ -18190,12 +18503,7 @@ hl_run:
  add -1,d0
  mov d0,(76,sp)
  bne 15b
- mov (60,sp),d0
- cmp 0,d0
- beq 17f
- call FLUSH,[d2,d3],16
-17:
- mov (56,sp),d0
+ mov (56,sp),d0                   /* speed-1: no FLUSH per group (pass A only reads; FLUSH after the pass) */
  call UNLOCK,[d2],8
  bra 19f
 18:                               /* a row across the window's edge: not counted (as before) */
@@ -18210,6 +18518,7 @@ hl_run:
  mov (16,sp),d1
  cmp d1,d0
  bcs 10b
+ call FLUSH,[d2,d3],16            /* speed-1: once after pass A (was after every group) */
 
  mov 1,d0                         /* glow-shots-2: pass A done */
  call hl_tk,[d2,d3],12
@@ -18377,12 +18686,14 @@ hl_run:
  mov (40,sp),a0                   /* g = (((u gmax) >> 8) sc) >> 8 */
  mov (72,sp),d3
  clr d2                           /* OR of g */
+ mov (8,sp),a1                    /* speed-1: gmax and sc in registers */
+ mov (64,sp),a2
 46:
  movhu (a0),d0
- mov (8,sp),d1
+ mov a1,d1
  mul d1,d0
  lsr 8,d0
- mov (64,sp),d1
+ mov a2,d1
  mul d1,d0
  lsr 8,d0
  movhu d0,(a0)
@@ -18394,6 +18705,17 @@ hl_run:
  call hl_tk,[d2,d3],12
  cmp 2,d2
  bcs 90f                          /* no g >= 2 anywhere: nothing changes (h7; was: all g = 0) */
+ mov (44,sp),a0                   /* speed-1: hl_cb / hl_cr (512 B) into hl_row's context, before the list */
+ add -512,a0
+ mov hl_cb,a1
+ mov 128,d1
+47:
+ mov (a1),d0
+ mov d0,(a0)
+ inc4 a0
+ inc4 a1
+ add -1,d1
+ bne 47b
 
  /* ---- C. bands of rows that share their cell rows: the top rows (y < 32: cell row 0 alone), then per cell row r0
   * the rows 32 + 64 r0 .. + 63 (r0 and r0 + 1, wy = (y - 32) & 63), then the last rows (cell row GH - 1 alone) */
@@ -18543,12 +18865,13 @@ hl_run:
 90:
  mov 3,d0                         /* glow-shots-2: the end */
  call hl_tk,[d2,d3],12
+ call FLUSH,[d2,d3],16            /* speed-1: the grids' dirty lines written back before they go back to the heap */
  mov (104,sp),a0
- call free,[],4
+ call hl_gf,[],4
  mov (80,sp),a0
- call free,[],4
+ call hl_gf,[],4
  mov (40,sp),a0
- call free,[],4
+ call hl_gf,[],4
 99:
  ret [d2,d3,a2,a3],124
 
@@ -18556,7 +18879,7 @@ hl_run:
  * cells (u16): per cell (32 pairs, fewer in the last column) E += sum of max(0, Y0 - HL_T), Q += sum of Y0 >> 2.
  * A full cell: four runs of eight Y0, each ORed and compared once; hl_x8 only when the OR is above HL_T.
  * Locals (0) call slot (hl_x8), (4) the row's end. */
- .macro HLA8 o                    /* eight pairs at \o: d2 += Y0 >> 2; their OR in d1 */
+ .macro HLA8S o                    /* eight pairs at \o: d2 += Y0 >> 2; their OR in d1 */
  clr d1
  .irp k, 0, 4, 8, 12, 16, 20, 24, 28
  movbu (\o+\k,a0),d0
@@ -18566,17 +18889,21 @@ hl_run:
  .endr
  cmp HL_T,d1
  bls 96f
- mov a0,a1
- add \o,a1
- call hl_x8,[],0
+ .if \o
+ add \o,a0                       /* speed-1: hl_x8 reads through a0 (a1 holds the row's end) */
+ .endif
+ call hl_x8s,[],0
+ .if \o
+ add -\o,a0
+ .endif
 96:
  .endm
 hl_pa:
  asl2 d0
  add a0,d0
- mov d0,(4,sp)
+ mov d0,a1                        /* speed-1: the row's end in a1 (was (4,sp)) */
 1:
- mov (4,sp),d0
+ mov a1,d0
  mov a0,d1
  sub d1,d0                        /* bytes left in the row */
  beq 9f
@@ -18584,15 +18911,13 @@ hl_pa:
  clr d3                           /* excess sum */
  cmp 128,d0
  bcs 5f
- HLA8 0
- HLA8 32
- HLA8 64
- HLA8 96
+ HLA8S 0
+ HLA8S 32
+ HLA8S 64
+ HLA8S 96
  add 128,a0
  bra 6f
-5:                                /* the last column's part cell: one pair a turn */
- mov a0,a1
- add d0,a1
+5:                                /* the last column's part cell: one pair a turn (a1 = the row's end) */
 7:
  movbu (a0),d0
  mov d0,d1
@@ -18619,6 +18944,36 @@ hl_pa:
 9:
  ret [d2,d3,a2,a3],24
 
+/* hl_x8s (speed-1, Bloom's hl_pa): `call hl_x8s,[],0` (leaf), a0 = eight pairs: d3 += sum of max(0, Y0 - HL_T);
+ * d0 used. hl_x8 (v0.40.2's, a1 = eight pairs) stays below for the Halation Radius pass (hradius.s hr_pa). */
+hl_x8s:
+ .irp k, 0, 4, 8, 12, 16, 20, 24, 28
+ movbu (\k,a0),d0
+ cmp HL_T,d0
+ bls 95f
+ add -HL_T,d0
+ add d0,d3
+95:
+ .endr
+ retf [],0
+
+/* ---- v0.40.2's HLA8 / hl_x8 / hl_lp / HLP / hl_sp, unchanged: the Halation Radius pass (hradius.s hr_pa, hr_row)
+ * calls them as its author wrote it (try/speed-radius, 2026-11-20); Bloom uses speed-1's HLA8S / hl_x8s / HLPS. */
+ .macro HLA8 o                    /* eight pairs at \o: d2 += Y0 >> 2; their OR in d1 */
+ clr d1
+ .irp k, 0, 4, 8, 12, 16, 20, 24, 28
+ movbu (\o+\k,a0),d0
+ or d0,d1
+ lsr 2,d0
+ add d0,d2
+ .endr
+ cmp HL_T,d1
+ bls 96f
+ mov a0,a1
+ add \o,a1
+ call hl_x8,[],0
+96:
+ .endm
 /* hl_x8: `call hl_x8,[],0` (leaf), a1 = eight pairs: d3 += sum of max(0, Y0 - HL_T); d0 used. */
 hl_x8:
  .irp k, 0, 4, 8, 12, 16, 20, 24, 28
@@ -18631,221 +18986,8 @@ hl_x8:
  .endr
  retf [],0
 
-/* hl_bd (h7): `call hl_bd,[d2,d3,a2,a3],28`, a0 = hl_run's frame: the band's segments that can glow, as (first pair,
- * pairs) u16 pairs in the list (44), their number in (100), an estimate of a row's instructions in (88). Segment
- * j = 0..GW covers the pairs [0, 16) (j = 0), [32 j - 16, min(32 j + 16, pairs)) (0 < j < GW), [32 GW - 16, pairs)
- * (j = GW), between the cell columns L = max(j - 1, 0) and R = min(j, GW - 1); it can glow only when g >= 2 at L or R
- * in the band's cell row A (96) or B (A + (84)): a lerp stays between its ends. Locals (0) call slot, (4) first pair,
- * (8) end. */
-hl_bd:
- mov a0,a2
- mov (44,a2),a3
- clr d0
- mov d0,(100,a2)
- mov HL_C_ROW,d0
- mov d0,(88,a2)
- clr d3                           /* j */
-1:
- clr d0                           /* first pair, end */
- mov 16,d1
- cmp 0,d3
- beq 4f
- mov d3,d0
- asl 5,d0
- add -16,d0
- mov (28,a2),d1                   /* pairs */
- cmp d1,d0
- bcc 9f                           /* past the row: no more segments */
- mov (32,a2),d2
- cmp d2,d3
- bcc 4f                           /* j = GW: to the row's end */
- mov d0,d2
- add 32,d2
- cmp d1,d2
- bcc 4f
- mov d2,d1
-4:
- mov d0,(4,sp)
- mov d1,(8,sp)
- mov d3,d0                        /* L */
- cmp 0,d0
- beq 5f
- add -1,d0
-5:
- add d0,d0
- mov (40,a2),a0
- mov (96,a2),d1
- add d1,a0
- add d0,a0
- mov (84,a2),d2
- movhu (a0),d0
- movhu (d2,a0),d1
- or d1,d0
- mov (32,a2),d1                   /* R */
- add -1,d1
- cmp d1,d3
- bcc 6f
- mov d3,d1
-6:
- add d1,d1
- mov (40,a2),a0
- mov (96,a2),a1
- add a1,a0
- add d1,a0
- movhu (a0),d1
- or d1,d0
- movhu (d2,a0),d1
- or d1,d0
- cmp 2,d0
- bcs 8f                           /* g <= 1 at both ends in both cell rows */
- mov (4,sp),d0
- movhu d0,(a3)
- mov (8,sp),d1
- sub d0,d1
- movhu d1,(2,a3)
- add 4,a3
- mov (100,a2),d0
- inc d0
- mov d0,(100,a2)
- mov HL_C_PAIR,d0
- mul d1,d0
- add HL_C_SEG,d0
- mov (88,a2),d1
- add d1,d0
- mov d0,(88,a2)
-8:
- inc d3
- mov (32,a2),d0
- cmp d0,d3
- bls 1b
-9:
- ret [d2,d3,a2,a3],28
-
-/* hl_row (h7): `call hl_row,[d2,d3,a2,a3],72`, a0 = the row's first pair (CPU address), a1 = hl_run's frame, d2 = wy
- * (0..63; 0 in a band of one cell row). For each segment in the band's list: g and w at its ends (hl_lp; the right
- * end carried to the next segment when it follows), then hl_sp over its pairs when an end has g >= 2.
- * Locals (0) call slot, (4) frame, (8) row, (12) wy, (16) B - A bytes, (20) next entry, (24) entries left,
- * (28) previous j, (32) b_g, (36) b_w, (40) a_g, (44) a_w, (48) pairs, (52) first pair. */
- .set HR_WY, 12
+ .set HR_WY, 12                   /* v0.40.2's hl_row frame: wy and B - A, read by hl_lp (hradius.s hr_row keeps them) */
  .set HR_DB, 16
-hl_row:
- mov a1,(4,sp)
- mov a0,(8,sp)
- mov d2,(12,sp)
- mov (84,a1),d0
- mov d0,(16,sp)
- mov (44,a1),d0
- mov d0,(20,sp)
- mov (100,a1),d0
- mov d0,(24,sp)
- mov -2,d0
- mov d0,(28,sp)
-1:
- mov (20,sp),a0
- movhu (a0),d3                    /* first pair */
- movhu (2,a0),d0
- add 4,a0
- mov a0,(20,sp)
- mov d0,(48,sp)
- mov d3,(52,sp)
- add 16,d3
- lsr 5,d3                         /* j */
- mov (4,sp),a1
- mov (28,sp),d0
- inc d0
- cmp d0,d3
- bne 2f
- mov (32,sp),d0                   /* follows the last one: its right end is this left end */
- mov d0,(40,sp)
- mov (36,sp),d0
- mov d0,(44,sp)
- bra 3f
-2:
- mov d3,d0                        /* L = max(j - 1, 0) */
- cmp 0,d0
- beq 21f
- add -1,d0
-21:
- add d0,d0
- mov d0,(32,sp)                   /* (2 L, for the w grid) */
- mov (40,a1),a0
- mov (96,a1),d1
- add d1,a0
- add d0,a0
- call hl_lp,[],0
- mov d0,(40,sp)
- mov (4,sp),a1
- mov (80,a1),a0
- mov (96,a1),d1
- add d1,a0
- mov (32,sp),d1
- add d1,a0
- call hl_lp,[],0
- mov d0,(44,sp)
- mov (4,sp),a1
-3:
- mov (40,sp),d0                   /* R = min(j, GW - 1); R = L (j = 0 or j = GW): b = a */
- mov d0,(32,sp)
- mov (44,sp),d0
- mov d0,(36,sp)
- cmp 0,d3
- beq 4f
- mov (32,a1),d0
- cmp d0,d3
- bcc 4f
- mov d3,d0
- add d0,d0
- mov (40,a1),a0
- mov (96,a1),d1
- add d1,a0
- add d0,a0
- call hl_lp,[],0
- mov d0,(32,sp)
- mov (4,sp),a1
- mov (80,a1),a0
- mov (96,a1),d1
- add d1,a0
- mov d3,d1
- add d1,d1
- add d1,a0
- call hl_lp,[],0
- mov d0,(36,sp)
-4:
- mov d3,(28,sp)
- mov (40,sp),d0                   /* g <= 1 at both ends: nothing changes */
- mov (32,sp),d1
- or d1,d0
- cmp 2,d0
- bcs 8f
- mov (44,sp),d2                   /* acc = (32 a_w + 16) << 16 | (32 a_g + 16), step = (b_w - a_w) << 16 + b_g - a_g */
- mov (36,sp),d3
- sub d2,d3
- asl 16,d3
- mov (32,sp),d0
- mov (40,sp),d1
- sub d1,d0
- add d0,d3
- asl 5,d2
- add 16,d2
- asl 16,d2
- asl 5,d1
- add 16,d1
- or d1,d2
- mov (52,sp),d0
- asl2 d0
- mov (8,sp),a0
- add d0,a0
- mov (48,sp),d0
- call hl_sp,[d2,d3,a2,a3],28
-8:
- mov (24,sp),d0
- add -1,d0
- mov d0,(24,sp)
- beq 9f
- jmp 1b
-9:
- ret [d2,d3,a2,a3],72
-
 /* hl_lp (h7): `call hl_lp,[],0` from hl_row (the call leaves sp as it is, so hl_row's wy and B - A are read through its
  * frame), a0 = A's value (u16) -> d0 = (64 A + (B - A) wy + 32) >> 6, B at a0 + (B - A); d1, d2 used. mul writes
  * MDR, so `ret`, not `retf`. */
@@ -18964,6 +19106,380 @@ hl_sp:
  jmp 6b
 9:
  ret [d2,d3,a2,a3],28
+
+
+/* hl_bd (h7): `call hl_bd,[d2,d3,a2,a3],28`, a0 = hl_run's frame: the band's segments that can glow, as (first pair,
+ * pairs) u16 pairs in the list (44), their number in (100), an estimate of a row's instructions in (88). Segment
+ * j = 0..GW covers the pairs [0, 16) (j = 0), [32 j - 16, min(32 j + 16, pairs)) (0 < j < GW), [32 GW - 16, pairs)
+ * (j = GW), between the cell columns L = max(j - 1, 0) and R = min(j, GW - 1); it can glow only when g >= 2 at L or R
+ * in the band's cell row A (96) or B (A + (84)): a lerp stays between its ends. Locals (0) call slot, (4) first pair,
+ * (8) end. */
+hl_bd:                            /* speed-1: hl_run's frame values (the uncached stack) copied into hl_row's context
+                                     once a band; the same list, count and estimate */
+ mov (44,a0),a3                   /* the list */
+ mov a3,a2
+ add -512,a2                      /* hl_row's context (HX_* at negative offsets) */
+ mov a0,(HX_LST,a2)               /* hl_run's frame (HX_* reused here; hl_row sets them again per row) */
+ mov (32,a0),d0
+ mov d0,(HX_GW,a2)
+ mov (28,a0),d0
+ mov d0,(HX_FP,a2)                /* pairs */
+ mov (84,a0),d0
+ mov d0,(HX_DB,a2)
+ mov (40,a0),d0
+ mov (96,a0),d1
+ add d1,d0
+ mov d0,(HX_G,a2)                 /* the grid's row A */
+ clr d0
+ mov d0,(HX_N,a2)                 /* the list's length */
+ mov HL_C_ROW,d0
+ mov d0,(HX_WY,a2)                /* the estimate */
+ clr d3                           /* j */
+1:
+ clr d0                           /* first pair, end */
+ mov 16,d1
+ cmp 0,d3
+ beq 4f
+ mov d3,d0
+ asl 5,d0
+ add -16,d0
+ mov (HX_FP,a2),d1                /* pairs */
+ cmp d1,d0
+ bcc 9f                           /* past the row: no more segments */
+ mov (HX_GW,a2),d2
+ cmp d2,d3
+ bcc 4f                           /* j = GW: to the row's end */
+ mov d0,d2
+ add 32,d2
+ cmp d1,d2
+ bcc 4f
+ mov d2,d1
+4:
+ mov d0,(HX_AG,a2)
+ mov d1,(HX_AW,a2)
+ mov d3,d0                        /* L */
+ cmp 0,d0
+ beq 5f
+ add -1,d0
+5:
+ add d0,d0
+ mov (HX_G,a2),a0
+ add d0,a0
+ mov (HX_DB,a2),d2
+ movhu (a0),d0
+ movhu (d2,a0),d1
+ or d1,d0
+ mov (HX_GW,a2),d1                /* R */
+ add -1,d1
+ cmp d1,d3
+ bcc 6f
+ mov d3,d1
+6:
+ add d1,d1
+ mov (HX_G,a2),a0
+ add d1,a0
+ movhu (a0),d1
+ or d1,d0
+ movhu (d2,a0),d1
+ or d1,d0
+ cmp 2,d0
+ bcs 8f                           /* g <= 1 at both ends in both cell rows */
+ mov (HX_AG,a2),d0
+ movhu d0,(a3)
+ mov (HX_AW,a2),d1
+ sub d0,d1
+ movhu d1,(2,a3)
+ add 4,a3
+ mov (HX_N,a2),d0
+ inc d0
+ mov d0,(HX_N,a2)
+ mov HL_C_PAIR,d0
+ mul d1,d0
+ add HL_C_SEG,d0
+ mov (HX_WY,a2),d1
+ add d1,d0
+ mov d0,(HX_WY,a2)
+8:
+ inc d3
+ mov (HX_GW,a2),d0
+ cmp d0,d3
+ bls 1b
+9:
+ mov (HX_LST,a2),a0
+ mov (HX_N,a2),d0
+ mov d0,(100,a0)
+ mov (HX_WY,a2),d0
+ mov d0,(88,a0)
+ ret [d2,d3,a2,a3],28
+
+.section .ext13,"ax"               /* speed-1: hl_row moved here (ext12 is full) */
+ .balign 2
+/* hl_row (h7; speed-1 2026-11-19: the same bytes with no stack traffic per segment): `call hl_row,[d2,d3,a2,a3],72`,
+ * a0 = the row's first pair (CPU address), a1 = hl_run's frame, d2 = wy (0..63; 0 in a band of one cell row). For
+ * each segment in the band's list: g and w at its ends (HLPL; the right end carried to the next segment when it
+ * follows), then the pairs from the first with g >= 2 (the old hl_sp, inline) when an end has g >= 2.
+ * The camera's task stacks are uncached (om-emu: sp 0xa21f...; a stack access ~50 ns on the camera, from the
+ * glow-shots-2 / v0.40.2 timings), and the old hl_row / hl_lp / hl_sp made ~60 of them per segment. Now the row's
+ * values live in a context in mem1 (HL_XB bytes before the list, through the cached alias): 64 bytes of values, then
+ * this photo's copy of hl_cb / hl_cr (hl_run copies them before pass C), so a1 is the table and the context at once
+ * (the values at negative offsets, HX_*) and the per-pair loop needs no stack at all. */
+ .set HX_ROW, 0 - 64                   /* the row's first pair */
+ .set HX_WY, 4 - 64
+ .set HX_DB, 8 - 64                    /* B - A (bytes) */
+ .set HX_LST, 12 - 64                  /* the next entry */
+ .set HX_N, 16 - 64                    /* entries left */
+ .set HX_PJ, 20 - 64                   /* the previous j */
+ .set HX_BG, 24 - 64                   /* b_g, b_w (the right end, carried) */
+ .set HX_BW, 28 - 64
+ .set HX_AG, 32 - 64                   /* a_g, a_w */
+ .set HX_AW, 36 - 64
+ .set HX_G, 40 - 64                    /* the G grid's row A, the w grid's row A */
+ .set HX_W, 44 - 64
+ .set HX_GW, 48 - 64
+ .set HX_FP, 52 - 64                   /* this entry: first pair, pairs */
+ .set HX_NP, 56 - 64
+ .set HX_TE, 60 - 64                /* the segment's end */
+ .set HX_T, HX_FP                 /* HLP's staged word (HX_FP is free once the pairs start) */
+ .macro HLPL                      /* a0 = A's value (u16), a1 = the context -> d0 = (64 A + (B - A) wy + 32) >> 6 (the
+                                     old hl_lp); d1, d2 used */
+ movhu (a0),d0
+ mov (HX_DB,a1),d1
+ movhu (d1,a0),d1
+ sub d0,d1
+ mov (HX_WY,a1),d2
+ mul d2,d1
+ asl 6,d0
+ add d1,d0
+ add 32,d0
+ lsr 6,d0
+ .endm
+ .macro HLPS o                    /* one pair at \o (a0 + \o, 4-byte aligned): g >= 2 or out to 9f; a1 = hl_cb (the
+                                     context's copy) */
+ mov a2,d0
+ and 0xffe0,d0                    /* 32 g */
+ cmp 64,d0
+ bcc 94f
+ jmp 9f                           /* g <= 1: this pair and the rest of the segment stay as they are */
+94:
+ mov a2,d1
+ lsr 21,d1                        /* w */
+ mul d0,d1
+ lsr 13,d1                        /* c = (g w) >> 8 */
+ movbu (d1,a1),d2                 /* Cb += (c HL_KCB) >> 8 (<= 0): - hl_cb[c], clamped at 0 */
+ movbu (\o+1,a0),d3
+ sub d2,d3
+ bcc 97f
+ clr d3
+97:
+ cmp HL_GY32,d0
+ bcc 95f                          /* g >= GY: all four bytes change (speed-1: one word store, below) */
+ movbu d3,(\o+1,a0)               /* g < GY: ((255 - Y) g HL_KY) >> 16 = 0, Cb and Cr only */
+ add 256,d1
+ movbu (d1,a1),d2                 /* Cr += (c HL_KCR) >> 8 (>= 0): hl_cr[c], clamped at 255 */
+ movbu (\o+3,a0),d3
+ add d2,d3
+ cmp 255,d3
+ bls 98f
+ mov 255,d3
+98:
+ movbu d3,(\o+3,a0)
+ bra 99f
+95:
+ movbu d3,(HX_T + 1,a1)           /* the new bytes staged in the context (cached), then one store to the photo */
+ add 256,d1
+ movbu (d1,a1),d2                 /* Cr */
+ movbu (\o+3,a0),d3
+ add d2,d3
+ cmp 255,d3
+ bls 93f
+ mov 255,d3
+93:
+ movbu d3,(HX_T + 3,a1)
+ mov HL_KY,d2
+ mul d2,d0                        /* 32 g HL_KY */
+ movbu (\o,a0),d2                 /* Y0 += ((255 - Y0) 32 g HL_KY) >> 21 */
+ mov d2,d3
+ xor 255,d3
+ mul d0,d3
+ lsr 21,d3
+ add d3,d2
+ movbu d2,(HX_T,a1)
+ movbu (\o+2,a0),d2               /* Y1 */
+ mov d2,d3
+ xor 255,d3
+ mul d0,d3
+ lsr 21,d3
+ add d3,d2
+ movbu d2,(HX_T + 2,a1)
+ mov (HX_T,a1),d2
+ mov d2,(\o,a0)                   /* one store through the bus window (was four byte stores) */
+99:
+ add a3,a2
+ .endm
+hl_row:
+ mov (44,a1),d3
+ add -512,d3                      /* the table copy (a1 from here on) */
+ mov d3,a2
+ mov a0,(HX_ROW,a2)
+ mov d2,(HX_WY,a2)
+ mov (84,a1),d0
+ mov d0,(HX_DB,a2)
+ mov (44,a1),d0
+ mov d0,(HX_LST,a2)
+ mov (100,a1),d0
+ mov d0,(HX_N,a2)
+ mov -2,d0
+ mov d0,(HX_PJ,a2)
+ mov (96,a1),d1
+ mov (40,a1),d0
+ add d1,d0
+ mov d0,(HX_G,a2)
+ mov (80,a1),d0
+ add d1,d0
+ mov d0,(HX_W,a2)
+ mov (32,a1),d0
+ mov d0,(HX_GW,a2)
+ mov a2,a1                        /* a1 = the tables and the context */
+1:
+ mov (HX_LST,a1),a0
+ movhu (a0),d3                    /* first pair */
+ movhu (2,a0),d0
+ add 4,a0
+ mov a0,(HX_LST,a1)
+ mov d0,(HX_NP,a1)
+ mov d3,(HX_FP,a1)
+ add 16,d3
+ lsr 5,d3                         /* j */
+ mov (HX_PJ,a1),d0
+ inc d0
+ cmp d0,d3
+ bne 2f
+ mov (HX_BG,a1),d0                /* follows the last one: its right end is this left end */
+ mov d0,(HX_AG,a1)
+ mov (HX_BW,a1),d0
+ mov d0,(HX_AW,a1)
+ bra 3f
+2:
+ mov d3,d0                        /* L = max(j - 1, 0) */
+ cmp 0,d0
+ beq 21f
+ add -1,d0
+21:
+ add d0,d0
+ mov d0,a3                        /* 2 L */
+ mov (HX_G,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_AG,a1)
+ mov (HX_W,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_AW,a1)
+3:
+ mov (HX_AG,a1),d0                /* R = min(j, GW - 1); R = L (j = 0 or j = GW): b = a */
+ mov d0,(HX_BG,a1)
+ mov (HX_AW,a1),d0
+ mov d0,(HX_BW,a1)
+ cmp 0,d3
+ beq 4f
+ mov (HX_GW,a1),d0
+ cmp d0,d3
+ bcc 4f
+ mov d3,d0
+ add d0,d0
+ mov d0,a3                        /* 2 R */
+ mov (HX_G,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_BG,a1)
+ mov (HX_W,a1),a0
+ add a3,a0
+ HLPL
+ mov d0,(HX_BW,a1)
+4:
+ mov d3,(HX_PJ,a1)
+ mov (HX_AG,a1),d0                /* g <= 1 at both ends: nothing changes */
+ mov (HX_BG,a1),d1
+ or d1,d0
+ cmp 2,d0
+ bcs 8f
+ mov (HX_AW,a1),d2                /* acc = (32 a_w + 16) << 16 | (32 a_g + 16), step = (b_w - a_w) << 16 + b_g - a_g */
+ mov (HX_BW,a1),d3
+ sub d2,d3
+ asl 16,d3
+ mov (HX_BG,a1),d0
+ mov (HX_AG,a1),d1
+ sub d1,d0
+ add d0,d3
+ asl 5,d2
+ add 16,d2
+ asl 16,d2
+ asl 5,d1
+ add 16,d1
+ or d1,d2
+ mov (HX_FP,a1),d0
+ asl2 d0
+ mov (HX_ROW,a1),a0
+ add d0,a0
+ mov (HX_NP,a1),d0
+ /* the old hl_sp: a0 = first pair, d0 = pairs >= 1, d2 = acc, d3 = step; per pair g = (acc & 0xffe0) >> 5,
+  * w = acc >> 21; the leading pairs with g <= 1 skipped, the segment ends at the next g <= 1 (g is monotonic) */
+ mov d2,a2
+ mov d3,a3
+11:
+ mov a2,d1
+ and 0xffc0,d1
+ bne 12f
+ add a3,a2
+ add 4,a0
+ add -1,d0
+ bne 11b
+ bra 9f
+12:
+ asl2 d0                          /* a1 = this photo's hl_cb / hl_cr (and the context) */
+ mov a0,d1
+ add d0,d1
+ mov d1,(HX_TE,a1)
+ and -32,d0
+ beq 15f                          /* fewer than 8 pairs */
+ mov a0,d1
+ add d0,d1
+ mov d1,(HX_NP,a1)                /* the end of the 8-pair runs (pairs no longer needed) */
+13:
+ HLPS 0
+ HLPS 4
+ HLPS 8
+ HLPS 12
+ HLPS 16
+ HLPS 20
+ HLPS 24
+ HLPS 28
+ add 32,a0
+ mov (HX_NP,a1),d0
+ cmp d0,a0
+ beq 15f
+ jmp 13b
+15:
+ mov (HX_TE,a1),d0
+ cmp d0,a0
+ beq 9f
+16:
+ HLPS 0
+ add 4,a0
+ mov (HX_TE,a1),d0
+ cmp d0,a0
+ beq 9f
+ jmp 16b
+9:
+8:
+ mov (HX_N,a1),d0
+ add -1,d0
+ mov d0,(HX_N,a1)
+ beq 29f
+ jmp 1b
+29:
+ ret [d2,d3,a2,a3],72
+.section .ext12,"ax"
 
 /* hl_div: `call hl_div,[d2,d3,a2,a3],20`, d0 / d1 (unsigned, d1 > 0) -> d0, shift and subtract. */
 hl_div:
@@ -22877,3 +23393,7 @@ bl_v:                             /* the value */
  .include "fwver.s"               /* our version on the camera's Firmware Version screen (ext13) */
 
  .include "newfilms.s"            /* #86: a new film set made again in every mode (ext13) */
+
+ .include "playfilm.s"            /* #93: playback labels a photo by the film in its own Exif (ext13) */
+ .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
+ .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */

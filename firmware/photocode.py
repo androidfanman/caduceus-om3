@@ -14,6 +14,8 @@ keep working; v0.28's half steps are in byte 63 (bit 0 Shadows, bit 1 Highlights
 v0.40: byte 48 is the Border -5..5 (minus black, plus white, 0 none), read signed. It was the Art Effect byte, gone
 since v0.25, so every older code has 0 there. Byte 51 stays the grain level 0..3: v0.40's Film Grain 1..5 is written as
 1-2 Low, 3 Medium, 4-5 High (the camera's gs_lv); Grain Size is not in the code.
+Halation Radius (branch halation/v0.40-radius): byte 63 bits 2..3 = the COLOR's radius, 0 Bloom (and every older
+code), 1 Tight, 2 Medium, 3 Wide; older readers read bits 0..1 only.
 """
 import base64
 
@@ -45,6 +47,14 @@ def split_steps(rec: bytes):
         v = s8(st)
         out.append(((rec[col] + 6) % 12, -2 * v) if v < 0 else (rec[col], 2 * v + ((rec[63] >> bit) & 1)))
     return tuple(out)
+
+
+RADII = ['Bloom', 'Tight', 'Medium', 'Wide']
+
+
+def halation_radius(rec: bytes) -> str:
+    """-> 'Bloom' (also for codes from before the Halation Radius), 'Tight', 'Medium' or 'Wide'."""
+    return RADII[(rec[63] >> 2) & 3]
 
 
 def film_wb(rec: bytes):

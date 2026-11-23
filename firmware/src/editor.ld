@@ -7,6 +7,9 @@ SECTIONS {
   .hook_crk     0x6111341e : { *(.hook_crk) }   /* crop round 9c: the single frame's info build, after its label code */
   .hook_crq     0x60c7c18a : { *(.hook_crq) }   /* crop round 10: the play component's record-mode lookup (reads only) */
   .hook_crr     0x611133cd : { *(.hook_crr) }   /* crop round 10: SimplePlayCommon's quality lookup */
+  .hook_cz1     0x60c15483 : { *(.hook_cz1) }   /* #97: live view zoom, getZoomArea's ratio read (Magnify) */
+  .hook_cz2     0x60c13f97 : { *(.hook_cz2) }   /* #97: the same read in adjustZoomFrameLimitPos */
+  .hook_cz3     0x611f965a : { *(.hook_cz3) }   /* #97: the Image Aspect screen's size record lookup */
   .hook_shutter 0x60415216 : { *(.hook_shutter) }
   .ext1         0x6031e920 : { *(.ext1) }
   .ext4         0x60a8f100 : { *(.ext4) }
@@ -20,6 +23,8 @@ SECTIONS {
   .hook_wl      0x604b8d91 : { *(.hook_wl) }
   .hook_trs     0x604cf156 : { *(.hook_trs) }
   .hook_trl     0x604cf1a4 : { *(.hook_trl) }
+  .hook_dp1     0x6054fffd : { *(.hook_dp1) }     /* #91: the per-photo Detail / Drive Priority choice (development parameters +323) */
+  .hook_dp2     0x60558041 : { *(.hook_dp2) }     /* #91: the same choice for capture+7482 */
   .hook_tone    0x605197d7 : { *(.hook_tone) }
   .hook_fx      0x60555e50 : { *(.hook_fx) }
   .hook_lv      0x6046b8bb : { *(.hook_lv) }
@@ -74,6 +79,8 @@ SECTIONS {
   .ext11        0x60f49800 : { *(.ext11) }
   .ext12        0x60f59800 : { *(.ext12) }
   .ext13        0x60fac000 : { *(.ext13) }   /* v0.30 test 10: the debug log, after the RGB work area */
+  .ext14        0x60fc0000 : { *(.ext14) }   /* Halation Radius: its code (16 KiB), then its work area (GX4-proven reserve) */
+  .ext15        0x6101d000 : { *(.ext15) }   /* fix99-4: after the radius work area (HR_END) to 0x6103f000, the GX4-proven reserve's end */
 }
 color_builder = 0x60518381;
 si_get44      = 0x610fd8ef;   /* screen info: the shooting-screen updater's settings getter (d0 id, a0 out) */
@@ -155,6 +162,8 @@ FLUSH         = 0x60070e69;
 RES_SZ        = 0x601d7546;   /* better grain g1: the grain tile's size (resource 0x8001) */
 RES_LD        = 0x604ce6c9;   /* its load into the texture builder's buffer */
 TLD_BACK      = 0x604cf1a9;   /* after that call in the builder 0x604cf0b9 */
+FD_DEC        = 0x6055aa5c;   /* #91: the camera's per-photo choice, a0 = request -> 1 Detail processing, 0 Drive Priority's */
+FD2_BACK      = 0x60558046;   /* #91: after its call at 0x60558041 */
 OS_FOPEN      = 0x608d4d22;
 OS_FCLOSE     = 0x608d4d2b;
 OS_FSEEK      = 0x608d4fb1;
@@ -274,6 +283,7 @@ cr_ef         = 0x60060eff;         /* the store write's first call (replayed by
 cr_sin_back   = 0x6006118b;
 cr_sb_back    = 0x60061214;
 cr_pbk1_back  = 0x61113424;         /* crop round 9b: SimplePlayCommon after mov (2844,sp),d2; mov 78,a0 */
+ex_tag        = 0x6042f92e;         /* #93: the shown photo's Exif tag text (d0 group, d1 tag, a0 copy to / 0, a1 its size) -> a0 */
 cr_pq_back    = 0x60c7c18f;         /* crop round 10: the record-mode lookup after its first three */
 cr_pqg_back   = 0x611133d5;         /* crop round 10: SimplePlayCommon's call 0x6110130d */
 cr_lr_j       = 0x60bf2d2b;         /* the live view ratio switch: mov d0,(28,sp) (the height) */
@@ -281,3 +291,8 @@ cr_rc_j       = 0x60c0d35f;         /* ratioToConvertSize: mov d0,(4,a1); retf [
 cr_oa_j       = 0x60c14b95;         /* getOutputAspect: mov d0,(16,sp) */
 cr_spec_back  = 0x611cb253;         /* crop round 3: after the screen spec's ratio byte */
 cr_dhm_back   = 0x60dc4bb7;         /* crop round 5: Set_Histogram_CalcMode after its entry */
+cr_gar        = 0x60c14644;         /* #97: CapThr_ThroughImage::getAspectRatio (Image Aspect as it is; 10 / 1 / 3 in video) */
+cr_za1_back   = 0x60c15488;         /* #97: getZoomArea after its getAspectRatio call */
+cr_za2_back   = 0x60c13f9c;         /* #97: adjustZoomFrameLimitPos after the same call */
+cr_szt        = 0x61577278;         /* #97: the Image Aspect screen's size records (5 x 266 B: 4:3, 16:9, 3:2, 1:1, 3:4) */
+cr_szb        = 0x611f9660;         /* #97: its record loop after `add cr_szt,a1` (movhu (a1),d0: the record's ratio) */

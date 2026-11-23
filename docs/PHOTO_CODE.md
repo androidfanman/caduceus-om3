@@ -31,6 +31,9 @@ Photos without a film (COLOR 1–4 with the user's own settings, CRT, ART, MONO,
 - **v0.40: byte 48 is the Border**, -5..5 (minus = a black border, plus = white, 0 = none), read signed. It was the
   Art Effect byte, which v0.25 removed, so every older code has 0 there. **Byte 51** stays the grain level 0..3: v0.40's
   Film Grain 1..5 is written as 1-2 Low, 3 Medium, 4-5 High; Grain Size is not in the code.
+- **Halation Radius** (branch `halation/v0.40-radius`, not released): **byte 63 bits 2..3** = the radius, 0 Bloom (the
+  default, and every older code), 1 Tight, 2 Medium, 3 Wide. Bits a reader did not know about, with 0 = as before, so
+  older readers (bits 0..1 only) are unaffected.
 - **Compatibility rule:** new settings go into spare bytes with 0 = off. An older LookLab then still opens a
   newer code (it skips what it doesn't know), and a newer one reads an older code's spare bytes as "off". Only a change
   that cannot follow that rule gets a new version (`om3.2.`). **v0.28 used the last spare byte (63)**: the next new

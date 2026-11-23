@@ -8,6 +8,11 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.40.3](#v0403) | 2026-11-23 | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26) and faster Halation; WB compensation kept apart for films and the camera's own picture modes (#99); fixes: Film Grain on Drive Priority (#91), Magnify in the crop modes (#97), each photo's own film in playback (#93), Delete's long press (#101) |
+| [v0.40.3-beta4](#v0403-beta4-test-version) | 2026-11-21 (test version) | WB compensation kept apart for films and the camera's own picture modes: no half-press needed, the camera's own setting never written by us |
+| [v0.40.3-beta3](#v0403-beta3-test-version) | 2026-11-21 (test version) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99); Delete's long press (#101). Replaces beta2 |
+| [v0.40.3-beta2](#v0403-beta2-test-version) | 2026-11-20 (test version, withdrawn) | Fixes: no shut-down with Film Grain on Drive Priority (#91); Magnify and the Image Aspect screen in the crop modes (#97); the camera's own picture modes keep their own WB compensation (#99) |
+| [v0.40.3-beta](#v0403-beta-test-version) | 2026-11-20 (test version) | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26); faster Halation; burst photos with Halation save sooner; playback shows each photo's own film (#93) |
 | [v0.40.2](#v0402) | 2026-11-19 | Smoother colour grain with less red-green speckle; grain made faster, so long bursts with Film Grain keep up |
 | [v0.40.1](#v0401) | 2026-11-19 | Round film grain with fewer repeats; a film's WB Compensation shows in the super control panel (#88) |
 | [v0.40](#v040) | 2026-11-19 | Crop modes XPan, 21:9 and 5:4; a black or white Border per film at every ratio; our own film grain (1–5, Grain Size); looks in live view as you adjust them; your own choice of screen info; faster looks and Halation; quick single shots (#85); new film sets in custom modes (#86); focus stacking with more lenses; LookLab knows all of it |
@@ -49,8 +54,26 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## v0.40.3
+2026-11-23. v0.40.2 plus everything from the v0.40.3 test versions; camera-tested as v0.40.3-beta4 (the build before
+its release name).
+- **Halation Radius** (by fernandezk26, discussion #92): a Picture Mode row under Halation Effect with Bloom (v0.40's
+  halo, the default), Tight, Medium and Wide; each film keeps its own. LookLab can't set it yet.
+- **Faster Halation:** about half the fixed work per photo, the same photos; burst photos with Halation save sooner.
+- **WB compensation kept apart (#99, reported by crombach):** each film and COLOR has its own A-B / G-M shift, shown
+  and changed on the super control panel, the WB screen and Picture Mode's WB row while on a film; the camera's own
+  picture modes keep the camera's own, which we never write. No half-press needed. After updating, set the camera's
+  own WB compensation once (it may still hold a film's shift from v0.40.1 / v0.40.2).
+- **#91 (found by fernandezk26):** no shut-down with Film Grain + Sequential + JPEG only on Low ISO Processing: Drive
+  Priority.
+- **#97 (reported by 6pwnbvfdcb-collab):** Magnify and MF Assist work in 5:4 / XPan / 21:9; the Image Aspect screen
+  shows the crops' names and sizes.
+- **#93:** playback labels each photo with the film in its own Exif.
+- **#101 (reported by ourparhelion-collab):** a function on Delete does on a long press what it does on AF-ON.
+- The Firmware Version screen shows "0.40.3".
+
 ## LookLab update (2026-11-21)
-LookLab only; the firmware is unchanged (v0.40.2 stays the current version).
+LookLab only; the firmware is unchanged.
 - **Open… reads `CURVES.BIN`:** opening a card's `LOOKS.BIN` together with its `CURVES.BIN` (pick both, in any order)
   brings each film's RGB curves and Color Mix back with it. Before, the films came in flat, so the next save wrote
   them without their curves and mix.
@@ -59,6 +82,66 @@ LookLab only; the firmware is unchanged (v0.40.2 stays the current version).
   preview with the film on, and a click shows it large. Switching films updates all of them. Nothing is uploaded.
 - **Open… reads a readable recipe `.json`** (a look written out setting by setting with the camera's photo code, plus
   its RGB curves and Color Mix): the look comes from the photo code, with its name, curves and mix.
+
+
+## v0.40.3-beta4 (test version)
+A test version (a GitHub pre-release; v0.40.2 stays the current version). v0.40.3-beta3 with separate WB shifts,
+camera-tested 2026-11-21 (test build w1, the build before its release name).
+- **WB compensation (A-B / G-M) kept apart:** each film and COLOR has its own shift, and the camera's own picture modes
+  keep the camera's own. On a film, the super control panel, the WB screen and Picture Mode's WB row show the film's
+  shift, a change there goes into the film, and live view and photos use it. The camera's own setting is never
+  written by us. No half-press is needed, and nothing of ours runs at a Creative Dial turn or a film pick for it. This
+  replaces beta3's switch at the half-press (#99) and v0.40.1's film shift in the camera's own fine-tune (#88).
+- After updating, set the centre's WB compensation once (the camera may still hold a film's shift from before).
+- The Firmware Version screen shows "0.40.3-b4".
+
+## v0.40.3-beta3 (test version)
+A test version (a GitHub pre-release; v0.40.2 stays the current version). v0.40.3-beta plus four fixes, camera-tested
+2026-11-21 (test build f9, the build before its release name). It replaces v0.40.3-beta2 (withdrawn).
+- **#91 (found by fernandezk26):** no more shut-down with Film Grain + Sequential + JPEG only at ISO 1600 and below on
+  Low ISO Processing: Drive Priority. Photos with Film Grain get the camera's Detail processing (as Single does); long
+  grain bursts on Drive Priority may slow a little sooner. The debug log shows the setting and the count.
+- **#97 (reported by 6pwnbvfdcb-collab):** Magnify and MF Assist work in 5:4 / XPan / 21:9 (no black screen or stuck
+  camera): 5:4 uses 4:3's magnify area, XPan / 21:9 use 16:9's. The Image Aspect screen shows the crops' names and
+  sizes (from the first half-press).
+- **#99 (reported by crombach):** the camera's own picture modes get their own WB compensation back when you leave a
+  film, kept over a power-off and per custom mode, like the camera's own settings. Films keep theirs; video unchanged.
+  The switch happens at the first half-press after a Creative Dial turn; a WB change made before it stays where it was
+  made. beta2's boot loop at some start-ups and its restart on a film change after the dial's centre are fixed.
+- **#101 (reported by ourparhelion-collab):** a function on Delete does on a long press what it does on AF-ON (for
+  example, Keystone Compensation turns off). The arrows still get no long press: the camera never reports one for them.
+- The Firmware Version screen shows "0.40.3-b3".
+
+## v0.40.3-beta2 (test version)
+**Withdrawn (2026-11-20):** on some start-ups the camera could get stuck restarting (a boot loop), and a film change
+after the Creative Dial's centre could restart it. Use v0.40.3-beta3, which fixes both.
+
+A test version (a GitHub pre-release; v0.40.2 stays the current version). v0.40.3-beta plus three fixes, camera-tested
+2026-11-20 (test build fixes2, the build before its release name).
+- **#91 (found by fernandezk26):** no more shut-down with Film Grain + Sequential + JPEG only at ISO 1600 and below on
+  Low ISO Processing: Drive Priority. Photos with Film Grain get the camera's Detail processing (as Single does); long
+  grain bursts on Drive Priority may slow a little sooner. The debug log shows the setting and the count.
+- **#97 (reported by 6pwnbvfdcb-collab):** Magnify and MF Assist work in 5:4 / XPan / 21:9 (no black screen or stuck
+  camera): 5:4 uses 4:3's magnify area, XPan / 21:9 use 16:9's. The Image Aspect screen shows the crops' names and
+  sizes (from the first half-press).
+- **#99 (reported by crombach):** the camera's own picture modes get their own WB compensation back when you leave a
+  film, kept over a power-off and per custom mode, like the camera's own settings. Films keep theirs; video unchanged.
+- The Firmware Version screen shows "0.40.3-b2".
+
+## v0.40.3-beta (test version)
+A test version (a GitHub pre-release; v0.40.2 stays the current version). Camera-tested 2026-11-20 (test build r5,
+the build before its release name).
+- **Halation Radius** (by fernandezk26, discussion #92): a Picture Mode row under Halation Effect with Bloom (v0.40's
+  halo, the default), Tight, Medium and Wide (about 32 / 64 / 128 px), separate from the strength; each film keeps its
+  own, and the photo code carries it. The rows below it move down one. LookLab can't set it yet.
+- **Faster Halation:** its working grids go through the cache and it flushes once instead of after every few rows;
+  the fixed work per photo is about half. The photos are the same, byte for byte.
+- **Bursts:** Halation's pauses while the button is held stop after 0.3 s a photo (a burst photo had waited 4.9 s).
+- **#93:** playback labels each photo with the film in its own Exif, not the film its COLOR has now; a photo taken
+  with no film shows "COLOR n".
+- **Known issue (#91, also in v0.40.1 / v0.40.2):** Film Grain + Sequential + JPEG only switches the camera off at ISO 1600
+  and below with Low ISO Processing on Drive Priority (found by fernandezk26). Workaround: Detail Priority.
+- The debug log records Halation's slowest photo of each power-on. The Firmware Version screen shows "0.40.3-b".
 
 ## v0.40.2
 2026-11-19. v0.40.1 plus smoother colour grain, made faster; camera-tested (the build before its release name).

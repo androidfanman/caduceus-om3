@@ -26,6 +26,8 @@ PICTURES = [
     ([('Glow', 20, 33)], W, H),    # v0.25: the Glow (+) / Clarity (-) slider's icon (owner: named for the + side)
     ([('Halo', 20, 33)], W, H), ([('Bal', 20, 33)], W, H),  # v0.28: the Halation and Tone Balance sliders' icons (Frame Off / On's places)
     ([('Grain', 20, 33)], W, H),   # better grain g2 (id 0x7f78): the Film Grain strength slider's icon (grain_icon)
+    ([], 82, 62), ([], 82, 62), ([], 82, 62), ([], 82, 62),   # Halation Radius (ids IC_RZ0..): its row's left cells (r4: radius_cell, the Grain Size pictures' size)
+    ([], 100, 76), ([], 100, 76), ([], 100, 76), ([], 100, 76),  # r4: its strip cells (ids IC_RZS..; were the words in the camera's font)
 ]
 STYLE = {10: (0.88, (0.20, 0.40, 0.60))}   # width, coverage thresholds (as the FILM cells, matched to the stock lettering)
 
@@ -576,7 +578,78 @@ def grain_icon():
     return px
 
 
+RZ_KINDS = ('Bloom', 'Tight', 'Med', 'Wide')
+RZ_REACH = {'Tight': 3.0, 'Med': 5.5, 'Wide': 9.5}   # the orange ring's width past the light (px at the left patch's scale)
+
+
+def radius_patch(kind, pw, ph, s=1.0):
+    """Halation Radius (r4, owner-approved preview 2026-11-20: "Yes, build them"): a small night patch, pw x ph, in a
+    white 2 px frame with rounded corners, a white light in the middle. Bloom: a soft haze (a larger white centre, pale
+    tones, a dithered warm edge); Tight / Med / Wide: a crisp light with a thin / medium / wide orange ring (the
+    Halation icon's oranges). Drawn from scratch."""
+    import math
+    px = np.full((ph, pw), 10, dtype=np.uint8)
+    px[2:ph - 2, 2:pw - 2] = 7
+    for (y, x) in ((0, 0), (0, pw - 1), (ph - 1, 0), (ph - 1, pw - 1)):
+        px[y, x] = 0
+    cx, cy, core = pw / 2, ph / 2, 2.6 * s
+    for y in range(2, ph - 2):
+        for x in range(2, pw - 2):
+            r = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
+            if r <= core:
+                px[y, x] = 10
+                continue
+            if kind == 'Bloom':
+                if r <= core + 1.2 * s:
+                    c = 10
+                elif r <= core + 2.6 * s:
+                    c = 98
+                elif r <= core + 4.0 * s:
+                    c = 99
+                else:
+                    t = (r - core - 4.0 * s) / (7.5 * s)
+                    if t >= 1.0:
+                        continue
+                    pair = ((46, 34), (34, 55), (55, 17), (17, 18), (18, 7))[min(4, int(t * 5))]
+                    c = pair[(x + y) % 2]
+            else:
+                t = (r - core) / (RZ_REACH[kind] * s)
+                if r <= core + 0.9:
+                    c = 98
+                elif t < 0.45:
+                    c = 34
+                elif t < 0.70:
+                    c = 55
+                elif t < 0.88:
+                    c = 17
+                elif t < 1.0:
+                    c = 18
+                else:
+                    continue
+            px[y, x] = c
+    return px
+
+
+def radius_cell(kind, strip=False):
+    """the row's cell, as the camera's Grain Size pictures: left column 82 x 62 (patch 36 x 30, the word cap 19,
+    baseline 54), strip 100 x 76 (patch 42 x 31, cap 23, baseline 64); the word in our lettering with its own 2 px dark
+    edge, as Grain Size's words (r5, owner: "it should match the camera and grain"; r4 put a second ring round the
+    word too, a black box behind it), and a 2 px dark edge round the patch"""
+    w, h, pw, ph, py, cap, base = (100, 76, 42, 31, 5, 23, 64) if strip else (82, 62, 36, 30, 2, 19, 54)
+    px = picture([(kind, cap, base)], w, h, *STYLE.get(10, ()))
+    p = radius_patch(kind, pw, ph, s=pw / 36)
+    x0 = (w - pw) // 2
+    pm = np.zeros(px.shape, bool)
+    pm[py:py + ph, x0:x0 + pw] = p > 0
+    px[pm] = p[p > 0]
+    ring = ndimage.binary_dilation(pm, structure=np.ones((3, 3)), iterations=2) & (px == 0)
+    px[ring] = 7
+    return px
+
+
 CUSTOM = {3: border_icon, 10: hsl_pie, 11: glow_icon, 12: halo_icon, 13: bal_icon, 14: grain_icon}
+CUSTOM.update({15 + i: (lambda k=k: radius_cell(k)) for i, k in enumerate(RZ_KINDS)})            # r4: ids IC_RZ0 + i
+CUSTOM.update({19 + i: (lambda k=k: radius_cell(k, strip=True)) for i, k in enumerate(RZ_KINDS)})  # r4: ids IC_RZS + i
 
 
 def streams():

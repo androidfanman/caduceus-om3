@@ -5,6 +5,11 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.40.3](v0.40.3/NOTES.md) | v0.40.2 plus everything from the v0.40.3 test versions: Halation Radius (by fernandezk26) and faster Halation, WB compensation kept apart for films and the camera's own picture modes (#99), playback showing each photo's own film (#93), and fixes for #91, #97 and #101 | Camera-tested (as v0.40.3-beta4) |
+| [v0.40.3-beta4](v0.40.3-beta4/NOTES.md) | Test version: v0.40.3-beta3 with WB compensation kept apart for films and the camera's own picture modes (no half-press needed; the camera's own setting never written by us) | Test version (pre-release), camera-tested |
+| [v0.40.3-beta3](v0.40.3-beta3/NOTES.md) | Test version: v0.40.3-beta plus fixes for a shut-down with Film Grain on Drive Priority (#91), Magnify and the Image Aspect screen in the crop modes (#97), the camera's own picture modes keeping their own WB compensation (#99), and Delete's long press (#101); replaces beta2 | Test version (pre-release), camera-tested |
+| v0.40.3-beta2 | Test version: v0.40.3-beta plus fixes for a shut-down with Film Grain on Drive Priority (#91), Magnify and the Image Aspect screen in the crop modes (#97), and the camera's own picture modes keeping their own WB compensation (#99) | Withdrawn (a boot loop at some start-ups, a restart after the dial's centre): use v0.40.3-beta3 |
+| [v0.40.3-beta](v0.40.3-beta/NOTES.md) | Test version: v0.40.2 plus Halation Radius (by fernandezk26), faster Halation, burst photos with Halation saving sooner, and playback showing each photo's own film (#93) | Test version (pre-release), camera-tested |
 | [v0.40.2](v0.40.2/NOTES.md) | v0.40.1 plus smoother colour grain with less red-green speckle (made on every row), and the grain made faster so long bursts with Film Grain keep up | Camera-tested (as the grain colour test build, faster) |
 | [v0.40.1](v0.40.1/NOTES.md) | v0.40 plus round film grain with fewer repeats, and a film's WB Compensation as the camera's own so the super control panel shows it (#88); a new film set gives the camera the film's WB straight away | Camera-tested (as the combined test build fix #88 + grain g4) |
 | [v0.40](v0.40/NOTES.md) | v0.30.3 plus everything from the v0.40 test versions: crop modes (XPan, 21:9, 5:4) back at switch-on, a black or white Border per film at every ratio, our own film grain (1–5, Grain Size), looks in live view as you adjust them, your own choice of screen info, faster looks and Halation, Picture Mode open 30 s, focus stacking with more lenses, our version on the Firmware Version screen; fixes for #72, #85, #86 and #68 | Camera-tested (as v0.40-beta3) |
@@ -59,5 +64,5 @@ the launchers never copy them to the card.
 **v0.28-alpha** is a test version: it is published by hand as a GitHub pre-release from `feature/v0.28-halation`
 (not from `main`), and the launchers in its download make it by default. **v0.29-beta** is published the same way from
 `feature/films-in-camera`; it has no card files (they are built into the firmware). **v0.30.4-alpha** likewise from
-`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, and **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`.
+`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`, **v0.40.3-beta** from `try/v0.40.3-beta`, **v0.40.3-beta2** from `try/v0.40.3-beta2`, **v0.40.3-beta3** from `try/v0.40.3-beta3`, and **v0.40.3-beta4** from `try/v0.40.3-beta4`.
 See [CHANGELOG.md](../CHANGELOG.md) for the full history.

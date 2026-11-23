@@ -62,6 +62,8 @@ xb_base:
  .balign 8
  jmp xb_wbc                       /* +144 v0.25: the WB grid row's left cell picture (wb_draw, `calls`) */
  .balign 8
+xb_szo:
+ .long xb_szr - xb_base           /* +152 #97: offset of the Image Aspect screen's records (crop.s cr_szr, XB_SZO) */
 xb_nrel:
  .long 0                          /* relocation count (written by the build) */
 
@@ -128,6 +130,12 @@ xb_cap:
  movbu d0,(xb_ownf)
  clr d0
  movbu d0,(xb_gt)                 /* no camera grain unless a plain COLOR look with Grain below */
+ movbu d0,(FD_G)                  /* #91: not a photo with our grain unless a COLOR look with Grain below */
+ mov 38249,a1                     /* #91: this photo's Low ISO Processing as the camera copied it (debug log) */
+ add a3,a1
+ movbu (a1),d0
+ movbu d0,(FD_LO)
+ clr d0
  .if XB_SH
  movbu d0,(VG_LVL)                /* gentler Shading: no vignette unless this still's Shading is taken over below */
  .endif
@@ -142,6 +150,13 @@ xb_cap:
  call xb_slot,[d2,d3],12
  cmp 0,a1
  beq 7f
+ movbu (53,a1),d0                 /* #91: Grain on this COLOR -> its photo takes our grain texture (xb_wl): the editor's
+                                     fd_dec gives it the Detail processing where the camera chose Drive Priority's */
+ cmp 0,d0
+ beq 33f
+ mov 1,d0
+ movbu d0,(FD_G)
+33:
  mov (a2),d1                      /* (data registers only: `movbu (d8,An),Am` misread on the camera) */
  .if XB_FX
  call xb_own,[],0                 /* v0.25: COLOR k's own Glow / Art Effect (no film) are not used: no row for them */
@@ -629,6 +644,14 @@ xb_gs:                           /* `calls` (0,sp) = return, a0 = job */
  mov 5,d0
 7:
  mov d0,(16,sp)
+ mov a1,(12,sp)                   /* Halation Radius: the COLOR's radius 0..3 (editor.s rz_eff; uses a0, a1) in bits 8..9 */
+ mov a1,a0                        /* of the strength word, for hl_sel; (12) is free until the setup's result */
+ call RZ_EFF,[d2,d3,a2],16
+ asl 8,d0
+ mov (16,sp),d1
+ or d0,d1
+ mov d1,(16,sp)
+ mov (12,sp),a1
 6:
  .endif
  .if XB_BD
@@ -3105,5 +3128,12 @@ xb_wgp:                           /* per glyph: row pointer (+0), width (+20), x
  .long 0, 0, 0, 0, 0
  .long 0, 0, 0, 0, 0
  .long 0, 0, 0, 0, 0
+ .balign 4
+/* #97: the Image Aspect screen's size records for 5:4, XPan, 21:9 (266 B each, the camera's own layout at 0x61577278:
+ * u16 ratio, 11 UTF-16 sizes of 24 B), made by firmware/crop.py size_records from the camera's size tables. Data only,
+ * read by the screen through cr_szr (crop.s). */
+ .balign 2
+xb_szr:
+ .include "szr.inc"
  .balign 4
 xb_end:

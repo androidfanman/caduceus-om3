@@ -219,6 +219,14 @@ def apply(m, o, sy, log=print):
             e = bytearray(ents[0]); struct.pack_into('<IHH', e, 0, v, 4, sy['CR_ST0'] + k); ents.append(e)
         m[o(sy[dst]):o(sy[dst]) + 108] = b''.join(ents)
         put16(rec + 2, 9); put32(rec + 4, sy[dst])
+    # #97: the Image Aspect screen (0x611f9572, Shooting Menu 1 > Image Aspect) names the ratio under its cursor from a
+    # list of its own (record 0x61577268 {u16 0, u16 6, title, list 0x61577208, ...}: 4:3, 3:2, 16:9, 1:1, 3:4, 17:9;
+    # looked up by value, 0x611c7785): 5:4 / XPan / 21:9 were not in it, so the last name ("3:4") stayed. -> cr_ml0's 9.
+    R = 0x61577268
+    assert (u16(R), u16(R + 2), u32(R + 4), u32(R + 8)) == (0, 6, 0x61577200, 0x61577208)
+    assert [(u32(0x61577208 + 12 * k), u16(0x61577208 + 12 * k + 4), u16(0x61577208 + 12 * k + 6)) for k in range(6)] == \
+        [(1, 4, 292), (2, 4, 293), (3, 4, 291), (4, 4, 1792), (9, 4, 295), (10, 4, 3267)]
+    put16(R + 2, 9); put32(R + 8, sy['cr_ml0'])
     # c2: the live view crop ratio (switch at 0x60bf2cc8, jump table 0x60e81df0 by id - 1: ids 6 / 7 -> 65:24 / 21:9),
     # and the wide / tall split at 0x60c0e135 (jump table 0x60e90610 by id: 2, 3, 10 -> 0x60c0e163, the others
     # 0x60c0e158; the E-P7's S6): XPan / 21:9 are wide.
@@ -312,3 +320,44 @@ def apply(m, o, sy, log=print):
         m[o(a)] = new_
     log('crop: size text rows (5:4 / XPan / 21:9 L): %s' % ([struct.unpack_from('<17H', rows[0])[i] for i in (6, 7, 8, 14, 15, 16)],))
     log('crop: selection, sizes, 6 live view / playback switches, %d screen reads, labels patched' % len(GV_SITES))
+
+
+def size_records(m, o):
+    """#97: the Image Aspect screen's size records for 5:4, XPan and 21:9, as `.byte` lines for xblock.s (szr.inc).
+
+    The screen (0x611f9572) shows the ratio under its cursor from 266-B records at 0x61577278 {u16 ratio, 11 UTF-16
+    sizes of 24 B}: RAW, Large, Middle 1, Middle 2, Small 1, Small 2, then High Res Shot's RAW (tripod, handheld) and
+    its three JPEG sizes. Ours take each size from the photo size tables (W 0x606e60c0 / H 0x606e6270, ids 1..9 x 24
+    classes; ids 6 / 7 as apply() rewrote them): the class whose 4:3 size is the 4:3 record's. The RAW sizes are the
+    full frame, as in every stock record. The method is checked first on the five stock records."""
+    T = 0x61577278
+    recs = [bytes(m[o(T) + 266 * k:o(T) + 266 * (k + 1)]) for k in range(5)]
+    ids = [struct.unpack_from('<H', r)[0] for r in recs]
+    assert ids == [1, 3, 2, 4, 9], ids
+    txt = lambda r, i: r[2 + 24 * i:26 + 24 * i].decode('utf-16-le').split('\0')[0]
+    row = lambda base, i: struct.unpack_from('<24H', m, o(base) + 48 * (i - 1))
+    W0, H0 = 0x606e60c0, 0x606e6270
+    w1, h1 = row(W0, 1), row(H0, 1)
+    RAW = (0, 6, 7)
+    cls = {}
+    for k in range(11):
+        if k not in RAW:
+            w, h = map(int, txt(recs[0], k).split('x'))
+            cls[k] = next(c for c in range(24) if (w1[c], h1[c]) == (w, h))
+    for r, i in zip(recs, ids):
+        wi, hi = row(W0, i), row(H0, i)
+        for k in range(11):
+            want = txt(recs[0], k) if k in RAW else f'{wi[cls[k]]}x{hi[cls[k]]}'
+            assert txt(r, k) == want, (i, k, txt(r, k), want)
+    out = b''
+    for i in (5, 6, 7):
+        wi, hi = row(W0, i), row(H0, i)
+        out += struct.pack('<H', i)
+        for k in range(11):
+            s = txt(recs[0], k) if k in RAW else f'{wi[cls[k]]}x{hi[cls[k]]}'
+            assert k in RAW or (wi[cls[k]] and hi[cls[k]]), (i, k)
+            b = s.encode('utf-16-le')
+            assert len(b) <= 22, s
+            out += b + bytes(24 - len(b))
+    assert len(out) == 3 * 266
+    return ''.join(' .byte ' + ','.join(f'0x{x:02x}' for x in out[j:j + 16]) + '\n' for j in range(0, len(out), 16))
