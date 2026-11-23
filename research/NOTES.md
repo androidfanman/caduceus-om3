@@ -10314,3 +10314,24 @@ remark that led to c6); c6 was never flashed on its own, c7 holds its change. So
 camera's Sh / Hi and Mid pages, and the reset and its guide through GetDefault, behave on the camera as in om-emu as
 far as the owner saw.
 
+## 2026-11-22: five-point curve test 8 (c8, on c7; emulator only): the row's own INFO guides drawn to the camera's
+
+Owner (camera, c7): "the tone curve bottom titles (where it says mid info) doesnt correctly line up with the top bar.
+Also, the text on all the Info icons looks different".
+
+- **The lettering (done):** om-emu, c7, the camera's "Mid [INFO]" against our "B/W [INFO]" / "Sh/Hi [INFO]" (mkguides
+  through rgbpics.guide): the camera's key is 60 x 36 white (ours 62 x 36), its "INFO" a regular face 26 px tall, the
+  letters 3 / 15 / 12 / 15 px wide with 2 / 2 / 3 px between and 4 px of white before (ours: bold, 7 px in); the
+  camera's word has 4 px stems (ours 3). `rgbpics.py` `info_key` / `guide5` draw the row's two guides to those
+  measures (drawn from the measures, no camera pixels). Their streams: 3004 and 2564 B (were 3172 and 2828), so
+  .ext15 is 138,504 / 139,264. The other rows' guides (mkguides: "Color", "Shadows", the wheel's) are unchanged.
+- **"Doesn't line up with the top bar" (not done, the owner's call):** first read as the guide's place; the owner then
+  said what they meant: "do you see how in the mock ups the b/w is shown when mid is highlighted at the top??" The
+  guide names the page INFO goes to next (the camera's convention: "Mid" on Sh / Hi, then ours "B/W" on Mid, "Sh/Hi" on
+  Blk / Wht), which reads to the owner as the wrong name for the page. Asked: name the page that is on, or the next
+  one as now. Nothing changed; the guide is not moved.
+- Test `five-point-curve-guide-key-is-the-cameras-size`: `caught` on c7, pass on c8.
+- Package (private) `test-builds/2026-11-22-curve-5-points-8`: VERSION "v0.40.3-c8", build of 0aa9cea, E1479999.BIN
+  ac1112ae...0373, GUIDES.BIN 9d87a43e...ee46. Not on a camera. Suite: 150 pass, one FAIL, `static:changed-bytes` with p1's
+  twelve sites (as before; c8 adds none).
+

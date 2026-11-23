@@ -1,5 +1,5 @@
 > **Branch `feature/curve-5-points` (2026-11-22): a test, not a release.** Blacks and Whites move into the Highlight &
-> Shadow curve as a third INFO page (Sh / Hi, Mid, Blk / Wht). All of it is camera-tested, through test 7 (v0.40.3-c7, on the Picture Mode combination p1: the page, its curve on all three pages, the five values in the top line, the row's '*' and Reset against the film): `research/NOTES.md`, "Five-point curve" and the 2026-11-22 sections for tests 5 to 7.
+> Shadow curve as a third INFO page (Sh / Hi, Mid, Blk / Wht). All of it is camera-tested, through test 7 (v0.40.3-c7, on the Picture Mode combination p1: the page, its curve on all three pages, the five values in the top line, the row's '*' and Reset against the film): `research/NOTES.md`, "Five-point curve" and the 2026-11-22 sections for tests 5 to 7. Test 8 (c8: the row's own INFO guides drawn to the camera's) is emulator only.
 
 <h1 align="center">Caduceus for OM-3</h1>
 
