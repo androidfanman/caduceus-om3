@@ -110,68 +110,6 @@ sp_sync:
  mov d0,(sp_ed)
  ret [d2,d3,a2,a3],20
 
-/* sp_key: `call sp_key,[d2,d3,a2,a3],20` from pm_ev (the Picture Mode screen's key events; d0 = the event, pm_ev kept
- * the registers and mdr): s2. This row has no "all colours". The step onto it (down 0x9006 from the colour wheel's
- * row, up 0x9004 from Tone Balance's; the row from the last screen update, hb_item) first turns all colours off, when
- * they were left on from the colour wheel row: the stock INFO handler's setting 2201 + k and the cursor 2197 + k = 1
- * (the first colour, as the wheel opens). So the wheel's editor for this row is made with one colour (ed_init runs
- * before the row's update; turning them off there came too late: om-emu, the screen stayed "Color All").
- * Uses d0, d1, a0, a1. */
-sp_key:
- movhu (hb_item),d1
- cmp 0x9006,d0
- bne 1f
- cmp 5397,d1
- beq 2f
- bra 9f
-1:
- cmp 0x9004,d0
- bne 9f
- cmp TB_IT,d1
- bne 9f
-2:
- PVAL 9f
- mov (EMARK,a2),d0
- cmp EMAGIC,d0
- bne 9f
- movbu (EDK,a2),d3                /* the wheel's COLOR k (ei_page) */
- cmp 4,d3
- bcc 9f
- mov d3,d0
- add 2201,d0
- call sget,[],4                   /* (keeps d2, d3, a2, a3) */
- and 255,d0
- cmp 255,d0
- bne 5f
- mov d3,d0
- add 2201,d0
- call sp_one,[a2],12
-5:
- mov d3,d0
- add 2197,d0
- call sget,[],4
- and 255,d0
- cmp 255,d0
- bne 9f
- mov d3,d0
- add 2197,d0
- call sp_one,[a2],12
-9:
- ret [d2,d3,a2,a3],20
-
-/* sp_one: `call sp_one,[a2],12`, d0 = a setting's id: the facade's SetValue(id, mode 0, 1), as k_set's poke. Keeps d2,
- * d3, a3. */
-sp_one:
- mov d0,(4,sp)
- call facade,[],4
- mov (a0),a2
- mov (4,a2),a2
- mov 1,a1
- clr d1
- mov (4,sp),d0
- calls (a2)
- ret [a2],12
-
 /* sp_inf <- jmp from ed_info's k_6b (its frame: (16) the cursor's value, 255 = all colours; (20) P; a3 the editor).
  * A Delete turned into INFO (hb_del): as h2, all colours off first, then the next HSL page. A real INFO: all colours
  * on -> the stock handler turns them off; Saturation with one colour -> the stock handler turns all on; Shadows /

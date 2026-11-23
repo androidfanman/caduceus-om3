@@ -338,16 +338,11 @@ SPLIT_ROW_STAR = (f'{OPEN_SPLIT} expect:noink:{SPLIT_STAR} main+1 wait expect:in
 WHEEL_INFO_ALL = (f'{OPEN_WHEEL} info wait expect:val:{2197}=255 {AXIS_IS(0)} info wait expect:val:{2197}=1 {AXIS_IS(0)} '
                   f'delete wait {AXIS_IS(1)} info wait {AXIS_IS(1)} expect:val:{2197}=1 delete wait delete wait '
                   f'info wait expect:val:{2197}=255 delete wait {AXIS_IS(1)} expect:val:{2197}=1 poweroff')
-# All colours left on from the colour wheel row (s2): the step down onto this row turns them off (the INFO handler's
-# setting 2201 and the cursor 2197 = 1, the first colour), so the row opens as always: Shadows, the dial label Tint,
-# and a click sets the tint (strength 1 = code ff). Back on the wheel row one colour is on. Leaving the wheel row
-# upward keeps all colours on.
-ALL_OFF = 'expect:val:2197=1 expect:val:2201=1'
-SPLIT_ROW_ALL = (f'{OPEN_WHEEL} info wait expect:val:2197=255 down wait {ALL_OFF} {AXIS_IS(5)} {LABEL_IS("Tint")} '
-                 f'{GUIDE_IS(SHADOWS_GUIDE)} main+1 wait {TINTS_ARE("00ff0000")} up wait {ALL_OFF} {AXIS_IS(0)} '
-                 f'sub-1 wait info wait expect:val:2201=255 down wait expect:val:2197=2 expect:val:2201=1 '
-                 f'{LABEL_IS("Tint")} up wait info wait expect:val:2201=255 up wait down wait expect:val:2201=255 '
-                 f'poweroff')
+# All colours left on from the colour wheel row: on this row the dial's click (12 writes, one a colour) changes no tint;
+# INFO turns all colours off and stays on Shadows, and the dial sets the tint again.
+SPLIT_ROW_ALL = (f'{OPEN_WHEEL} info wait expect:val:{2197}=255 down wait {AXIS_IS(5)} main+1 wait '
+                 f'{TINTS_ARE("00000000")} info wait expect:val:{2197}=1 {AXIS_IS(5)} main+1 wait '
+                 f'{TINTS_ARE("00010000")} poweroff')
 def newest_looks():
     def key(d):
         n, _, pre = d.name.lstrip('v').partition('-')
@@ -1359,7 +1354,7 @@ TESTS = {
     'split-tone-row-star-follows-the-tints': [
         Boot(SPLIT_ROW_STAR),
     ],
-    'split-tone-row-turns-all-colours-off': [
+    'split-tone-row-all-colours-leave-the-tints': [
         Boot(SPLIT_ROW_ALL),
     ],
     'split-tone-row-shows-a-films-tints': [

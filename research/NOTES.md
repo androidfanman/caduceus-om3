@@ -10075,3 +10075,24 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
 - **Package s1:** VERSION "v0.40.3-s1 (h3 + Split toning row)", firmware from commit b514779, built three times, the
   same byte for byte: E1479999.BIN 97c60530…f6c4, GUIDES.BIN a0c93b06…103a (LABELS / TONES as beta 4). Suite (om-emu at
   the pin): 139 pass, 0 known, 1 FAIL = static:changed-bytes (h2's 11 sites and the 15 runs above, not in hooks.json).
+
+## The Split toning row, s2 = s1 + h4's Delete order, nothing else (2026-11-22; emulator only, camera test pending; branch feature/split-tone-row)
+- **Owner, 2026-11-22 (through cad):** "I like the way the info button is laid out then. dont change it for the hsl
+  wheel. ok. Lets start combinations. build a test that combines HSL with Split tone now". So s2 is the two
+  camera-tested builds joined: s1 (this row) and h4 (experiment/wheel-hsl-view cb568b2: Delete Hue -> Saturation ->
+  Luminance, hb_next). Against s1 the firmware differs in hbar.s's Delete branch and VERSION only. INFO and all
+  colours are as s1 (the rough edge with all colours left on stays, as the owner chose).
+- **What INFO does on the wheel row (om-emu):** Saturation: all colours on ("Color All", "Sat All", the guide "Sat. All
+  [INFO]": the camera's all-colours screen, so no H / S / L bar while it is on; the rear dial writes all 12 sectors),
+  INFO again off. Hue / Luminance: nothing. Delete with all colours on: off, then the next page (Luminance).
+- **The two all-colours settings (om-emu getv):** INFO from a colour other than the first sets 2201 + k = 255 (cursor
+  2197 + k kept); INFO on the first colour, or the front dial past colour 12 / 1, sets the cursor 2197 + k = 255. Off:
+  2201 + k = 1, the cursor a colour 1..12.
+- **A fix for the rough edge, tried and NOT in s2** (kept on the local branch `try/split-row-all-off`, e09cf8e): two
+  ways did not work in om-emu: writing the settings to 1 in the row's update (the screen stayed "Color All": the
+  editor had read them in ed_init), and in ed_init (Picture Mode's current item is still the old row there). What
+  worked: `sp_key` from pm_ev (up 0x9004 / down 0x9006): on Down from 5397 or Up from TB_IT, SetValue(2201 + k, 1) /
+  SetValue(2197 + k, 1) for the one that reads 255, before the camera moves the row. Costs: the wheel is on one colour
+  after a visit to the row. Emulator only.
+- **Tests:** as s1, the wheel tests in h4's order (`color-wheel-delete-steps-hue-saturation-luminance`, caught on s1).
+- **No new hook or patch site** against s1 + h4.

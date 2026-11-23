@@ -5318,8 +5318,6 @@ pm_ev:
  mov a1,(16,sp)
  mov mdr,d2
  mov d2,(20,sp)
- call sp_key,[d2,d3,a2,a3],20     /* split-tone row s2: up / down onto it turns "all colours" off first (splitrow.s) */
- mov (4,sp),d0
  movbu (gr_flag),d2               /* our row is the current one (gr_upd; the row list at (0x6037dfa0) + 0x51a0 is the
                                    * fine-tune screen's after MENU back from it) */
  cmp 0,d2
