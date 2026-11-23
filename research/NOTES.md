@@ -10391,3 +10391,10 @@ log (build v0.40.3-p2): nothing unusual. No single TEST-STEPS step was reported 
   p2's sites less the three key words (hooks.json not updated).
 - **Package (private) `test-builds/2026-11-22-picture-mode-3`:** VERSION "v0.40.3-p3", firmware from commit 5632fad,
   built twice, the same byte for byte: E1479999.BIN e8b8bdb7…1a62, GUIDES.BIN 12acf535…dcec. Not on a camera.
+
+## 2026-11-23: Picture Mode p3, camera result: camera-tested (Delete off the colour wheel)
+p3 on the owner's OM-3 (cad copied it, sha256 checked on the card). Owner: "p3 went well." So on the colour wheel row
+Delete doing nothing, all colours by the front dial on Saturation (and back to the H / S / L bar), and INFO stepping
+Hue -> Saturation -> Luminance are camera-tested. The card's log (build v0.40.3-p3): nothing unusual, 0 photos. No
+single TEST-STEPS step was reported apart. `feature/picture-mode` is still on beta4's sources (v0.40.3 was released
+2026-11-23 from them).
