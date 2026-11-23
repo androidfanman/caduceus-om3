@@ -20,7 +20,7 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 | **Split toning** | Shadows and Highlights wheels in half steps, plus a Tone Balance row. | **Done (v0.28)** |
 | **Blacks / Whites grid** | One grid row, −7 to +7 each. | **Done (v0.28)** |
 | **White balance per film** | Each film remembers its own WB. | **Done (v0.28)** |
-| **Film sets from the camera menu** (by buburun) | Keep film sets as files in `OM3MOD/LOOKS/` and switch between them from the Card/Folder/File menu, `LOOKS.BIN` the default. | In testing (`feature/look-sets`, emulator) |
+| **Film sets from the camera menu** (by buburun) | Keep film sets as files in `OM3MOD/LOOKS/` and switch between them from the Card/Folder/File menu, `LOOKS.BIN` the default. | Camera-tested (`feature/look-sets`), not released |
 | **One control panel for all Caduceus cameras** ([#71](https://github.com/androidfanman/caduceus-om3/issues/71)) | One shared panel with each camera as a profile, proposed by cakelesscoder (Caduceus for the E-P7). | In progress |
 
 ## Bugs being looked at
