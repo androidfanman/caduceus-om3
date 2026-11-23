@@ -10282,3 +10282,9 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   widgets at run time (w4..w6) has not, because the camera's GUI heap does not match om-emu's past (0x608546f8) =
   0x62C5A140: that object's fields om-emu fills are 0 on the camera. Unexplained; guesses: the camera's live layout
   object is elsewhere and that pointer is stale, or a cache / other-CPU effect (om-emu has no cache).
+- **w6 readout (camera, owner's photo):** in (0x608546f8) - 0x4000 .. + 0xc000 the camera has 100 picture widgets
+  (method table 0x6135993c; om-emu 130 in the same range) and none with the id word 0x03c78003 (om-emu 2). So the GUI
+  heap is in the same area on the camera, but the wheel screen's widgets are not where om-emu has them. om-emu: all 834
+  picture widgets in 0x62bef478..0x62cc23b8 (within +- 1 MB of 0x62C5A140). Next try, if the owner wants it: search
+  +- 1 MB once per arrival on the row, by method table + id high half 0x03c7 + the record back-pointer (+0x18 =
+  0x61451c0c), and report what it finds.
