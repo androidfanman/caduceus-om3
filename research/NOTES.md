@@ -10123,3 +10123,33 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   p3 (picture-mode branch, on the card): no five-point curve, Delete still steps H / S / L.
 - Suite (w1, built twice the same): 140 pass, 0 known, 1 FAIL static:changed-bytes, the same 12 runs as s2 (no new site).
   It needs ~22.5 KB of .ext15; p3 (5632fad) has ~900 B free there, so it cannot go on p3 as it is (cad, 2026-11-23).
+
+## The Split toning panel, w2: INFO to Balance, wheels x3, the big wheel stays (2026-11-23; emulator only)
+- **w1 camera result (owner, 2026-11-23, photo in test-builds/2026-11-23-split-tone-strip-1/camera-results):** "Ok.
+  It's getting there for split toning. But the info button only switches between shadow and light, no balance, and the
+  wheels are super small and the big wheel is still there." The strip drew on the camera (wheels, dots, slider, value).
+- **INFO -> Balance (done):** INFO on the row: Shadows -> Highlights -> Balance -> Shadows. Balance = page 6 with
+  st_bal (hb_next; cleared in sp_sync when the row's page is set on arrival / leaving). On it tn_get's value (after
+  TONEV) is Tone Balance (st_bv: slot +33 = TONEV's a2 + 63), tn_set's write goes to slot +33 through sp_all (answers 2)
+  and st_tset (-> s_cur with that byte: dirty + the cursor refresh), and the readout uses the stock -5..+5 glyphs
+  (rd_a10 / rd_b10; on the tone pages rd10 shows 0..10, so Balance -2 read "+3" before this).
+- **Moving the picture over the camera's wheel does not work (om-emu):** the guide widgets copy their rectangles
+  (0x61451e40 / 0x61451e50) into heap objects (vtable 0x6135993c, id word 0x03c78003, rect at +8; om-emu at 0x62c5b978,
+  in the screen's child list at parent + 0x340) when Picture Mode opens; writing the static rectangles later, even on
+  arrival on the row, changed nothing on screen (the 320 x 300 panel was drawn clipped into the old 400 x 64 box). No
+  fixed pointer chain to those objects was found (4 levels). So the place is fixed per Picture Mode visit, and an
+  opaque cover over the C3D wheel would also need about 31 KB of stream (one picture is one 16 KB heap block). Hiding the
+  camera's wheel needs the C3D side (see "The colour wheel with H / S / L at once", part 2): not tried.
+- **Bigger wheels (done):** the picture widget (0x61451e50) 400 x 200 at y 378 (bottom edge unchanged); the frame
+  (0x61451e40) stays 400 x 64. The H / S / L bar is the bottom of a 400 x 200 picture (136 rows of entry 0, alpha 0:
+  mkhbar.PAD, 3,400 more tokens), so it stays put; HB_BUF 8 -> 16 KB; the panel shares hb_b0 / hb_b1 (same size). The
+  panel (card/mkstwheel.py): wheels radius 72 at x 82 / 318, the upright slider (light top, dark bottom; + at the top)
+  in the middle with carets either side, names and "Balance" + value under them; background rows stored as three parts
+  (0..161, 162..240, 241..399) per page (42.9 KB of data); largest stream of 400 random states 13,828 B.
+- **Emulator:** tests `split-tone-panel-shows-and-sets-the-tints-and-balance` (byte for byte: strengths, Tone Balance
+  +2 from its row, then the Balance step sets -1: slot +33 = 0xff, the tints kept; the bar back with its colours and the
+  widgets' rectangles as built), `split-tone-row-info-steps-shadows-highlights-balance`; the bar's tests check 400 x 200.
+  Screens: the bar where it was; the panel; the readout -2 on Balance. Not seen in om-emu: the camera's big wheel and
+  how the panel sits next to it.
+- **Package:** `test-builds/2026-11-23-split-tone-panel-2` (commit 7a68fcd; E1479999.BIN eb18f777…28f2, GUIDES.BIN
+  63918da6…306b). On s2 + w1, not p3 (needs ~45 KB of .ext15; p3 has ~900 B).
