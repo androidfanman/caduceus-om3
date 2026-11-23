@@ -10288,3 +10288,20 @@ from before s1, so there is no log of it: the rough edge stays emulator only, no
   picture widgets in 0x62bef478..0x62cc23b8 (within +- 1 MB of 0x62C5A140). Next try, if the owner wants it: search
   +- 1 MB once per arrival on the row, by method table + id high half 0x03c7 + the record back-pointer (+0x18 =
   0x61451c0c), and report what it finds.
+
+## The Split toning bar, w7: the H / S / L bar's style for Shadows / Balance / Highlights (2026-11-23; emulator only)
+- Owner, after w6's readout: "lets reevalute this. lets build something that looks very identical to the new HSL wheel
+  ... but instead of HSL as the bottom bars, we would have Shadow, balance and highlight." The run-time widget move
+  (w4..w6) is dropped.
+- **w7 (43646a6):** card/mkstwheel.py builds the bar from mkhbar's parts (swatch column, text style, slider frames,
+  carets): S (Shadows strength 0..10, grey -> the tint colour), B (Tone Balance -5..+5, the shadow tint dark ->
+  grey -> the highlight tint light), H (Highlights strength); the swatch is the page's tint colour (grey on Balance);
+  strength 0 = grey. Palette 62's 108..120 per bar from st_ctab (8 role colours per tint colour, 12 = grey). stwheel.s:
+  st_rd / st_join / st_spal follow hb_rd / hb_join / hb_spal (own tables: st_rows, st_gid, st_swr, st_tx, st_mk,
+  st_tok), in hb_b0 / hb_b1 and GDESC (400 x 64); the key is the two colours, the mode and the three values. The
+  camera's own wheel is back on the row (sp_case's +268 write taken out). INFO and the Balance step as w3.
+  Largest stream 7,012 B (HB_BUF 8192). .ext15 126,728 / 139,264.
+- om-emu: the colour wheel row's bar unchanged; on Split toning the bar on each page, its colours, the readout; tests
+  `split-tone-bar-shows-and-sets-the-tints-and-balance`, `split-tone-row-keeps-the-camera-wheel` (d0 = 0 at
+  0x60b1ced8 on the row), the INFO / opens tests.
+- **Package:** `test-builds/2026-11-23-split-tone-bar-7` (E1479999.BIN 17d0067f…819e, GUIDES.BIN d1e9d124…acff).
