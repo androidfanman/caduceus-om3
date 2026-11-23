@@ -12,8 +12,8 @@
                                    * misread "hide the color select wheel": the page the owner meant was the all-colours
                                    * one, whose guide reads "Color Select [INFO]"); all colours never come on (0: film
                                    * test 8, all colours always). Needs W_SALL 1 */
- .set W_KEYS, 1                   /* wheel-hsl-view h2 (owner): Delete steps Saturation / Hue / Luminance, INFO the other
-                                   * wheels (Shadows, Highlights); no Color All by INFO (hbar.s hb_next, hb_kdel) */
+ .set W_KEYS, 1                   /* wheel-hsl-view h2 (owner): Delete / INFO on the wheel; feature/picture-mode: INFO
+                                   * steps Hue / Saturation / Luminance, Delete all colours (splitrow.s sp_inf, hbar.s) */
  .set W_HSL, 0                    /* film test 10 (owner): pages in HSL order, Hue -> Saturation -> Luminance, opening on
                                    * Hue; their dial labels Hue / Saturation / Luminance (0: S -> H -> L, open on S) */
  .set HL_FAIL, 1                  /* hl_ok: not the gate's context */

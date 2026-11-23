@@ -63,21 +63,35 @@ def edge(fillm, soft=None):
     return out
 
 
-def info_box():
-    """A rounded white key with a dark 'INFO' inside, 66 x 40 px, placed at cols 107..172, rows 5..44."""
+def key_box(kx0=107, kw=66):
+    """A rounded white key, kw x 40 px, at cols kx0..kx0+kw-1, rows 5..44: 1 px faint rim, dark 1 px line, white inside.
+    Returns the picture and the key's mask."""
     img = np.zeros((H, W), dtype=np.uint8)
     S = 4
-    im = Image.new('L', (66 * S, 40 * S), 0); d = ImageDraw.Draw(im)
-    d.rounded_rectangle((0, 0, 66 * S - 1, 40 * S - 1), radius=3 * S, fill=255)
-    box = np.array(im.resize((66, 40), Image.LANCZOS)) > 128
-    # 1 px faint rim + dark 1 px line round the key, white inside
-    full = np.zeros((H, W), dtype=bool); full[5:45, 107:173] = box
+    im = Image.new('L', (kw * S, 40 * S), 0); d = ImageDraw.Draw(im)
+    d.rounded_rectangle((0, 0, kw * S - 1, 40 * S - 1), radius=3 * S, fill=255)
+    box = np.array(im.resize((kw, 40), Image.LANCZOS)) > 128
+    full = np.zeros((H, W), dtype=bool); full[5:45, kx0:kx0 + kw] = box
     e = ndimage.distance_transform_edt(~full)
     img[(e > 0) & (e <= 1.0)] = 9
     inner = ndimage.binary_erosion(full, iterations=2)
     img[full] = 7; img[inner] = 10
     corner = full & ~inner & ndimage.binary_erosion(full, iterations=1) & ~ndimage.binary_erosion(full, structure=np.ones((3, 3)), iterations=1)
     img[corner & (img == 7)] = 12
+    return img
+
+
+def ink(img, a, y0, x0):
+    """Dark glyph a (0..255 coverage) into the white key at (y0, x0), its soft edge light."""
+    h, w = a.shape
+    reg = img[y0:y0 + h, x0:x0 + w]
+    reg[(a > 128)] = 7
+    reg[(a > 40) & (a <= 128) & (reg == 10)] = 11
+
+
+def info_box():
+    """A rounded white key with a dark 'INFO' inside, 66 x 40 px, placed at cols 107..172, rows 5..44."""
+    img = key_box()
     # 'INFO', bold, 27 px cap height, centred
     for fs in range(14, 50):
         a = raster('INFO', fs, 1.0, BOLD)
@@ -87,14 +101,36 @@ def info_box():
     while a.shape[1] > 50 and sq > 0.4:                   # narrow until it fits the key like the camera's (50 px)
         sq = round(sq - 0.02, 2); a = raster('INFO', fs, sq, BOLD)
     rows = np.nonzero((a > 40).any(axis=1))[0]; a = a[rows.min():rows.max() + 1]
-    h, w = a.shape; y0 = 25 - h // 2; x0 = 140 - w // 2
-    reg = img[y0:y0 + h, x0:x0 + w]
-    reg[(a > 128)] = 7
-    reg[(a > 40) & (a <= 128) & (reg == 10)] = 11
+    h, w = a.shape
+    ink(img, a, 25 - h // 2, 140 - w // 2)
     return img
 
 
-def build(txt):
+DEL_X0, DEL_W = 129, 44
+
+
+def del_box():
+    """feature/picture-mode (owner: "the delete switch to the sat all"): the Delete key, the camera's bin drawn from
+    scratch (lid with its handle, a tapered body with three slots), dark in a 44 x 40 white key at cols 129..172."""
+    img = key_box(DEL_X0, DEL_W)
+    S, gw, gh = 8, 24, 28
+    im = Image.new('L', (gw * S, gh * S), 0); d = ImageDraw.Draw(im)
+    u = lambda v: round(v * S)
+    d.rectangle((u(8), u(0), u(16) - 1, u(4) - 1), fill=255)              # handle
+    d.rectangle((u(10.5), u(1.7), u(13.5) - 1, u(4) - 1), fill=0)
+    d.rectangle((u(0), u(3.5), u(24) - 1, u(6.5) - 1), fill=255)          # lid
+    d.polygon([(u(2), u(8)), (u(22), u(8)), (u(20), u(28)), (u(4), u(28))], fill=255)   # body
+    for cx in (7.6, 12, 16.4):                                             # slots
+        d.rectangle((u(cx - 1.1), u(11), u(cx + 1.1) - 1, u(25) - 1), fill=0)
+    a = np.array(im.resize((gw, gh), Image.LANCZOS)).astype(int)
+    ink(img, a, 25 - gh // 2, DEL_X0 + DEL_W // 2 - gw // 2)
+    return img
+
+
+def build(txt, key='info'):
+    """The word, right-aligned 5 px before the key, then the key: INFO (cols 107..172) or Delete (key='del')."""
+    kx0 = DEL_X0 if key == 'del' else 107
+    box = kx0 + 2
     a, fs, sq = fit(txt)
     a0 = raster(txt[0], fs, sq); base_row = np.nonzero((a0 > 128).any(axis=1))[0].max()
     ink = np.nonzero((a > 40).any(axis=1))[0]
@@ -103,15 +139,15 @@ def build(txt):
         tail = np.array(tail.resize((tail.width, DESC), Image.LANCZOS)).astype(int)
         a = np.vstack([a[:base_row + 1], tail, np.zeros((a.shape[0] - base_row - 1 - DESC, a.shape[1]), dtype=int)])
     fill = a > 128; soft = (a > 40) & ~fill
-    lay = np.zeros((H, W), dtype=np.uint8); h, w = fill.shape; x0 = 102 - w + 1; shift = 40 - base_row
+    lay = np.zeros((H, W), dtype=np.uint8); h, w = fill.shape; x0 = kx0 - 5 - w + 1; shift = 40 - base_row
     assert x0 >= 2, (txt, w)
     for y in range(h):
         yy = y + shift
         if 0 <= yy < H:
             lay[yy, x0:x0 + w][fill[y]] = 10
             lay[yy, x0:x0 + w][soft[y] & ~fill[y]] = 11
-    word = edge(lay == 10, lay == 11); word[:, BOX - 2:] = 0
-    img = info_box(); img[:, :BOX - 2] = word[:, :BOX - 2]
+    word = edge(lay == 10, lay == 11); word[:, box - 2:] = 0
+    img = del_box() if key == 'del' else info_box(); img[:, :box - 2] = word[:, :box - 2]
     return img
 
 
