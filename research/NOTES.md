@@ -9875,3 +9875,11 @@ owner chose "A: pairs with INFO". Branch `feature/curve-5-points` on v0.40.3-bet
   - Package (c3; emulator only): VERSION "v0.40.3-c3 (five-point curve test 3, on beta 4)", build of 224e4b9:
     E1479999.BIN `d8cb6e13…5101`, GUIDES.BIN `4ddd86d7…c8ff`. Suite **133 pass**, exit 0. ext12 261,712 / 262,144,
     ext15 74,976 / 139,264. Private package `test-builds/2026-11-22-curve-5-points-3`. Not on a camera yet.
+- **Test 3 camera (owner, 2026-11-22):** "that is looking good"; one quirk: the selected Sh / Hi / Mid are slightly
+  larger than the others, the selected Blk / Wht are not ("have the black/white do the same").
+- **Test 4 (c4; emulator only):** om-emu, c3: the camera's own selected names are 24 px tall (rows 3..26 of the 30 px
+  box, 3 px stems); our Blk / Wht were cap 20 with 2 px stems. `wide_label` now draws them at cap 24, baseline row 27,
+  in boxes of 40 (Blk) and 50 (Wht) px; `b5_lt`'s Blk / Wht row places them (left: dial 532, name 496 w 40, sign 536,
+  digit 549; right: dial 860, name 814 w 50, sign 864, digit 877, ending at 893). Nothing else changes. VERSION
+  "v0.40.3-c4", build of 9d84e8b: E1479999.BIN 67123102...7225, GUIDES.BIN b0117967...65b4, ext15 75,216 / 139,264.
+  Private package `test-builds/2026-11-22-curve-5-points-4`. Suite **133 pass**, exit 0.
