@@ -10335,3 +10335,31 @@ Also, the text on all the Info icons looks different".
   ac1112ae...0373, GUIDES.BIN 9d87a43e...ee46. Not on a camera. Suite: 150 pass, one FAIL, `static:changed-bytes` with p1's
   twelve sites (as before; c8 adds none).
 
+
+## 2026-11-22: Picture Mode p2 (on c9; emulator only): on the colour wheel INFO steps H / S / L, Delete turns all colours on / off
+
+Owner (through cad): "the info button should cycle through the H/S/L and the delete switch to the sat all". Branch
+`feature/picture-mode` from c9 (dfce794, camera-tested).
+- **Keys on the colour wheel row (om-emu):** INFO steps Hue -> Saturation -> Luminance -> Hue (h4's order, Delete's
+  in c9); the row still opens on Saturation (the camera's own init). With all colours on, INFO turns them off and goes
+  to Luminance (as c9's Delete). Delete: on Saturation all colours on / off (c9's INFO); on Hue / Luminance nothing
+  (as c9's INFO there).
+- **How:** the Delete press is still turned into INFO's event by hb_kdel and marked (hb_del), so the camera's own
+  handler still does the all-colours switch. `sp_inf` (splitrow.s) now reads the mark the other way round on pages
+  0..2 and clears it; `hb_next` (hbar.s) steps by the page alone (0 -> 1 -> 2 -> 0, 5 <-> 6), so `hb_last` is gone.
+  The Split toning row is as c9: all colours left on -> INFO turns them off (stock), else INFO steps Shadows <->
+  Highlights; Delete is not turned there (hb_kdel: the wheel row only).
+- **Guide:** the "Sat. All" guide (SDESC while all colours are on, fl_sagd in .ext13) shows the Delete key (a bin in a
+  44 x 40 white key, `mkguides.del_box`, drawn from scratch; `build(txt, key='del')`). The other guides are byte for
+  byte as before. The H / S / L bar has no key hint, as in c9 (asked the owner).
+- **Open (the owner's call):** Delete on Hue / Luminance (nothing, or jump to Saturation with all colours on); a key
+  hint on the bar.
+- **Tests:** `color-wheel-info-steps-hue-saturation-luminance` (was `-delete-steps-`), `color-wheel-delete-turns-all-
+  colours-on-and-off` (was `-info-turns-`), `color-wheel-saturation-guide-names-the-page` (the new picture): each
+  `caught` on c9. The wheel tests that reach Hue press INFO twice; `color-wheel-delete-on-another-row-does-nothing` now
+  expects the next INFO on the wheel to step; `split-tone-row-all-colours-leave-the-tints` turns all colours on by
+  Delete.
+- **No new hook or patch site.** Space: .ext13 81,472 / 81,920 (256 B less than c9), .ext15 138,512 / 139,264.
+- **Package (private) `test-builds/2026-11-22-picture-mode-2`:** VERSION "v0.40.3-p2", firmware from commit a48e1ef,
+  built twice, the same byte for byte: E1479999.BIN 8ddde1fa…ce03, GUIDES.BIN 933c1272…a4a6. Not on a camera. Suite
+  (om-emu at the pin): 151 pass, 1 FAIL = `static:changed-bytes`, the same sites as c9 (hooks.json not updated).
