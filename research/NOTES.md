@@ -10829,3 +10829,7 @@ Branch `feature/photo-code-3` on v0.41-a6 (634d3b6) with `main` merged in for Lo
   text buffer, moved from .ext13 and grown; about 2,850 B code and data), bat1 alone 1,760 B; free on this build:
   .ext15 296, .ext14 264, .ext13 256, .ext12 40 B. Nothing of it was merged. Possible later (not built): a small
   battery line in the debug log (percent now, the first reading, photos since; roughly 150-250 B in .ext13).
+- **Suite and package (f222db2's build, E1479999.BIN 4f6f0ed5…97c1, GUIDES.BIN cc8abedf…e056, built twice the same):**
+  164 pass, 0 known, 1 FAIL `static:changed-bytes` (a6: 163 pass and the same FAIL; the sites listed are a6's, none
+  from this change). The new test is caught on the a6 build (`--without`). LookLab vitest 113 pass; the developer
+  kit's tests pass. Package `test-builds/2026-11-24-photo-code-om32` (go-back: a6). Camera test pending.
