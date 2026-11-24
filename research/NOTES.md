@@ -10840,3 +10840,7 @@ Branch `feature/photo-code-3` on v0.41-a6 (634d3b6) with `main` merged in for Lo
   without a film: both fields blank. `lookFromPhotoCode` on the two codes' text gives the same. Debug log: nothing
   unusual, our code at shutter events 2 ms. Not checked: opening the JPEG file itself in the LookLab page; the
   owner has not yet said how shooting felt. Older photos on the card keep their om3.1 text.
+- **2026-11-24, later:** the owner on pc3: "shooting felt normal". The live LookLab reads om3.1 and om3.2 and writes
+  om3.2 since `main` d14f4e3 (cad brought this branch's `webapp/` files of f222db2 onto main and rebuilt `looklab/`;
+  the page's file-open steps were run on the card's real photos: an om3.1 photo, A, B and the no-film C, all as
+  expected). The developer kit and the docs for om3.2 stay on this branch until the firmware is released.
