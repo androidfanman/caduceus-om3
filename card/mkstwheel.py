@@ -191,7 +191,7 @@ if __name__ == '__main__':
     a = ap.parse_args()
     P = pieces()
     s = inc(P)
-    assert int(s.split('.set ST_WORST, ')[1].split()[0]) < 10240
+    assert int(s.split('.set ST_WORST, ')[1].split()[0]) < 12288
     open(a.out, 'w').write(s)
     if a.preview:
         preview([(6, 6, 1, 4, -2, 0), (6, 6, 1, 4, -2, 2), (6, 6, 1, 4, -2, 1), (0, 0, 0, 10, 5, 1)], a.preview)

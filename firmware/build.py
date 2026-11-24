@@ -136,11 +136,12 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
         # in them, so they sit left of (and 7 px above) where they were (research/NOTES.md).
         # (split-tone panel w2 / w3 made the picture's 400 x 200; w4: as h3 again. The widgets copy these when Picture
         # Mode opens; stwheel.s st_place moves the picture widget's own copy while its panel shows.)
-        # v0.41-a2 (Fanatic on Discord, owner: "lets make these happen"): the picture's 400 x 88 at y 490, the bar's
-        # bottom edge where it was and the INFO hint's 24 rows (mkhbar.PAD) over it, as w2 / w3's taller picture (the
-        # frame stays 400 x 64, as then; camera-shown in w2). The camera's own 175 x 50 guides, centred, sit 12 px higher.
+        # v0.41-a2 (Fanatic on Discord, owner: "lets make these happen"): the picture taller for the INFO hint over the
+        # bar, the bar's bottom edge where it was, as w2 / w3's taller picture (the frame stays 400 x 64, as then;
+        # camera-shown in w2). v0.41-a3: the hint at the camera's guide size, 50 rows (mkhbar.PAD): 400 x 114 at y 464.
+        # The camera's own 175 x 50 guides, centred, sit 25 px higher than in v0.41-alpha.
         0x61451e40: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64)),
-        0x61451e50: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 490, 400, 88, 157, 490, 400, 88))}
+        0x61451e50: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 464, 400, 114, 157, 464, 400, 114))}
 # wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
 # {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
 KEYW = {}   # picture-mode p3: Delete is the camera's again on the colour wheel (h2..p2: 0x61322f1c / 2c hb_kdel /
@@ -268,6 +269,7 @@ def build(defaults, testfile, out):
     w0 = mklabels.LABELS.index('Sat')
     wls = [mklabels.encode11(bytes(mklabels.render(mklabels.bitmap(t)).flatten()), 70, 30) for t in mklabels.LABELS[w0:]]
     wls.append(mklabels.encode11(bytes(70 * 30), 70, 30))   # v0.41-a2: XL_BLANK, the Balance step's empty label (xb_vl)
+    wls.append(mklabels.encode11(bytes(36 * 24), 36, 24))   # v0.41-a3: the Balance step's empty rear-dial mark (sp_mark)
     wl, at = bytearray(), 8 * len(wls)           # wl_tab: u32 offset (from wl_tab), u32 size per label, then the streams
     for s in wls:
         wl += struct.pack('<II', at, len(s)); at += (len(s) + 3) & ~3
@@ -276,12 +278,12 @@ def build(defaults, testfile, out):
     (out / 'wheel.inc').write_text('.balign 4\nwl_tab:\n' + db(bytes(wl)) + ' .balign 4\nfl_sagd:\n' + db(sagd) + ' .balign 4\n')
     import mkbars                                 # the H / S / L bar and the Split toning bar: one pool (hbar.s, stwheel.s)
     bars = mkbars.inc()
-    assert mkbars.Hb.PH == 88 and mkbars.Hb.PAD == 24   # the picture widget's 400 x 88 at y 490 (DATA, 0x61451e50)
-    assert int(bars.split('.set HB_WORST, ')[1].split()[0]) < 10240  # hbar.s HB_BUF (the two bars share its buffers)
-    assert int(bars.split('.set ST_WORST, ')[1].split()[0]) < 10240
+    assert mkbars.Hb.PH == 114 and mkbars.Hb.PAD == 50  # the picture widget's 400 x 114 at y 464 (DATA, 0x61451e50)
+    assert int(bars.split('.set HB_WORST, ')[1].split()[0]) < 12288  # hbar.s HB_BUF (the two bars share its buffers)
+    assert int(bars.split('.set ST_WORST, ')[1].split()[0]) < 12288
     (out / 'bars.inc').write_text(bars)
     (out / 'wheeldef.inc').write_text(f'.set XL_N, {len(mklabels.LABELS)}\n.set WLL, {len(wl)}\n.set XL_W0, {w0}\n.set SAS, {len(sagd)}\n'
-                                      + f'.set XL_BLANK, {w0 + len(wls) - 1}\n'
+                                      + f'.set XL_BLANK, {w0 + len(wls) - 2}\n.set XL_MK8, {8 * (len(wls) - 1)}\n'
                                       + ''.join(f'.set XL_{t.upper()}, {mklabels.LABELS.index(t)}\n' for t in ('Sat', 'Lum', 'Hue', 'Tint')))
     fwp, fwi, boxes, dw = mkicons.sp_parts()     # the quick menu's "FILM n" (fl_sp draws it)
     assert fwp.shape[0] == mkicons.SPH == 48 and boxes[0].shape[1] % 2 == 0

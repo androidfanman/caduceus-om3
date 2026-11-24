@@ -59,8 +59,56 @@ sp_case:
  add 4756,a0                      /* camera's "Color" and "Tint" values go too. Its wheel record (screen + 4756, */
  movbu d0,(11,a0)                 /* written by WH_UPD): +11 = 0 no front-dial group (mark, "Color", swatch), as the */
  movhu d0,(2,a0)                  /* camera's own "all colours" state; +2 = 0 no value text. (The word "Tint": xb_vl.) */
+ mov 1,d1                         /* v0.41-a3 (owner on the camera: "we need to figure out how to get rid of that dial */
+1:                                /* icon on balance"): the rear-dial mark blank on Balance, the camera's otherwise */
+ mov d1,d0
+ add -4,sp
+ call sp_mark,[],0
+ add 4,sp
+ jmp WH_END                       /* (it reloads d0, d1, a0, a1 itself: 0x611d04ec) */
+
+/* sp_mark: `add -4,sp; call sp_mark,[],0; add 4,sp`, d0 = 1: our blank picture in the rear dial's mark (MDESC, 36 x 24:
+ * the camera's own "the rear dial" sign beside the dial label), 0: the camera's picture back. Only when MDESC is the
+ * mark's descriptor (kind 14, 36 x 24, 8) and holds the camera's picture or ours, and our labels are in the heap
+ * (wl_blk: the blank is XL_MK8's entry of wl_tab; a picture's payload in flash blanked the camera menu, #64). From
+ * sp_case (each update of the Split toning row) and hb_gsel (every page change, and ed_trig at the half-press: the
+ * camera's pictures back, as the guide and the dial label). Uses d0, d1, a0, a1. */
+.set MDESC, 0xa43682d4
+.set MSTOCK_P, 0xa4368164
+.set MSTOCK_S, 366
+sp_mark:
+ mov MDESC,a0
+ mov (a0),d1                      /* kind 14, width 36 */
+ cmp 0x0024000e,d1
+ bne 9f
+ mov (4,a0),d1                    /* height 24, 8 */
+ cmp 0x00080018,d1
+ bne 9f
+ mov (wl_blk),a1
+ cmp 0,a1
+ beq 9f
+ mov (XL_MK8,a1),d1               /* the blank's offset in wl_blk -> its payload */
+ add a1,d1
+ mov (16,a0),a1                   /* the mark's picture now: the camera's or ours, else leave it */
+ cmp d1,a1
+ beq 1f
+ cmp MSTOCK_P,a1
+ bne 9f
 1:
- jmp WH_END
+ cmp 0,d0
+ beq 2f
+ mov (wl_blk),a1
+ mov (XL_MK8 + 4,a1),d0           /* the blank's size */
+ mov d0,(12,a0)
+ mov d1,(16,a0)
+ bra 9f
+2:
+ mov MSTOCK_S,d0
+ mov d0,(12,a0)
+ mov MSTOCK_P,d0
+ mov d0,(16,a0)
+9:
+ ret [],0
 sp_whl:
  mov 5397,d0
  movhu d0,(hb_item)

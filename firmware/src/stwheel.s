@@ -426,7 +426,7 @@ st_spal:
  * st_gid (4 u16), (12..23) the 3 fields' text tables, (24..35) their slider tables, (40) the buffer, (44) the field. */
 st_join:
  mov a1,(40,sp)
- mov HB_HDR,d0                    /* 400 x 88 (64 + HB_PAD), type 11 */
+ mov HB_HDR,d0                    /* 400 x 114 (HB_PAD + 64), type 11 */
  mov d0,(a1)
  mov st_gid,d0                    /* the colour rows (the colour itself is in palette entries 108..120) */
  mov d0,(8,sp)

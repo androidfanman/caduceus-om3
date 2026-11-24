@@ -29,9 +29,9 @@
  .include "bars.inc"              /* HB_*, BAR_*, hb_gid, hb_swr, hb_mk, hb_tx, hb_pal, the Split toning bar's st_*,
                                    * bar_cmap, bar_pool (card/mkbars.py: both bars' rows in one pool) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
-.set HB_BUF, 10240                /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
-                                   * toning bar, stwheel.s). v0.41-a2: 8 -> 10 KB for the INFO hint's rows (w2..w4 had
-                                   * two 16 KB buffers on the camera) */
+.set HB_BUF, 12288                /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
+                                   * toning bar, stwheel.s). v0.41-a2 8 -> 10 KB, v0.41-a3 12 KB for the INFO hint's rows
+                                   * (w2..w4 had two 16 KB buffers on the camera) */
 .set HB_F, 48                     /* hb_rd's frame */
  .balign 4
 bar_left:                         /* bar_row: the part's pixels left */
@@ -80,7 +80,8 @@ hb_alloc:
  ret [d2,d3,a2,a3],80
 
 /* hb_gsel <- gd_set's `call hb_gsel,[d2,d3,a2,a3],24` (was gd_sel): GDESC holding a bar -> the camera's guide again
- * (175 x 50), then gd_sel (same frame). Keeps d0, a2; uses d1, d2, a0. */
+ * (175 x 50), and the rear dial's mark the camera's (sp_mark), then gd_sel (same frame). Keeps d0, a2; uses d1, d2,
+ * d3, a0, a1. */
 hb_gsel:
  mov GDESC,a0
  mov (16,a0),d1
@@ -102,6 +103,12 @@ hb_gsel:
  mov GSTOCK_P,d1
  mov d1,(16,a0)
 9:
+ mov d0,d3                        /* v0.41-a3: the rear dial's mark back to the camera's (splitrow.s sp_mark; sp_case */
+ clr d0                           /* blanks it again on the Split toning row's Balance step). d0 is gd_sel's page */
+ add -4,sp
+ call sp_mark,[],0
+ add 4,sp
+ mov d3,d0
  jmp gd_sel
 
 /* hb_pu <- pu_hook's `call hb_pu,[d2,d3,a2,a3],20` (was gr_upd), a0 -> Picture Mode's current item: noted, then gr_upd. */
@@ -427,7 +434,7 @@ bar_row:
  * hb_gid (4 u16), (12..23) the 3 fields' text tables, (24..35) their slider tables, (40) the buffer, (44) the field. */
 hb_join:
  mov a1,(40,sp)
- mov HB_HDR,d0                    /* 400 x 88 (the hint's 24 rows + the bar's 64), type 11 */
+ mov HB_HDR,d0                    /* 400 x 114 (the hint's 50 rows + the bar's 64), type 11 */
  mov d0,(a1)
  mov hb_gid,d0                    /* the colour rows (the colour itself is in palette entries 108..120) */
  mov d0,(8,sp)

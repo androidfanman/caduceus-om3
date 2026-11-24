@@ -225,17 +225,17 @@ DEBUG_LOG_RELEASES_ONLY = (r'^Written at shutter button event 5 \(a half-press a
 NF_BYTE, NR_ROW_COLOR2, NR_SLOT_COLOR2 = 0x6295942d, 0x7e11, 32 + 64 + 51
 NR_ROW_STAR = lambda star: f'expect:isdef:{{ed_isdef}}:{NR_ROW_COLOR2:x}={0 if star else 1}'
 # The WB Compensation row (the seventh in Picture Mode; until the five-point curve the Blacks / Whites grid row, the
-# ninth, was checked here) shows the camera's WB grid scene (element 24813) in the bottom bar's holder, and the next
-# row (Highlight & Shadow until v0.41-alpha, Contrast since v0.41-a2) gets the bar's own scene (element 24771) back. gr_end does that at the end
+# ninth, was checked here) shows the camera's WB grid scene (element 24813) in the bottom bar's holder, and Highlight
+# & Shadow, the next row, gets the bar's own scene (element 24771) back. gr_end does that at the end
 # of the screen update: a flash before it is camera-only (research/TESTING.md, "Past regressions").
 HOLDER_SCENE = lambda element: f'expect:mem:{{gr_cont}}+0*+308*+4={element & 255:02x}{element >> 8:02x}'
-GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 6 + HOLDER_SCENE(24813) +   # v0.41-a2: the seventh row again
+GRID_ROW_AND_BACK = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCENE(24813) +   # p4: one row less
                      ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 # WB Compensation (the seventh row) <-> Highlight & Shadow (the eighth): the holder's scene changes in the row refresh,
 # not in the screen update. A scene set during the update makes the camera draw a pass without grid or curve before
 # the refresh (research/NOTES.md, "the one-frame flash"). Hits: gr_upd / gr_end to the update's end (pe_back /
 # pe_ret) holds no sc_set; each switch still sets the scene, which HOLDER_SCENE checks after each key.
-WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 6 + HOLDER_SCENE(24813) +   # v0.41-a2: the seventh row again
+WB_HS_SWITCH = ('s1 wait wait ok wait ok wait ' + 'down wait ' * 5 + HOLDER_SCENE(24813) +   # p4: one row less
                 ' down wait ' + HOLDER_SCENE(24771) + ' up wait ' + HOLDER_SCENE(24813) +
                 ' down up down wait ' + HOLDER_SCENE(24771) + ' up down up wait ' + HOLDER_SCENE(24813) + ' poweroff')
 SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
@@ -244,7 +244,7 @@ SCENE_IN_UPDATE = ('gr_upd', 'gr_end', 'sc_set', 'pe_back', 'pe_ret')
 # value, as Sh) and Whites (P + 80; sub +1 = -1, the right value, as Hi) and leave Sh (978) and Hi (976) alone; on the
 # camera's own pages the dials still set Sh / Hi and leave Blacks / Whites alone. The Blacks / Whites row is gone:
 # the eighth row is Contrast (its bar's scene in the holder, not the grid's).
-HS_ROW = 's1 wait wait ok wait ok wait ' + 'down wait ' * 2   # the third row (v0.41-a2: right before RGB curves; p4..v0.41-alpha the seventh)
+HS_ROW = 's1 wait wait ok wait ok wait ' + 'down wait ' * 6   # the seventh row (p4: no Tone Balance row above it)
 FIVE_POINT_PAGE = (HS_ROW + 'main+1 wait expect:val:978=1 expect:p:79=00 expect:p:80=00 '
                    'info wait info wait main+1 wait main+1 wait sub+1 wait expect:p:79=02 expect:p:80=ff '
                    'expect:val:978=1 expect:val:976=0 '
@@ -267,10 +267,10 @@ FIVE_POINT_ALL_PAGES = (HS_ROW + 'info wait info wait ' + 'sub+1 wait ' * 7 + 'e
 # Test 6 (owner, camera c5: "the tone curve has an * on it"; "star only when its changed from the film"): FILM 4 of
 # the release's LOOKS.BIN has Blacks, Whites and Sh as built (record +39, +40, +44). Its H&S row has no '*' until one
 # of the five values leaves the film's: Sh by a dial and back, then Whites on the Blk / Wht page. (c5: '*' at once.)
-HS_STAR_BOX = '90,232,104,248'   # v0.41-a2: Highlight & Shadow is the third row of page 1 (p4: page 2's second)
+HS_STAR_BOX = '90,158,104,174'   # p4: Highlight & Shadow is the second row of page 2 (was the third)
 def FIVE_POINT_STAR(looks):
     assert looks[32 + 64 * 3 + 39] and looks[32 + 64 * 3 + 44], 'FILM 4 needs Blacks and Sh as built for this test'
-    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 2 +
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 6 +
             f' expect:noink:{HS_STAR_BOX} main+1 wait expect:ink:{HS_STAR_BOX} main-1 wait expect:noink:{HS_STAR_BOX}'
             f' info wait info wait expect:noink:{HS_STAR_BOX} sub+1 wait expect:ink:{HS_STAR_BOX} poweroff')
 # What test 6 leaves alone: a COLOR with no film has the '*' as soon as Blacks or Whites is not 0, and loses it at 0.
@@ -284,11 +284,11 @@ _SB = lambda v: v - 256 if v > 127 else v
 def FIVE_POINT_RESET(looks):
     sh = _SB(looks[32 + 64 * 3 + 44])
     assert sh and looks[32 + 64 * 3 + 40], 'FILM 4 needs Sh and Whites as built for this test'
-    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 2 +
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 6 +
             f' expect:val:978={sh} expect:noink:{HS_RESET_BOX} main+1 wait expect:val:978={sh + 1} expect:ink:{HS_RESET_BOX}'
             f' hold:ok wait wait expect:val:978={sh} expect:noink:{HS_RESET_BOX} expect:noink:{HS_STAR_BOX} poweroff')
 def FIVE_POINT_RESET_BW(looks):
-    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 2 + ' info wait info wait'
+    return ('s1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 6 + ' info wait info wait'
             f' expect:noink:{HS_RESET_BOX} sub+1 wait expect:ink:{HS_RESET_BOX} expect:ink:{HS_STAR_BOX}'
             f' hold:ok wait wait expect:noink:{HS_RESET_BOX} expect:noink:{HS_STAR_BOX} poweroff')
 # What test 7 leaves alone: on a COLOR with no film OK held gives 0, and the guide follows "not 0".
@@ -303,7 +303,7 @@ FIVE_POINT_GUIDE_KEY = HS_ROW + 'info wait info wait expect:noink:506,545,508,56
 FIVE_POINT_GUIDE_NAMES = (HS_ROW + 'expect:ink:380,540,386,566 info wait expect:noink:380,540,389,566 '
                           'expect:ink:389,540,392,566 info wait expect:noink:380,540,386,566 expect:ink:386,540,389,566 '
                           'info wait expect:ink:380,540,386,566 poweroff')
-FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'down wait ' +   # v0.41-a2: RGB curves is the next row
+FIVE_POINT_HEADER_BACK = (HS_ROW + 'expect:ink:496,112,540,138 ' + 'up wait ' * 4 +
                           'expect:noink:494,84,540,140 expect:noink:848,84,896,140 expect:ink:546,112,610,138 poweroff')
 
 
@@ -336,7 +336,7 @@ LABEL_SIZE = {t: len(mklabels.encode11(bytes(mklabels.render(mklabels.bitmap(t))
               for t in ('Sat', 'Hue', 'Lum', 'Tint')}
 LABEL_SIZE['blank'] = len(mklabels.encode11(bytes(70 * 30), 70, 30))   # v0.41-a2: the Balance step's empty label
 LABEL_IS = lambda name: f'expect:mem:{VDESC + 12:x}={U32(LABEL_SIZE[name])}'
-OPEN_WHEEL = 's1 ok ok down down down down wait'   # v0.41-a2: the fifth row (Highlight & Shadow above RGB curves)
+OPEN_WHEEL = 's1 ok ok down down down wait'
 # wheel-hsl-view h4: Hue -> Sat -> Lum -> Hue (feature/picture-mode: by INFO, was Delete). split-tone row: the tint wheels (Shadows, Highlights) are
 # the next row's, stepped by INFO there; back on the wheel row the label is Sat again.
 OPEN_SPLIT = f'{OPEN_WHEEL} down wait'
@@ -363,7 +363,7 @@ HBAR_IS = lambda c, h, s, l, axis: (lambda b: f'expect:mem:{GDESC + 2:x}={U16(mk
 import mkstwheel  # noqa: E402
 _ST = mkstwheel.pieces()
 RECT_IS = lambda a, xv, xr, y, w, h: f'expect:mem:{a:x}={U16(xv)}{U16(y)}{U16(w)}{U16(h)}{U16(xr)}{U16(y)}{U16(w)}{U16(h)}'
-GUIDE_PLACE = f'{RECT_IS(0x61451e40, 116, 157, 514, 400, 64)} {RECT_IS(0x61451e50, 116, 157, 490, 400, 88)}'   # v0.41-a2: + the hint's 24 rows
+GUIDE_PLACE = f'{RECT_IS(0x61451e40, 116, 157, 514, 400, 64)} {RECT_IS(0x61451e50, 116, 157, 464, 400, 114)}'   # v0.41-a3: + the hint's 50 rows
 STRIP_IS = lambda sc, ss, hc, hs, b, mode: (lambda s: f'expect:mem:{GDESC + 2:x}={U16(mkhbar.W)}{U16(mkhbar.PH)} '
                                                        f'expect:mem:{GDESC + 12:x}={U32(len(s))} expect:mem:{GDESC:x}+10*={s.hex()}')(
     mkstwheel.stream(sc, ss, hc, hs, b, mode, _ST))
@@ -416,10 +416,9 @@ SPLIT_ROW_DIAL = (f'{OPEN_SPLIT} {TINTS_ARE("00000000")} main+1 wait main+1 wait
                   f'{HBAR_IS(0, 0, 0, 0, 0)} {TINTS_ARE("00fe00ff")} poweroff')
 # The row's '*' (rear screen, right of its picture; the box is plain without it) follows the tints alone, and the colour
 # wheel row's '*' the wheel's values alone (before: one row, one '*' for both).
-# v0.41-a2: the wheel row is page 1's last, the Split toning row page 2's first, so each '*' is checked on its own page.
-SPLIT_STAR, WHEEL_STAR = '90,84,104,100', '90,380,104,396'
+SPLIT_STAR, WHEEL_STAR = '90,380,104,396', '90,306,104,322'
 SPLIT_ROW_STAR = (f'{OPEN_SPLIT} expect:noink:{SPLIT_STAR} main+1 wait expect:ink:{SPLIT_STAR} up wait '
-                  f'expect:noink:{WHEEL_STAR} main+1 wait expect:ink:{WHEEL_STAR} down wait expect:ink:{SPLIT_STAR} poweroff')
+                  f'expect:noink:{WHEEL_STAR} expect:ink:{SPLIT_STAR} main+1 wait expect:ink:{WHEEL_STAR} poweroff')
 # picture-mode p3 (owner, p2 on the camera: "lets just remove the delete key. spinning the wheel does it good
 # enough"): Delete does nothing on the colour wheel, on any page, one colour or all. All colours come and go by the
 # front dial on Saturation (cursor 255 past colour 1, then colour 1 and the H / S / L bar again).
@@ -460,7 +459,7 @@ SPLIT_CURSOR_BACK = (f'{OPEN_SPLIT} sub-1 wait sub-1 wait main+1 wait {CUR_IS(3)
 SPLIT_KEEPS_WHEEL = f'{OPEN_WHEEL} down wait main+1 wait info wait main+1 wait info wait info wait up wait poweroff'
 def split_row_keeps_wheel(hits):
     got = [(step, d0) for _, _, step, d0 in hits if step in ('down', 'main+1', 'info', 'up')]
-    want = [('down', 1), ('down', 1), ('down', 1), ('down', 0), ('down', 0), ('main+1', 0), ('info', 1), ('main+1', 1),   # v0.41-a2: one row more above
+    want = [('down', 1), ('down', 1), ('down', 0), ('down', 0), ('main+1', 0), ('info', 1), ('main+1', 1),
             ('info', 0), ('info', 0), ('up', 0)]
     return [] if got == want else [f'the display update\'s "no wheel" argument per step: {got}, not {want}']
 # p4: Tone Balance set on the Balance step is kept (saved at the half-press, there after a power cycle) and shows
@@ -478,17 +477,29 @@ SPLIT_BALANCE_NO_LABELS = (f'{OPEN_SPLIT} {LABEL_IS("Tint")} expect:ink:{COLOR_W
                            f'{STRIP_IS(0, 0, 0, 0, 1, 2)} {LABEL_IS("blank")} expect:noink:{COLOR_WORDS} expect:noink:{TINT_WORDS} '
                            f'info wait {AXIS_IS(6)} {LABEL_IS("Tint")} expect:ink:{COLOR_WORDS} expect:ink:{TINT_WORDS} '
                            f'up wait {LABEL_IS("Sat")} expect:ink:{COLOR_WORDS} expect:ink:{TINT_WORDS} poweroff')
-# v0.41-a2: over the H / S / L bar its INFO hint ("H/S/L [INFO]", mkhbar.hint_rows; HBAR_IS compares the whole
-# picture), in the picture's 24 new rows (400 x 88 at y 490, GUIDE_PLACE); the Split toning bar leaves them clear and
-# stays where it was (STRIP_IS: its rows under 24 clear ones).
-HINT_BOX = '320,488,430,513'
+# v0.41-a2 / a3: over the H / S / L bar its INFO hint ("H/S/L [INFO]" as the camera's guides, mkhbar.hint_rows; HBAR_IS
+# compares the whole picture), in the picture's 50 new rows (400 x 114 at y 464, GUIDE_PLACE); the Split toning bar
+# leaves them clear and stays where it was (STRIP_IS: its rows under 50 clear ones).
+HINT_BOX = '300,468,455,512'
 WHEEL_INFO_HINT = (f'{OPEN_WHEEL} {GUIDE_PLACE} {HBAR_IS(0, 0, 0, 0, 0)} expect:ink:{HINT_BOX} info wait expect:ink:{HINT_BOX} '
                    f'down wait {STRIP_IS(0, 0, 0, 0, 0, 0)} expect:noink:{HINT_BOX} up wait expect:ink:{HINT_BOX} poweroff')
-# v0.41-a2 (Fanatic, owner): Highlight & Shadow right before RGB curves. Picture Mode's rows from the top as hb_pu
-# notes each one (hb_item): Mix (5377), Highlight & Shadow (5398), RGB curves (5378), the colour wheel (5397), Split
-# toning (5375), WB (5384), Contrast (8).
+# v0.41-a3 (owner on the camera: "we need to figure out how to get rid of that dial icon on balance"): the rear dial's
+# mark (MDESC, 36 x 24) holds our blank picture on the Balance step and the camera's everywhere else: Shadows,
+# Highlights, the colour wheel row, and after leaving Picture Mode from Balance with a half-press (ed_trig).
+MDESC, MSTOCK_P, MSTOCK_S = 0xa43682d4, 0xa4368164, 366
+MARK_BLANK = len(mklabels.encode11(bytes(36 * 24), 36, 24))
+MARK_IS = lambda stock: (f'expect:mem:{MDESC + 12:x}={U32(MSTOCK_S)}{U32(MSTOCK_P)}' if stock else
+                         f'expect:mem:{MDESC + 12:x}={U32(MARK_BLANK)}')
+MARK_BOX = '620,455,658,490'
+SPLIT_BALANCE_NO_MARK = (f'{OPEN_SPLIT} {MARK_IS(True)} expect:ink:{MARK_BOX} info wait {MARK_IS(False)} '
+                         f'expect:noink:{MARK_BOX} main+1 wait {MARK_IS(False)} expect:noink:{MARK_BOX} info wait {MARK_IS(True)} '
+                         f'expect:ink:{MARK_BOX} info wait info wait {MARK_IS(False)} up wait {MARK_IS(True)} expect:ink:{MARK_BOX} '
+                         f'down wait info wait {MARK_IS(False)} s1 wait wait {MARK_IS(True)} poweroff')
+# Picture Mode's rows from the top as hb_pu notes each one (hb_item): Mix (5377), RGB curves (5378), the colour wheel
+# (5397), Split toning (5375), WB (5384), Highlight & Shadow (5398), Contrast (8). (v0.41-a2 had Highlight & Shadow
+# before RGB curves; owner on the camera: "Lets place the tone curve back to where is was".)
 PM_ORDER = ('s1 wait wait ok wait ok wait ' + ' '.join(f'down wait expect:mem:{{hb_item}}={U16(i)}'
-                                                       for i in (5377, 5398, 5378, 5397, 5375, 5384, 8)) + ' poweroff')
+                                                       for i in (5377, 5378, 5397, 5375, 5384, 5398, 8)) + ' poweroff')
 def newest_looks():
     def key(d):
         n, _, pre = d.name.lstrip('v').partition('-')
@@ -500,7 +511,7 @@ def newest_looks():
 # A film that has tints as built (FILM 4 of the release's LOOKS.BIN: its record +53..+56) shows them on the row with
 # no '*'; a click on another colour changes the tint and the '*' comes.
 SPLIT_ROW_FILM = lambda looks: (
-    's1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 5 +
+    's1 wait wait ok wait ok wait' + ' right wait' * 7 + ' down wait' * 4 +
     f' {AXIS_IS(5)} {TINTS_ARE(looks[32 + 64 * 3 + 53:32 + 64 * 3 + 57].hex())} expect:noink:{SPLIT_STAR} '
     f'main+1 wait expect:ink:{SPLIT_STAR} poweroff')
 _SAT_PICS = mkicons.sat_pictures()
@@ -545,7 +556,7 @@ OPEN_MIX = 's1 wait wait ok wait ok wait down wait'
 PANEL_MODE = 2191
 PANEL_STEP_WRITE = lambda dial: (f'{dial}+1 wait fhash:a mids:{{manager}} {dial}+1 wait expect:mids:{PANEL_MODE} '
                                  f'fhash:b expect:fdiff:a:b {dial}-1 wait fhash:c expect:fsame:a:c')
-MIX_STEP_WRITES_MODE = (f'{OPEN_MIX} {PANEL_STEP_WRITE("main")} {PANEL_STEP_WRITE("sub")} down wait down wait '   # v0.41-a2: Highlight & Shadow between them
+MIX_STEP_WRITES_MODE = (f'{OPEN_MIX} {PANEL_STEP_WRITE("main")} {PANEL_STEP_WRITE("sub")} down wait '
                         f'{PANEL_STEP_WRITE("main")} poweroff')
 VIVID_SIZE = 1660                 # the camera's own dial label picture
 WHEEL_RESET_LABEL = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} menu wait menu wait s1 wait wait '
@@ -702,7 +713,7 @@ PICK_NEXT_FILM, PICK_FILM_BEFORE = 'ok wait ok wait right wait ok wait wait', 'o
 WB_SCREEN_A_PLUS_1 = 'ok wait right wait ok wait down wait down wait ok wait right wait ok wait wait'
 PANEL_TO_PICTURE_MODE = 'ok wait left wait ok wait'
 # Picture Mode's WB Compensation row (the seventh), OK: the camera's fine-tune screen for the look; A-B one step to A
-WB_ROW_A_PLUS_1 = 'down wait ' * 6 + 'ok wait right wait'   # v0.41-a2: the seventh row (p4: the sixth)
+WB_ROW_A_PLUS_1 = 'down wait ' * 5 + 'ok wait right wait'   # p4: the sixth row (no Tone Balance row)
 # Stills fine-tune ids (table 0x615d1944: A-B id, G-M = + 13): Custom WB, Shade, Auto, Sunny; movie Auto and Custom WB
 CWB_AB, CWB_GM, SHADE_AB, SHADE_GM, AUTO_AB, SUNNY_AB, SUNNY_GM = 1592, 1605, 1587, 1600, 1580, 1584, 1597
 MOVIE_AUTO_AB, MOVIE_CWB_AB = 1606, 1618
@@ -719,8 +730,8 @@ PAGE_TO_FILM_3 = 'right wait ' * 6 + 'ok wait wait'
 # own WB screen again with the panel's cursor still on the WB cell.
 ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wait ok wait menu wait menu wait menu wait wait'
 WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
-# From the shooting screen: the RGB row (the fourth in Picture Mode since v0.41-a2), the rear dial once on Red's first point, out.
-OPEN_RGB = 'ok wait ok wait down wait down wait down wait'
+# From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
+OPEN_RGB = 'ok wait ok wait down wait down wait'
 # borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
 # Radius); COLOR 1's slot +50 is P + 82
 OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 17   # p4: one row less (no Tone Balance row)
@@ -778,8 +789,8 @@ BAR_DIAL = lambda moves, off, two, three, one: (
 GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
 HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
 # p4: Tone Balance has no row of its own: on the Split toning row's Balance step the rear dial steps it as Contrast
-# (+1 up), and the front dial does nothing there (w8). v0.41-a2: Contrast -> WB -> Split toning, two rows up.
-BALANCE_DIAL = (f'{CONTRAST_CLICKS} up wait up wait info wait main+1 wait expect:p:65=01 main+1 wait expect:p:65=02 '
+# (+1 up), and the front dial does nothing there (w8).
+BALANCE_DIAL = (f'{CONTRAST_CLICKS} up wait up wait up wait info wait main+1 wait expect:p:65=01 main+1 wait expect:p:65=02 '
                 f'sub+1 wait sub+1 wait expect:p:65=02 main-1 wait expect:p:65=01 menu wait wait s1 wait wait poweroff')
 GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
@@ -1570,7 +1581,10 @@ TESTS = {
     'color-wheel-bar-has-an-info-hint': [
         Boot(WHEEL_INFO_HINT),
     ],
-    'picture-mode-highlight-shadow-before-rgb-curves': [
+    'split-tone-balance-hides-the-dial-mark': [
+        Boot(SPLIT_BALANCE_NO_MARK),
+    ],
+    'picture-mode-rows-in-order': [
         Boot(PM_ORDER),
     ],
     'split-tone-row-shows-a-films-tints': [
