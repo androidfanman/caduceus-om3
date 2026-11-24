@@ -45,6 +45,8 @@ Options:
 | `--without BUILD` | Needs `--only`. Runs those tests on a build without the fix and requires each to fail. It prints `caught` or `MISSED`, exits 1 on any `MISSED`, never records a pass, and ignores `KNOWN_FAILURES`. |
 | `--stock PATH` | The official firmware file, for the static checks. |
 
+After each token but `wait`, the driver (`tools/emulator/session_ed1.mjs`) idles in 100 ms slices and stops once two slices in a row change nothing it can read: the GUI state, the editor's state block, om-emu's OSD engine counters, the watch, `count:`, `hit:`, `keep:`, `last:` and `wcount:` hits, card saves and settings saves. It never idles longer than the old fixed 1200 ms, and `wait` still idles all 1200 ms. `SETTLE=0` in the environment brings back the fixed wait after every token, for an A/B run. `SETTLE_TRACE=1` prints each slice's reading to the boot's log.
+
 `--without` shows whether a test can tell a fixed build from a broken one. Checked, emulator only:
 `--without out-M295 --only film-kept-with-no-half-press-after-pick` on EL13 is caught, and `boot-smoke` is `MISSED`.
 
@@ -127,6 +129,7 @@ The gate and the digest have unit tests that need no firmware:
 | `grain-dial-steps-as-contrast` | The same for the Film Grain row, after Contrast: rear +1 up, front +1 down, and the debug log names the strength it ends on (experiment/perf-040, 2026-11-18) |
 | `look-tables-match-the-model` | `st_run`'s R, G and B tables on a fake COLOR job match the Python models for split toning, curves and both together, and `sd_crc` matches zlib's CRC-32 |
 | `live-view-gates-wait-for-section-6` | The three live-view hook sites (hook_mx, hook_tone, hook_lv), called directly with the camera's ready word at 0x1f, reach the stock code (lv_skip with d0 = 11), and at 0x3f our code (fix/section-gates, 2026-11-17) |
+| `settle-ends-where-the-fixed-wait-ends` | The same keys with no `wait` between them, from a blank camera, run once with the driver's settle and once with its fixed wait (`SETTLE=0`): every step's state, the last screen's hash and the debug log are the same. The flow ends in `s1 poweroff`, so a settle that stops before the release's log write is caught (`SETTLE_K=0` fails it) |
 | `patch-audit` | om-emu's audit finds no patched byte the camera does not load, and no task started at power-on |
 | `static:release-rebuild` | `firmware/patch.py` rebuilds the newest release byte for byte, and `SHA256SUMS` matches |
 | `static:hook-list` | The build's hooks equal `tools/test/hooks.json` |

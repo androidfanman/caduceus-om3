@@ -2655,6 +2655,32 @@ def run_fddrive(emu, build, out, card0):
     return FDDRIVE, errors
 
 
+SETTLE = 'settle-ends-where-the-fixed-wait-ends'
+# Keys with no wait between them, so the driver's settle decides when each next key goes in.
+SETTLE_TOKENS = 's1 wait wait ok ok down down down info info info info main+1 sub+1 fhash:end s1 poweroff'
+
+
+def run_settle(emu, build, out, card0):
+    """The same keys from a blank camera, once with the driver's settle and once with its fixed wait (SETTLE=0):
+    every step's state, the last screen and the debug log are the same."""
+    d = out / SETTLE
+    runs = {}
+    for name, env in (('settle', ()), ('fixed', (('SETTLE', '0'),))):
+        (d / name).mkdir(parents=True, exist_ok=True)
+        (d / name / 'nv.bin').unlink(missing_ok=True)
+        _, lines, errs, fatal = run_boot(emu, build, d / name, 1, Boot(SETTLE_TOKENS, env=env), card0, {})
+        if fatal or errs:
+            return SETTLE, [f'{name}: {e}' for e in [fatal, *errs] if e]
+        steps = json.loads((d / name / 'boot1.json').read_text())['log']
+        screen = [l for l in (d / name / 'boot1.log').read_text().splitlines() if l.startswith('FHASH ')]
+        runs[name] = steps, screen, lines
+    errors = []
+    for what, a, b in zip(('step states', 'last screen', 'debug log'), runs['settle'], runs['fixed']):
+        if a != b:
+            errors.append(f'{what} differ between settle and fixed wait ({SETTLE}/settle, {SETTLE}/fixed)')
+    return SETTLE, errors
+
+
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
           PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive}
@@ -2671,7 +2697,7 @@ def newest_looks():
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('build', type=pathlib.Path)
-    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC]))
+    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, SETTLE, *DIRECT, *STATIC]))
     ap.add_argument('--jobs', type=lambda v: max(1, int(v)), default=DEFAULT_JOBS)
     ap.add_argument('--out', type=pathlib.Path)
     ap.add_argument('--looks', type=pathlib.Path)
@@ -2694,7 +2720,7 @@ def main():
     looks = (a.looks or newest_looks()).resolve()
     make_card(emu, build, looks, card0)
     fixtures = make_fixtures(out, looks)
-    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC])
+    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, SETTLE, *DIRECT, *STATIC])
     stock = static_check.find_stock(a.stock) if any(n in STATIC for n in names) else None
     runs = [(n, k) for n in names for k in range(1, a.repeat + 1)]
     print(f'{len(names)} tests{f" x {a.repeat}" if a.repeat > 1 else ""} on {build}, results in {out}')
@@ -2743,6 +2769,8 @@ def main():
                 return run_gates(emu, build, d, card0)
             if n == GRAINTILE:
                 return run_graintile(emu, build, d, card0)
+            if n == SETTLE:
+                return run_settle(emu, build, d, card0)
             if n in DIRECT:
                 return DIRECT[n](emu, build, d, card0)
             first = shared.get((k, boot_key(TESTS[n][0])))
