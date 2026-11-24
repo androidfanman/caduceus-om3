@@ -18,7 +18,8 @@ rarely changes a one-line directory summary. The hook only detects. Claude judge
 whether the summary needs to change and rewrites it.
 
 Self-gating: silent when the command is neither, when cwd is not a git repo, when
-nothing was added, or when no ancestor directory has a CLAUDE.md (tree never
+nothing was added, when the added files sit under a dir matched by
+`.claude/claude-md-skip`, or when no ancestor directory has a CLAUDE.md (tree never
 built). Never decides the permission, so the command always proceeds. Any
 unexpected error exits 0 silently so the hook never blocks a tool call.
 """
@@ -40,15 +41,17 @@ MAX_DIRS = 10
 SKILL_TAG = "(agentify-docs skill)"
 # Same file and format lint_claude_md.py reads. Kept here too: this hook is
 # installed into repos without the linter beside it.
+# Keep in sync with lint_claude_md.py's skip_patterns and in_skip_list.
 SKIP_FILE = os.path.join(".claude", "claude-md-skip")
 
 
 def skip_patterns(root):
-    """Globs from the repo's skip list, or none when it has no list."""
+    """Globs from the repo's skip list, or none when it is missing or unreadable."""
     try:
-        with open(os.path.join(root, SKIP_FILE)) as f:
-            lines = [line.strip().rstrip("/") for line in f]
-    except FileNotFoundError:
+        with open(os.path.join(root, SKIP_FILE), encoding="utf-8-sig") as f:
+            lines = [line.strip().removeprefix("./").lstrip("/").rstrip("/")
+                     for line in f]
+    except (OSError, UnicodeDecodeError):
         return []
     return [line for line in lines if line and not line.startswith("#")]
 

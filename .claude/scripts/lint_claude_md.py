@@ -33,6 +33,7 @@ no CLAUDE.md and parents link through them.
 
 File scope comes from `git ls-files` when available, which respects .gitignore and
 lists only tracked files. Otherwise it falls back to os.walk with a skip list.
+A per-repo list, `.claude/claude-md-skip`, also drops matching dirs from the plan.
 """
 
 import json
@@ -67,6 +68,7 @@ CLAUDE_MD = "CLAUDE.md"
 
 # Per-repo skip list: one glob per line, matched against repo-relative dir paths
 # (`releases/*`). A matching dir and everything under it leave the plan.
+# Keep in sync with claude_md_hook.py's skip_patterns and in_skip_list.
 SKIP_FILE = os.path.join(".claude", "claude-md-skip")
 
 
@@ -105,11 +107,12 @@ def walk_in_scope(root):
 
 
 def skip_patterns(root):
-    """Globs from the repo's skip list, or none when it has no list."""
+    """Globs from the repo's skip list, or none when it is missing or unreadable."""
     try:
-        with open(os.path.join(root, SKIP_FILE)) as f:
-            lines = [line.strip().rstrip("/") for line in f]
-    except FileNotFoundError:
+        with open(os.path.join(root, SKIP_FILE), encoding="utf-8-sig") as f:
+            lines = [line.strip().removeprefix("./").lstrip("/").rstrip("/")
+                     for line in f]
+    except (OSError, UnicodeDecodeError):
         return []
     return [line for line in lines if line and not line.startswith("#")]
 
