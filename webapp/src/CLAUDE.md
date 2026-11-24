@@ -1,6 +1,6 @@
 # src
 
-LookLab TypeScript source. `main.ts` UI entry, `style.css` / `theme.css`.
+LookLab TypeScript source. `main.ts` UI entry, `style.css` / `theme.css`. `fonts/` self-hosted UI fonts.
 
 - `om3.ts` — profile bank, looks, card files, photo-code import
 - `pack.ts` — pack model `caduceus-pack/1`, parsing
@@ -15,4 +15,3 @@ LookLab TypeScript source. `main.ts` UI entry, `style.css` / `theme.css`.
 ## Subdirectories
 
 - [`data/`](data/CLAUDE.md) — generated JSON data
-- [`fonts/`](fonts/CLAUDE.md) — self-hosted UI fonts

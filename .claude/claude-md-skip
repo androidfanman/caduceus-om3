@@ -3,3 +3,6 @@ releases/*
 looklab/*
 pages/showcase/img/*
 research/archive/*
+webapp/public/fonts
+webapp/src/fonts
+webapp/public/samples
