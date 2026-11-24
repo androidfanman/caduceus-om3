@@ -23,7 +23,6 @@ Branches: `main` released, safe. `feature/...` meant to ship, README banner give
 - **No OM firmware** (original or decoded), disassembly dumps or camera graphics in repo. Only exception: emulator screenshots of camera menus running our firmware, for tour (`pages/showcase/img/`, `research/showcase/make.sh`).
 - **LookLab images:** owner approves each new or changed image before publishing.
 - **Film sims:** own designs only. No copied looks, LUTs, presets. No grain, Glow / Clarity, Art Effects in film sims.
-- **Camera start-up:** no loading, setting changes or other work of ours while camera starts. Load at first half-press. Three past tries froze or lagged start-up (`research/NOTES.md`).
 - **Never touch** cakelesscoder's repositories (Caduceus for E-P7). Credit them where their work used.
 
 ## Firmware safety
@@ -51,7 +50,7 @@ Read `.claude/skills/release/SKILL.md` first.
 - Keep lean. Do what owner asks, nothing more. No plan documents, research rounds or review agents unless owner asks.
 - Main chat ("Caduceus OM3", cad) does small requests itself: merge PRs, conflicts, test builds, card copies, releases. Bigger project: one session, short brief, cad picks model, never Fable (cad only).
 - Project sessions: own worktree and branch, build and test only. No merge to `main`, no release, no push.
-- Before card: one read of the change for camera harm (hooks and stock bytes, code space, start-up rule, video, no card / no films), rebuild matching package sha256. Real risk: tell owner plainly. Rest: owner's camera test.
+- Before card: one read of the change for camera harm (hooks and stock bytes, code space, start-up freeze or lag, video, no card / no films), rebuild matching package sha256. Real risk: tell owner plainly. Rest: owner's camera test.
 - Contributor PRs, when owner says: merge as written, fix conflicts, test build, owner tests, release. No own changes unless asked.
 - Behavior differing from current release: owner decides. Tell, don't decide.
 - Commits, pull requests, their emulator test rules: read `.claude/skills/commit-and-pr/SKILL.md` first.

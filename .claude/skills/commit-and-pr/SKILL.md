@@ -20,7 +20,7 @@ description: This repo's commit and PR conventions. Read before writing any git 
 ## Tests before a pull request
 
 - PR touching `firmware/`, `card/`, `tools/emulator/` or `tools/test/`: commit, build that commit, run `python3 tools/test/emu_test.py BUILD_DIR --stock STOCK_BIN` (`research/TESTING.md`), paste pass / known / FAIL lines in PR body. Open only on exit 0. `FAIL` blocks.
-- Never add to `KNOWN_FAILURES` to pass. Never `static_check.py --write-hooks` to pass `static:hook-list` or `static:changed-bytes`: review new hook or patch site against start-up rule, name it in PR body. `tools/test/pr_gate.py` hook blocks `gh pr create` until suite passed on HEAD.
+- Never add to `KNOWN_FAILURES` to pass. Never `static_check.py --write-hooks` to pass `static:hook-list` or `static:changed-bytes`: review new hook or patch site for camera harm, name it in PR body. `tools/test/pr_gate.py` hook blocks `gh pr create` until suite passed on HEAD.
 - Every bug fix and feature adds one deterministic `tools/test/emu_test.py` test in same branch, one behavior, checked via debug log.
   - Bug fix: `emu_test.py BUILD --without OLD_BUILD --only TEST` prints `caught`, full run passes on fixed build. Both in PR body. Remove its `KNOWN_FAILURES` entry.
   - Feature: test new behavior plus untouched behavior. Result in PR body.
