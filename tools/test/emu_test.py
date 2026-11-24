@@ -341,8 +341,8 @@ OPEN_WHEEL = 's1 ok ok down down down down wait'   # v0.41-a2: the fifth row (Hi
 # the next row's, stepped by INFO there; back on the wheel row the label is Sat again.
 OPEN_SPLIT = f'{OPEN_WHEEL} down wait'
 WHEEL_PAGE_LABELS = (f'{OPEN_WHEEL} {LABEL_IS("Sat")} info wait {LABEL_IS("Lum")} info wait {LABEL_IS("Hue")} '
-                     f'info wait {LABEL_IS("Sat")} down wait {LABEL_IS("Tint")} info wait {LABEL_IS("Tint")} '
-                     f'up wait {LABEL_IS("Sat")} poweroff')
+                     f'info wait {LABEL_IS("Sat")} down wait {LABEL_IS("Tint")} info wait {LABEL_IS("blank")} '   # v0.41-a2: Balance, no "Tint"
+                     f'info wait {LABEL_IS("Tint")} up wait {LABEL_IS("Sat")} poweroff')
 # On Saturation, GDESC (a single color) reads "Saturation [INFO]" (wheel-hsl-view: the H / S / L bar in its place) and
 # SDESC (ALL, 175 wide while ours) "Sat. All [INFO]", whether the dial or INFO turned ALL on. Off Saturation, SDESC is
 # the camera's again.
@@ -545,7 +545,7 @@ OPEN_MIX = 's1 wait wait ok wait ok wait down wait'
 PANEL_MODE = 2191
 PANEL_STEP_WRITE = lambda dial: (f'{dial}+1 wait fhash:a mids:{{manager}} {dial}+1 wait expect:mids:{PANEL_MODE} '
                                  f'fhash:b expect:fdiff:a:b {dial}-1 wait fhash:c expect:fsame:a:c')
-MIX_STEP_WRITES_MODE = (f'{OPEN_MIX} {PANEL_STEP_WRITE("main")} {PANEL_STEP_WRITE("sub")} down wait '
+MIX_STEP_WRITES_MODE = (f'{OPEN_MIX} {PANEL_STEP_WRITE("main")} {PANEL_STEP_WRITE("sub")} down wait down wait '   # v0.41-a2: Highlight & Shadow between them
                         f'{PANEL_STEP_WRITE("main")} poweroff')
 VIVID_SIZE = 1660                 # the camera's own dial label picture
 WHEEL_RESET_LABEL = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} menu wait menu wait s1 wait wait '
@@ -778,8 +778,8 @@ BAR_DIAL = lambda moves, off, two, three, one: (
 GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
 HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
 # p4: Tone Balance has no row of its own: on the Split toning row's Balance step the rear dial steps it as Contrast
-# (+1 up), and the front dial does nothing there (w8).
-BALANCE_DIAL = (f'{CONTRAST_CLICKS} up wait up wait up wait info wait main+1 wait expect:p:65=01 main+1 wait expect:p:65=02 '
+# (+1 up), and the front dial does nothing there (w8). v0.41-a2: Contrast -> WB -> Split toning, two rows up.
+BALANCE_DIAL = (f'{CONTRAST_CLICKS} up wait up wait info wait main+1 wait expect:p:65=01 main+1 wait expect:p:65=02 '
                 f'sub+1 wait sub+1 wait expect:p:65=02 main-1 wait expect:p:65=01 menu wait wait s1 wait wait poweroff')
 GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'

@@ -10701,3 +10701,29 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
   from p4).
 - `static:changed-bytes` still lists the Picture Mode pages' patch sites (p1's, w8's): `tools/test/hooks.json` is not
   updated yet (it waits for a review of each site and the owner's OK).
+
+## v0.41-a2: INFO hint over the H / S / L bar, no Color / Tint on Balance, Highlight & Shadow before RGB curves (2026-11-23; emulator only)
+- **Asked:** Fanatic's feedback on Discord, owner: "lets make these happen". Branch `try/v0.41-alpha-2` on v0.41-alpha.
+- **Balance step without the camera's right-hand labels (done, emulator):** WH_UPD (0x611d1308) fills a 14-byte record
+  at screen + 4756 on each update (om-emu write watch): +0 colour code (0x611c776b), +2 halfword value kind (mode 1:
+  130; 0x610fc42c fills +4 / +6), +8 1 with all colours, +9 / +10 the Reset guide, +11 1 = the front-dial group
+  (mark, "Color", swatch; 0 when the cursor is "all colours", 255), +12 / +13 2 or 1 / 0..2. Zeroing each byte on
+  the Balance step after WH_UPD (sp_case, before WH_END publishes; builds x0..x17): +11 = 0 hides mark, "Color" and
+  swatch; +2 = 0 the value text ("±0"; +4 = 0 only its digits); +9 = 0 turns the Reset guide into an empty frame, +10
+  = 0 drops its frame; 0, 1, 3, 5..8, 12..17 change nothing seen. Nothing hides the rear-dial mark: it stays. The word
+  "Tint" is ours (VDESC, xb_vl): on page 6 with st_bal xb_vl gives XL_BLANK, a blank 70 x 30 label appended to wl_tab
+  (+228 B in .ext13). The bar still redraws on the dial (the readout path that calls st_rd still runs with +2 = 0).
+- **INFO hint (done, emulator):** "H/S/L [INFO]" (mkhbar.hint_rows: the bar's letter style, cap 13, then a white INFO
+  key 21 rows tall) in 24 rows over the bar (mkhbar.PAD = 24, PH 88). Its rows are full-width parts of the shared pool
+  (hb_hint); hb_join reads them before the bar. The picture widget's static place 0x61451e50 is 400 x 88 at y 490
+  (w2 showed a 400 x 200 one there on the camera); the frame 0x61451e40 stays 400 x 64. The Split toning bar has 24
+  clear rows there (st_join's HB_PAD path), so both bars sit where they were. The camera's own 175 x 50 guide, centred,
+  is 12 px higher (seen only without the films). HB_BUF 8 -> 10 KB (worst cases 9,100 / 8,228 B).
+- **List order (done, emulator):** pm_list 111, MX_IT, 5398, RG_IT, 5397, ST_IT, AB_IT, 8, 7, NR_IT, ... Split
+  toning starts page 2. Tests that walk the list moved with it (Highlight & Shadow 7th -> 3rd; RGB curves, the wheel,
+  Split toning and WB one down); WB's next row is Contrast, which has the bar's scene as Highlight & Shadow did, so
+  the grid-and-back tests keep their meaning.
+- **Tests (new):** `split-tone-balance-hides-color-and-tint`, `color-wheel-bar-has-an-info-hint`,
+  `picture-mode-highlight-shadow-before-rgb-curves`; each `caught` on v0.41-alpha (`--without`).
+- **Package:** `test-builds/2026-11-23-v0.41-a2` (VERSION "v0.41-a2 (test: INFO hint, Balance labels, H&S order)").
+  Not camera-tested: whether the hint clears the camera's wheel, and the labels' switches on the camera.
