@@ -16,6 +16,7 @@ import { previewToneLut } from './tone';
 import { satAllValue, shiftSat } from './wheel';
 import { STORE_SAVED, putSaved, readSaved, savedCopy, savedIndex, writeSaved } from './saved';
 import { JobQueue, MAX_OWN, TILE_PX, fitSize, takeFiles } from './photos';
+import { KEEP_PX, PhotoShelf, idbPhotoKV } from './photostore';
 import { isRecipe, lookFromRecipe } from './recipe';
 import {
   BANK_SCHEMA, PHOTO_RE, COLORS, OM3, OM3_NAME_MAX, PER, lookFromPhotoCode, om3NameProblem, blankProfile, defaultBank, emptyBank, fromOldLookLab, parseBank, profilesBin, readProfiles,
@@ -1029,8 +1030,12 @@ function refreshProblems() {
 let srcData: ImageData | null = null;
 /** One of your own photos (owner 2026-11-21: several at once): the file, read again when you pick it so only the picked
  *  one is kept large, a small copy for the grid, and its grid picture. Nothing leaves the browser. */
-interface OwnPhoto { id: string; name: string; file: File; small: ImageData; big: ImageData | null; tile: HTMLCanvasElement }
+interface OwnPhoto { id: string; name: string; file: Blob; small: ImageData; big: ImageData | null; tile: HTMLCanvasElement; key?: string }
 const own: OwnPhoto[] = [];
+/** Your photos kept for your next visit (owner 2026-11-23): a preview-size copy of each in this browser's storage. */
+const shelf = (() => { try { return typeof indexedDB === 'undefined' ? null : new PhotoShelf(idbPhotoKV()); } catch { return null; } })();
+let keepWarned = false;
+const keepFailed = () => { if (!keepWarned) { keepWarned = true; toast('This browser would not keep your photos: they are here until you close the page', 'err'); } };
 let ownSeq = 0;
 const tileJobs = new JobQueue();
 let canvas: HTMLCanvasElement;
@@ -1081,9 +1086,10 @@ function buildPreview() {
       h('span', { class: 'help' }, 'Includes Contrast, Sharp, Shading, Film Grain, Border, Glow, Halation and the lens corners.'),
       h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Add your own photos…')),
     aspectHelp.box,
-    h('p', { class: 'help' }, 'Drag the line on the photo to compare before and after. Shading, grain, border, glow and the lens corners follow the camera\'s own maths, checked against photos from an OM-3; colours are close but not exact (strong blues and purples differ most), so check a new look on the camera. Your own photos never leave this browser.'));
+    h('p', { class: 'help' }, 'Drag the line on the photo to compare before and after. Shading, grain, border, glow and the lens corners follow the camera\'s own maths, checked against photos from an OM-3; colours are close but not exact (strong blues and purples differ most), so check a new look on the camera. Your own photos never leave this browser: it keeps a copy of each for your next visit, until you remove it.'));
   renderOwn();
   pickImage(S.image);
+  loadKept();
 }
 
 async function pickImage(id: string) {
@@ -1127,14 +1133,42 @@ function toImageData(img: CanvasImageSource, w: number, h0: number, max = previe
 
 /** Reads one of your photos (turned upright from its EXIF) into the copies asked for: `big` for the preview, `small`
  *  for the grid. */
-async function readPhoto(f: File, want: { big: boolean; small: boolean }): Promise<{ big: ImageData | null; small: ImageData | null }> {
+async function readPhoto(f: Blob, want: { big: boolean; small: boolean; keep?: boolean }): Promise<{ big: ImageData | null; small: ImageData | null; keep: Blob | null }> {
   const bmp = await createImageBitmap(f, { imageOrientation: 'from-image' } as ImageBitmapOptions);
   try {
     return {
       big: want.big ? toImageData(bmp, bmp.width, bmp.height) : null,
       small: want.small ? toImageData(bmp, bmp.width, bmp.height, TILE_PX, true) : null,
+      keep: want.keep ? await keepCopy(bmp) : null,
     };
   } finally { bmp.close(); }
+}
+
+/** The copy kept for your next visit: upright, at most KEEP_PX on its long side, as a JPEG. */
+async function keepCopy(bmp: ImageBitmap): Promise<Blob | null> {
+  const { w, h: hh } = fitSize(bmp.width, bmp.height, KEEP_PX);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = hh;
+  const ctx = c.getContext('2d')!;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, 0, 0, w, hh);
+  return new Promise((ok) => c.toBlob((b) => ok(b), 'image/jpeg', 0.92));
+}
+
+/** At start: your photos from your last visit, back in the grid (the big preview stays on the sample). */
+async function loadKept() {
+  if (!shelf) return;
+  let kept;
+  try { kept = await shelf.list(); } catch { return; }
+  for (const k of kept) {
+    if (own.length >= MAX_OWN) break;
+    try {
+      const { small } = await readPhoto(k.blob, { big: false, small: true });
+      const p: OwnPhoto = { id: `own${++ownSeq}`, name: k.name, file: k.blob, small: small!, big: null, tile: h('canvas', { class: 'own-cv' }), key: k.key };
+      drawTile(p); own.push(p);
+    } catch { shelf.remove(k.key).catch(() => {}); }   // a copy this browser can no longer read
+  }
+  if (own.length) renderOwn();
 }
 
 /** Adds the photos you picked (up to MAX_OWN in all) to the grid, and shows the first of them large. */
@@ -1147,11 +1181,14 @@ async function onPhoto(e: Event) {
   let bad = notImages, shown = false;
   for (const f of take) {
     try {
-      const { big, small } = await readPhoto(f, { big: !shown, small: true });   // the others are read large when picked
-      const p: OwnPhoto = { id: `own${++ownSeq}`, name: f.name || 'Photo', file: f, small: small!, big, tile: h('canvas', { class: 'own-cv' }) };
+      const { big, small, keep } = await readPhoto(f, { big: !shown, small: true, keep: !!shelf });   // the others are read large when picked
+      const p: OwnPhoto = { id: `own${++ownSeq}`, name: f.name || 'Photo', file: keep ?? f, small: small!, big, tile: h('canvas', { class: 'own-cv' }) };
       drawTile(p);
       own.push(p); renderOwn();
       if (!shown) { shown = true; pickImage(p.id); }
+      if (shelf && keep) {
+        try { p.key = await shelf.add(p.name, keep); if (!own.includes(p)) await shelf.remove(p.key); } catch { keepFailed(); }
+      }
     } catch { bad++; }
   }
   const msg = [overMax ? `Up to ${MAX_OWN} photos at once: ${overMax} not added.` : '', bad ? `${bad} file${bad > 1 ? 's' : ''} could not be read as a photo.` : ''].filter(Boolean).join(' ');
@@ -1168,7 +1205,7 @@ function renderOwn() {
   box.replaceChildren(
     h('div', { class: 'own-head' },
       h('b', {}, `Your photos (${own.length} of ${MAX_OWN})`),
-      h('span', { class: 'help' }, 'Click one to see it large.'),
+      h('span', { class: 'help' }, 'Click one to see it large. Kept in this browser for next time.'),
       own.length < MAX_OWN ? h('button', { class: 'link', onclick: () => $<HTMLInputElement>('#photo').click() }, 'Add…') : null,
       h('button', { class: 'link', onclick: removeAllOwn }, 'Remove all')),
     h('div', { class: 'own-grid' }, ...own.map((p) => h('div', { class: `own-tile${S.image === p.id ? ' on' : ''}`, 'data-id': p.id },
@@ -1187,7 +1224,8 @@ function showBig() {
 function removeOwn(id: string) {
   const i = own.findIndex((p) => p.id === id);
   if (i < 0) return;
-  own.splice(i, 1);
+  const [gone] = own.splice(i, 1);
+  if (gone.key) shelf?.remove(gone.key).catch(() => {});
   renderOwn();
   if (S.image === id) pickImage(own[Math.min(i, own.length - 1)]?.id ?? samples()[0].id);
 }
@@ -1195,6 +1233,7 @@ function removeOwn(id: string) {
 function removeAllOwn() {
   const showing = own.some((p) => p.id === S.image);
   own.length = 0; tileJobs.cancel(); renderOwn();
+  shelf?.clear().catch(() => {});
   if (showing) pickImage(samples()[0].id);
 }
 
