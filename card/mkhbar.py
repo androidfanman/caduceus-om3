@@ -40,8 +40,10 @@ MID2 = H - 1                          # twice the middle row line (31.5): every 
 HUE = [60, 35, 15, 355, 320, 280, 235, 205, 180, 155, 120, 85]   # docs/PHOTO_TO_LOOK.md, slices 0..11
 DEG = 5.5                             # degrees of hue a step; + turns toward the next slice (lower HSV hue)
 FIELD_OF_AXIS = {2: 0, 0: 1, 1: 2}    # the editor's page (P+AXIS: 2 Hue, 0 Saturation, 1 Luminance) -> its field
-PAD = 0                               # clear rows (palette entry 0) over the bar: w2 / w3 had 136 (a 400 x 200 place);
-PH = H + PAD                          # w4: none, the place is 400 x 64 again (stwheel.s moves it for its panel)
+PAD = 24                              # rows over the bar (w2 / w3 had 136 clear ones, w4..v0.41-alpha none): v0.41-a2
+PH = H + PAD                          # (Fanatic on Discord, owner: "lets make these happen") the INFO hint (hint_rows);
+                                      # the Split toning bar leaves them clear (entry 0), so both bars stay where they were
+HINT = 'H / S / L'                    # the hint: INFO steps the page H -> S -> L (sp_inf, hb_next)
 GHDR = bytes([(PH - 1) & 255, ((PH - 1) >> 8 & 3) | (((W - 1) & 15) << 4), ((W - 1) >> 4) & 63, 11])
 GREY, BLACK, WHITE = 64, 7, 10        # palette 62: 0xff808080, 0xff000000, 0xfffefefe
 SLOT0, NSLOT = 108, 13                # palette 62's unused entries 108..120 (stock 0x01010101)
@@ -207,11 +209,57 @@ def clamp(v):
     return max(-5, min(5, v))
 
 
+def hint_rows():
+    """PAD x W, over the bar: the INFO hint, as the camera's own guides ("word [INFO]") in small: HINT in the bar's
+    letters (white, the camera's outline), then an INFO key (white, dark letters, a dark line), centred over the three
+    fields (x 40..399), on clear ground (entry 0)."""
+    from scipy import ndimage
+    out = np.zeros((PAD, W), dtype=np.uint8)
+    fs = _fit(13)
+    base = np.nonzero((raster('H', fs, 0.85) > 128).any(axis=1))[0].max()
+    parts = []
+    for ch in HINT.replace(' ', ''):              # letter by letter, 5 px apart
+        c = raster(ch, fs, 0.85)[base - 12 - 2:base + 3]   # cap rows 13, 2 above, 2 below
+        cc = np.nonzero((c > 40).any(axis=0))[0]
+        parts += [c[:, cc.min():cc.max() + 1], np.zeros((c.shape[0], 5), dtype=int)]
+    a = np.hstack(parts[:-1])
+    kf = _fit(11)
+    k = raster('INFO', kf, 0.95)
+    kb = np.nonzero((raster('H', kf, 0.95) > 128).any(axis=1))[0].max()
+    k = k[kb - 10 - 1:kb + 2]
+    kc = np.nonzero((k > 40).any(axis=0))[0]; k = k[:, kc.min():kc.max() + 1]
+    KW, KH = k.shape[1] + 12, 21                  # the key: 6 px either side of the word, 21 rows
+    GAP = 8
+    tw = a.shape[1] + GAP + KW + 2
+    x0 = 40 + (W - 40 - tw) // 2
+    y0 = (PAD - 1 - KH) // 2 + 1                  # the key's rows y0..y0 + KH - 1, the words' cap on its middle
+    fill = np.zeros((PAD, W), dtype=bool); soft = np.zeros((PAD, W), dtype=bool)
+    ty = y0 + (KH - a.shape[0]) // 2
+    fill[ty:ty + a.shape[0], x0:x0 + a.shape[1]] = a > 128
+    soft[ty:ty + a.shape[0], x0:x0 + a.shape[1]] = (a > 40) & (a <= 128)
+    e = edge(fill, soft & ~fill)
+    out[e != 0] = e[e != 0]
+    kx = x0 + a.shape[1] + GAP + 1
+    S = 4
+    im = Image.new('L', (KW * S, KH * S), 0)
+    ImageDraw.Draw(im).rounded_rectangle((0, 0, KW * S - 1, KH * S - 1), radius=3 * S, fill=255)
+    full = np.zeros((PAD, W), dtype=bool)
+    full[y0:y0 + KH, kx:kx + KW] = np.array(im.resize((KW, KH), Image.LANCZOS)) > 128
+    d = ndimage.distance_transform_edt(~full)
+    out[(d > 0) & (d <= 1.0)] = 9
+    out[full] = BLACK; out[ndimage.binary_erosion(full)] = WHITE
+    ky = y0 + (KH - k.shape[0]) // 2; kxx = kx + (KW - k.shape[1]) // 2
+    reg = out[ky:ky + k.shape[0], kxx:kxx + k.shape[1]]
+    reg[k > 110] = BLACK
+    reg[(k > 40) & (k <= 110) & (reg == WHITE)] = 11
+    return out
+
+
 def stream(c, h, s, l, axis, P=None):
     """The firmware's picture for slice c (0..11) with values h, s, l on page axis."""
     P = P or pieces()
     h, s, l = clamp(h), clamp(s), clamp(l)
-    toks = row_tokens(np.zeros(W, dtype=np.uint8)) * PAD
+    toks = [t for r in hint_rows() for t in row_tokens(r)]
     for y in range(H):
         for p in row_parts(c, h, s, l, axis, y, P): toks += row_tokens(p)
     return pack(toks)
@@ -253,7 +301,7 @@ def inc(P=None):
         for f in range(3):
             n += max(L(P['text'][f][a][v][y]) for a in (0, 1) for v in range(11))
             n += gmax[1 + f] if SLF0 <= y <= SLF1 else max(L(P['mark'][v][y]) for v in range(11))
-    worst = len(pack([0] * (n + PAD * len(row_tokens(np.zeros(W, dtype=np.uint8))))))
+    worst = len(pack([0] * (n + sum(len(row_tokens(r)) for r in hint_rows()))))
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
     return (f'.set HB_WORST, {worst}\n.set HB_HDR, {int.from_bytes(GHDR, "little"):#x}\n.set HB_H, {H}\n.set HB_PH, {PH}\n.set HB_PAD, {PAD}\n'
             f'.set HB_SLOT0, {SLOT0}\n.set HB_NSLOT, {NSLOT}\n.set HB_PALT, {PAL_TABLE + 4 * SLOT0:#x}\n'

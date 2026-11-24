@@ -426,7 +426,7 @@ st_spal:
  * st_gid (4 u16), (12..23) the 3 fields' text tables, (24..35) their slider tables, (40) the buffer, (44) the field. */
 st_join:
  mov a1,(40,sp)
- mov HB_HDR,d0                    /* 400 x 64, type 11 */
+ mov HB_HDR,d0                    /* 400 x 88 (64 + HB_PAD), type 11 */
  mov d0,(a1)
  mov st_gid,d0                    /* the colour rows (the colour itself is in palette entries 108..120) */
  mov d0,(8,sp)
@@ -463,7 +463,8 @@ st_join:
  clr d3
  mov 0,a2
  .if HB_PAD
- mov HB_PAD * 25,d1               /* clear rows over the bar (25 runs of 16 a row, entry 0): w2 / w3 */
+ mov HB_PAD * 25,d1               /* clear rows over the bar (25 runs of 16 a row, entry 0): w2 / w3; v0.41-a2: where */
+                                  /* the H / S / L bar has its INFO hint, so this bar stays where it was */
 5:
  mov 15,d0
  HB_PUT

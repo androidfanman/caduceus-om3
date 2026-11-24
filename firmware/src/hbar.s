@@ -29,8 +29,9 @@
  .include "bars.inc"              /* HB_*, BAR_*, hb_gid, hb_swr, hb_mk, hb_tx, hb_pal, the Split toning bar's st_*,
                                    * bar_cmap, bar_pool (card/mkbars.py: both bars' rows in one pool) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
-.set HB_BUF, 8192                 /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
-                                   * toning bar, stwheel.s) */
+.set HB_BUF, 10240                /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
+                                   * toning bar, stwheel.s). v0.41-a2: 8 -> 10 KB for the INFO hint's rows (w2..w4 had
+                                   * two 16 KB buffers on the camera) */
 .set HB_F, 48                     /* hb_rd's frame */
  .balign 4
 bar_left:                         /* bar_row: the part's pixels left */
@@ -426,7 +427,7 @@ bar_row:
  * hb_gid (4 u16), (12..23) the 3 fields' text tables, (24..35) their slider tables, (40) the buffer, (44) the field. */
 hb_join:
  mov a1,(40,sp)
- mov HB_HDR,d0                    /* 400 x 64, type 11 */
+ mov HB_HDR,d0                    /* 400 x 88 (the hint's 24 rows + the bar's 64), type 11 */
  mov d0,(a1)
  mov hb_gid,d0                    /* the colour rows (the colour itself is in palette entries 108..120) */
  mov d0,(8,sp)
@@ -464,14 +465,20 @@ hb_join:
  clr d2
  clr d3
  mov 0,a2
- .if HB_PAD
- mov HB_PAD * 25,d1               /* clear rows over the bar (25 runs of 16 a row, entry 0): w2 / w3 */
+ clr d0                           /* v0.41-a2 (Fanatic, owner: "lets make these happen"): over the bar, HB_PAD rows of */
+ mov d0,(4,sp)                    /* the INFO hint ("H/S/L [INFO]", mkhbar.hint_rows), each one row of the pool */
 5:
- mov 15,d0
- HB_PUT
- add -1,d1
+ add d0,d0
+ add hb_hint,d0
+ mov d0,a0
+ movhu (a0),d0
+ mov HB_W,d1
+ call bar_row,[],0
+ mov (4,sp),d0
+ inc d0
+ mov d0,(4,sp)
+ cmp HB_PAD,d0
  bne 5b
- .endif
  clr d0
  mov d0,(4,sp)
 10:                               /* a row: the swatch column */

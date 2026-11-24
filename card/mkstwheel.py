@@ -19,6 +19,7 @@ light highlight tints.
 
 usage: mkstwheel.py OUT.inc [--preview PNG]"""
 import argparse
+import mkhbar
 import numpy as np
 from PIL import Image, ImageDraw
 from mkguides import raster, edge
@@ -130,7 +131,7 @@ def render(sc, ss, hc, hs, b, mode, P=None):
 
 def stream(sc, ss, hc, hs, b, mode, P=None):
     P = P or pieces()
-    toks = []
+    toks = row_tokens(np.zeros(W, dtype=np.uint8)) * mkhbar.PAD   # v0.41-a2: clear rows where the H / S / L bar has its hint
     for y in range(H):
         for p in row_parts(ss, hs, b, mode, y, P): toks += row_tokens(p)
     return pack(toks)
@@ -162,7 +163,7 @@ def inc(P=None):
         for f in range(3):
             n += max(L(P['text'][f][a][v][y]) for a in (0, 1) for v in range(11))
             n += gmax[1 + f] if SLF0 <= y <= SLF1 else max(L(P['mark'][v][y]) for v in range(11))
-    worst = len(pack([0] * n))
+    worst = len(pack([0] * (n + 25 * mkhbar.PAD)))
     argb_ = lambda c: [0xff000000 | r << 16 | g << 8 | b for r, g, b in role(c)]
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
     return (f'.set ST_WORST, {worst}\n.set ST_NONE, {NONE}\n'
@@ -190,7 +191,7 @@ if __name__ == '__main__':
     a = ap.parse_args()
     P = pieces()
     s = inc(P)
-    assert int(s.split('.set ST_WORST, ')[1].split()[0]) < 8192
+    assert int(s.split('.set ST_WORST, ')[1].split()[0]) < 10240
     open(a.out, 'w').write(s)
     if a.preview:
         preview([(6, 6, 1, 4, -2, 0), (6, 6, 1, 4, -2, 2), (6, 6, 1, 4, -2, 1), (0, 0, 0, 10, 5, 1)], a.preview)

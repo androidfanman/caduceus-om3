@@ -51,6 +51,7 @@ def inc():
     mk = [tid(PH['mark'][v][y]) for v in range(11) for y in range(H)]
     hgid = [tid(sw_fill(Hb.SW)), tid(sl_fill(Hb.GH)), tid(sl_fill(Hb.GS)), tid(sl_fill(Hb.GL))]
     sgid = [tid(sw_fill(St.SWC))] + [tid(sl_fill(g)) for g in St.GRAD]
+    hint = [tid(r) for r in Hb.hint_rows()]       # v0.41-a2: the H / S / L bar's INFO hint, HB_PAD rows of HB_W
     htx = [tid(PH['text'][f][a][v][y]) for f in range(3) for a in (0, 1) for v in range(11) for y in range(lo, hi + 1)]
     stx = [tid(PS['text'][f][a][v][y]) for f in range(3) for a in (0, 1) for v in range(11) for y in range(lo, hi + 1)]
     assert len(toks) < 65536
@@ -75,6 +76,7 @@ def inc():
     assert read(swr[0], SWW) == row_tokens(PH['swatch'][0]) and read(htx[7], TW) == list(toks[htx[7]:htx[7] + len(read(htx[7], TW))])
     for y in range(lo, hi + 1):
         assert read(stx[(2 * 22 + 11 + 10) * (hi - lo + 1) + y - lo], TW) == row_tokens(PS['text'][2][1][10][y])
+    assert all(read(hint[y], Hb.W) == row_tokens(r) for y, r in enumerate(Hb.hint_rows()))
     hworst = int(Hb.inc(PH).split('.set HB_WORST, ')[1].split()[0])
     sworst = int(St.inc(PS).split('.set ST_WORST, ')[1].split()[0])
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
@@ -85,7 +87,7 @@ def inc():
             f'.set HB_SWF0, {Hb.SWF0}\n.set HB_SWF1, {Hb.SWF1}\n.set HB_SLF0, {Hb.SLF0}\n.set HB_SLF1, {Hb.SLF1}\n'
             f'.set BAR_SWW, {SWW}\n.set BAR_TW, {TW}\n.set BAR_SLW, {SLW}\n'
             f'.set BAR_TX0, {lo}\n.set BAR_TXN, {hi - lo + 1}\n.set BAR_TXB, {txb}\n'
-            '.balign 2\nhb_gid:\n' + hw(hgid) + 'st_gid:\n' + hw(sgid) + 'hb_swr:\n' + hw(swr) + 'hb_mk:\n' + hw(mk) +
+            '.balign 2\nhb_gid:\n' + hw(hgid) + 'hb_hint:\n' + hw(hint) + 'st_gid:\n' + hw(sgid) + 'hb_swr:\n' + hw(swr) + 'hb_mk:\n' + hw(mk) +
             'hb_tx:\n' + hw(htx) + 'st_tx:\n' + hw(stx) +
             'hb_pal:\n' + ''.join(' .byte ' + ','.join(f'{x & 255},{x >> 8 & 255},{x >> 16 & 255}' for x in Hb.argb(c, h)) + '\n'
                                   for c in range(12) for h in range(-5, 6)) +

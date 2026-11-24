@@ -55,6 +55,10 @@ sp_case:
  beq 1f                           /* published at WH_END): its word +268 = 1 asks the display for the colour wheel */
  mov (8,sp),a0                    /* (0x61135744 -> kind 6); 0, as on a row without one, and the camera's display */
  mov d0,(268,a0)                  /* update draws none (0x60b1ced8 with d0 = 1; camera-tested for the whole row in w3) */
+ mov a3,a0                        /* v0.41-a2 (owner: "lets make these happen", Fanatic on Discord): on Balance the */
+ add 4756,a0                      /* camera's "Color" and "Tint" values go too. Its wheel record (screen + 4756, */
+ movbu d0,(11,a0)                 /* written by WH_UPD): +11 = 0 no front-dial group (mark, "Color", swatch), as the */
+ movhu d0,(2,a0)                  /* camera's own "all colours" state; +2 = 0 no value text. (The word "Tint": xb_vl.) */
 1:
  jmp WH_END
 sp_whl:

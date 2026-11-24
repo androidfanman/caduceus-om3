@@ -136,8 +136,11 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
         # in them, so they sit left of (and 7 px above) where they were (research/NOTES.md).
         # (split-tone panel w2 / w3 made the picture's 400 x 200; w4: as h3 again. The widgets copy these when Picture
         # Mode opens; stwheel.s st_place moves the picture widget's own copy while its panel shows.)
-        **{a: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64))
-           for a in (0x61451e40, 0x61451e50)}}
+        # v0.41-a2 (Fanatic on Discord, owner: "lets make these happen"): the picture's 400 x 88 at y 490, the bar's
+        # bottom edge where it was and the INFO hint's 24 rows (mkhbar.PAD) over it, as w2 / w3's taller picture (the
+        # frame stays 400 x 64, as then; camera-shown in w2). The camera's own 175 x 50 guides, centred, sit 12 px higher.
+        0x61451e40: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64)),
+        0x61451e50: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 490, 400, 88, 157, 490, 400, 88))}
 # wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
 # {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
 KEYW = {}   # picture-mode p3: Delete is the camera's again on the colour wheel (h2..p2: 0x61322f1c / 2c hb_kdel /
@@ -264,6 +267,7 @@ def build(defaults, testfile, out):
     import mklabels                              # #64: the wheel pages' dial labels, encoded here, not on the camera
     w0 = mklabels.LABELS.index('Sat')
     wls = [mklabels.encode11(bytes(mklabels.render(mklabels.bitmap(t)).flatten()), 70, 30) for t in mklabels.LABELS[w0:]]
+    wls.append(mklabels.encode11(bytes(70 * 30), 70, 30))   # v0.41-a2: XL_BLANK, the Balance step's empty label (xb_vl)
     wl, at = bytearray(), 8 * len(wls)           # wl_tab: u32 offset (from wl_tab), u32 size per label, then the streams
     for s in wls:
         wl += struct.pack('<II', at, len(s)); at += (len(s) + 3) & ~3
@@ -272,10 +276,12 @@ def build(defaults, testfile, out):
     (out / 'wheel.inc').write_text('.balign 4\nwl_tab:\n' + db(bytes(wl)) + ' .balign 4\nfl_sagd:\n' + db(sagd) + ' .balign 4\n')
     import mkbars                                 # the H / S / L bar and the Split toning bar: one pool (hbar.s, stwheel.s)
     bars = mkbars.inc()
-    assert int(bars.split('.set HB_WORST, ')[1].split()[0]) < 8192   # hbar.s HB_BUF (the two bars share its buffers)
-    assert int(bars.split('.set ST_WORST, ')[1].split()[0]) < 8192
+    assert mkbars.Hb.PH == 88 and mkbars.Hb.PAD == 24   # the picture widget's 400 x 88 at y 490 (DATA, 0x61451e50)
+    assert int(bars.split('.set HB_WORST, ')[1].split()[0]) < 10240  # hbar.s HB_BUF (the two bars share its buffers)
+    assert int(bars.split('.set ST_WORST, ')[1].split()[0]) < 10240
     (out / 'bars.inc').write_text(bars)
     (out / 'wheeldef.inc').write_text(f'.set XL_N, {len(mklabels.LABELS)}\n.set WLL, {len(wl)}\n.set XL_W0, {w0}\n.set SAS, {len(sagd)}\n'
+                                      + f'.set XL_BLANK, {w0 + len(wls) - 1}\n'
                                       + ''.join(f'.set XL_{t.upper()}, {mklabels.LABELS.index(t)}\n' for t in ('Sat', 'Lum', 'Hue', 'Tint')))
     fwp, fwi, boxes, dw = mkicons.sp_parts()     # the quick menu's "FILM n" (fl_sp draws it)
     assert fwp.shape[0] == mkicons.SPH == 48 and boxes[0].shape[1] % 2 == 0
@@ -1018,7 +1024,7 @@ def build(defaults, testfile, out):
 def make_xblock(out, sy, xtag):
     """Assemble the code block, link it at two bases, find the 32-bit fields that move (+delta absolute, -delta
     PC-relative to the firmware), check that relocating the first link gives the second, and pack the block."""
-    ext = dict(getter=0x60063380, facade=0x60b8696a, fopen=sy['fopen'], fread=sy['fread'], fclose=sy['fclose'], malloc=0x60024068, sd_crc=sy['sd_crc'], gd_mode=sy['gd_mode'], VDESC=0xa4cf688c, VSTOCK_P=0xa4cf6210, VSTOCK_S=1660, AXIS=684, EDK=687, WL_BLK=sy['wl_blk'], fx_tail=sy['fx_tail'], fx_back=sy['fx_back'], lv_skip=sy['lv_skip'], c11_ret=0x60504edb,
+    ext = dict(getter=0x60063380, facade=0x60b8696a, fopen=sy['fopen'], fread=sy['fread'], fclose=sy['fclose'], malloc=0x60024068, sd_crc=sy['sd_crc'], gd_mode=sy['gd_mode'], VDESC=0xa4cf688c, VSTOCK_P=0xa4cf6210, VSTOCK_S=1660, AXIS=684, EDK=687, WL_BLK=sy['wl_blk'], ST_BAL=sy['st_bal'], fx_tail=sy['fx_tail'], fx_back=sy['fx_back'], lv_skip=sy['lv_skip'], c11_ret=0x60504edb,
                STATE=sy['STATE'], HMAX=sy['HMAX'], POOL=sy['POOL'], MAGIC=sy['MAGIC'], BUFIDX=0x604afdf9, SF_ENT=0x604be2aa, LOCK=0x60075f73, UNLOCK=0x60075fbc, WINMAP=0x60071018, FLUSH=0x60070e69, free=0x6002409a,
                SEL=0x6052cf39, fwrite=0x608d4da9, PF_CAPTO=sy['pf_capto'], PF_CAP=sy['pf_cap'], E_LK=sy['e_lk'], E_RET=sy['e_ret'], E_RST=sy['e_rst'], REFRESH=0x611b20ea, XT_TAB=sy['xt_tab'], EMARK=680, EMAGIC=0x45334d4f,
                FL_HAS=sy['fl_has'], FACADE=0x60b8696a, AGET=0x603f039d, TXGET=0x604cd921, TXATT=0x604bc0cf, TXPF=0x604b77fb, TWO=sy['TWO'], TW_LEN=sy['TW_LEN'], FV0=sy['FV0'],

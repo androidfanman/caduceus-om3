@@ -2634,8 +2634,9 @@ pm_list:                          /* item ids, in the order the owner reads them
                                    * (A-B, G-M), detail (Sharpness, Noise Filter = NR), lens (Vignette Correction =
                                    * VigFix, Shading), finish (Film Grain Effect = Grain) */
  /* p4 (owner, 2026-11-23: "We can also now remove the tone balance row as well"): no Tone Balance row (TB_IT); Tone
-  * Balance (slot +33) is the Split toning row's Balance step */
- .long 111, MX_IT, RG_IT, 5397, ST_IT, AB_IT, 5398, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
+  * Balance (slot +33) is the Split toning row's Balance step. v0.41-a2 (Fanatic on Discord, owner: "lets make these
+  * happen"): Highlight & Shadow (5398, the five-point curve) right before RGB curves; Split toning starts page 2 */
+ .long 111, MX_IT, 5398, RG_IT, 5397, ST_IT, AB_IT, 8, 7, NR_IT, VF_IT, 5399, GL_IT, HL_IT, RZ_IT, GS_IT, SZ_IT, FR_IT   /* Halation Radius: RZ_IT under Halation (hrrow.s). better grain g2: Film Grain Effect (5400, Off / Low / Med / High) -> our strength slider GS_IT and the Grain Size row SZ_IT. borders: + Border (last).  colour menu (test 7, owner-approved spec): pages of five: the film and its colour in the camera's order (mix, curves, wheel, split tone balance), white balance and tone, detail / lens / light, grain. v0.25: Shading back,
                                     Glow / Clarity and Frame rows; AB_IT = the WB grid (no G-M row) */
 .set PM_N, (. - pm_list) / 4
 

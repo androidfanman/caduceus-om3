@@ -2582,6 +2582,13 @@ xb_vl:
  movbu (a0),d1
  cmp 0xff,d1
  beq 7f
+ cmp 6,d3                         /* v0.41-a2: the Split toning row's Balance step (the Highlights page with st_bal): */
+ bne 6f                           /* a blank label, no "Tint" (with sp_case's: no "Color", no value) */
+ mov ST_BAL,a0
+ movbu (a0),d0
+ cmp 0,d0
+ beq 6f
+ mov XL_BLANK,d1
  bra 6f
 1:
  cmp 10,d2
