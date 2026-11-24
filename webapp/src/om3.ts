@@ -276,6 +276,8 @@ export function lookFromRecord(rec: Uint8Array, name: string, v28 = false, photo
     if (sp) l.split = sp;
     const hal = s(57), bal = s(58);                     // v0.28
     if (hal > 0) l.halation = Math.min(OM3.halation, hal);
+    const rz = photo ? (b[o + 63] >> 2) & 3 : 0;         // v0.40.3: the Halation Radius (photo codes only)
+    if (rz) l.halation_radius = rz;
     if (bal) l.tone_balance = Math.max(-OM3.balance, Math.min(OM3.balance, bal));
     const kv = s(59) + 11 * s(60), mi = s(61) + 11 * s(62);
     if (mi >= 1 && mi < WB_MODES.length) {
@@ -319,7 +321,7 @@ export function photoCodeOf(l: Look): string {
     const v = (rec[at] << 24) >> 24;
     if (v < 0) { rec[at] = ~v & 255; half |= bit; }
   }
-  rec[63] = half;
+  rec[63] = half | ((l.halation_radius ?? 0) & 3) << 2;   // v0.40.3: bits 2..3 the Halation Radius (firmware ex_rz)
   return encodePhotoCode(rec);
 }
 /** The text the camera writes into a photo's UserComment, for sharing: "Caduceus FILM n Name om3.1.<43>". */
