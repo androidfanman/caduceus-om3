@@ -60,6 +60,12 @@ LookLab only; the firmware is unchanged.
   same name again asks before replacing it.
 - **Film sims > User created:** your saved film sims show first in the Film sims list (with their own filter), each
   with a preview, + Add and a delete button. They stay in this browser only; nothing is uploaded.
+- **The editor follows v0.41-alpha's Picture Mode:** the color wheel has Hue / Saturation / Luminance pages with an
+  H / S / L bar for the selected color ("Sat. All" moves all 12 together); Split toning is its own panel (Shadows /
+  Balance / Highlights); Highlight & Shadow is one five-point curve with Blacks and Whites as its ends. The card files
+  are unchanged, so what you export still works on v0.40.3.
+- **Halation Radius** (Bloom / Tight / Medium / Wide) under Halation Effect, with its glow in the preview. It is read
+  from and written to photo codes; no card file carries it, so set it on the camera.
 
 ## v0.40.3
 2026-11-23. v0.40.2 plus everything from the v0.40.3 test versions; camera-tested as v0.40.3-beta4 (the build before
