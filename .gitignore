@@ -15,3 +15,6 @@ __pycache__/
 # web app (build output is published as looklab/)
 webapp/node_modules/
 webapp/dist/
+
+# Personal Claude Code settings (never checked in)
+**/.claude/settings.local.json

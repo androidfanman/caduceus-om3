@@ -1,7 +1,9 @@
 # Deterministic firmware tests
 
 Research, 2026-11-15. Status: analysis, with emulator runs where marked. Nothing here is camera-tested. The suite is
-built: seven emulator tests, the patch audit, and six static build checks, all run by `tools/test/emu_test.py`.
+built: about 130 tests in all (emulator tests, the patch audit, and seven static build checks: release-rebuild,
+hook-list, hook-sections, changed-bytes, loader-end, section-order, comment-swallow), all run by `tools/test/emu_test.py`.
+There are also 21 unit tests (`tools/test/test_pr_gate.py`, `tools/test/test_provenance.py`).
 
 A deterministic regression suite for the firmware is possible and cheap to start. The emulator, om-emu, gave
 byte-identical screenshots, card images, and settings files when one build ran the same script twice. om-emu also
@@ -15,12 +17,16 @@ evidence and the open questions.
 
 ## Running the tests
 
-Build the firmware, then point the runner at the build folder and at om-emu:
+Use the workspace's python (`~/om3-work/venv/bin/python`, or `. ~/om3-work/env.sh` first). The system `python3` has no
+numpy and fails on import. Build the firmware, then point the runner at the build folder and at om-emu:
 
 ```sh
 python3 firmware/build.py --stock $OM3_STOCK --toolchain $OM3_TOOLCHAIN --out $OM3_WORK/out-NAME
 OM3_EMU=$OM3_WORK/om-emu/emu python3 tools/test/emu_test.py $OM3_WORK/out-NAME
 ```
+
+The Makefile wraps both: `make test-emu BUILD_DIR=$OM3_WORK/out-NAME` runs the emulator suite on a build, and
+`make test-unit` runs the unit tests.
 
 The static checks need the stock firmware. The runner takes it from `--stock`, else `$OM3_STOCK`, else
 `$OM3_WORK/stock`. A check that cannot run counts as `FAIL`.
