@@ -10727,3 +10727,7 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
   `picture-mode-highlight-shadow-before-rgb-curves`; each `caught` on v0.41-alpha (`--without`).
 - **Package:** `test-builds/2026-11-23-v0.41-a2` (VERSION "v0.41-a2 (test: INFO hint, Balance labels, H&S order)").
   Not camera-tested: whether the hint clears the camera's wheel, and the labels' switches on the camera.
+- **Suite (b145280, built three times the same: E1479999.BIN 044d1ff8…e502, GUIDES.BIN 5dd5c6b9…ecfb):** 160 pass,
+  0 known, 1 FAIL static:changed-bytes. Its full list (21 runs) differs from v0.41-alpha's only at the picture
+  widget's place 0x61451e50 / 0x61451e58 (its y and height now change too); no new hook (static:hook-list passes).
+  The first run on 38f52c6 failed three list walkers / the Balance label check, fixed in the tests only (b145280).
