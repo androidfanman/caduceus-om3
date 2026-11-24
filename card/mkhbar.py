@@ -44,6 +44,7 @@ PAD = 50                              # rows over the bar (w2 / w3 had 136 clear
 PH = H + PAD                          # the INFO hint (hint_rows), the camera's guide height (v0.41-a3); the Split toning
                                       # bar leaves them clear (entry 0), so both bars stay where they were
 HINT = 'H/S/L'                        # the hint: INFO steps the page H -> S -> L (sp_inf, hb_next)
+KEYW = 66                             # the guide's INFO key part (rgbpics.info_key: the key and its rim)
 GHDR = bytes([(PH - 1) & 255, ((PH - 1) >> 8 & 3) | (((W - 1) & 15) << 4), ((W - 1) >> 4) & 63, 11])
 GREY, BLACK, WHITE = 64, 7, 10        # palette 62: 0xff808080, 0xff000000, 0xfffefefe
 SLOT0, NSLOT = 108, 13                # palette 62's unused entries 108..120 (stock 0x01010101)
@@ -209,27 +210,67 @@ def clamp(v):
     return max(-5, min(5, v))
 
 
-def hint_rows():
-    """PAD x W, over the bar: the INFO hint "H/S/L [INFO]" as the camera's own guides (v0.41-a3, owner on the camera:
-    "the H/S/L text we added to that section is too small. make it look like everything else"): firmware/rgbpics.py's
-    guide5, the H&S row's guides drawn to the camera's "Mid [INFO]" (175 x 50 guide, 60 x 36 white key, "INFO" 26 px
-    tall), centred over the three fields (x 40..399), on clear ground (entry 0)."""
+def guide_word(word):
+    """PAD x (2 + w + 3): word as rgbpics.guide5 draws it (the H&S row's guides, drawn to the camera's "Mid [INFO]";
+    stems a pixel heavier, the camera's outline), at H/S/L's letter size whatever its length (guide5 squeezes past 100
+    px), 2 px before it and the 3 px gap to the key after it."""
+    import os, sys
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'firmware'))
+    import mkguides
+    _, fs, sq = mkguides.fit('H/S/L')
+    a = mkguides.raster(word, fs, sq)
+    base = np.nonzero((mkguides.raster(word[0], fs, sq) > 128).any(axis=1))[0].max()
+    a = np.maximum(a, np.pad(a, ((0, 0), (1, 0)))[:, :-1])
+    fill = a > 128; soft = (a > 40) & ~fill
+    h, w = fill.shape
+    lay = np.zeros((PAD, 2 + w + 3 + KEYW), dtype=np.uint8)
+    for y in range(h):
+        if 0 <= y + 40 - base < PAD:
+            lay[y + 40 - base, 2:2 + w][fill[y]] = 10
+            lay[y + 40 - base, 2:2 + w][soft[y]] = 11
+    return edge(lay == 10, lay == 11)[:, :2 + w + 3]
+
+
+def hint_key():
+    """PAD x KEYW: the guide's INFO key (rgbpics.info_key), the same in every hint."""
     import os, sys
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'firmware'))
     import rgbpics
-    g = rgbpics.guide5(HINT)
-    assert g.shape[0] == PAD
-    out = np.zeros((PAD, W), dtype=np.uint8)
-    x0 = 40 + (W - 40 - g.shape[1]) // 2
-    out[:, x0:x0 + g.shape[1]] = g
-    return out
+    k = rgbpics.info_key()
+    assert k.shape == (PAD, KEYW)
+    return k
+
+
+def hint_layout(word):
+    """the hint over a bar as hbar.s's hint_rows puts it together, row by row: a clear part (entry 0) of `left` px,
+    the word part, the key part, a clear part of `right` px; the word and key centred over the three fields (x 40..399).
+    -> (left, word part, key part, right)"""
+    wp, k = guide_word(word), hint_key()
+    left = 40 + (W - 40 - wp.shape[1] - KEYW) // 2
+    right = W - left - wp.shape[1] - KEYW
+    assert left > 0 and right > 0
+    return left, wp, k, right
+
+
+def hint_rows(word=None):
+    """PAD x W: the hint as a picture (v0.41-a3, owner on the camera: "the H/S/L text we added to that section is too
+    small. make it look like everything else"; H/S/L's is rgbpics.guide5's own picture, camera-tested in a3)."""
+    left, wp, k, right = hint_layout(word or HINT)
+    return np.hstack([np.zeros((PAD, left), dtype=np.uint8), wp, k, np.zeros((PAD, right), dtype=np.uint8)])
+
+
+def hint_tokens(word=None):
+    """the hint's tokens as hint_rows (hbar.s) puts them out: each row's four parts in turn."""
+    left, wp, k, right = hint_layout(word or HINT)
+    cl, cr = row_tokens(np.zeros(left, dtype=np.uint8)), row_tokens(np.zeros(right, dtype=np.uint8))
+    return [t for y in range(PAD) for t in cl + row_tokens(wp[y]) + row_tokens(k[y]) + cr]
 
 
 def stream(c, h, s, l, axis, P=None):
     """The firmware's picture for slice c (0..11) with values h, s, l on page axis."""
     P = P or pieces()
     h, s, l = clamp(h), clamp(s), clamp(l)
-    toks = [t for r in hint_rows() for t in row_tokens(r)]
+    toks = hint_tokens()
     for y in range(H):
         for p in row_parts(c, h, s, l, axis, y, P): toks += row_tokens(p)
     return pack(toks)
@@ -271,7 +312,7 @@ def inc(P=None):
         for f in range(3):
             n += max(L(P['text'][f][a][v][y]) for a in (0, 1) for v in range(11))
             n += gmax[1 + f] if SLF0 <= y <= SLF1 else max(L(P['mark'][v][y]) for v in range(11))
-    worst = len(pack([0] * (n + sum(len(row_tokens(r)) for r in hint_rows()))))
+    worst = len(pack([0] * (n + len(hint_tokens()))))
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
     return (f'.set HB_WORST, {worst}\n.set HB_HDR, {int.from_bytes(GHDR, "little"):#x}\n.set HB_H, {H}\n.set HB_PH, {PH}\n.set HB_PAD, {PAD}\n'
             f'.set HB_SLOT0, {SLOT0}\n.set HB_NSLOT, {NSLOT}\n.set HB_PALT, {PAL_TABLE + 4 * SLOT0:#x}\n'

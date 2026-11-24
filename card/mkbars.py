@@ -51,7 +51,14 @@ def inc():
     mk = [tid(PH['mark'][v][y]) for v in range(11) for y in range(H)]
     hgid = [tid(sw_fill(Hb.SW)), tid(sl_fill(Hb.GH)), tid(sl_fill(Hb.GS)), tid(sl_fill(Hb.GL))]
     sgid = [tid(sw_fill(St.SWC))] + [tid(sl_fill(g)) for g in St.GRAD]
-    hint = [tid(r) for r in Hb.hint_rows()]       # v0.41-a2: the H / S / L bar's INFO hint, HB_PAD rows of HB_W
+    # v0.41-a4: the two hints (H / S / L bar "H/S/L [INFO]", Split toning bar "Split Tone [INFO]") as parts: per bar
+    # a clear left and right part (one pool entry each) and its word's rows; the INFO key's rows shared (hint_rows)
+    hk = [tid(r) for r in Hb.hint_key()]
+    hints = []
+    for word in (Hb.HINT, St.HINT):
+        left, wp, _, right = Hb.hint_layout(word)
+        hints.append((left, right, wp.shape[1], tid(np.zeros(left, dtype=np.uint8)), tid(np.zeros(right, dtype=np.uint8)),
+                      [tid(r) for r in wp]))
     htx = [tid(PH['text'][f][a][v][y]) for f in range(3) for a in (0, 1) for v in range(11) for y in range(lo, hi + 1)]
     stx = [tid(PS['text'][f][a][v][y]) for f in range(3) for a in (0, 1) for v in range(11) for y in range(lo, hi + 1)]
     assert len(toks) < 65536
@@ -76,7 +83,9 @@ def inc():
     assert read(swr[0], SWW) == row_tokens(PH['swatch'][0]) and read(htx[7], TW) == list(toks[htx[7]:htx[7] + len(read(htx[7], TW))])
     for y in range(lo, hi + 1):
         assert read(stx[(2 * 22 + 11 + 10) * (hi - lo + 1) + y - lo], TW) == row_tokens(PS['text'][2][1][10][y])
-    assert all(read(hint[y], Hb.W) == row_tokens(r) for y, r in enumerate(Hb.hint_rows()))
+    for (left, right, ww, cl, cr, rows), word in zip(hints, (Hb.HINT, St.HINT)):
+        got = [t for y in range(Hb.PAD) for t in read(cl, left) + read(rows[y], ww) + read(hk[y], Hb.KEYW) + read(cr, right)]
+        assert got == Hb.hint_tokens(word), word
     hworst = int(Hb.inc(PH).split('.set HB_WORST, ')[1].split()[0])
     sworst = int(St.inc(PS).split('.set ST_WORST, ')[1].split()[0])
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
@@ -87,7 +96,13 @@ def inc():
             f'.set HB_SWF0, {Hb.SWF0}\n.set HB_SWF1, {Hb.SWF1}\n.set HB_SLF0, {Hb.SLF0}\n.set HB_SLF1, {Hb.SLF1}\n'
             f'.set BAR_SWW, {SWW}\n.set BAR_TW, {TW}\n.set BAR_SLW, {SLW}\n'
             f'.set BAR_TX0, {lo}\n.set BAR_TXN, {hi - lo + 1}\n.set BAR_TXB, {txb}\n'
-            '.balign 2\nhb_gid:\n' + hw(hgid) + 'hb_hint:\n' + hw(hint) + 'st_gid:\n' + hw(sgid) + 'hb_swr:\n' + hw(swr) + 'hb_mk:\n' + hw(mk) +
+            f'.set HINT_KW, {Hb.KEYW}\n' +
+            # the hints' tables in .ext12 (v0.41-a4: .ext15 is full with photo code 2), read by hint_rows (hbar.s)
+            '.pushsection .ext12,"ax"\n.balign 4\n' +
+            ''.join(f'{n}_hdb:\n .short {l},{r},{ww},{cl},{cr},0\n .long {n}_hw\n' for n, (l, r, ww, cl, cr, _) in zip(('hb', 'st'), hints)) +
+            '.balign 2\nhint_key:\n' + hw(hk) + 'hb_hw:\n' + hw(hints[0][5]) + 'st_hw:\n' + hw(hints[1][5]) +
+            '.balign 4\n.popsection\n' +
+            '.balign 2\nhb_gid:\n' + hw(hgid) + 'st_gid:\n' + hw(sgid) + 'hb_swr:\n' + hw(swr) + 'hb_mk:\n' + hw(mk) +
             'hb_tx:\n' + hw(htx) + 'st_tx:\n' + hw(stx) +
             'hb_pal:\n' + ''.join(' .byte ' + ','.join(f'{x & 255},{x >> 8 & 255},{x >> 16 & 255}' for x in Hb.argb(c, h)) + '\n'
                                   for c in range(12) for h in range(-5, 6)) +

@@ -29,12 +29,16 @@
  .include "bars.inc"              /* HB_*, BAR_*, hb_gid, hb_swr, hb_mk, hb_tx, hb_pal, the Split toning bar's st_*,
                                    * bar_cmap, bar_pool (card/mkbars.py: both bars' rows in one pool) */
 .set HB_W, 400                    /* (HB_H: hbar.inc) */
-.set HB_BUF, 12288                /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
-                                   * toning bar, stwheel.s). v0.41-a2 8 -> 10 KB, v0.41-a3 12 KB for the INFO hint's rows
-                                   * (w2..w4 had two 16 KB buffers on the camera) */
+.set HB_BUF, 13312                /* each stream buffer (worst case HB_WORST, checked by build.py; shared with the Split
+                                   * toning bar, stwheel.s). v0.41-a2 8 -> 10 KB, v0.41-a3 12 KB, v0.41-a4 13 KB for the
+                                   * INFO hints' rows (w2..w5 had two 16 KB buffers on the camera) */
 .set HB_F, 48                     /* hb_rd's frame */
  .balign 4
 bar_left:                         /* bar_row: the part's pixels left */
+ .long 0
+hint_b:                           /* hint_rows: the hint's block, its row */
+ .long 0
+hint_y:
  .long 0
 hb_b0:                            /* the two stream buffers (heap, hb_alloc), 0 = none: no bar */
  .long 0
@@ -428,6 +432,48 @@ bar_row:
  bne 1b
  retf [],0
 
+/* hint_rows: `call hint_rows,[],0` from hb_join / st_join with their packer state (d2, d3, a2, a3), a0 = a hint's block
+ * (bars.inc, card/mkbars.py: u16 left, right, word width, left part, right part, 0; u32 its word's rows): HB_PAD rows,
+ * each a clear part of `left` px, the word's row, the INFO key's row (hint_key, HINT_KW px, the same in both hints), a
+ * clear part of `right` px (mkhbar.hint_tokens). v0.41-a4: the Split toning bar's "S/B/H [INFO]" too. Uses d0,
+ * d1, a0, a1 (bar_row), hint_b, hint_y. */
+hint_rows:
+ add -4,sp                        /* bar_row's return slot; ours stays at (4,sp) */
+ mov a0,(hint_b)
+ clr d0
+ mov d0,(hint_y)
+1:
+ mov (hint_b),a0
+ movhu (6,a0),d0                  /* the clear left part */
+ movhu (a0),d1
+ call bar_row,[],0
+ mov (hint_b),a1                  /* the word's row */
+ mov (hint_y),d0
+ add d0,d0
+ mov (12,a1),a0
+ add d0,a0
+ movhu (a0),d0
+ movhu (4,a1),d1
+ call bar_row,[],0
+ mov (hint_y),d0                  /* the key's row */
+ add d0,d0
+ add hint_key,d0
+ mov d0,a0
+ movhu (a0),d0
+ mov HINT_KW,d1
+ call bar_row,[],0
+ mov (hint_b),a0                  /* the clear right part */
+ movhu (8,a0),d0
+ movhu (2,a0),d1
+ call bar_row,[],0
+ mov (hint_y),d0
+ inc d0
+ mov d0,(hint_y)
+ cmp HB_PAD,d0
+ bne 1b
+ add 4,sp
+ ret [],0
+
 /* hb_join: `call hb_join,[d2,d3,a2,a3],64`, a1 = a stream buffer (HB_BUF bytes): hb_val's bar as mkhbar.stream ->
  * d0 = its length; a1 kept. Each row: the swatch column (its colour rows hb_gid's first row, the others hb_swr), then
  * per field its text part (hb_tx) and its slider part (gradient rows hb_gid's, the others hb_mk). Locals (4) y, (8)
@@ -472,20 +518,8 @@ hb_join:
  clr d2
  clr d3
  mov 0,a2
- clr d0                           /* v0.41-a2 (Fanatic, owner: "lets make these happen"): over the bar, HB_PAD rows of */
- mov d0,(4,sp)                    /* the INFO hint ("H/S/L [INFO]", mkhbar.hint_rows), each one row of the pool */
-5:
- add d0,d0
- add hb_hint,d0
- mov d0,a0
- movhu (a0),d0
- mov HB_W,d1
- call bar_row,[],0
- mov (4,sp),d0
- inc d0
- mov d0,(4,sp)
- cmp HB_PAD,d0
- bne 5b
+ mov hb_hdb,a0                    /* v0.41-a2 (Fanatic, owner: "lets make these happen"), a3 (owner: "make it look */
+ call hint_rows,[],0              /* like everything else"): over the bar its INFO hint "H/S/L [INFO]" (HB_PAD rows) */
  clr d0
  mov d0,(4,sp)
 10:                               /* a row: the swatch column */

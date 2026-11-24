@@ -279,8 +279,8 @@ def build(defaults, testfile, out):
     import mkbars                                 # the H / S / L bar and the Split toning bar: one pool (hbar.s, stwheel.s)
     bars = mkbars.inc()
     assert mkbars.Hb.PH == 114 and mkbars.Hb.PAD == 50  # the picture widget's 400 x 114 at y 464 (DATA, 0x61451e50)
-    assert int(bars.split('.set HB_WORST, ')[1].split()[0]) < 12288  # hbar.s HB_BUF (the two bars share its buffers)
-    assert int(bars.split('.set ST_WORST, ')[1].split()[0]) < 12288
+    assert int(bars.split('.set HB_WORST, ')[1].split()[0]) < 13312  # hbar.s HB_BUF (the two bars share its buffers)
+    assert int(bars.split('.set ST_WORST, ')[1].split()[0]) < 13312
     (out / 'bars.inc').write_text(bars)
     (out / 'wheeldef.inc').write_text(f'.set XL_N, {len(mklabels.LABELS)}\n.set WLL, {len(wl)}\n.set XL_W0, {w0}\n.set SAS, {len(sagd)}\n'
                                       + f'.set XL_BLANK, {w0 + len(wls) - 2}\n.set XL_MK8, {8 * (len(wls) - 1)}\n'

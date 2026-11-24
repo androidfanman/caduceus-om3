@@ -462,15 +462,9 @@ st_join:
  clr d2
  clr d3
  mov 0,a2
- .if HB_PAD
- mov HB_PAD * 25,d1               /* clear rows over the bar (25 runs of 16 a row, entry 0): w2 / w3; v0.41-a2: where */
-                                  /* the H / S / L bar has its INFO hint, so this bar stays where it was */
-5:
- mov 15,d0
- HB_PUT
- add -1,d1
- bne 5b
- .endif
+ mov st_hdb,a0                    /* v0.41-a4 (owner, a3 on the camera: "a title like the added to H/S/L wheel to */
+ call hint_rows,[],0              /* the Split Tone"): over the bar "S/B/H [INFO]", where the H / S / L bar has */
+                                  /* its hint (a2 / a3: clear rows), in the same design (hbar.s hint_rows) */
  clr d0
  mov d0,(4,sp)
 10:                               /* a row: the swatch column */

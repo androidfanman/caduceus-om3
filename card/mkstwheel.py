@@ -35,6 +35,10 @@ GB_ = [B_SL[x * 5 // GW] for x in range(GW)]
 GH_ = [(GREY, *H_SL, HC)[x * 5 // GW] for x in range(GW)]
 GRAD = (GS_, GB_, GH_)
 NONE = 12                                 # "no tint" (strength 0): grey
+HINT = 'S/B/H'                            # v0.41-a4 (owner, a3 on the camera: "a title like the added to H/S/L wheel
+                                          # to the Split Tone ... something like Split Tone Info"): "S/B/H [INFO]", the
+                                          # bar's fields as "H/S/L [INFO]" (INFO steps them); "Split Tone" needs ~600 B
+                                          # more than .ext15 has with photo code 2 (owner's call)
 
 
 def tint(c):
@@ -131,7 +135,7 @@ def render(sc, ss, hc, hs, b, mode, P=None):
 
 def stream(sc, ss, hc, hs, b, mode, P=None):
     P = P or pieces()
-    toks = row_tokens(np.zeros(W, dtype=np.uint8)) * mkhbar.PAD   # v0.41-a2: clear rows where the H / S / L bar has its hint
+    toks = mkhbar.hint_tokens(HINT)     # v0.41-a4: its own hint where the H / S / L bar has "H/S/L [INFO]"
     for y in range(H):
         for p in row_parts(ss, hs, b, mode, y, P): toks += row_tokens(p)
     return pack(toks)
@@ -163,7 +167,7 @@ def inc(P=None):
         for f in range(3):
             n += max(L(P['text'][f][a][v][y]) for a in (0, 1) for v in range(11))
             n += gmax[1 + f] if SLF0 <= y <= SLF1 else max(L(P['mark'][v][y]) for v in range(11))
-    worst = len(pack([0] * (n + 25 * mkhbar.PAD)))
+    worst = len(pack([0] * (n + len(mkhbar.hint_tokens(HINT)))))
     argb_ = lambda c: [0xff000000 | r << 16 | g << 8 | b for r, g, b in role(c)]
     hw = lambda xs: ''.join(' .short ' + ','.join(str(x) for x in xs[i:i + 16]) + '\n' for i in range(0, len(xs), 16))
     return (f'.set ST_WORST, {worst}\n.set ST_NONE, {NONE}\n'
@@ -191,7 +195,7 @@ if __name__ == '__main__':
     a = ap.parse_args()
     P = pieces()
     s = inc(P)
-    assert int(s.split('.set ST_WORST, ')[1].split()[0]) < 12288
+    assert int(s.split('.set ST_WORST, ')[1].split()[0]) < 13312
     open(a.out, 'w').write(s)
     if a.preview:
         preview([(6, 6, 1, 4, -2, 0), (6, 6, 1, 4, -2, 2), (6, 6, 1, 4, -2, 1), (0, 0, 0, 10, 5, 1)], a.preview)
