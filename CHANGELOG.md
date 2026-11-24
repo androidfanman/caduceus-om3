@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.41-beta](#v041-beta-test-version) | 2026-11-24 (test version) | v0.41-alpha cleaned up (INFO hints on the colour wheel and Split toning bars, only the bar on Split toning's Balance, one INFO guide style) and a new photo code, om3.2, that also carries the RGB curves, Color Mix, Film Grain strength and Grain Size |
 | [v0.41-alpha](#v041-alpha-test-version) | 2026-11-23 (test version) | New Picture Mode pages: the H / S / L bar on the colour wheel, a five-point tone curve (Blacks and Whites in Highlight & Shadow), Split toning on its own row with Balance |
 | [v0.40.3](#v0403) | 2026-11-23 | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26) and faster Halation; WB compensation kept apart for films and the camera's own picture modes (#99); fixes: Film Grain on Drive Priority (#91), Magnify in the crop modes (#97), each photo's own film in playback (#93), Delete's long press (#101) |
 | [v0.40.3-beta4](#v0403-beta4-test-version) | 2026-11-21 (test version) | WB compensation kept apart for films and the camera's own picture modes: no half-press needed, the camera's own setting never written by us |
@@ -54,6 +55,19 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.41-beta (test version)
+A test version (a GitHub pre-release; v0.40.3 stays the current version). v0.41-alpha with its Picture Mode pages
+cleaned up and a new photo code, camera-tested 2026-11-23 / 24 (test builds a2 to a6 and pc3, the builds before its
+release name).
+- **INFO hints:** "H/S/L INFO" over the colour wheel's bar and "Split Tone INFO" over the Split toning bar, in the
+  camera's guide style (suggested by Fanatic).
+- **Split toning's Balance step** shows only the bar: no wheel, "Color", "Tint" or dial mark there.
+- **One INFO guide style:** "Color INFO" on the Color Mix and RGB curves rows matches the others.
+- **Photo code om3.2:** each film photo's code also carries the RGB curves, the Color Mix, Film Grain's exact strength
+  and the Grain Size; the photo's comment is the code alone, the film's name stays in the description. LookLab reads
+  it and the old code; other readers of `om3.1.` need updating (the developer kit reads both).
+- The Firmware Version screen shows "0.41-b1".
 
 ## v0.41-alpha (test version)
 An early test version (a GitHub pre-release; v0.40.3 stays the current version). v0.40.3 with the new Picture Mode

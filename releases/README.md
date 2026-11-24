@@ -5,6 +5,7 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.41-beta](v0.41-beta/NOTES.md) | Test version: v0.41-alpha cleaned up (INFO hints on the two bars, only the bar on Split toning's Balance, one INFO guide style) plus the photo code om3.2 (RGB curves, Color Mix, Film Grain strength and Grain Size in each photo's code) | Test version (pre-release), camera-tested |
 | [v0.41-alpha](v0.41-alpha/NOTES.md) | Test version: v0.40.3 plus the new Picture Mode pages (the H / S / L bar on the colour wheel, the five-point tone curve, Split toning on its own row with Balance) | Test version (pre-release), camera-tested |
 | [v0.40.3](v0.40.3/NOTES.md) | v0.40.2 plus everything from the v0.40.3 test versions: Halation Radius (by fernandezk26) and faster Halation, WB compensation kept apart for films and the camera's own picture modes (#99), playback showing each photo's own film (#93), and fixes for #91, #97 and #101 | Camera-tested (as v0.40.3-beta4) |
 | [v0.40.3-beta4](v0.40.3-beta4/NOTES.md) | Test version: v0.40.3-beta3 with WB compensation kept apart for films and the camera's own picture modes (no half-press needed; the camera's own setting never written by us) | Test version (pre-release), camera-tested |
@@ -65,5 +66,5 @@ the launchers never copy them to the card.
 **v0.28-alpha** is a test version: it is published by hand as a GitHub pre-release from `feature/v0.28-halation`
 (not from `main`), and the launchers in its download make it by default. **v0.29-beta** is published the same way from
 `feature/films-in-camera`; it has no card files (they are built into the firmware). **v0.30.4-alpha** likewise from
-`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`, **v0.40.3-beta** from `try/v0.40.3-beta`, **v0.40.3-beta2** from `try/v0.40.3-beta2`, **v0.40.3-beta3** from `try/v0.40.3-beta3`, **v0.40.3-beta4** from `try/v0.40.3-beta4`, and **v0.41-alpha** from `try/v0.41-alpha`.
+`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`, **v0.40.3-beta** from `try/v0.40.3-beta`, **v0.40.3-beta2** from `try/v0.40.3-beta2`, **v0.40.3-beta3** from `try/v0.40.3-beta3`, **v0.40.3-beta4** from `try/v0.40.3-beta4`, **v0.41-alpha** from `try/v0.41-alpha`, and **v0.41-beta** from `try/v0.41-beta`.
 See [CHANGELOG.md](../CHANGELOG.md) for the full history.

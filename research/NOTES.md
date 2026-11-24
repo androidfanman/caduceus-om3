@@ -10844,3 +10844,15 @@ Branch `feature/photo-code-3` on v0.41-a6 (634d3b6) with `main` merged in for Lo
   om3.2 since `main` d14f4e3 (cad brought this branch's `webapp/` files of f222db2 onto main and rebuilt `looklab/`;
   the page's file-open steps were run on the card's real photos: an om3.1 photo, A, B and the no-film C, all as
   expected). The developer kit and the docs for om3.2 stay on this branch until the firmware is released.
+
+## v0.41-beta (2026-11-24; camera-tested as a2..a6 and pc3)
+- Owner (2026-11-24, after pc3's photos and LookLab on the site reading them): "the looklab test worked, lets put this
+  out as beta."
+- Branch `try/v0.41-beta` = `feature/photo-code-3` (pc3 = v0.41-a6 + photo code om3.2, f222db2; a6 = v0.41-alpha +
+  a2..a6's Picture Mode clean-ups, each camera-tested) + main (LookLab only) + VERSION "v0.41-b1 (beta: Picture Mode
+  pages, photo code om3.2)". E1479999.BIN af85e312…e98c (GUIDES / LABELS / TONES built in);
+  `patch.py --release v0.41-beta` rebuilds it byte for byte. Card files as v0.41-alpha; the photo code kit zip is
+  rebuilt from `devkit/photo-code` (reads om3.2 and om3.1). The release-name build itself differs from pc3 in the
+  version name and the code it shifts.
+- `static:changed-bytes` still lists the Picture Mode pages' patch sites: `tools/test/hooks.json` is not updated yet
+  (it waits for a review of each site and the owner's OK).
