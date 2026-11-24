@@ -35,10 +35,10 @@ GB_ = [B_SL[x * 5 // GW] for x in range(GW)]
 GH_ = [(GREY, *H_SL, HC)[x * 5 // GW] for x in range(GW)]
 GRAD = (GS_, GB_, GH_)
 NONE = 12                                 # "no tint" (strength 0): grey
-HINT = 'S/B/H'                            # v0.41-a4 (owner, a3 on the camera: "a title like the added to H/S/L wheel
-                                          # to the Split Tone ... something like Split Tone Info"): "S/B/H [INFO]", the
-                                          # bar's fields as "H/S/L [INFO]" (INFO steps them); "Split Tone" needs ~600 B
-                                          # more than .ext15 has with photo code 2 (owner's call)
+HINT = 'Split Tone'                       # v0.41-a4 / a5 (owner, a3 on the camera: "a title like the added to H/S/L
+                                          # wheel to the Split Tone ... something like Split Tone Info"; on a4's "S/B/H":
+                                          # "it should say split tone", then "yes to split tone" with st_ctab moved to
+                                          # .ext13 for the room): "Split Tone [INFO]"
 
 
 def tint(c):

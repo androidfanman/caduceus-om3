@@ -106,9 +106,10 @@ def inc():
             'hb_tx:\n' + hw(htx) + 'st_tx:\n' + hw(stx) +
             'hb_pal:\n' + ''.join(' .byte ' + ','.join(f'{x & 255},{x >> 8 & 255},{x >> 16 & 255}' for x in Hb.argb(c, h)) + '\n'
                                   for c in range(12) for h in range(-5, 6)) +
-            '.balign 4\nst_ctab:\n' +
+            # v0.41-a5: st_ctab in .ext13 (owner: "yes to split tone"; .ext15 had no room for "Split Tone [INFO]")
+            '.pushsection .ext13,"ax"\n.balign 4\nst_ctab:\n' +
             ''.join(' .long ' + ','.join(f'{0xff000000 | r << 16 | g << 8 | b:#010x}' for r, g, b in St.role(c)) + '\n'
-                    for c in range(13)) +
+                    for c in range(13)) + '.popsection\n' +
             'bar_cmap:\n' + bw(cols) + 'bar_pool:\n' + bw(list(pool)) + '.balign 4\n')
 
 

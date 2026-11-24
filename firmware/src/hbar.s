@@ -435,7 +435,7 @@ bar_row:
 /* hint_rows: `call hint_rows,[],0` from hb_join / st_join with their packer state (d2, d3, a2, a3), a0 = a hint's block
  * (bars.inc, card/mkbars.py: u16 left, right, word width, left part, right part, 0; u32 its word's rows): HB_PAD rows,
  * each a clear part of `left` px, the word's row, the INFO key's row (hint_key, HINT_KW px, the same in both hints), a
- * clear part of `right` px (mkhbar.hint_tokens). v0.41-a4: the Split toning bar's "S/B/H [INFO]" too. Uses d0,
+ * clear part of `right` px (mkhbar.hint_tokens). v0.41-a5: the Split toning bar's "Split Tone [INFO]" too. Uses d0,
  * d1, a0, a1 (bar_row), hint_b, hint_y. */
 hint_rows:
  add -4,sp                        /* bar_row's return slot; ours stays at (4,sp) */

@@ -16,7 +16,7 @@
  * points GDESC at it and writes its 13 colours into palette 62's entries 108..120 (the bar's slots; each one's new
  * picture makes the other's key stale: hb_key, st_key). hb_gsel gives GDESC back to the camera on any page change. */
 .section .ext15,"ax"
-                                  /* (its tables: bars.inc, in hbar.s: ST_WORST, ST_NONE, st_gid, st_tx, st_ctab; the
+                                  /* (its tables: bars.inc, in hbar.s: ST_WORST, ST_NONE, st_gid, st_tx, st_ctab (in .ext13 since v0.41-a5); the
                                    * swatch column and the slider marks are the H / S / L bar's, hb_swr / hb_mk) */
 .set ST_F, 48                     /* st_rd's frame */
  .balign 4
@@ -463,7 +463,7 @@ st_join:
  clr d3
  mov 0,a2
  mov st_hdb,a0                    /* v0.41-a4 (owner, a3 on the camera: "a title like the added to H/S/L wheel to */
- call hint_rows,[],0              /* the Split Tone"): over the bar "S/B/H [INFO]", where the H / S / L bar has */
+ call hint_rows,[],0              /* the Split Tone"): over the bar "Split Tone [INFO]", where the H / S / L bar has */
                                   /* its hint (a2 / a3: clear rows), in the same design (hbar.s hint_rows) */
  clr d0
  mov d0,(4,sp)

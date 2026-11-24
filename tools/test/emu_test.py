@@ -479,14 +479,17 @@ SPLIT_BALANCE_NO_LABELS = (f'{OPEN_SPLIT} {LABEL_IS("Tint")} expect:ink:{COLOR_W
                            f'up wait {LABEL_IS("Sat")} expect:ink:{COLOR_WORDS} expect:ink:{TINT_WORDS} poweroff')
 # v0.41-a2 / a3: over the H / S / L bar its INFO hint ("H/S/L [INFO]" as the camera's guides, mkhbar.hint_rows; HBAR_IS
 # compares the whole picture), in the picture's 50 new rows (400 x 114 at y 464, GUIDE_PLACE). The rows left and
-# right of the hint stay clear (a4: the Split toning bar's hint sits there too, STRIP_IS compares it).
+# right of the hint stay clear (a5: the Split toning bar's hint, wider, is checked by its own test).
 HINT_BOX, HINT_LEFT, HINT_RIGHT = '300,468,455,512', '160,466,296,512', '462,466,555,512'
 WHEEL_INFO_HINT = (f'{OPEN_WHEEL} {GUIDE_PLACE} {HBAR_IS(0, 0, 0, 0, 0)} expect:ink:{HINT_BOX} expect:noink:{HINT_LEFT} '
                    f'expect:noink:{HINT_RIGHT} info wait expect:ink:{HINT_BOX} down wait up wait expect:ink:{HINT_BOX} poweroff')
-# v0.41-a4 (owner, a3 on the camera: "a title like the added to H/S/L wheel to the Split Tone"): over the Split toning
-# bar its own hint, "S/B/H [INFO]" (mkstwheel.HINT) in the same design and place, on all three steps; STRIP_IS compares
-# the whole picture (hint and bar) with mkstwheel.stream. Back on the colour wheel row, "H/S/L [INFO]" again.
-SPLIT_INFO_HINT = (f'{OPEN_SPLIT} {GUIDE_PLACE} {STRIP_IS(0, 0, 0, 0, 0, 0)} expect:ink:{HINT_BOX} expect:noink:{HINT_LEFT} '
+# v0.41-a4 / a5 (owner, a3 on the camera: "a title like the added to H/S/L wheel to the Split Tone"; then "it should
+# say split tone"): over the Split toning bar its own hint, "Split Tone [INFO]" (mkstwheel.HINT) in the same design and
+# place, on all three steps; STRIP_IS compares the whole picture (hint and bar) with mkstwheel.stream. The rows left
+# and right of it (x 271..482) stay clear. Back on the colour wheel row, "H/S/L [INFO]" again.
+SPLIT_HINT_LEFT, SPLIT_HINT_RIGHT = '160,466,266,512', '490,466,555,512'
+SPLIT_INFO_HINT = (f'{OPEN_SPLIT} {GUIDE_PLACE} {STRIP_IS(0, 0, 0, 0, 0, 0)} expect:ink:{HINT_BOX} '
+                   f'expect:noink:{SPLIT_HINT_LEFT} expect:noink:{SPLIT_HINT_RIGHT} '
                    f'info wait {STRIP_IS(0, 0, 0, 0, 0, 2)} expect:ink:{HINT_BOX} info wait {STRIP_IS(0, 0, 0, 0, 0, 1)} '
                    f'expect:ink:{HINT_BOX} up wait {HBAR_IS(0, 0, 0, 0, 0)} expect:ink:{HINT_BOX} poweroff')
 # v0.41-a3 (owner on the camera: "we need to figure out how to get rid of that dial icon on balance"): the rear dial's
