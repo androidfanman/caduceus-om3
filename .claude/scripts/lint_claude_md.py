@@ -36,6 +36,7 @@ lists only tracked files. Otherwise it falls back to os.walk with a skip list.
 """
 
 import json
+import fnmatch
 import os
 import re
 import subprocess
@@ -63,6 +64,10 @@ SUPPORT_DIRS = {"gradle", "buildSrc", "mvn"}
 CLAUDE_MARKER_FILES = {"SKILL.md"}
 
 CLAUDE_MD = "CLAUDE.md"
+
+# Per-repo skip list: one glob per line, matched against repo-relative dir paths
+# (`releases/*`). A matching dir and everything under it leave the plan.
+SKIP_FILE = os.path.join(".claude", "claude-md-skip")
 
 
 # --- file scope ------------------------------------------------------------
@@ -99,13 +104,32 @@ def walk_in_scope(root):
         yield ("" if rel == "." else rel), filenames
 
 
+def skip_patterns(root):
+    """Globs from the repo's skip list, or none when it has no list."""
+    try:
+        with open(os.path.join(root, SKIP_FILE)) as f:
+            lines = [line.strip().rstrip("/") for line in f]
+    except FileNotFoundError:
+        return []
+    return [line for line in lines if line and not line.startswith("#")]
+
+
+def in_skip_list(rel_dir, patterns):
+    """True if the dir or any of its ancestors matches a skip-list glob."""
+    parts = rel_dir.split(os.sep) if rel_dir else []
+    return any(fnmatch.fnmatchcase(os.sep.join(parts[:i]), p)
+               for i in range(1, len(parts) + 1) for p in patterns)
+
+
 def plan_files(root):
     """Files the plan considers: git's list when there is one, minus exclusions."""
     files = tracked_files(root)
     if files is None:
         files = [os.path.join(rel, name) if rel else name
                  for rel, names in walk_in_scope(root) for name in names]
-    return [f for f in files if not in_skipped_path(f)]
+    patterns = skip_patterns(root)
+    return [f for f in files if not in_skipped_path(f)
+            and not in_skip_list(os.path.dirname(f), patterns)]
 
 
 def claude_md_dirs(root):

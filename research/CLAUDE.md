@@ -4,12 +4,6 @@ Lab notebook and tools, not needed to build a release. `NOTES.md` every address,
 
 ## Subdirectories
 
-- [`archive/early/frame/`](archive/early/frame/CLAUDE.md) — Early Frame Art scripts
-- [`archive/early/gr/`](archive/early/gr/CLAUDE.md) — Early firmware xref helpers
-- [`archive/early/looks/`](archive/early/looks/CLAUDE.md) — Early LOOKS.BIN v1 makers
-- [`archive/early/poc/`](archive/early/poc/CLAUDE.md) — First hue/lightness proof of concept
-- [`archive/editor-tests/`](archive/editor-tests/CLAUDE.md) — Editor test builds, test 1 to v0.20 t7
-- [`archive/experiments/`](archive/experiments/CLAUDE.md) — Grain / looks experiment patches vs v0.21
 - [`border/`](border/CLAUDE.md) — Photo border exact model
 - [`emulator/`](emulator/CLAUDE.md) — Extra om-emu scripts and probes
 - [`film-grading/`](film-grading/CLAUDE.md) — Camera-graded film looks, solver

@@ -4,6 +4,8 @@ Firmware patches for OM SYSTEM OM-3 (firmware 1.1) plus LookLab browser app. Rep
 
 Owner (GitHub `androidfanman`) not a programmer: plain words, short replies, never ask them to run terminal commands.
 
+Also: `releases/vX/` one folder per release (`releases/README.md`). `looklab/` built LookLab, from `webapp/` via `make looklab`, never hand-edit. Root `index.html` tour, pictures in `pages/showcase/img/`.
+
 Branches: `main` released, safe. `feature/...` meant to ship, README banner gives status. `experiment/...` answers a question, not for use.
 
 ## Before you start
@@ -69,10 +71,7 @@ After each camera result or milestone, and before a summary:
 - [`devkit/photo-code/`](devkit/photo-code/CLAUDE.md) — om3.1 photo code reader kit for developers
 - [`docs/`](docs/CLAUDE.md) — user docs, technical notes, formats, roadmaps
 - [`firmware/`](firmware/CLAUDE.md) — patch build, patcher, generators, src/ assembly
-- [`looklab/`](looklab/CLAUDE.md) — built LookLab site, generated from webapp/
-- [`pages/showcase/`](pages/showcase/CLAUDE.md) — redirect stub. Tour pictures for root index.html in img/
 - [`pages/site/`](pages/site/CLAUDE.md) — guide-page renderer. Edit docs/*.md and root .md, not pages
-- [`releases/`](releases/CLAUDE.md) — one folder per release, new folder on main publishes
 - [`research/`](research/CLAUDE.md) — lab notebook, workspace setup, analysis tools, archive
 - [`tools/`](tools/CLAUDE.md) — mkpatch.py release maker, emulator/ om-emu helpers
 - [`webapp/`](webapp/CLAUDE.md) — LookLab Vite/TypeScript source (Control Panel before 2026-11-13)

@@ -23,6 +23,7 @@ built). Never decides the permission, so the command always proceeds. Any
 unexpected error exits 0 silently so the hook never blocks a tool call.
 """
 
+import fnmatch
 import json
 import os
 import subprocess
@@ -37,6 +38,26 @@ NEW_CODES = {"??", "A ", "AM"}
 MAX_DIRS = 10
 # Named once: every reminder is tagged by emit(), so a skill rename touches one line.
 SKILL_TAG = "(agentify-docs skill)"
+# Same file and format lint_claude_md.py reads. Kept here too: this hook is
+# installed into repos without the linter beside it.
+SKIP_FILE = os.path.join(".claude", "claude-md-skip")
+
+
+def skip_patterns(root):
+    """Globs from the repo's skip list, or none when it has no list."""
+    try:
+        with open(os.path.join(root, SKIP_FILE)) as f:
+            lines = [line.strip().rstrip("/") for line in f]
+    except FileNotFoundError:
+        return []
+    return [line for line in lines if line and not line.startswith("#")]
+
+
+def in_skip_list(rel_dir, patterns):
+    """True if the dir or any of its ancestors matches a skip-list glob."""
+    parts = rel_dir.split(os.sep) if rel_dir else []
+    return any(fnmatch.fnmatchcase(os.sep.join(parts[:i]), p)
+               for i in range(1, len(parts) + 1) for p in patterns)
 
 
 def git(root, *args):
@@ -159,6 +180,7 @@ def main():
         return  # not a git repo
 
     added, touched_md = collect(root)
+    patterns = skip_patterns(root)
     covered, uncovered = {}, {}
     for rel_file in added:
         rel_dir = os.path.dirname(rel_file)
@@ -170,6 +192,8 @@ def main():
         if any(part.startswith(".") for part in rel_dir.split(os.sep) if part):
             continue
         if rel_dir in covered or rel_dir in uncovered:
+            continue
+        if in_skip_list(rel_dir, patterns):
             continue
         file_dir = os.path.join(root, rel_dir) if rel_dir else root
         nearest = nearest_claude_md(file_dir, root)
