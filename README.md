@@ -1,3 +1,8 @@
+> **Branch `feature/photo-code-3` (2026-11-24): a test, not a release.** A new photo code, `om3.2.` + 60 characters,
+> written alone into the photo's comment: om3.1's settings plus the RGB curves, the colour mix, the Film Grain
+> strength and the Grain Size (`docs/PHOTO_CODE.md`). On test build v0.41-a6; LookLab and the developer kit read both
+> codes and write om3.2. Emulator only: the camera test is pending (build v0.41-pc3).
+
 > **Branch `feature/curve-5-points` (2026-11-22): a test, not a release.** Blacks and Whites move into the Highlight &
 > Shadow curve as a third INFO page (Sh / Hi, Mid, Blk / Wht). All of it is camera-tested, through test 7 (v0.40.3-c7, on the Picture Mode combination p1: the page, its curve on all three pages, the five values in the top line, the row's '*' and Reset against the film): `research/NOTES.md`, "Five-point curve" and the 2026-11-22 sections for tests 5 to 7. Test 8 (c8: the row's own INFO guides drawn to the camera's) is emulator only.
 

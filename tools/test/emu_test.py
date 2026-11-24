@@ -58,6 +58,7 @@ PHOTO_MODE = 0x01                                # P's mode code, so the photo p
 # Y mean (48 x 4) comes off on the texture's own input (+136, its Y clamp minimum +160 opened to -512), not as an
 # output offset (+180): g1 / g2 put it there, after the clamp, and capped the highlights (camera, 2026-11-16).
 GRAINMIX = 'grain-mix-keeps-the-highlights'
+PHOTOCODE = 'photo-code-om32-carries-every-picture-mode-row'
 # crop round 5: cr_trim (the live histogram's main area at Set_Histogram_CalcMode's entry, crop.s cr_dhm) called
 # directly with a crop set: the area is trimmed to the crop's shape, centred. om-emu does not run the live view.
 CROPHIST = 'crop-histogram-area-trimmed'
@@ -2060,6 +2061,64 @@ def run_ncall(emu, build, d, card0, tokens, spec):
     return {o['name']: o for o in json.loads((d / 'out.json').read_text())['out']}
 
 
+def run_photocode(emu, build, out, card0):
+    """ex_fill (the per-photo EXIF fill) on a scratch EXIF block, FILM 2 on COLOR 1: the UserComment's text is the
+    om3.2 code alone, "om3.2.<60>"; ImageDescription keeps "FILM 2 Name". As set (the half-press before: ex_rk 0):
+    the code reads back COLOR 1's curves, mix, Film Grain strength and Grain Size (made-up values put into live[0]).
+    As built (ex_rk -1): the film's CURVES.BIN values (put into ck_bi), its level's strength, Medium. Taking a photo
+    stays camera-only."""
+    import photocode
+    d = out / PHOTOCODE
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    hx = lambda vals: bytes(v & 255 for v in vals).hex()
+    six = lambda five: [five[0], 0, *five[1:]]               # a slot's curve: 6 values, the second unused
+    set_c = {'r': [1, -2, 3, -4, 5], 'g': [0, 6, 0, -6, 0], 'b': [-7, 0, 2, 0, 7]}
+    set_m = [3, -1, 0, 4, -5, 2]
+    blt_c = {'r': [0, 1, 0, -1, 0], 'g': [2, 0, 0, 0, -2], 'b': [0, 0, -3, 0, 0]}
+    blt_m = [-2, 5, 1, 0, 0, -6]
+    slot = lambda c, m: [*six(c['r']), *six(c['g']), *six(c['b']), *m]
+    live0 = sym['cv_ram'] + 16
+    def case(name, mem):
+        return {'name': name, 'pc': 'B', 'stop': ['B+7'], 'max': 400000,
+                'mem': [['B', 'dd'], ['B+1', '=(B+0x10)-B'], ['B+5', 'f014'], ['B+0x10', 'dc'],
+                        ['B+0x11', f"={sym['ex_fill']:#x}-(B+0x10)"], ['B+0x400', '00' * 0x1100], *mem],
+                'regs': {'a0': 'B+0x400'}, 'read': [[f'B+0x400+{3972}', 117], [f'B+0x400+{0x5a8}', 32]]}
+    spec = [case('as-set', [[f"{sym['ex_rk']:#x}", '00000000'], [f'{live0:#x}', hx(slot(set_c, set_m))],
+                            [f'{live0 + 25:#x}', '94'],                      # G: given, Coarse (2 << 3), strength 4
+                            [f"{sym['ex_rec'] + 51:#x}", '03']]),            # value 51, the grain level: High
+            case('as-built', [[f"{sym['ex_rk']:#x}", 'ffffffff'], [f'{live0 + 25:#x}', '94'],
+                              [f"{sym['ck_bi']:#x}", hx(slot(blt_c, blt_m)) * 20]])]
+    res = run_ncall(emu, build, d, card0, f's1 wait wait {PICK_FILM_2} s1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return PHOTOCODE, [res]
+    errors = []
+    for o in spec:
+        r = res[o['name']]
+        if r['steps'] >= 400000:
+            errors.append(f"{o['name']}: ex_fill did not return (out.json)")
+            continue
+        text = bytes.fromhex(r['mem'][0]).decode('latin-1')
+        if not re.fullmatch(r'om3\.2\.[A-Za-z0-9_-]{60} {51}', text):
+            errors.append(f"{o['name']}: the UserComment is {text!r}")
+            continue
+        code = text.strip()
+        rec, got = photocode.decode(code), photocode.extras(code)
+        if o['name'] == 'as-set':
+            want = {'curves': set_c, 'mix': set_m, 'grain': 4, 'size': 'Coarse'}
+        else:
+            want = {'curves': blt_c, 'mix': blt_m, 'grain': photocode.LEVEL_STRENGTH[min(rec[51], 3)], 'size': 'Medium'}
+        if got != want:
+            errors.append(f"{o['name']}: the code reads {got}, not {want} ({code})")
+        if o['name'] == 'as-set' and rec[51] != 3:
+            errors.append(f'as-set: value 51 (the level) is {rec[51]}, not 3 ({code})')
+        if photocode.encode(rec)[6:] != code[6:49]:
+            errors.append(f"{o['name']}: the first 43 characters are not the 64 values as om3.1 codes them ({code})")
+        if not bytes.fromhex(r['mem'][1]).startswith(b'FILM 2'):
+            errors.append(f"{o['name']}: ImageDescription is {bytes.fromhex(r['mem'][1])!r}")
+    return PHOTOCODE, errors
+
+
 def run_grainmix(emu, build, out, card0):
     """s_c1e on a register image as the init 0x605047c1 leaves it, for strengths 1 / 3 / 5 and a tile not written."""
     d = out / GRAINMIX
@@ -3029,7 +3088,7 @@ DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSA
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('build', type=pathlib.Path)
-    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC]))
+    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, PHOTOCODE, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC]))
     ap.add_argument('--jobs', type=lambda v: max(1, int(v)), default=DEFAULT_JOBS)
     ap.add_argument('--out', type=pathlib.Path)
     ap.add_argument('--looks', type=pathlib.Path)
@@ -3052,7 +3111,7 @@ def main():
     looks = (a.looks or newest_looks()).resolve()
     make_card(emu, build, looks, card0)
     fixtures = make_fixtures(out, looks)
-    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC])
+    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, PHOTOCODE, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC])
     stock = static_check.find_stock(a.stock) if any(n in STATIC for n in names) else None
     runs = [(n, k) for n in names for k in range(1, a.repeat + 1)]
     print(f'{len(names)} tests{f" x {a.repeat}" if a.repeat > 1 else ""} on {build}, results in {out}')
@@ -3089,6 +3148,8 @@ def main():
                 return run_dial(emu, build, d, card0)
             if n == VIDEO:
                 return run_video(emu, build, d, card0)
+            if n == PHOTOCODE:
+                return run_photocode(emu, build, d, card0)
             if n == GRAINMIX:
                 return run_grainmix(emu, build, d, card0)
             if n == CROPHIST:

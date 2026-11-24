@@ -1,5 +1,5 @@
 {
- "about": "Test examples for om3.1 photo codes (Caduceus for OM-3 v0.27, v0.28 and v0.40). 'films': the Control Panel's 20 default films as the camera writes them; 'bytes' = the expected 64 values, signed where the field is.",
+ "about": "Test examples for om3.1 photo codes (Caduceus for OM-3 v0.27, v0.28 and v0.40). 'films': the Control Panel's 20 default films as the camera writes them; 'bytes' = the expected 64 values, signed where the field is. 'om32' / 'om32Built': om3.2 codes (om3.2.<60>, the code alone in the comment); 'bytes' = their first 64 values, 'expect' = fields decode() must give.",
  "films": [
   {
    "comment": "Caduceus FILM 1 Portra 400 om3.1.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERAAAAA",
@@ -1591,7 +1591,8 @@
  "invalid": [
   "om3.1.TOOSHORT",
   "Caduceus FILM 3 Kodachrome 64",
-  "om3.2.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERAAAAA"
+  "om3.2.APAAEQDwEQAAEQAAEREOzNsPEgAPAAEAABD3ERAAAAA",
+  "om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABPwAAAAAAAQ48UAYKCQAgc_BL"
  ],
  "v028": {
   "comment": "Caduceus FILM 1 Test om3.1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACRPgAAI",
@@ -1835,6 +1836,238 @@
   "expect": {
    "border": -3,
    "artEffect": "Off"
+  }
+ },
+ "om32": {
+  "note": "om3.2, written by the firmware in om-emu: FILM 2 as set, with made-up curves, mix, Film Grain 4 and Coarse",
+  "film": null,
+  "name": null,
+  "comment": "om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABPwAAAAAAAQ48UAYKCQAgc_BLKU",
+  "code": "om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABPwAAAAAAAQ48UAYKCQAgc_BLKU",
+  "bytes": [
+   0,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   1,
+   -1,
+   1,
+   0,
+   0,
+   0,
+   2,
+   3,
+   1,
+   0,
+   -1,
+   0,
+   0,
+   -1,
+   0,
+   -1,
+   -1,
+   -2,
+   -1,
+   0,
+   0,
+   -1,
+   -1,
+   0,
+   0,
+   0,
+   0,
+   2,
+   0,
+   0,
+   0,
+   0,
+   3,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   3,
+   -1,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "expect": {
+   "version": "om3.2",
+   "grain": "High",
+   "filmGrain": 4,
+   "grainSize": "Coarse",
+   "rgbCurves": {
+    "red": [
+     1,
+     -2,
+     3,
+     -4,
+     5
+    ],
+    "green": [
+     0,
+     6,
+     0,
+     -6,
+     0
+    ],
+    "blue": [
+     -7,
+     0,
+     2,
+     0,
+     7
+    ]
+   },
+   "colourMix": {
+    "red": {
+     "hue": 3,
+     "strength": -1
+    },
+    "green": {
+     "hue": 0,
+     "strength": 4
+    },
+    "blue": {
+     "hue": -5,
+     "strength": 2
+    }
+   }
+  }
+ },
+ "om32Built": {
+  "note": "om3.2, written by the firmware in om-emu: FILM 2 as built (no grain; made-up built-in curves and mix)",
+  "film": null,
+  "name": null,
+  "comment": "om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABDwAAAAAAAAEPAgAA4ADQDlEAoA",
+  "code": "om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABDwAAAAAAAAEPAgAA4ADQDlEAoA",
+  "bytes": [
+   0,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   1,
+   -1,
+   1,
+   0,
+   0,
+   0,
+   2,
+   3,
+   1,
+   0,
+   -1,
+   0,
+   0,
+   -1,
+   0,
+   -1,
+   -1,
+   -2,
+   -1,
+   0,
+   0,
+   -1,
+   -1,
+   0,
+   0,
+   0,
+   0,
+   2,
+   0,
+   0,
+   0,
+   0,
+   3,
+   1,
+   1,
+   0,
+   0,
+   0,
+   1,
+   0,
+   -1,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "expect": {
+   "version": "om3.2",
+   "grain": "Off",
+   "filmGrain": 0,
+   "grainSize": "Medium",
+   "rgbCurves": {
+    "red": [
+     0,
+     1,
+     0,
+     -1,
+     0
+    ],
+    "green": [
+     2,
+     0,
+     0,
+     0,
+     -2
+    ],
+    "blue": [
+     0,
+     0,
+     -3,
+     0,
+     0
+    ]
+   },
+   "colourMix": {
+    "red": {
+     "hue": -2,
+     "strength": 5
+    },
+    "green": {
+     "hue": 1,
+     "strength": 0
+    },
+    "blue": {
+     "hue": 0,
+     "strength": -6
+    }
+   }
   }
  }
 }

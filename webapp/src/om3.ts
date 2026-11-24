@@ -292,12 +292,26 @@ export function lookFromRecord(rec: Uint8Array, name: string, v28 = false, photo
  *  reference firmware/photocode.py, spec docs/PHOTO_CODE.md): a 64-byte record, one nibble each, two to a byte,
  *  base64url. v0.28: the film as set when the photo was taken; bytes 57..62 Halation 0..5, Tone Balance, the WB
  *  (signed -5..5 pairs); split toning still in v0.26 steps, its half steps in byte 63 (unsigned). */
-export const PHOTO_RE = /om3\.1\.([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/;
+/** om3.2 (2026-11-24): "om3.2.<60>" = 45 bytes: the same 64 values (bytes 0..31), then a curves slot as the camera
+ *  keeps it (bytes 32..43, 24 values -7..7: the R, G, B curves, 6 values each, a curve's 5 points being its values 0,
+ *  2, 3, 4, 5, value 1 spare; then the 6 colour mix values) and the grain byte (44: bit 7 = given, bits 0..2 Film
+ *  Grain strength 1..5, bits 3..4 Grain Size 0 Fine, 1 Medium, 2 Coarse). The camera writes the code alone into the
+ *  UserComment. A longer code (more groups of 4 characters) is read for the bytes known here. PHOTO_RE finds both
+ *  codes: group 1 = an om3.1 code's 43 characters, group 2 = an om3.2 code's 60 or more. */
+export const PHOTO_RE = /om3\.(?:1\.([A-Za-z0-9_-]{43})|2\.((?:[A-Za-z0-9_-]{4}){15,}))(?![A-Za-z0-9_-])/;
+const PHOTO_X_POINTS = [0, 2, 3, 4, 5];
+/** An om3.2 code's bytes from 32 on (13 or more), or null for an om3.1 code. */
+function photoCodeTail(code: string): number[] | null {
+  const m = PHOTO_RE.exec(code);
+  if (!m?.[2]) return null;
+  const bin = atob(m[2].replace(/-/g, '+').replace(/_/g, '/'));
+  return Array.from(bin.slice(32), (c) => c.charCodeAt(0));
+}
 const PHOTO_UNSIGNED = new Set([36, 49, 50, 51, 53, 55, 57, 63]);   // v0.40: 48 is the Border, -5..5 (an Art Effect id before: 0..5 reads the same)
 export function recordFromPhotoCode(code: string): Uint8Array {
   const m = PHOTO_RE.exec(code);
-  if (!m) throw new Error('No om3.1. code found.');
-  const bin = atob(m[1].replace(/-/g, '+').replace(/_/g, '/') + '=');
+  if (!m) throw new Error('No om3.1. or om3.2. code found.');
+  const bin = atob((m[1] ?? m[2].slice(0, 43)).replace(/-/g, '+').replace(/_/g, '/') + '=');
   const rec = new Uint8Array(64);
   for (let i = 0; i < 64; i++) {
     const byte = bin.charCodeAt(i >> 1), v = i & 1 ? byte & 15 : byte >> 4;
@@ -308,11 +322,28 @@ export function recordFromPhotoCode(code: string): Uint8Array {
 /** A look from a photo's UserComment (or any text holding it): the name after "FILM n", else "From photo". */
 export function lookFromPhotoCode(text: string): Look {
   const rec = recordFromPhotoCode(text);
-  const nm = /FILM \d+ (.*?) om3\.1\./.exec(text)?.[1]?.trim();
-  return lookFromRecord(rec, nm || 'From photo', false, true);
+  const nm = /FILM \d+ (.*?) om3\.[12]\./.exec(text)?.[1]?.trim();
+  const l = lookFromRecord(rec, nm || 'From photo', false, true);
+  const t = photoCodeTail(text);
+  if (t) {                                             // om3.2: the RGB curves, the colour mix, the grain's strength and size
+    const x = t.slice(0, 12).flatMap((b) => [b >> 4, b & 15]).map((v) => (v < 8 ? v : v - 16));
+    const pts = (k: number) => PHOTO_X_POINTS.map((p) => x[6 * k + p]);
+    const rgb = { r: pts(0), g: pts(1), b: pts(2) }, mix = x.slice(18, 24);
+    const ok = [...rgb.r, ...rgb.g, ...rgb.b, ...mix].every((v) => v >= -7);
+    if (ok && [...rgb.r, ...rgb.g, ...rgb.b].some(Boolean)) l.rgb = rgb;
+    if (ok && mix.some(Boolean)) l.mix = mix;
+    const g = t[12];
+    if (l.film_grain && g & 0x80) {
+      if ((g & 7) >= 1 && (g & 7) <= 5) setGrainStrength(l, g & 7);
+      const size = (g >> 3) & 3;
+      if (size === 0) l.grain_size = 1; else if (size === 2) l.grain_size = 3;
+    }
+  }
+  return l;
 }
-/** A look's recipe code, as the camera (v0.28) writes it into a photo: its v0.28 LOOKS.BIN record with split toning
- *  in v0.26 steps and the half steps in byte 63 (firmware ex_cd1). lookFromPhotoCode reads it back. */
+/** A look's recipe code, as the camera writes it into a photo (om3.2): its v0.28 LOOKS.BIN record with split toning
+ *  in v0.26 steps and the half steps in byte 63, then its curves, mix and grain byte (firmware ex_cd1).
+ *  lookFromPhotoCode reads it back. */
 export function photoCodeOf(l: Look): string {
   const bank = emptyBank(); bank[0][0] = l;
   const rec = profilesBin(bank, 28).slice(32, 96);
@@ -322,9 +353,15 @@ export function photoCodeOf(l: Look): string {
     if (v < 0) { rec[at] = ~v & 255; half |= bit; }
   }
   rec[63] = half | ((l.halation_radius ?? 0) & 3) << 2;   // v0.40.3: bits 2..3 the Halation Radius (firmware ex_rz)
-  return encodePhotoCode(rec);
+  const x = [...(['r', 'g', 'b'] as const).flatMap((c) => { const v = l.rgb?.[c] ?? [0, 0, 0, 0, 0]; return [v[0], 0, ...v.slice(1, 5)]; }),
+    ...(l.mix ?? [0, 0, 0, 0, 0, 0])].map((v) => v & 15);
+  const nib = [...Array.from(rec.subarray(0, 64), (v) => v & 15), ...x];
+  let bin = ''; for (let k = 0; k < 44; k++) bin += String.fromCharCode((nib[2 * k] << 4) | nib[2 * k + 1]);
+  bin += String.fromCharCode(l.film_grain ? 0x80 | (((l.grain_size ?? 2) - 1) & 3) << 3 | grainStrength(l) : 0);
+  return 'om3.2.' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_');
 }
-/** The text the camera writes into a photo's UserComment, for sharing: "Caduceus FILM n Name om3.1.<43>". */
+/** A look's sharing text: "Caduceus FILM n Name om3.2.<60>" (the camera's UserComment up to om3.1; with om3.2 the
+ *  camera writes the code alone, and the name here is for the person reading the text). */
 export const recipeText = (l: Look, film: number) => `Caduceus FILM ${film} ${l.name.replace(/[^\x20-\x7e]/g, '?')} ${photoCodeOf(l)}`;
 export function encodePhotoCode(rec: Uint8Array): string {
   const nib = Array.from(rec.subarray(0, 64), (v) => v & 15);

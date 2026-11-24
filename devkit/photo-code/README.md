@@ -1,5 +1,9 @@
 # OM-3 photo code: developer kit
 
+**om3.2 (2026-11-24, not released yet; emulator only):** a new code, `om3.2.` + 60 characters, written alone into
+the UserComment. It adds the RGB curves, the colour mix, the Film Grain strength and the Grain Size to om3.1's 64
+values. A reader written for om3.1 does not find it; `om3code.js` here reads both. See "om3.2" below.
+
 From v0.27, [Caduceus for OM-3](../../README.md) writes the film a JPEG was taken with into the photo's EXIF, with a
 short code holding the film's full recipe (from v0.28: as it was set when the photo was taken, with the changes made
 on the camera and the camera's WB). A website or app can read the code and rebuild the recipe: for example, a
@@ -53,7 +57,11 @@ if (recipe) {
 }
 ```
 
-`decode(code)` gives the same object from a bare code, and `decodeBytes(code)` the 64 raw values.
+`decode(code)` gives the same object from a bare code, and `decodeBytes(code)` the 64 raw values. With om3.2 the
+object also has `version` ('om3.1' / 'om3.2'), `halationRadius`, `filmGrain` (0 Off, 1..5), `grainSize` ('Fine' /
+'Medium' / 'Coarse'), `rgbCurves` ({ red: [5 points], green, blue }, -7..7) and `colourMix` ({ red: { hue, strength },
+green, blue }); for an om3.1 code these are flat curves, no mix, the level's strength and Medium. For an om3.2 photo
+`film` and `name` come from the ImageDescription; from the comment text alone they are null.
 
 ## The code
 
@@ -103,11 +111,25 @@ table marks it unsigned.
 Colour wheel (clockwise from 12 o'clock, as on the camera): 0 Yellow, 1 Orange, 2 Orange-red, 3 Red, 4 Magenta,
 5 Violet, 6 Blue, 7 Blue-cyan, 8 Cyan, 9 Green-cyan, 10 Green, 11 Yellow-green.
 
+### om3.2
+
+`om3.2.` followed by 60 characters = 45 bytes in base64url (no padding). The UserComment holds the code alone; the
+film's number and name are in the ImageDescription (`FILM 9 Velvia 50`).
+
+| Byte | Field | Notes |
+|---|---|---|
+| 0–31 | The 64 values of `om3.1`, unchanged | Every rule of the om3.1 code holds for them: its first 43 characters are an om3.1 code's |
+| 32–43 | 24 more values, coded the same way (4 bits each, the first in the high half), all signed −7…7 | A curves slot as the camera keeps it. Values 0–5 the red RGB curve, 6–11 green, 12–17 blue: a curve's 5 points (0 / 25 / 50 / 75 / 100 %) are its values 0, 2, 3, 4, 5; value 1 is spare (0, not read). Values 18–23 the colour mix: hue R, strength R, hue G, strength G, hue B, strength B |
+| 44 | The grain byte, whole | Bit 7 set = given. Bits 0–2: Film Grain strength 1–5 (0 = the level's). Bits 3–4: Grain Size 0 Fine, 1 Medium, 2 Coarse. Bit 7 clear (a film as built), or value 51 = 0 (grain Off): the level's strength (Low 2, Medium 3, High 5) and Medium |
+
+A later firmware may write a longer code (more groups of 4 characters): read the bytes you know. To find both codes:
+`om3\.(?:1\.([A-Za-z0-9_-]{43})|2\.((?:[A-Za-z0-9_-]{4}){15,}))(?![A-Za-z0-9_-])`.
+
 ### Compatibility
 
 - **Forward:** new settings go into spare bytes, with 0 = off. A reader written for v0.27 keeps working on v0.28
   photos: it reads everything it knows (split toning rounded down by half a step where v0.28 has a half step) and can
-  ignore bytes 57–63. v0.28 used the last spare byte: the next new setting gets `om3.2.`.
+  ignore bytes 57–63. v0.28 used the last spare byte, so the next new settings came with `om3.2.` (above).
 - **Backward:** a newer reader treats an older photo's spare bytes (all 0) as "off".
 - **Breaking changes** get a new version in the prefix (`om3.2.`). A reader should only accept the versions it knows.
 - The camera is in the prefix, so another body can have its own code with the same layout.

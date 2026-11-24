@@ -17015,15 +17015,9 @@ ex_fill:
  add 1,a2
  add -1,d1
  bne 9b
- mov (ex_blk),a2                  /* UserComment: "Caduceus " + the text + " " + the code, spaces after it */
- add 3972,a2
+ mov (ex_blk),a2                  /* UserComment: the code alone (om3.2: owner, 2026-11-24, no "Caduceus", no film */
+ add 3972,a2                      /* number or name; ImageDescription keeps "FILM n Name"), spaces after it */
  mov 117,d3
- mov ex_uc,a0
- call ex_put,[],0
- mov ex_txt,a0
- call ex_put,[],0
- mov ex_sp,a0
- call ex_put,[],0
  mov ex_code,a0
  call ex_put,[],0
  mov 32,d0
@@ -17069,6 +17063,33 @@ ex_fill:
  * readers: the strength code v < 0 (an odd number of half steps, 2 |v| - 1) is written as |v| - 1 with its half step
  * in byte 63 (bit 0 Shadows, bit 1 Highlights). */
 ex_cd1:
+ mov (ex_rk),d0                   /* om3.2: COLOR k's curves slot first (d2, d3 are still k, j): its 24 values (18 */
+ cmp d2,d0                        /* curve, 6 mix) -> ex_nb + 32.., 12 bytes; its grain byte G -> ex_nb + 44. COLOR k */
+ bne 1f                           /* now (live[k]), else the film's built-in curves and mix with G = 0 (not given) */
+ mov d2,d0
+ call cv_lk,[],0
+ movbu (25,a0),d1
+ bra 2f
+1:
+ mov d3,d0
+ call ck_bij,[],4
+ clr d1
+2:
+ mov ex_nb + 32,a1
+ movbu d1,(12,a1)
+ mov ex_nb + 44,a3
+3:
+ movbu (a0),d0
+ and 15,d0
+ asl 4,d0
+ movbu (1,a0),d1
+ and 15,d1
+ or d1,d0
+ movbu d0,(a1)
+ add 2,a0
+ inc a1
+ cmp a3,a1
+ bne 3b
  mov (ex_rk),d0
  cmp d2,d0
  bne 1f
@@ -17124,9 +17145,7 @@ ex_cd1:
  add 1,d2
  cmp 32,d2
  bcs 1b
- clr d0
- movbu d0,(a1)                    /* byte 32 = 0: eleven groups of 3, the 44th character dropped */
- mov ex_code,a1
+ mov ex_code,a1                   /* om3.2: 45 bytes = fifteen groups of 3, 60 characters */
  mov ex_cdp,a0
  mov 6,d3
 3:
@@ -17138,7 +17157,7 @@ ex_cd1:
  bne 3b
  mov ex_nb,a0
  mov ex_b64,a3
- mov 11,d3
+ mov 15,d3
 4:
  movbu (a0),d0
  lsr 2,d0
@@ -17168,7 +17187,6 @@ ex_cd1:
  add 4,a1
  add -1,d3
  bne 4b
- add -1,a1
  clr d0
  movbu d0,(a1)
  ret [d2,d3,a2,a3],20
@@ -17190,12 +17208,8 @@ ex_put:
 
 ex_film:
  .asciz "FILM "
-ex_uc:
- .asciz "Caduceus "
-ex_sp:
- .asciz " "
 ex_cdp:
- .ascii "om3.1."
+ .ascii "om3.2."
 ex_b64:
  .ascii "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
  .balign 4
@@ -17207,10 +17221,10 @@ ex_snap:
  .space 32
 ex_txt:
  .space 48
-ex_nb:
- .space 36
-ex_code:                          /* "om3.1." + 43 characters + NUL = 50 bytes (v0.28 pc1: was 48, 2 in the padding) */
- .space 52
+ex_nb:                            /* om3.2: the record's 32 bytes, the curves slot's 12, the grain byte */
+ .space 48
+ex_code:                          /* "om3.2." + 60 characters + NUL = 67 bytes */
+ .space 68
  .balign 4
 ex_rk:                            /* v0.28 pc1: ex_rec holds COLOR ex_rk (-1: none) */
  .long -1

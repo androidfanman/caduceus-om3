@@ -1290,7 +1290,7 @@ let afterPreview: (() => void) | null = null;
 // ---------------------------------------------------------------- import / export / share
 function openFile() { $<HTMLInputElement>('#file').click(); }
 function pasteDialog() {
-  const ta = h('textarea', { rows: 3, placeholder: 'Paste a shared look or looks link (…#op1_… or …#ob1_…), or a photo\'s om3.1. code', spellcheck: 'false' });
+  const ta = h('textarea', { rows: 3, placeholder: 'Paste a shared look or looks link (…#op1_… or …#ob1_…), or a photo\'s om3 code', spellcheck: 'false' });
   const msg = h('p', { class: 'help' });
   const go = h('button', { class: 'primary' }, 'Open');
   const dlg = modal('Paste a link', h('div', {}, ta, msg), [go]);
@@ -1816,7 +1816,8 @@ async function om3OpenOne(f: File, bytes: Uint8Array) {
       const txt = new TextDecoder('latin1').decode(bytes.subarray(0, Math.min(bytes.length, 262144)));
       const m = /Caduceus [^\0]*?om3\.1\.[A-Za-z0-9_-]{43}/.exec(txt) ?? PHOTO_RE.exec(txt);
       if (!m) { toast('This photo has no Caduceus film code (taken without a film, or before v0.27).', 'err'); return; }
-      await om3ImportCode(m[0], false); return;
+      const film = m[0].startsWith('om3.2.') ? /FILM \d+ [\x20-\x7e]{1,16}(?=\0)/.exec(txt)?.[0] : null;   // om3.2: the code alone; the name is in ImageDescription
+      await om3ImportCode(film ? `${film} ${m[0]}` : m[0], false); return;
     }
     const j = JSON.parse(new TextDecoder().decode(bytes));
     if (j && j.schema === BANK_SCHEMA) { const b = parseBank(j, parseLook); replaceBank(b.bank, `Opened "${b.name}"`, b.name); return; }
@@ -1963,7 +1964,7 @@ async function om3ImportCode(t: string, fromLink: boolean): Promise<boolean> {
       return true;
     }
     const fromPhoto = PHOTO_RE.test(t) && !isOm3Code(t, OP_PREFIX);
-    if (!fromPhoto && !isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_) or a photo\'s om3.1. code.');
+    if (!fromPhoto && !isOm3Code(t, OP_PREFIX)) throw new Error('This is not an OM-3 look link (it starts with op1_ or ob1_) or a photo\'s om3.1. / om3.2. code.');
     const c: { look: Look | null; changed: string[]; dropped: string[] } = { look: fromPhoto ? lookFromPhotoCode(t) : parseLook(await decodeOm3(OP_PREFIX, t), 'look'), changed: [], dropped: [] };
     if (!c.look) throw new Error('That link holds no look.');
     return placeLook(c as { look: Look; changed: string[]; dropped: string[] });

@@ -10799,3 +10799,27 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
 - **Package:** `test-builds/2026-11-23-v0.41-a6` (E1479999.BIN 8a0fee15…f56b, GUIDES.BIN 2acfa76e…a71f, built twice the
   same; go-backs to a5 and v0.41-alpha).
 - **Suite (41a7fdf):** 163 pass, 0 known, 1 FAIL static:changed-bytes, its list the same as a5's.
+
+
+## Photo code om3.2 (2026-11-24; emulator only)
+
+Owner, 2026-11-24 (after the add-on of 2026-11-23, `feature/photo-code-2`, was put on hold): "lets work on a new
+one. I can have the looklab and things updated to support both codes. I don't need it to say Cadiceus in it ... and
+ideally, it shows everyone of the color profile settings the user set"; then "you can even drop the film 20" and "if
+the name is taking up so much space, drop all name". And: "it needs to fit in the space it has", nothing else moved.
+Branch `feature/photo-code-3` on v0.41-a6 (634d3b6) with `main` merged in for LookLab.
+
+- **The code:** `om3.2.<60>` = 45 bytes: om3.1's 64 values, a curves slot's 24 values (`cv_ram` live[k] +0..23:
+  18 curve values, 6 mix), the grain byte G (live[k] +25) whole. Layout: `docs/PHOTO_CODE.md`. The UserComment is
+  the code alone; ImageDescription is unchanged.
+- **Firmware:** all in `ex_cd1` / `ex_fill` (editor.s, .ext12). `ex_cd1` first packs the slot into `ex_nb` + 32 and
+  stores G at + 44 (as set: `cv_lk`; as built: `ck_bij`, G = 0), then as before with 15 base64 groups, not 11.
+  `ex_fill` puts `ex_code` only (`ex_uc`, `ex_sp` and their calls gone). No new hook, nothing at start-up, reads
+  memory only.
+- **Space against a6:** .ext12 262,056 -> 262,104 of 262,144 (+48 B, 40 B free); .ext13 / .ext14 / .ext15 unchanged
+  (256 / 264 / 296 B free). Nothing moved.
+- **Emulator** (om-emu, `photo-code-om32-carries-every-picture-mode-row`): `ex_fill` on a scratch EXIF block writes
+  `om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABPwAAAAAAAQ48UAYKCQAgc_BLKU` (as set: made-up curves, mix, G 0x94) and
+  `…ABDwAAAAAAAAEPAgAA4ADQDlEAoA` (as built). om-emu takes no photos: the code in a real JPEG is the camera test.
+- LookLab reads both codes and writes om3.2 (Share keeps "Caduceus FILM n Name" before it, for the reader of the
+  text; opening an om3.2 JPEG takes the name from ImageDescription). The developer kit likewise.

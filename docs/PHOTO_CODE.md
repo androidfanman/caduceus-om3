@@ -8,7 +8,39 @@ film and a shared photo can give its film back to LookLab.
 | ImageDescription (0x010e) | `FILM 19 Astia 100F` |
 | UserComment (0x9286; character code blank, then ASCII) | `Caduceus FILM 19 Astia 100F om3.1.AAAAAAAAAQAAAAAADwAAEQAAAAAPABDwABAAAAAAAAA` |
 
+| UserComment from om3.2 (below): the code alone | `om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABPwAAAAAAAQ48UAYKCQAgc_BLKU` |
+
 Photos without a film (COLOR 1–4 with the user's own settings, CRT, ART, MONO, …) keep the camera's blank fields.
+
+## om3.2: `om3.2.` + 60 characters (2026-11-24)
+
+Status: branch `feature/photo-code-3` (on test build v0.41-a6), emulator only: the camera test is pending. Not released.
+
+Owner, 2026-11-24: a new code that carries every Picture Mode row the user set, and nothing else in the comment (no
+"Caduceus", no film number, no name: "drop all name"). ImageDescription keeps `FILM n Name`, as before. The code is
+66 characters of the comment's 117.
+
+The 60 characters are 45 bytes in base64url (no padding is needed):
+
+| Byte | Field | Notes |
+|---|---|---|
+| 0–31 | The 64 values of `om3.1`, unchanged | Every rule of the om3.1 code holds for them: its first 43 characters are an om3.1 code's |
+| 32–43 | 24 more values, coded the same way (4 bits each, the first in the high half), all signed −7…7 | A curves slot as the camera keeps it. Values 0–5 the red RGB curve, 6–11 green, 12–17 blue: a curve's 5 points (0 / 25 / 50 / 75 / 100 %) are its values 0, 2, 3, 4, 5; value 1 is spare (0, not read). Values 18–23 the colour mix: hue R, strength R, hue G, strength G, hue B, strength B |
+| 44 | The grain byte, whole | Bit 7 set = given. Bits 0–2: Film Grain strength 1–5 (0 = the level's). Bits 3–4: Grain Size 0 Fine, 1 Medium, 2 Coarse. Bit 7 clear (a film as built), or value 51 = 0 (grain Off): the level's strength (Low 2, Medium 3, High 5) and Medium |
+
+- **What the camera writes:** COLOR k as set at the half-press before the shot (the record, its curves and mix, its
+  grain byte); with no half-press read, the film as built (its LOOKS.BIN record, its `CURVES.BIN` values, grain byte
+  0), as om3.1 did.
+- **Readers:** an om3.1 reader finds no code in an om3.2 photo (its pattern asks for `om3.1.`); it has to be updated.
+  A reader of both: `om3\.(?:1\.([A-Za-z0-9_-]{43})|2\.((?:[A-Za-z0-9_-]{4}){15,}))(?![A-Za-z0-9_-])`. For an om3.1
+  code: flat curves, no mix, the level's strength, Medium.
+- **Growing it:** more groups of 4 characters (3 bytes) after the 60, with 0 = off / not given; 51 characters of the
+  comment are free. A reader takes the bytes it knows and accepts a longer code.
+- Reference: `firmware/photocode.py` (`encode2`, `extras`, `decode`); firmware `ex_cd1` / `ex_fill`
+  (`firmware/src/editor.s`); LookLab `lookFromPhotoCode` / `photoCodeOf`; the developer kit `devkit/photo-code/`.
+- Not built: the add-on form `om3.1.<43>.<16>` of 2026-11-23 (branch `feature/photo-code-2`, test builds only).
+
+The rest of this page is the om3.1 code, which om3.2's first 64 values follow.
 
 ## The code: `om3.1.` + 43 characters
 

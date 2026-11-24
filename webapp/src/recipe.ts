@@ -18,7 +18,7 @@ export const isRecipe = (j: unknown): j is Obj => isObj(j) && typeof j.photo_cod
 /** The look of a recipe .json. Throws when a curves or mix field is there but not readable. */
 export function lookFromRecipe(j: Obj): Look {
   const code = PHOTO_RE.exec(String(j.photo_code));
-  if (!code) throw new Error('no om3.1. photo code');
+  if (!code) throw new Error('no om3.1. / om3.2. photo code');
   const l = lookFromPhotoCode(code[0]);
   if (typeof j.name === 'string' && j.name.trim()) l.name = j.name.trim().slice(0, OM3_NAME_MAX);
   const c = j.rgb_curves ?? j.rgb;
