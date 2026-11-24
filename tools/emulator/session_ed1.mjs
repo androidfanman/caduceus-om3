@@ -116,12 +116,16 @@ function getv(id) {
 // After a token the camera idles POST_NS. SETTLE=0 always idles all of it, and a wait token always does. Otherwise
 // it idles in SLICE_NS steps and stops once SETTLE_K steps in a row change nothing settleSig() reads.
 const POST_NS = 1200e6, SLICE_NS = 100e6, SETTLE = process.env.SETTLE !== '0', SETTLE_K = Number(process.env.SETTLE_K || 2);
-const OSD_DBG = 0x8e000000, OSD_STARTS = 0x18, OSD_EXEC_TOTAL = 0x2c;   // om-emu's OSD engine counters (src/lab/osd.mjs)
+// The screen: the GUI's OSD surfaces (om-emu lab.surfaces), each one once. The OSD engine redraws them every 200 ms
+// on some screens, so its counters move with nothing changed.
+const screenHash = () => { const h = createHash('sha1'), seen = new Set();
+  for (const x of lab.surfaces || []) { const k = x.base + ':' + x.stride * x.height; if (!seen.has(k)) { seen.add(k); h.update(rd(x.base, x.stride * x.height)); } }
+  return h.digest('hex'); };
 let cardSaves = 0; { const save = card.save; card.save = (x) => { cardSaves++; save(x); }; }
 const settleSig = () => {
   const st = u16(STATE), P = POOL + st - 1, ed = st >= 1 && st - 1 < HMAX ? createHash('sha1').update(rd(P, 720)).digest('hex') : '';
   let cn = 0; for (const c of counts.values()) cn += c.n;
-  return [st, lab.state(), u32(OSD_DBG + OSD_STARTS), u32(OSD_DBG + OSD_EXEC_TOTAL), ed, hits.length, hits_n, kept, cn,
+  return [st, lab.state(), screenHash(), ed, hits.length, hits_n, kept, cn,
     lastsN, globalThis.__wc?.n ?? 0, cardSaves, lab.store_log?.nvram?.saves.length ?? 0].join();
 };
 const settle = (t) => {

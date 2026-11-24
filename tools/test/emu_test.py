@@ -324,6 +324,8 @@ WHEEL_RESET_LABEL = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} menu w
 # Picture Mode closes after 30 s idle (#75, stock 8 s), counted again from each key or dial turn. The super control
 # panel and the white balance screen keep 8 s. A dial turn every 12 s keeps the wheel open for 48 s.
 WAITS = lambda n: 'wait ' * n     # a wait, a dial or an expect token runs 1.2 s, a key 1.35 s
+# These tests count the idle time in tokens, so they take the driver's fixed wait after every token (SETTLE=0).
+FIXED_WAIT = (('SETTLE', '0'),)
 PICTURE_MODE, SHOOTING = 'expect:gui:ID_ST_DIRECT_PICTUREMODE_ART', 'expect:gui:ID_ST_CA_REQ_DISP'
 PANEL, WHITE_BALANCE = 'expect:gui:ID_ST_MENU_DTL_SCP', 'expect:gui:ID_ST_DIRECT_WB'
 OPEN_PICTURE_MODE, OPEN_WHITE_BALANCE = 's1 wait wait ok wait ok wait', 's1 wait wait ok wait right wait ok wait'
@@ -1252,31 +1254,31 @@ TESTS = {
         Boot(WHEEL_SAT_GUIDES),
     ],
     'picture-mode-closes-after-30-s-idle': [
-        Boot(PICTURE_MODE_IDLE_30S),
+        Boot(PICTURE_MODE_IDLE_30S, env=FIXED_WAIT),
     ],
     'super-control-panel-closes-after-8-s-idle': [
-        Boot(PANEL_IDLE_8S),
+        Boot(PANEL_IDLE_8S, env=FIXED_WAIT),
     ],
     'picture-mode-rear-dial-restarts-the-idle-time': [
-        Boot(WHEEL_DIAL_KEEPS_OPEN('main')),
+        Boot(WHEEL_DIAL_KEEPS_OPEN('main'), env=FIXED_WAIT),
     ],
     'picture-mode-front-dial-restarts-the-idle-time': [
-        Boot(WHEEL_DIAL_KEEPS_OPEN('sub')),
+        Boot(WHEEL_DIAL_KEEPS_OPEN('sub'), env=FIXED_WAIT),
     ],
     'picture-mode-up-key-restarts-the-idle-time': [
-        Boot(PICTURE_MODE_KEEPS_OPEN('up')),
+        Boot(PICTURE_MODE_KEEPS_OPEN('up'), env=FIXED_WAIT),
     ],
     'picture-mode-touch-restarts-the-idle-time': [
-        Boot(PICTURE_MODE_TOUCH_30S),
+        Boot(PICTURE_MODE_TOUCH_30S, env=FIXED_WAIT),
     ],
     'super-control-panel-touch-keeps-8-s': [
-        Boot(PANEL_TOUCH_8S),
+        Boot(PANEL_TOUCH_8S, env=FIXED_WAIT),
     ],
     'function-screen-touch-keeps-8-s': [
-        Boot(FUNCTION_TOUCH_8S),
+        Boot(FUNCTION_TOUCH_8S, env=FIXED_WAIT),
     ],
     'white-balance-closes-after-8-s-idle': [
-        Boot(WHITE_BALANCE_IDLE_8S),
+        Boot(WHITE_BALANCE_IDLE_8S, env=FIXED_WAIT),
     ],
     'color-wheel-dial-step-writes-the-cursor-only': [
         Boot(WHEEL_STEP_WRITES_CURSOR),
