@@ -68,6 +68,9 @@ LookLab only; the firmware is unchanged.
   from and written to photo codes; no card file carries it, so set it on the camera.
 - **Your own photos are kept between visits:** each photo you add is kept as a preview-size copy in this browser and
   is back in the grid when you return. Removing one, or Remove all, deletes the kept copy too. Nothing is uploaded.
+- **Reads the new photo code (2026-11-24):** Open… and the import box take both the current `om3.1.` code and the new
+  `om3.2.` code (written by test builds after v0.41-alpha: it also carries the RGB curves, Color Mix, Film Grain's
+  exact strength and Grain Size). A look's own code in LookLab is now written as `om3.2.`.
 
 ## v0.40.3
 2026-11-23. v0.40.2 plus everything from the v0.40.3 test versions; camera-tested as v0.40.3-beta4 (the build before
