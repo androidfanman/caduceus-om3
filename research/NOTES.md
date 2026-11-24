@@ -10762,3 +10762,17 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
   the same). Sizes: .ext15 138,368 of 139,264, .ext13 81,280 of 81,920.
 - **Suite (fcef9a4):** 161 pass, 0 known, 1 FAIL static:changed-bytes; its full list differs from v0.41-alpha's only
   at the picture widget's place 0x61451e50 / 0x61451e58; no new hook (static:hook-list passes).
+
+## v0.41-a5: "Split Tone [INFO]" over the Split toning bar (2026-11-23; emulator only)
+- **Asked (owner, on a4's picture):** "it should say split tone"; with the numbers (cad): "yes to split tone" (st_ctab
+  moved); then "go ahead and stop the merge of the photo code and split tone. Lets just get the split tone in. I need
+  to brainstorm more about this photocode". So a5 = a3 + the hint parts (96f4055, from a4) + "Split Tone"; no photo
+  code (`feature/photo-code-2` is not merged on this branch).
+- **Space:** on a3 the hint parts with "Split Tone" left .ext15 120 B over with the hints' tables in .ext12 (456 B with
+  them in .ext15). st_ctab (416 B, camera-tested, unchanged) moved to .ext13. Free now: .ext15 296 B, .ext13 256 B,
+  .ext12 88 B; GUIDES.BIN 14,792 of 16,448. HB_BUF 13 KB (worst cases 11,228 / 12,340 B).
+- **Emulator:** the wheel row as a3; "Split Tone [INFO]" on Shadows, Balance and Highlights; the bar's colours
+  (PAL_STRIP) from st_ctab in .ext13 as before.
+- **Suite (6209bbb, built twice the same: E1479999.BIN 274fbf7a…a4c0, GUIDES.BIN 7bb7f13d…011c):** 162 pass, 0 known,
+  1 FAIL static:changed-bytes, its list the same as a3's. `split-tone-bar-has-an-info-hint` caught on a3.
+- **Package:** `test-builds/2026-11-23-v0.41-a5` (go-backs to a3 and v0.41-alpha).
