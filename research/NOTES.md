@@ -10776,3 +10776,26 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
 - **Suite (6209bbb, built twice the same: E1479999.BIN 274fbf7a…a4c0, GUIDES.BIN 7bb7f13d…011c):** 162 pass, 0 known,
   1 FAIL static:changed-bytes, its list the same as a3's. `split-tone-bar-has-an-info-hint` caught on a3.
 - **Package:** `test-builds/2026-11-23-v0.41-a5` (go-backs to a3 and v0.41-alpha).
+
+## v0.41-a6: one style for the INFO guides ("Color [INFO]" as the tone curve's) (2026-11-23; emulator only)
+- **a5 camera result (owner, 2026-11-23; test-builds/2026-11-23-v0.41-a5/camera-results/NOTES.md):** "that looks
+  great. Now we need to clean up one thing ... The info icon ... All the info icons look different. the text and icon
+  need to all be the same". **Camera-tested in a5:** "Split Tone [INFO]", st_ctab in .ext13.
+- **The guides, decoded in om-emu (research only):** the camera's own "Mid [INFO]" is descriptor 0xa49eeb90 (124 x 50,
+  3,055 B), drawn on the tone curve's Mid page (logged at the picture draw 0x610eaf53, a0 = descriptor). Its white key
+  60 x 36 at rows 7..42, "INFO" letters 26 rows; the word "Mid" 30 px tall (M), stems 3 px, 48 px wide, its white 8 px
+  from the key's. Ours: "Sh/Hi" (cvp_d18, 0x6101dbc8) the same key, the word's stems 4 px, 6 px from the key; "Color"
+  (cvp_d5, 0x60f57580: Color Mix and RGB curves) a 62 px bold key and larger letters (mkguides.build). The bars' hints
+  are drawn as "Sh/Hi".
+- **Option A (not built, `try/v0.41-a6-option-a` 65edb7e):** rgbpics.info_guide, DejaVu Sans Condensed 41 / 0.82, no
+  extra weight, baseline 39, 8 px to the key: matches "Mid" in letter height, stem width and word width. Everything
+  in it left .ext15 624 B over (Sh/Hi +288, B/W +192, the hints +440, rounded). Making room: the tone curve's two
+  guides (6,000 B of streams in .ext15) built at run time from the bars' pool (their key rows already there, the two
+  words ~2.5 KB) would free ~3 KB, for ~6 KB of heap.
+- **Option B (owner: "lets go with B", built):** rgbpics.guide = guide5 ("Color [INFO]" as "Sh/Hi"): 145 x 50, 2,860
+  B (was 3,076); .ext11 65,280 of 65,536. The camera's own "Mid [INFO]" stays (a little thinner than ours).
+- **Test:** `mix-and-rgb-color-guide-as-the-tone-curves` (the key's white ends at x 518 on the Color Mix and RGB pages,
+  as Sh/Hi's; a5's at 520: caught on a5).
+- **Package:** `test-builds/2026-11-23-v0.41-a6` (E1479999.BIN 8a0fee15…f56b, GUIDES.BIN 2acfa76e…a71f, built twice the
+  same; go-backs to a5 and v0.41-alpha).
+- **Suite (41a7fdf):** 163 pass, 0 known, 1 FAIL static:changed-bytes, its list the same as a5's.
