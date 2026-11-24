@@ -55,9 +55,13 @@ BANNED = {"—": "em-dash", "–": "en-dash", ";": "semicolon"}
 WORD_RULE = re.compile(r"under (\d+) words", re.IGNORECASE)
 # The ASD-STE100 rules, read off the template like every other rule here. The
 # marker turns the word and gerund checks on. The cap is worded so it cannot be
-# read as the whole-body budget above, and it may wrap in the template.
+# read as the whole-body budget above, and it may wrap in the template. Two
+# wordings: "no sentence over N words" and the shipped template's "One idea per
+# sentence, N words max".
 STE_RULE = "ASD-STE100"
-SENTENCE_RULE = re.compile(r"no\s+sentence\s+over\s+(\d+)\s+words", re.IGNORECASE)
+SENTENCE_RULE = re.compile(
+    r"no\s+sentence\s+over\s+(\d+)\s+words"
+    r"|per\s+sentence,?\s+(\d+)\s+words\s+max", re.IGNORECASE)
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 # One word, one meaning, and the short one. Only swaps that lose no sense.
 LONG_WORDS = {"utilize": "use", "utilise": "use", "leverage": "use",
@@ -305,7 +309,7 @@ def style_problems(text, template, where):
             % (match.group(0), where))
     cap = SENTENCE_RULE.search(template)
     if cap:
-        limit = int(cap.group(1))
+        limit = int(cap.group(1) or cap.group(2))
         for sentence in sentences(text):
             words = sentence.split()
             if len(words) > limit:

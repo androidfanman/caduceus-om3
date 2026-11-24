@@ -7,6 +7,7 @@ description: This repo's commit and PR conventions. Read before writing any git 
 
 - Commit subject + PR title, one format: `<type>(<scope>)?!?: [<issue>]? <imperative summary>`. Conventional Commits types. `!` = breaking.
 - Scope = module (`firmware`, `looklab`, `card`, `docs`, `release`, `research`, `tools`). `[<issue>]` = main ticket ID: `feat(auth): [YCOM-21] add device-code login`.
+- Old subjects before 2026-11-24 used `LookLab:`, `NOTES:`, `vX:`. Now: `feat(looklab):` or `fix(looklab):`, `docs(research):`, `chore(release):`.
 - PR body: build from `.github/pull_request_template.md`, write over its comments. `--body`/`--body-file` skip prefill.
 - PR body links every ticket work belongs to, title's key first. Hook only sees branch's key, rest is on you. No ticket: link nothing, never invent key.
 - PR body length: under 256 words, bullets one line each. Only what a reviewer needs to review the diff. No ticket retelling, no history, no counts or benchmark numbers, no per-file walkthrough, no self-assessment. Headings, an attribution footer, embedded screenshots and recordings don't count against the budget.

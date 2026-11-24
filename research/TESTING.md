@@ -38,8 +38,9 @@ The runner makes an emulator card from the build's `GUIDES.BIN` and `LABELS.BIN`
 and `debug-log/DEBUG.TXT`. Each test then boots the build one or more times on a blank camera, carrying the card and
 the camera's settings from boot to boot. It checks the debug log the firmware writes at each half-press. A first
 boot that two or more tests share runs once, and each of those tests starts from its card and settings. Four tests
-run side by side (`--jobs`), and the whole suite takes about a minute and a half: 85 s on a 32 GB Mac, against 153 s with
-two jobs and no shared boots. It prints `pass`, `known`, or `FAIL` per test, with the
+run side by side (`--jobs`). With 129 tests the whole suite takes about 17 minutes on a 12-core, 32 GB Mac (1010 s,
+measured 2026-11-24). The emulator is CPU-bound: about one core and 1–2.3 GB per test, more for longer tests. Each
+camera boot costs about 6.5 s and each menu step about 0.8 s. It prints `pass`, `known`, or `FAIL` per test, with the
 reason, and exits 1 on any `FAIL`. Each test's boots, logs, and cards stay in the `--out` folder.
 
 Options:
@@ -287,7 +288,7 @@ Three layers, cheapest first. A change must pass each layer before the next one 
 |---|---|---|---|
 | Static build checks | `firmware/build.py` asserts, plus `tools/test/static_check.py` | Seconds | Wrong stock bytes, code outside proven space, stray writes, a changed hook list |
 | Release rebuild | `static:release-rebuild`, from `firmware/patch.py --release vX` | Seconds | An unintended change to a shipped release |
-| Emulator tests | `tools/test/emu_test.py` | 10–30 s each, several side by side | Menu flow, saved settings across boots, card-file handling, start-up tasks, unloaded code |
+| Emulator tests | `tools/test/emu_test.py` | median 6 s, up to 90 s each, four side by side | Menu flow, saved settings across boots, card-file handling, start-up tasks, unloaded code |
 
 `emu_test.py` runs the static checks too, as the `static:*` tests. Built: all three layers. Not built: the card-file
 size and checksum check, and the editor, no-card, and damaged-`LOOKS.BIN` emulator tests under "Tests to add next".

@@ -2,7 +2,6 @@ import json, pathlib, subprocess, sys, tempfile, unittest
 
 TEST_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(TEST_DIR))
-import emu_test  # noqa: E402
 import pr_gate  # noqa: E402
 
 GIT = ['git', '-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false']
@@ -24,7 +23,7 @@ def commit(cwd, path):
 
 
 def head(cwd):
-    return emu_test.git('rev-parse', 'HEAD', cwd=cwd)
+    return pr_gate.git('rev-parse', 'HEAD', cwd=cwd)
 
 
 class Repo(unittest.TestCase):
@@ -46,12 +45,12 @@ class ReasonTests(Repo):
 
     def test_tested_change_with_pass_on_older_head_is_refused(self):
         commit(self.cwd, FIRMWARE_FILE)
-        emu_test.pass_path(self.cwd).write_text(json.dumps({'head': self.main_sha}))
+        pr_gate.pass_path(self.cwd).write_text(json.dumps({'head': self.main_sha}))
         self.assertIn('last passed', pr_gate.reason(self.cwd))
 
     def test_tested_change_with_pass_on_head_is_allowed(self):
         commit(self.cwd, FIRMWARE_FILE)
-        emu_test.pass_path(self.cwd).write_text(json.dumps({'head': head(self.cwd)}))
+        pr_gate.pass_path(self.cwd).write_text(json.dumps({'head': head(self.cwd)}))
         self.assertIsNone(pr_gate.reason(self.cwd))
 
     def test_untested_change_is_allowed(self):
@@ -110,11 +109,33 @@ class HookTests(Repo):
 
     def test_hook_denies_when_check_crashes(self):
         commit(self.cwd, FIRMWARE_FILE)
-        emu_test.pass_path(self.cwd).write_text('"not an object"')
+        pr_gate.pass_path(self.cwd).write_text('"not an object"')
         payload = {'tool_name': 'Bash', 'tool_input': {'command': 'gh pr create'}, 'cwd': self.cwd}
         r = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(payload),
                            capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(r.stdout)['hookSpecificOutput']['permissionDecision'], 'deny')
+
+
+NO_NUMPY = 'import sys, runpy; sys.modules["numpy"] = None; runpy.run_path(sys.argv[1], run_name="__main__")'
+
+
+class StdlibOnlyTests(Repo):
+    def test_hook_needs_no_numpy(self):
+        commit(self.cwd, FIRMWARE_FILE)
+        payload = {'tool_name': 'Bash', 'tool_input': {'command': 'gh pr create --fill'}, 'cwd': self.cwd}
+        r = subprocess.run([sys.executable, '-c', NO_NUMPY, str(HOOK)], input=json.dumps(payload),
+                           capture_output=True, text=True, check=True)
+        why = json.loads(r.stdout)['hookSpecificOutput']['permissionDecisionReason']
+        self.assertNotIn('check itself failed', why)
+        self.assertIn('has not passed', why)
+
+    def test_constants_match_emu_test(self):
+        try:
+            import emu_test
+        except ImportError:
+            self.skipTest('emu_test needs numpy')
+        self.assertEqual(pr_gate.TESTED_PATHS, emu_test.TESTED_PATHS)
+        self.assertEqual(pr_gate.PASS_FILE, emu_test.PASS_FILE)
 
 
 if __name__ == '__main__':

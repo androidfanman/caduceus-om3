@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Claude Code PreToolUse hook (.claude/settings.json): refuses to open a pull request whose branch changes
 TESTED_PATHS until tools/test/emu_test.py has passed on the branch's HEAD commit."""
-import json, pathlib, re, sys
+import json, pathlib, re, subprocess, sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+# Stdlib only: emu_test imports numpy, which the system python3 running this hook lacks.
+# test_pr_gate.py checks these two match emu_test.
+TESTED_PATHS = ('firmware/', 'card/', 'tools/emulator/', 'tools/test/')
+PASS_FILE = 'emu-test-pass.json'
 
 # `gh [global flags] pr create|new`, the alias included.
 PR_CREATE = re.compile(r'\bgh\b[^\n;&|]*?\bpr\s+(?:create|new)\b')
@@ -19,15 +22,31 @@ def opens_pr(call):
     return tool == 'Bash' and bool(PR_CREATE.search(call.get('tool_input', {}).get('command', '')))
 
 
+def git(*args, cwd):
+    r = subprocess.run(['git', *args], cwd=cwd, capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def pass_path(cwd):
+    d = git('rev-parse', '--absolute-git-dir', cwd=cwd)
+    return pathlib.Path(d, PASS_FILE) if d else None
+
+
+def read_pass(cwd):
+    p = pass_path(cwd)
+    try:
+        return json.loads(p.read_text()) if p else None
+    except (OSError, ValueError):
+        return None
+
+
 def changed_paths(cwd):
-    from emu_test import git
     base = next((b for b in BASES if git('rev-parse', '--verify', '--quiet', b, cwd=cwd)), None)
     out = git('diff', '--name-only', f'{base}...HEAD', cwd=cwd) if base else None
     return None if out is None else out.splitlines()
 
 
 def reason(cwd):
-    from emu_test import TESTED_PATHS, git, read_pass
     paths = changed_paths(cwd)
     if paths is None:
         return 'no main branch to compare against, so the changed files are unknown. ' + HOW
