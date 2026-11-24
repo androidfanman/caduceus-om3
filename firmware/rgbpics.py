@@ -52,11 +52,11 @@ def label(parts):
 
 
 def guide(word='Color'):
-    g = mkguides.build(word)                     # 175 x 50: the word right-aligned to col 102, the key at 107..172
-    cols = np.nonzero(g.any(axis=0))[0]
-    g = g[:, max(0, cols.min() - 2):]
-    assert g.shape[1] <= 160, g.shape
-    return g
+    """the RGB curves / Color Mix pages' "Color [INFO]" (in place of the camera's "Mid [INFO]"). v0.41-a6 (owner, a5 on
+    the camera: "All the info icons look different. the text and icon need to all be the same"; option B, "lets go with
+    B"): drawn as the H&S row's "Sh/Hi [INFO]" / "B/W [INFO]" and the bars' hints (guide5: info_key, the word at
+    mkguides' size a pixel heavier); before: mkguides.build, its bold key and larger word."""
+    return guide5(word)
 
 
 def info_key():

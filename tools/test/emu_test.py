@@ -565,6 +565,11 @@ OPEN_MIX = 's1 wait wait ok wait ok wait down wait'
 PANEL_MODE = 2191
 PANEL_STEP_WRITE = lambda dial: (f'{dial}+1 wait fhash:a mids:{{manager}} {dial}+1 wait expect:mids:{PANEL_MODE} '
                                  f'fhash:b expect:fdiff:a:b {dial}-1 wait fhash:c expect:fsame:a:c')
+# v0.41-a6 (owner, a5 on the camera: "All the info icons look different. the text and icon need to all be the same";
+# option B): the Color Mix and RGB curves pages' "Color [INFO]" is drawn as the tone curve's "Sh/Hi [INFO]" (rgbpics.guide5):
+# its white key is 60 px, x 459..518 on screen as Sh/Hi's (a5's mkguides key was 62 px, white to x 520).
+COLOR_GUIDE_KEY = 'expect:noink:516,545,518,560 expect:ink:518,545,519,560'
+COLOR_GUIDE_STYLE = f'{OPEN_MIX} {COLOR_GUIDE_KEY} down wait {COLOR_GUIDE_KEY} poweroff'
 MIX_STEP_WRITES_MODE = (f'{OPEN_MIX} {PANEL_STEP_WRITE("main")} {PANEL_STEP_WRITE("sub")} down wait '
                         f'{PANEL_STEP_WRITE("main")} poweroff')
 VIVID_SIZE = 1660                 # the camera's own dial label picture
@@ -1640,6 +1645,9 @@ TESTS = {
     ],
     'extras-dial-step-writes-the-cursor-only': [
         Boot(EXTRAS_STEP_WRITES_CURSOR),
+    ],
+    'mix-and-rgb-color-guide-as-the-tone-curves': [
+        Boot(COLOR_GUIDE_STYLE),
     ],
     'mix-and-rgb-dial-step-writes-the-panel-mode-only': [
         Boot(MIX_STEP_WRITES_MODE),
