@@ -10833,3 +10833,10 @@ Branch `feature/photo-code-3` on v0.41-a6 (634d3b6) with `main` merged in for Lo
   164 pass, 0 known, 1 FAIL `static:changed-bytes` (a6: 163 pass and the same FAIL; the sites listed are a6's, none
   from this change). The new test is caught on the a6 build (`--without`). LookLab vitest 113 pass; the developer
   kit's tests pass. Package `test-builds/2026-11-24-photo-code-om32` (go-back: a6). Camera test pending.
+- **Camera result, 2026-11-24 (owner's OM-3, build v0.41-pc3; read from the card by cad): the code is camera-tested.**
+  Three JPEGs. A, a film as it was: ImageDescription "FILM n Name", the comment the `om3.2.` code alone; decoded
+  with `firmware/photocode.py` it gives the film's RGB curves and colour mix as the debug log shows them, grain off.
+  B, the same film changed: Film Grain strength 4, Coarse, the changed curve point and mix value. C, a COLOR
+  without a film: both fields blank. `lookFromPhotoCode` on the two codes' text gives the same. Debug log: nothing
+  unusual, our code at shutter events 2 ms. Not checked: opening the JPEG file itself in the LookLab page; the
+  owner has not yet said how shooting felt. Older photos on the card keep their om3.1 text.

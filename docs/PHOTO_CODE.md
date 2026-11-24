@@ -14,7 +14,8 @@ Photos without a film (COLOR 1–4 with the user's own settings, CRT, ART, MONO,
 
 ## om3.2: `om3.2.` + 60 characters (2026-11-24)
 
-Status: branch `feature/photo-code-3` (on test build v0.41-a6), emulator only: the camera test is pending. Not released.
+Status: branch `feature/photo-code-3` (on test build v0.41-a6), camera-tested 2026-11-24 (the code in three photos
+read back right). Not released.
 
 Owner, 2026-11-24: a new code that carries every Picture Mode row the user set, and nothing else in the comment (no
 "Caduceus", no film number, no name: "drop all name"). ImageDescription keeps `FILM n Name`, as before. The code is

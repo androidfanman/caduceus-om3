@@ -1,6 +1,6 @@
 # OM-3 photo code: developer kit
 
-**om3.2 (2026-11-24, not released yet; emulator only):** a new code, `om3.2.` + 60 characters, written alone into
+**om3.2 (2026-11-24, not released yet; camera-tested):** a new code, `om3.2.` + 60 characters, written alone into
 the UserComment. It adds the RGB curves, the colour mix, the Film Grain strength and the Grain Size to om3.1's 64
 values. A reader written for om3.1 does not find it; `om3code.js` here reads both. See "om3.2" below.
 
