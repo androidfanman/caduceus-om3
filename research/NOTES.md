@@ -10731,3 +10731,34 @@ single TEST-STEPS step was reported apart. `feature/picture-mode` is still on be
   0 known, 1 FAIL static:changed-bytes. Its full list (21 runs) differs from v0.41-alpha's only at the picture
   widget's place 0x61451e50 / 0x61451e58 (its y and height now change too); no new hook (static:hook-list passes).
   The first run on 38f52c6 failed three list walkers / the Balance label check, fixed in the tests only (b145280).
+
+## v0.41-a3: camera-size INFO hint, no dial mark on Balance, Highlight & Shadow back after WB (2026-11-23; emulator only)
+- **v0.41-a2 camera result (owner, 2026-11-23; test-builds/2026-11-23-v0.41-a2/camera-results/NOTES.md):** "1. Lets
+  place the tone curve back to where is was. ... 2. we need to figure out how to get rid of that dial icon on balance
+  or ... combine the highlight and shadow split tine wheel ... 3. the H/S/L text we added to that section is too
+  small. make it look like everything else". Camera-tested in a2: the hint, the labels gone on Balance (all but the
+  rear-dial mark), the new list order (not liked).
+- **List (done):** pm_list as v0.41-alpha again; the list walkers in emu_test.py back with it.
+- **The rear-dial mark (done, emulator):** a picture of the camera's, descriptor 0xa43682d4 (kind 14, 36 x 24, 8;
+  stock payload 0xa4368164, 366 B). Found by logging the picture draw routine 0x610eaf3d at 0x610eaf53 (a0 = the
+  descriptor) on Shadows / Balance / Highlights: Balance drops 0xa436814c (the front mark, 36 x 24), 0xa4639214 /
+  0xa4642224 (16 / 13 x 30), 0xa4cf61f8 ("Color", LDESC) and 0xa4cf6ac4 (30 x 30, the swatch); 0xa43682d4 stays.
+  sp_mark lends it a blank 36 x 24 picture (wl_tab's last entry, XL_MK8, in the heap with the labels) on the Balance
+  step (sp_case) and gives the camera's back in sp_case's other steps and in hb_gsel (every gd_set: page changes,
+  editor open, ed_trig at the half-press), only while the descriptor holds the camera's picture or ours. om-emu: the
+  Highlight & Shadow page's marks over Sh / Hi are there after leaving from Balance with a half-press. A MENU exit
+  from Balance keeps the blank until the next gd_set (camera-only check). "Reset" on Balance follows the tints only, as
+  in v0.41-alpha.
+- **The owner's other idea, one wheel for both tints (not built; analysis):** the camera's wheel asks tn_get for one
+  value per colour (sector ids 928 + 12k + colour) and draws one outline. It could show both tints as two spikes
+  and stay up on Balance; it cannot draw two outlines or colours, label the spikes, or show Balance, and two tints on
+  one colour would be one spike.
+- **Hint (done, emulator):** rgbpics.guide5("H/S/L") (the H&S row's guides drawn to the camera's "Mid [INFO]", 144 x
+  50) centred over the three fields in 50 rows over the bar (mkhbar.PAD 50, PH 114); the picture widget's place 400 x
+  114 at y 464; the Split toning bar 50 clear rows. HB_BUF 12 KB (worst cases 11,180 / 9,268 B).
+- **Tests:** new `split-tone-balance-hides-the-dial-mark`; `color-wheel-bar-has-an-info-hint` and
+  `picture-mode-rows-in-order` (v0.41-alpha's order) changed; the three caught on v0.41-a2 (`--without`).
+- **Package:** `test-builds/2026-11-23-v0.41-a3` (E1479999.BIN 805f4f3d…afa9, GUIDES.BIN 029d5130…3d83; built twice
+  the same). Sizes: .ext15 138,368 of 139,264, .ext13 81,280 of 81,920.
+- **Suite (fcef9a4):** 161 pass, 0 known, 1 FAIL static:changed-bytes; its full list differs from v0.41-alpha's only
+  at the picture widget's place 0x61451e50 / 0x61451e58; no new hook (static:hook-list passes).
