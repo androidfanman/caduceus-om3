@@ -66,6 +66,8 @@ LookLab only; the firmware is unchanged.
   are unchanged, so what you export still works on v0.40.3.
 - **Halation Radius** (Bloom / Tight / Medium / Wide) under Halation Effect, with its glow in the preview. It is read
   from and written to photo codes; no card file carries it, so set it on the camera.
+- **Your own photos are kept between visits:** each photo you add is kept as a preview-size copy in this browser and
+  is back in the grid when you return. Removing one, or Remove all, deletes the kept copy too. Nothing is uploaded.
 
 ## v0.40.3
 2026-11-23. v0.40.2 plus everything from the v0.40.3 test versions; camera-tested as v0.40.3-beta4 (the build before
