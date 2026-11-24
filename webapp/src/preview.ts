@@ -273,7 +273,7 @@ export function renderLook(src: ImageData, dst: ImageData, look: Look, opt: Prev
       }
     }
   }
-  const hal = om3 && look.halation ? om3Halation(img, w, h, look.halation) : null;
+  const hal = om3 && look.halation ? om3Halation(img, w, h, look.halation, look.halation_radius ?? 0) : null;
   if (!opt.quiet) lastHalation = hal;   // OM-3 v0.28: after the Soft Focus blend, as the camera
   // 6. OM-3 Shading and Border (the camera's passes on the finished photo); grain (E-P7: Olympus xorshift32 luma grain)
   if (om3 && look.vignette) om3Shading(img, w, h, look.vignette);
@@ -329,10 +329,16 @@ function planckRgb(T: number): [number, number, number] {
 export let lastHalation: 'off' | 'none' | 'done' | null = null;
 const HL = { T: 200, K: 900, BLUR: 3, BLUR2: 10, MIX: 128, GMAX: [0, 43, 78, 113, 156, 208], KY: 44, KCB: -40, KCR: 60, WMUL: 2, COV_U: 32, COV_LO: 8, COV_HI: 24,
   DLO: 60, DHI: 72, DCOV: 16 };   // DLO / DHI / DCOV: the preview's dark-photo allowance (not in the firmware)
-function om3Halation(img: Float32Array, w: number, h: number, level: number): 'off' | 'none' | 'done' {
+/** Halation Radius (v0.40.3, by fernandezk26; research/halation/hr_model.py): Tight / Medium / Wide work on 16 px cells
+ *  and spread each cell's glow outward, keeping the peak (it falls to 10 % at 32 / 64 / 128 px); D is the fall per
+ *  cell (/256), GAIN Medium's edge glow matched to Bloom's. Bloom (0) is v0.40's pass, as before. */
+const HR = { D: [0, 81, 144, 192], GAIN: 66 };
+function om3Halation(img: Float32Array, w: number, h: number, level: number, radius = 0): 'off' | 'none' | 'done' {
   const sc = FULL_WIDTH / w, Wc = FULL_WIDTH, Hc = Math.round(h * sc);
   const GW = Math.ceil(Wc / 64), GH = Math.max(1, Math.ceil(Hc / 64));
   const E = new Float64Array(GW * GH), Bs = new Float64Array(GW * GH), N = new Float64Array(GW * GH);
+  const FW = Math.ceil(Wc / 16), FH = Math.max(1, Math.ceil(Hc / 16));      // radius: 16 px cells
+  const Ef = radius ? new Float64Array(FW * FH) : null, Yf = radius ? new Float64Array(FW * FH) : null, Nf = radius ? new Float64Array(FW * FH) : null;
   const Yof = (q: number) => 255 * (0.299 * img[q] + 0.587 * img[q + 1] + 0.114 * img[q + 2]);
   for (let y = 0; y < h; y++) {
     const gy = Math.min(GH - 1, ((y + 0.5) * sc / 64) | 0);
@@ -340,6 +346,11 @@ function om3Halation(img: Float32Array, w: number, h: number, level: number): 'o
       const g = gy * GW + Math.min(GW - 1, ((x + 0.5) * sc / 64) | 0), Y = Yof((y * w + x) * 3);
       if (Y > HL.T) E[g] += Y - HL.T;
       Bs[g] += Y; N[g]++;
+      if (Ef) {
+        const f = Math.min(FH - 1, ((y + 0.5) * sc / 16) | 0) * FW + Math.min(FW - 1, ((x + 0.5) * sc / 16) | 0);
+        if (Y > HL.T) Ef[f] += Y - HL.T;
+        Yf![f] += Y; Nf![f]++;
+      }
     }
   }
   for (let g = 0; g < E.length; g++) {        // the camera's sums: a quarter of a cell's pixels (every 2nd row, one per pair)
@@ -376,13 +387,53 @@ function om3Halation(img: Float32Array, w: number, h: number, level: number): 'o
   const f = Math.min(1, (HL.DHI - mb / Bs.length) / (HL.DHI - HL.DLO));
   if (f > 0) cov = Math.max(cov, (bright ? Math.min(1, (u.length * HL.DCOV) / (100 * bright)) : 1) * f);
   if (cov <= 0) return 'off';                // a bright frame (daylight): no halation
-  const G = u.map((x) => (x * HL.GMAX[Math.min(5, level)] / 256) * cov);
+  const gmax = HL.GMAX[Math.min(5, level)];
+  let G: Float64Array, Wt: Float64Array, CW = GW, CH = GH, CELL = 64;
+  if (!Ef) {
+    G = u.map((x) => (x * gmax / 256) * cov);
+    Wt = Bs.map((b) => Math.min(255, HL.WMUL * (255 - b)));
+  } else {
+    // the camera's sums: every 4th row, one pixel a pair: 32 samples in a full 16 px cell
+    CW = FW; CH = FH; CELL = 16;
+    const v = new Float64Array(Ef.length), d = HR.D[Math.min(3, radius)] / 256;
+    for (let f = 0; f < Ef.length; f++) {
+      const cnt = Nf![f] || 1;
+      v[f] = (32 * ((Ef[f] / cnt) * 32 * Math.min(1, (cnt * sc * sc) / 256)) * HR.GAIN) / 256;
+      Yf![f] /= cnt;
+    }
+    // the peak-preserving spread: each cell keeps the largest of its own value and every lit cell's, falling off by d a
+    // cell. The firmware runs it across and then down (a diamond round each light); the owner sees round glows on the
+    // camera (2026-11-23: "in camera they are still circular"), so the preview takes the true distance: each lit cell
+    // reaches out in a circle until its glow would fall below 1.
+    const src = v.slice(), lit: number[] = [];
+    for (let f = 0; f < src.length; f++) if (src[f] > 1) lit.push(f);
+    const ld = Math.log(d), RMAX = 40;
+    for (const f of lit) {
+      const sx = f % FW, sy = (f / FW) | 0, val = src[f], R = Math.min(RMAX, Math.ceil(Math.log(1 / val) / ld));
+      for (let dy = -R; dy <= R; dy++) {
+        const yy = sy + dy;
+        if (yy < 0 || yy >= FH) continue;
+        for (let dx = -R; dx <= R; dx++) {
+          const xx = sx + dx, r2 = dx * dx + dy * dy;
+          if (xx < 0 || xx >= FW || r2 > R * R) continue;
+          const t = val * Math.exp(ld * Math.sqrt(r2)), k = yy * FW + xx;
+          if (t > v[k]) v[k] = t;
+        }
+      }
+    }
+    // one [1 2 1] pass across and down (edges repeated)
+    const at = (a: Float64Array, x: number, y: number) => a[Math.min(FH - 1, Math.max(0, y)) * FW + Math.min(FW - 1, Math.max(0, x))];
+    const t = new Float64Array(v.length), b2 = new Float64Array(v.length);
+    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) t[y * FW + x] = (at(v, x - 1, y) + 2 * at(v, x, y) + at(v, x + 1, y)) / 4;
+    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) b2[y * FW + x] = (at(t, x, y - 1) + 2 * at(t, x, y) + at(t, x, y + 1)) / 4;
+    G = b2.map((x) => ((255 * x) / (x + HL.K)) * gmax / 256 * cov);
+    Wt = Yf!.map((b) => Math.min(255, HL.WMUL * (255 - b)));
+  }
   if (!G.some((x) => x >= 1)) return 'none';
-  const Wt = Bs.map((b) => Math.min(255, HL.WMUL * (255 - b)));
   const lerp = (A: Float64Array, cx: number, cy: number) => {
-    const fx = Math.max(0, Math.min(GW - 1, (cx - 32) / 64)), fy = Math.max(0, Math.min(GH - 1, (cy - 32) / 64));
-    const x0 = fx | 0, y0 = fy | 0, x1 = Math.min(GW - 1, x0 + 1), y1 = Math.min(GH - 1, y0 + 1), tx = fx - x0, ty = fy - y0;
-    return (A[y0 * GW + x0] * (1 - tx) + A[y0 * GW + x1] * tx) * (1 - ty) + (A[y1 * GW + x0] * (1 - tx) + A[y1 * GW + x1] * tx) * ty;
+    const fx = Math.max(0, Math.min(CW - 1, (cx - CELL / 2) / CELL)), fy = Math.max(0, Math.min(CH - 1, (cy - CELL / 2) / CELL));
+    const x0 = fx | 0, y0 = fy | 0, x1 = Math.min(CW - 1, x0 + 1), y1 = Math.min(CH - 1, y0 + 1), tx = fx - x0, ty = fy - y0;
+    return (A[y0 * CW + x0] * (1 - tx) + A[y0 * CW + x1] * tx) * (1 - ty) + (A[y1 * CW + x0] * (1 - tx) + A[y1 * CW + x1] * tx) * ty;
   };
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const cx = (x + 0.5) * sc, cy = (y + 0.5) * sc, g = lerp(G, cx, cy);

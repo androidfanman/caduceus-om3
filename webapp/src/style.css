@@ -176,9 +176,11 @@ p.warn { background: #2e2510; color: #f1e3bf; border-left: 3px solid #f2c25c; pa
 .check .help { flex-basis: 100%; margin-left: 24px; }
 
 /* editor */
-.ed-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px; }
+/* the name gets the full width when the buttons do not fit beside it (three buttons since Save film sim) */
+.ed-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: flex-start; margin-bottom: 12px; }
+.ed-head .field.grow { flex: 1 1 200px; }
 .ed-head input { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 15px; }
-.ed-btns { display: flex; gap: 6px; margin-top: 21px; }
+.ed-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 21px; }
 .group { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 4px; margin-bottom: 12px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; align-self: flex-start; }
 .seg button { border: 0; border-radius: 0; padding: 5px 12px; background: var(--panel); }
@@ -321,6 +323,8 @@ canvas.film-pv { width: 100%; height: auto; border-radius: 8px; background: #000
 .film-pick small { color: var(--muted); }
 .matched-tag { margin-left: 6px; font-size: 11px; color: var(--accent); border: 1px solid currentColor; border-radius: 999px; padding: 0 6px; white-space: nowrap; }
 .film-add { white-space: nowrap; }
+.film-acts { display: inline-flex; gap: 4px; align-items: center; }
+.film-del { padding: 4px 9px; }
 @media (max-width: 760px) { .film-dlg { grid-template-columns: 1fr; } .film-side { position: static; } .film-list { max-height: none; } }
 dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .replace-box .modal-actions { padding: 8px 0 0; }
@@ -364,8 +368,20 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .hw-num { font-size: 10.5px; font-weight: 700; fill: var(--cs-ink); font-variant-numeric: tabular-nums; pointer-events: none; }
 .hw-hub-name { font-size: 12px; fill: var(--cs-dim); pointer-events: none; }
 .hw-hub-val { font-size: 20px; font-weight: 700; fill: var(--cs-ink); font-variant-numeric: tabular-nums; pointer-events: none; }
-.hw-ctl { display: grid; grid-template-columns: auto 100px auto minmax(0, 1fr) 34px; align-items: center; gap: 6px; }
-.hw-ctl output { text-align: right; font-variant-numeric: tabular-nums; }
+.hw-ctl { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.hw-ctl .hw-sel { min-width: 110px; }
+/* v0.41: the bar under the wheel, one row per page (H / S / L, or S / B / H), the page you are on marked */
+.hsl-bar { display: grid; gap: 2px; margin-top: 6px; }
+.hb-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) 40px; align-items: center; gap: 8px; border-radius: 8px; padding: 1px 4px; }
+.hb-row.on { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.hb-row.off { opacity: .45; }
+.hb-row output { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+.hb-key { border: 0; background: none; padding: 4px 2px; text-align: left; display: flex; align-items: center; gap: 6px; font-size: 13px; color: inherit; cursor: pointer; }
+.hb-key b { width: 14px; text-align: center; }
+.hb-row.on .hb-key b { color: var(--accent); }
+.hb-sw { width: 10px; height: 10px; border-radius: 50%; background: var(--sw); flex: none; }
+.hsl-wheel.off { cursor: default; }
+.hsl-wheel.off .hw-wedge, .hsl-wheel.off .hw-spokes, .hsl-wheel.off .hw-zero { opacity: .25; }
 .hw-sel { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; overflow: hidden; }
 .hw-sel::before { content: ""; flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--sw, var(--muted)); }
 /* Highlight & Shadow: the camera's box, 2 x 2 grid, crosses for Sh / Mid / Hi, values on top */
@@ -398,13 +414,7 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .wb-cross { stroke: var(--cs-ink); stroke-width: 1.6; }
 .wb-read { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; }
 /* v0.28 Blacks / Whites grid (as the camera's: black boxes and edges for Blacks, white for Whites, on a grey square) */
-.bw-grid .wb-box { fill: #6a6a68; }
-.bw-grid .wb-tick { stroke: rgba(241, 239, 233, .35); }
 .wb-edge.bk { stroke: #000; } .wb-edge.wh { stroke: #f4f2ec; }
-.bw-tag.bk { fill: #000; stroke: #8d8a83; } .bw-tag.wh { fill: #f4f2ec; stroke: none; }
-.bw-lab { font-size: 15px; font-weight: 700; } .bw-lab.bk { fill: #f4f2ec; } .bw-lab.wh { fill: #111; }
-.bw-limit { fill: none; stroke: rgba(241, 239, 233, .55); stroke-dasharray: 3 3; pointer-events: none; }
-.tc-knob.ro { cursor: default; pointer-events: none; }
 /* RGB curves (the camera's RGB row) */
 .rgb-ch { margin: 2px auto 6px; align-self: center; }
 .rgb-ch button { min-width: 44px; font-weight: 600; }

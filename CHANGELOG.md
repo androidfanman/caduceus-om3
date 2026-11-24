@@ -69,6 +69,20 @@ pages, camera-tested 2026-11-23 (test build p4, the build before its release nam
 - The Blacks / Whites row and the Tone Balance row are gone from Picture Mode's list (they live on the pages above);
   films' saved values are kept.
 - The Firmware Version screen shows "0.41-a1".
+## LookLab update (2026-11-23)
+LookLab only; the firmware is unchanged.
+- **Save film sim:** a button next to Reset look keeps a copy of the look you are editing in your browser. Saving the
+  same name again asks before replacing it.
+- **Film sims > User created:** your saved film sims show first in the Film sims list (with their own filter), each
+  with a preview, + Add and a delete button. They stay in this browser only; nothing is uploaded.
+- **The editor follows v0.41-alpha's Picture Mode:** the color wheel has Hue / Saturation / Luminance pages with an
+  H / S / L bar for the selected color ("Sat. All" moves all 12 together); Split toning is its own panel (Shadows /
+  Balance / Highlights); Highlight & Shadow is one five-point curve with Blacks and Whites as its ends. The card files
+  are unchanged, so what you export still works on v0.40.3.
+- **Halation Radius** (Bloom / Tight / Medium / Wide) under Halation Effect, with its glow in the preview. It is read
+  from and written to photo codes; no card file carries it, so set it on the camera.
+- **Your own photos are kept between visits:** each photo you add is kept as a preview-size copy in this browser and
+  is back in the grid when you return. Removing one, or Remove all, deletes the kept copy too. Nothing is uploaded.
 
 ## v0.40.3
 2026-11-23. v0.40.2 plus everything from the v0.40.3 test versions; camera-tested as v0.40.3-beta4 (the build before
