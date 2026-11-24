@@ -10823,3 +10823,9 @@ Branch `feature/photo-code-3` on v0.41-a6 (634d3b6) with `main` merged in for Lo
   `…ABDwAAAAAAAAEPAgAA4ADQDlEAoA` (as built). om-emu takes no photos: the code in a real JPEG is the camera test.
 - LookLab reads both codes and writes om3.2 (Share keeps "Caduceus FILM n Name" before it, for the reader of the
   text; opening an om3.2 JPEG takes the name from ImageDescription). The developer kit likewise.
+- **Battery log not added (2026-11-24).** Owner to cad: "lets add the photo code in to the test and also stick the
+  battery log on the card as well", then: "if the battery log doesnt fit, don't add it. I can track battery
+  manually". It does not fit: t2 (`try/v0.40.3-beta3-battery` a1a7126) needs 15,396 B in .ext15 (12,544 B the log's
+  text buffer, moved from .ext13 and grown; about 2,850 B code and data), bat1 alone 1,760 B; free on this build:
+  .ext15 296, .ext14 264, .ext13 256, .ext12 40 B. Nothing of it was merged. Possible later (not built): a small
+  battery line in the debug log (percent now, the first reading, photos since; roughly 150-250 B in .ext13).
