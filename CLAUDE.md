@@ -25,21 +25,11 @@ Branches: `main` released, safe. `feature/...` meant to ship, README banner give
 - **Film sims:** own designs only. No copied looks, LUTs, presets. No grain, Glow / Clarity, Art Effects in film sims.
 - **Never touch** cakelesscoder's repositories (Caduceus for E-P7). Credit them where their work used.
 
-## Firmware safety
+## Firmware and card
 
-- Code space proven only: section tails ext1–ext10 (`firmware/editor.ld`, sizes checked by `build.py`), GUIDES.BIN code block (16448 B malloc cap), section 6 extension 0x60f49800..0x60f99800.
-- Gaps between sections NOT loaded on camera, though emulator maps them.
-- Section 6 extension usable only by raising section 6 loaded-end word, never past 0x60f99800 (`experiment/firmware-space-probe-64k`, `-256k`). `.ext11` (sliders) starts 0x60f49800: put new code after it. Details `research/NOTES.md`.
-- `call f,[regs],N` writes return address at `(0,sp)`, overwrites MDR (`research/NOTES.md`, "Picture-mode sliders").
+- Firmware safety (code space, calling convention): `.claude/rules/firmware-safety.md`, loads with `firmware/` and `card/` files.
 - Test order: build, emulator where it shows something, owner's camera test. Nothing done until owner's in-camera test passes. Owner flashes. Claude only prepares files.
-
-## Camera card
-
-- Ask owner before writing anything to card. Back up debug log first.
-- Firmware: `DCOLYMP/E1479999.BIN`, never card root. Card files: `OM3MOD/`. Flash: hold OK while powering on.
-- Send files with file-sending tool. Device bridge connected (`/Volumes/OM SYSTEM`): also write to card, verify sha256 on card.
-- Pair firmware package with `GUIDES.BIN` from same build.
-- Never copy `BUNDLES.BIN`, `LOOKS.BIN`, `EDITS.BIN` to owner's card.
+- Ask owner before writing anything to card. Then read `.claude/skills/camera-card/SKILL.md`.
 
 ## Releasing
 
@@ -50,7 +40,6 @@ Read `.claude/skills/release/SKILL.md` first.
 - Keep lean. Do what owner asks, nothing more. No plan documents, research rounds or review agents unless owner asks.
 - Main chat ("Caduceus OM3", cad) does small requests itself: merge PRs, conflicts, test builds, card copies, releases. Bigger project: one session, short brief, cad picks model, never Fable (cad only).
 - Project sessions: own worktree and branch, build and test only. No merge to `main`, no release, no push.
-- Before card: one read of the change for camera harm (hooks and stock bytes, code space, start-up freeze or lag, video, no card / no films), rebuild matching package sha256. Real risk: tell owner plainly. Rest: owner's camera test.
 - Contributor PRs, when owner says: merge as written, fix conflicts, test build, owner tests, release. No own changes unless asked.
 - Behavior differing from current release: owner decides. Tell, don't decide.
 - Commits, pull requests, their emulator test rules: read `.claude/skills/commit-and-pr/SKILL.md` first.
