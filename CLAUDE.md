@@ -23,7 +23,7 @@ Branches: `main` released, safe. `feature/...` meant to ship, README banner give
 - **No OM firmware** (original or decoded), disassembly dumps or camera graphics in repo. Only exception: emulator screenshots of camera menus running our firmware, for tour (`pages/showcase/img/`, `research/showcase/make.sh`).
 - **LookLab images:** owner approves each new or changed image before publishing.
 - **Film sims:** own designs only. No copied looks, LUTs, presets. No grain, Glow / Clarity, Art Effects in film sims.
-- **Never touch** cakelesscoder's repositories (Caduceus for E-P7). Credit them where their work used.
+- **Never touch** cakelesscoder's repos (Caduceus for E-P7) or copy their code. Credit them.
 
 ## Firmware and card
 
