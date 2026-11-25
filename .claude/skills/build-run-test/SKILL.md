@@ -31,6 +31,6 @@ description: How to build, run and test this repo. Read before any build, run or
 - Node 22 recommended (Dockerfile `node:22-alpine`), 20.19+ works. No `.nvmrc`.
 - `VITE_DEFAULT_CAMERA=om3` in older docs is unused. `npm run build` gives the same output.
 - `npm run gen-library` needs E-P7 checkout inputs. Outputs are committed.
-- `releases/vX` rebuild: `python3 firmware/patch.py --stock $OM3_STOCK --release vX --out DIR`, compare `SHA256SUMS`. A build of `main` need not match the latest release.
+- `releases/vX` rebuild: `python3 firmware/patch.py --stock $OM3_STOCK --release vX --out DIR`, compare `SHA256SUMS`. macOS build of `main` never matches the release: Pillow / FreeType / raqm draw pictures differently, addresses shift. Byte match needs Docker `ubuntu:24.04` (`python3-pil` 10.2.0, `fonts-dejavu-core` 2.37), see `research/NOTES.md` "Build environment (macOS".
 - CI: `.github/workflows/test.yml` runs LookLab `npm test` + `npm run build` on each PR. No firmware CI: needs stock BIN. `releases.yml` publishes `releases/`.
 - Docker: `cd webapp && docker compose up -d --build`, http://localhost:8080, `/healthz`.
