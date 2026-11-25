@@ -104,18 +104,21 @@ Your films were in `PROFILES.BIN`: rename it to `LOOKS.BIN`.
 
 ### Do custom modes (C1–C5) keep my films?
 
-Yes, and from v0.29.5 everything else too. When you Assign a custom mode (Shooting menu 1 › Custom Mode › Cn › Assign ›
-Set), it keeps its own copy of the films you're using, every change you made to them and the camera's picture settings.
-Turning to it brings that copy back, and nothing you do in another mode (an edit, a film reset, a film pick) changes it.
-P / A / S / M share one set of their own. Changes made inside a custom mode follow its Save Settings: Reset (the
-default) forgets them when you leave the mode or switch off, Hold keeps them. Assign › Reset puts a custom mode back to
-the films as built. Assign your custom modes once after updating to v0.29.5.
+Yes, with one thing to know: all modes share **one set of 20 films** (the films from your `LOOKS.BIN`), and each
+custom mode keeps **its own settings for them**.
 
-The camera holds one set of 20 films for all modes, so a custom mode keeps which films it uses, not a set of its own.
-A new `LOOKS.BIN` replaces the films in every mode, custom modes included: each mode stays on the same film numbers,
-picture mode and Save Settings, a film the new set changed comes in as built, and your changes to the films that stayed
-the same are kept. To give custom modes different films, put them all in one set of 20 (LookLab) and assign each
-custom mode the ones it uses.
+- **What a custom mode keeps (from v0.29.5):** when you Assign it (Shooting menu 1 › Custom Mode › Cn › Assign › Set),
+  it keeps which films its COLORs are on, every change you made to those films, and the camera's picture settings.
+  Turning to it brings all of that back, and nothing you do in another mode (an edit, a film reset, a film pick)
+  changes it. P / A / S / M share one copy of their own. Assign your custom modes once after updating to v0.29.5.
+- **Changes made inside a custom mode** follow its Save Settings: Reset (the default) forgets them when you leave the
+  mode or switch off, Hold keeps them. Assign › Reset puts a custom mode back to the films as built.
+- **What is shared:** the 20 films themselves. A new `LOOKS.BIN` replaces them in every mode, custom modes included.
+  Each mode stays on the same film numbers, picture mode and Save Settings; a film the new set changed comes in as
+  built, and your changes to the films that stayed the same are kept.
+
+So to give custom modes different films, put them all in one set of 20 (LookLab) and assign each custom mode the ones
+it uses.
 
 ### Do I still need to half-press after switching on?
 
