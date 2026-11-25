@@ -8913,6 +8913,897 @@ screen gets 3200 K A3 M2 at the half-press that takes the set; FILM 15 Shade G3;
   uploaded. vitest 89 pass. Fast-forwarded into main by cad, `looklab/` rebuilt (index-XN8KWU3f.js), checked in the
   browser with three sample photos as your own: grid of 3, film switch updates them, no errors.
 - 2026-11-21: + Open… reads a readable recipe .json (photo_code + rgb_curves + colour_mix + name; owner: "the open looks doesnt accept .json files"), from d05d51c on `feature/looklab-multi-photo`; on main with the test values and the code comment made generic (cad: the session's test had the owner's private look's curves and mix); vitest 93 pass; `looklab/` rebuilt (index-BmSce56r.js); browser: a made-up recipe opens as a look, no errors.
+## Grain and Halation speed, speed-1 (2026-11-19; emulator + analysis, camera test pending; branch fix/grain-halation-speed)
+- Owner (via cad, on v0.40.2): "we need to speed up grain and halation. in .30 it was rapid ... every release seems to
+  have made it slower". Asked: find what made a Grain + Halation photo slower from v0.30.3 to v0.40.2, build the
+  speed-ups that leave the photos the same, list the ones that would change the look. From main 9fc2dc1 (v0.40.2).
+- **Camera numbers we have (owner's OM-3, debug log):** v0.40.2 (test build 218b018a, same code), lamp scene, FILM 10,
+  RAW+JPEG: grain tile Medium 274 ms, made for every photo ("made 7" for 7); Halation last 599 ms (pass A 275, map 54,
+  pass C 268), longest 891. glow-shots-2 (h7, same Halation code): last 335 ms (A 283, map 50, C 0), longest 1763.
+  v0.40.1 combined test: Coarse tile 322 ms, Halation 974 ms (C 623); g6: Coarse tile 348 ms, Halation 1052 ms
+  (C 703). glow-shots-1 (h8): Halation 1361 / 1742 ms. g3 tile: 268-270 ms. g1 / g2c tile: ~0.39-0.43 s. v0.30.x:
+  no timing in the log (it came with glow-shots-1); grain was the camera's own (no tile, no CPU work of ours).
+- **om-emu counts per release on the same frames** (every release rebuilt from its tag, sha256 = the published file;
+  big5 = 5184 x 3888 night scene at Halation 5; the grain tile at Medium). Scratch counter (scratchpad, not in the
+  repo): emu_hl.mjs with om-emu watchpoints logging every load / store by region. Its first runs counted the stack 3x
+  and the heap / cached aliases 2x (overlapping watch ranges); the numbers below are corrected.
+
+  | Release | Halation code | big5 steps | uncached heap | stack | stores into the photo | lock groups (FLUSH on the camera) |
+  |---|---|---|---|---|---|---|
+  | v0.30 | h4 | 230.4 M | 4.08 M | 20.9 M | 9.93 M | 5647 |
+  | v0.30.3, v0.40-alpha, v0.40-beta(2) | h8 | 124.4 M | 2.16 M | 6.0 M | 7.71 M | 2143 |
+  | v0.40-beta3, v0.40, v0.40.1, v0.40.2 | h7 + the pause | 84.1 M | 1.31 M | 3.7 M | 4.75 M | 1310 |
+  | speed-1 | h7, same bytes | 85.7 M | 0 | 0.26 M | 2.14 M | 1310 (825 FLUSH) |
+
+  | Release | grain | tile steps (Medium) | stores into the tile | FLUSH | camera time per tile |
+  |---|---|---|---|---|---|
+  | v0.30.x | the camera's own | - | - | - | none of ours |
+  | v0.40-alpha | g2c | 66.3 M | 1.18 M | 1538 | ~0.4 s (g1 / g2c, measured) |
+  | v0.40-beta .. v0.40 | g3 | 18.5 M | 1.70 M | 254 | 268-270 ms (measured) |
+  | v0.40.1 | g4 | 18.7 M (Coarse 24.2 M) | 1.72 M | 278 | Coarse 322 ms (measured) |
+  | v0.40.2 | g6, faster | 16.5 M (Coarse 22.9 M) | 1.61 M | 278 | Medium 274 ms (measured) |
+  | speed-1 | the same tile | 16.4 M | 1.30 M | 278 | camera test pending |
+
+- **What made it slower (measured, with the reading marked):** Halation got faster with every release from v0.30
+  (h4 -> h8 -> h7: about 2.7x fewer steps; camera: v0.30.3 test 1 "much quicker", h8 1.4-1.7 s, h7 0.3-1.1 s). The
+  step the owner feels is the grain: from v0.40-alpha every photo with Film Grain builds our tile on the CPU (0.27 to
+  0.4 s, measured), where v0.30's grain was the camera's own texture. A JPEG with our grain is also larger (owner's
+  photos: 12 MB with grain, 8.7 MB without), so the card write takes longer (camera-side; v0.30's size with the
+  camera's grain is not known). Grain + Halation on v0.40.2 = ~0.27 + ~0.6 s of our work per photo on a lamp scene.
+- **Where the camera's time goes (analysis: a fit of the camera times above to the om-emu counts; not measured
+  directly):** ~2.8 ns a step (Shading s2's rate, assumed); an access to malloc's heap (uncached, 0xa...) ~150 ns
+  (the map: 1.98 M steps + 0.31 M heap accesses = 50-54 ms); a FLUSH ~0.05 ms; a store into the photo or the tile
+  through the bus window's cached view ~120 ns a store (the tile fit: g2c / g3 / v0.40.1 / v0.40.2 within 11 ms;
+  ~45 ns a byte fits too, so word stores may or may not beat byte stores); reading through the window is cheap (pass A
+  reads 20 MB in ~90 ms); the stack ~10 ns (g3 and v0.40.2 make 0.04 M and 1.2 M stack accesses and took the same
+  time). om-emu's sp is 0xa21f.. (uncached) but the camera's capture task may differ: the log now prints it.
+  So for Halation on v0.40.2: pass A ~95 ms of heap accesses (the E / Q grids, uncached) + ~25 ms of FLUSH after
+  every 4-row group + ~70 ms steps + ~90 ms reading; the map ~47 ms of heap; pass C mostly stores into the photo.
+- **speed-1 (commit be80868; the same bytes, emulator-checked):**
+  - `hl_ga` / `hl_gf` (ext13): hl_run's three grids are malloc(n + 128) rounded up to 64 bytes and used through the
+    cached alias (as tg_fill's work buffer, camera-proven), malloc's pointer kept in the 4 bytes before (written
+    uncached); no cache line we touch holds a neighbour's bytes. FLUSH before the frees (the dirty lines back first).
+    A pointer outside the uncached heap (never seen) is given back and the photo gets no halation.
+  - Pass A: no FLUSH after each group (it only reads: clean lines, and every remap goes through the mapper, which
+    flushes); one FLUSH after the pass. hl_pa keeps the row's end in a1 (hl_x8 reads through a0).
+  - The map's g loop: gmax and sc in registers.
+  - Pass C: hl_row (ext13) keeps its values in a context in mem1 (cached), with this photo's copy of hl_cb / hl_cr so
+    a1 is both the table and the context: no stack traffic per segment (hl_lp and hl_sp inline). A pair whose four
+    bytes all change (g >= GY) is staged in the context and written with one word store (was four byte stores);
+    pairs with Cb / Cr only keep their two byte stores. hl_bd (ext12) reads hl_run's frame once a band.
+  - Rows must be 4-byte aligned for the word stores: hl_run now also requires memHw even and the buffer 4-byte
+    aligned (the camera's: memHw a multiple of 64, page-aligned buffers); otherwise no halation (never seen).
+  - Grain tile: tg_bl writes each blended 4 bytes into W's p row (scratch there) and stores them with two word stores
+    (rows y and y + 768; were eight byte stores). The tile is the model's byte for byte.
+  - Debug log: the "Shot timing" line ends with the stack addresses hl_run and tg_fill ran on (0x6.. cached, 0xa..
+    uncached), to settle the stack cost on the camera.
+  - Code space: ext12 260,896 of 262,144 B; ext13 77,696 of 81,920 B, ending 0x60fbef80, inside the same 4 KB page
+    as v0.40.2's (the loader's end word and the camera's start-up copy unchanged). No new hook, nothing at start-up.
+  - VERSION "v0.40.2-s1 (faster grain and Halation, same photos)" (Firmware Version page "0.40.2-s1").
+- **om-emu checks:** `emu_check.py` 21 of 21 frames bit-exact (the two camera-sized included), the same lock counts
+  as v0.40.2, the most steps under one lock 104 K (cap 120 K by the estimate). New in emu_check: every block malloc
+  handed out during the case goes back to free once (a throwaway build freeing the aligned pointer: 0 of 2, caught).
+  The grain tile test (Fine / Medium / Coarse fast, Medium across an edge) passes. **Full suite on the be80868 build:
+  119 of 119 pass** (exit 0).
+- Package `test-builds/2026-11-19-grain-halation-speed/` (private): E1479999.BIN 5cbe537a…1146, GUIDES.BIN
+  7660db12…b02c (rebuilt from be80868: the same); go-back v0.40.2 da59432c…4d7b (the published file) + its
+  GUIDES.BIN 5a5ff16e…9348. Camera test: the lamp scene in Single and a burst, then the log's tile and Halation
+  times and the stack addresses.
+- **Estimate for the camera (analysis, from the fit):** Halation on the v0.40.2 lamp scene 599 ms -> ~310-390 ms
+  (pass A 275 -> ~160, map 54 -> ~6, pass C 268 -> ~150-220: the lower if the camera charges per store); a scene
+  without glow 335 -> ~170 ms; the 20 MP night scene ~0.85-1.15 s -> ~0.6 s. Tile: 274 -> ~225-265 ms (only its
+  blended rows changed; its stores are near the floor of one per tile word, 1.18 M). Grain + Halation on the lamp
+  scene ~0.87 -> ~0.55-0.65 s.
+- **Not built (they change the look or need a camera probe first; the owner's call):**
+  1. The grain tile kept for the next photos (once per power-on, or while grain is on): saves the whole tile
+     (~0.23-0.27 s) on every photo after the first; every photo gets the same grain pattern (the camera still shifts
+     it at random per shot). Needs the texture kept alive (4.7 MB of the camera's image memory held between shots:
+     a risk for long bursts and RAW+JPEG, cf. #91).
+  2. A 768-row tile (the tile already repeats every 768 rows, so the texture would be the same): about half the
+     tile's stores, ~70-90 ms. The look is unchanged in principle, but it changes what we hand the camera's texture
+     builder: a camera probe first.
+  3. Pass A on every 4th row instead of every 2nd: ~45-60 ms of reading on every Halation photo; the halo map from
+     half the samples (a slightly different halo near small lights).
+  4. Pass C skipping the faint tint (g < GY, Cb / Cr only): fewer stores at the halo's outer edge; the faint edge of
+     the tint goes.
+- **Camera-only:** the times; whether the capture task's stack is cached (the log line); bursts; #91 (a user's shutoff
+  on the first photo with Grain 5 Medium + Halation 5, sequential, face / eye on; not reproduced on the owner's
+  camera). speed-1 adds no memory: the grids' mallocs are 128 B larger, hl_run's context 576 B in mem1.
+- **Camera-tested (owner's OM-3, 2026-11-19; package 5cbe537a…1146): "Yes, faster".** Log (private:
+  `test-builds/2026-11-19-grain-halation-speed/camera-results/CADLOG.TXT`), build "v0.40.2-s1": 66 photos this
+  power-on, RAW+JPEG, FILM 10, nothing unusual. A 28-shot sequential burst (drive [11], 1/8000 f/1.8, PB194217..244):
+  all saved with grain and the halo (cad looked at PB194230). Grain tiles made 61, failed 0, last Coarse 336 ms.
+  Halation photos 39: last 594 ms (pass A 159, map 8, pass C 426; 1/15 f/1.8, a big glowing area), longest 4917 ms;
+  pauses for the camera 0 on the last photo. Stacks: Halation 62ED0C50, grain tile 62ED06E4.
+  - **Pass A 275 -> 159 ms, the map 54 -> 8 ms** (v0.40.2 on the lamp earlier tonight: 275 / 54; the estimate was ~160 /
+    ~6): the uncached heap grids and the FLUSH after every pass A group were the cost, as the fit said. Pass C 426 ms
+    was a different scene (larger glow) from v0.40.2's 268: no same-scene comparison yet.
+  - **The stack is cached (camera-tested):** 0x62ED.... is DRAM's cached view (0x60000000..0x77ffffff), so the capture
+    task's stack accesses are cheap, as the tile fit said (om-emu's 0xa21f.. sp is another task's). The two addresses
+    are 0x56c bytes apart in the same stack: the tile builder and hl_run most likely run in the same task (analysis).
+  - **The tile did not get faster:** Coarse 336 ms (v0.40.1 322, g6 348; v0.40.2 Coarse not timed on the camera). So
+    tg_bl's word stores (fewer stores, the same bytes) bought nothing measurable: the bus window's writes look limited
+    by bytes (~45 ns a byte), not by the number of stores. The same then holds for pass C's word stores (neutral; kept:
+    the same bytes, ~2 % more steps). Making the tile cheaper needs fewer bytes written (the 768-row tile, or keeping
+    it), both the owner's call. "made 61" for 66 photos: the burst built a tile for nearly every frame too.
+  - **The 4917 ms photo (analysis):** almost certainly the glow-shots-2 pauses during the held burst. `lg_pr` sets
+    `hl_hp` at a half-press and clears it at the release; a full press is no shutter event of ours, so while the
+    burst is held `hl_hp` stays 1 and every photo processed meanwhile sleeps after each lock group: a 20 MP photo
+    has ~486 pass A groups plus up to ~800 in pass C, so a glowing frame reaches the cap, HL_YMAX = 800 sleeps. One
+    sleep is `sdl_dly_tsk(1)`, at least one tick (1 ms, as the SDLOAD worker's 100-tick ~100 ms poll; not timed on
+    the OM-3), and it returns only when the camera's busier tasks give the CPU back. 4917 ms minus ~0.6-0.9 s of
+    work is ~4 s over at most 800 sleeps, so ~5 ms a pause: the burst's own work ran in each. A burst of 28 at ~6.5 a
+    second is ~4.3 s of holding, which fits. The same on v0.40.2 (the pause is unchanged since v0.40-beta3); its
+    45-shot burst was not in a log, and tonight's v0.40.2 log (7 photos, longest 891) had no burst.
+  - **Is the pause useful while a burst is held? (analysis):** it was made for Single with S-AF, where the next press
+    waits for the camera's AF / live view on the CPU our pass holds. A held burst fires on the camera's own clock;
+    both bursts with the pause on (v0.40.2 45 shots, speed-1 28 shots) saved every frame, and there is no camera run
+    without it to compare. What it costs there: each paused photo stays in the camera's memory up to ~4 s longer
+    before it is encoded and saved (the buffer fills sooner in a long burst), and a pass of ~5 s runs in the capture
+    task. With face / eye detection on, the CPU is busier and each pause longer (guess: worth keeping in mind for #91,
+    a shutoff on the first photo of a sequential burst with Halation and face / eye on; the E-P7 has a 10 s watchdog
+    on long passes, the OM-3's is not known). Options, not built (the owner's call: behaviour that differs from the
+    release): pause only in Single drive; or cap the pauses by time (e.g. ~0.3 s a photo) instead of 800 sleeps.
+
+## try/speed-radius: speed-1 + Halation Radius (#92) (2026-11-20; emulator, camera test pending)
+- Owner (via cad): "lets keep working on the speed build. take a look at issue #92 and lets see if we can solve that
+  one and combine it into the speed build." #92 (GitHub Discussion by fernandezk26, the #91 reporter): a Halation
+  Radius row (Bloom / Tight / Medium / Wide) under Halation on COLOR 1-4; their branch as the local
+  `contrib/fernandezk26-halation-radius` (0239cc5: 493cea3, aaba3b9, a88d9f8 + a merge of v0.40.2). Their notes: 60
+  photos camera-tested (Film Grain off), suite 120 / 120.
+- `try/speed-radius` = fix/grain-halation-speed 391d09e + that branch merged (18972fc, their commits and authorship
+  kept) + VERSION "v0.40.2-r1 (speed-1 + Halation Radius, #92)" (c9a9fea; Firmware Version page "0.40.2-r1").
+- **The merge:** no text conflicts; one by meaning. speed-1 had folded `hl_lp` / `hl_sp` into Bloom's `hl_row` and
+  changed `HLA8` / `hl_x8` / `HLP`, while the radius pass (hradius.s `hr_pa`, `hr_row`) calls v0.40.2's. Kept both as
+  written: speed-1's versions renamed for Bloom (`HLA8S`, `hl_x8s`, `HLPS`), v0.40.2's `HLA8`, `hl_x8`, `hl_lp`, `HLP`,
+  `hl_sp` and `HR_WY` / `HR_DB` put back unchanged in ext12 for the radius pass. Nothing of ours added to their code.
+- **Checks asked for:** speed-1 touches neither the photo code's byte 63 nor the curves record's grain byte G (+25).
+  Byte 63: bits 0-1 are v0.28's split-tone half steps, bits 2-3 now the radius (`ex_rz`); the other `(63,..)` uses in
+  editor.s are the look records' '*' byte, another structure. G: 0x80 | size << 3 | strength (bits 0-2, 3-4, 7);
+  grain reads it masked (`and 7`, `lsr 3; and 3`), so bits 5-6 (the radius) were free. ext13 ends 0x60fbefc0, before
+  .ext14 at 0x60fc0000 (and in the same 4 KB page as speed-1). ext12 262,056 / 262,144 B; ext14 13,216 / 16,384 B.
+- **For cad's check:** their build raises the loader's end word 0x60fbf000 -> 0x6101d000 (the radius pass's static
+  work area HR_WRK 0x60fc4000 .. HR_END, inside the GX4-proven reserve to 0x6103f000): the camera's own start-up copy
+  is ~376 KB longer than v0.40.2's. No hook into the camera's code (hooks.json: Picture Mode table entries), nothing of
+  ours at start-up.
+- **om-emu:** Bloom (`hl_run` directly) 21 of 21 frames bit-exact, the two camera-sized ones in the same steps as
+  speed-1 (big5 85,719,260), every malloc'd block freed once. `emu_hr_check.py` (theirs): 76 of 76 exact (19 frames x
+  radius 0..3 through `hl_sel`), `--arg` 12 of 12, `--busy` 8 of 8 (falls back to Bloom), big5 at every radius exact.
+  Steps on big5 (Halation 5): Bloom 85.7 M, Tight 54.2 M, Medium 82.6 M, Wide 154.5 M (locks 1310 / 678 / 1033 /
+  2130).
+- **Ideas for their pass, not built (the owner's call; the same as speed-1 did for Bloom):** hr_run flushes after every
+  pass A group as Bloom did (speed-1 measured ~115 ms back on Bloom from this and the cached grids together; their grids
+  are already in a cached static work area); its rows go through v0.40.2's hl_lp / hl_sp (four calls a segment). Wide
+  is ~1.8x Bloom's work. LookLab doesn't know the radius yet (its preview stays Bloom).
+- **Full suite on the c9a9fea build: 120 of 120 pass** (exit 0; their `halation-radius-row-kept-with-grain` included).
+- Package `test-builds/2026-11-20-speed-radius/` (private): E1479999.BIN c6468b3f…9048, GUIDES.BIN 38a5d35a…f27e
+  (built from c9a9fea); go-back v0.40.2 da59432c…4d7b (the published file) + its GUIDES.BIN 5a5ff16e…9348. Camera test:
+  start-up, the row, the four radii on a lamp scene, speed-1's single shots and a burst, a burst at Wide, the log.
+- Still open with the owner, not built: Halation's pauses while a burst is held (speed-1's 4917 ms photo).
+- **r2: Halation's pauses capped at 0.3 s a photo (2026-11-20; emulator; camera test pending).** Owner: "ok lets add
+  that into the next test build" (cad: the cap). `hl_yld` now sleeps only while the photo's measured sleep time
+  (`hl_yus`) is under `HL_YUS` = 300,000 us, whatever the count (was at most 800 sleeps, which a held burst turned into
+  ~4 s: speed-1's 4917 ms photo). `hl_yn` is still counted for the log. Single shots keep the pause (a quick second press
+  still gets the CPU); a burst photo waits at most ~0.3 s more. hradius.s has no pause of its own: `hr_run` calls the
+  same `hl_yld` after its lock groups, so the radius pass gets the cap with its code unchanged. Commit 8d62048 (ours,
+  after fernandezk26's merge), VERSION "v0.40.2-r2 (speed-1 + Halation Radius #92, pause cap)" (page "0.40.2-r2").
+  Test `halation-pauses-only-while-half-pressed`: + 799 sleeps adding up to 0.299 s (still sleeps), 0.3 s reached with 3
+  sleeps (returns); r1's build (c9a9fea): caught ("time-cap-reached: slept"). Bloom 19 of 19 and the radius check 76 of
+  76 exact on the r2 build; **full suite 120 of 120** (exit 0). The package `test-builds/2026-11-20-speed-radius/` now
+  holds r2: E1479999.BIN db2aabba…, GUIDES.BIN d8c9573e… (built from 8d62048). Camera-only: the burst's photo times
+  (the log's "longest").
+
+## #93: playback labels each photo by its own film (2026-11-20; branch fix/93-playback-film-name; emulator, camera test pending)
+- **Report (QuatoChang, v0.40.2):** COLOR 1 on FILM 1, photo 1 ("FILM1" in playback); COLOR 1 switched to FILM 3 in the
+  super control panel, photo 2 ("FILM3"); photo 1 then also reads "FILM3". Log: COLOR 1 FILM 3, 2 photos, nothing else.
+- **Cause (analysis):** the playback info screens' picture-mode label is the shooting screen's own pictures 15706..15709
+  ("COLOR1".."COLOR4"; the playback layouts' list of {picture, 0xffff, 7, 7} at 0x613fac48, beside the ratio label's
+  elements), picked from the photo's Exif (colorTone = COLOR k). fl_lvp (film test 9) answers those ids with COLOR k's
+  film now, in every screen.
+- **The photo's own film is reachable (analysis):** on the OM-3 the single frame's info build (SimplePlayCommon, GUI
+  task) calls OlyHfwOpePlyCom's wrapper into the play component's getStillInfo (om-emu's S-PLAYCOMP stands in for
+  exactly those wrappers), which fills its Exif info with 0x60435431: per tag `0x6042f7c7` (a number) or `0x6042f92e`
+  (text) with d0 a group, d1 the tag. Groups: 1 = IFD0 (Orientation 0x112, Rating 0x4746), 3 = Exif IFD (0x9003,
+  0xa002, 0x829a..), 4 = GPS, 10 / 12 = the maker note's CameraSettings / ImageProcessing. `0x6042f92e(d0 group, d1
+  tag, a0 copy to (0 = none), a1 its size) -> a0` the tag's text in the play module's copy of the photo shown (the
+  handle at 0x62a97038, through 0x618f7529 / 0x618e2939), 0 when there is no photo or no such tag; it takes no lock
+  (0x6040d06f / 0x6040d4b7 / 0x6040d51a / 0x6040d196 with 0x30018 are its trace points). ex_fill (v0.27) writes
+  "FILM n Name" (n = the film's slot 1..20) into each JPEG's ImageDescription (IFD0 0x010e).
+- **Fix:** no new hook. Crop's SimplePlayCommon hook (cr_pbk1 at 0x6111341e, after the label code, camera-tested in
+  round 9c) calls pb_note (firmware/src/playfilm.s, ext13): `0x6042f92e(1, 270, 0, 0)`, its own call slot below the
+  stock frame, a1 kept; pb_txt reads "FILM n" (one or two digits, then a space or the end, n 1..20) -> pb_fn n, 0 for
+  any other text, 0xff when none was read. fl_lvp asks pb_lbl first: in playback / image review (GUI class 5..7) with
+  n it draws "FILM n" (fl_LVL, no star) in COLOR k's slot of the LVB block (fl_pdw, fl_pcp's drawing); with 0 the
+  camera's own "COLOR k"; otherwise as before (lv_chk, COLOR k's film now). Outside playback pb_lbl forgets pb_fn.
+- **Behaviour against v0.40.2 (owner's call):** each photo shows its own film; a photo taken on a COLOR with no film
+  now shows the camera's "COLOR k" (before: that COLOR's film now). Not known: what RAW-only photos carry (ex_fill
+  writes the JPEG's block; the ORF's ImageDescription was never checked): if it is blank they show "COLOR k".
+- **om-emu cannot show the camera's own read:** its playback reads no photo's Exif (S-PLAYCOMP answers getStillInfo),
+  and its real `0x6042f92e` returns 0 (no photo). Test `playback-labels-a-photo-by-its-own-film`: the tag read stood
+  in (`mov TEXT,a0; ret [d2,d3,a2,a3],80`) for 12 texts through cr_pbk1 (pb_fn; the stock registers kept), the real
+  read once (0xff), then the picture getter with COLOR 1 on FILM 2: a FILM 7 photo in playback gives our picture
+  drawn as FILM 7 (also as a COLOR 2 photo, and for the starred id), the shooting screen after it FILM 2 and pb_fn
+  forgotten, FILM 20, a no-film photo the camera's own picture, no text read FILM 2. v0.40.2's build: `caught`.
+- Camera checks still open: the label right after moving between photos (the widget asks the getter at each draw,
+  crop round 9c), image review right after a shot, a RAW-only photo, a photo from another camera.
+
+## r3: fix #93 merged into try/speed-radius (2026-11-20; emulator only, camera test pending)
+- Owner (2026-11-20): combine #93 into the next test build. cad merged fix/93-playback-film-name (81de76e) into
+  try/speed-radius (r2 = d3c938b): merge fc0408d (conflicts: the include list, playfilm.s / hradius.s / hrrow.s all
+  kept; these notes, both sections kept), VERSION "v0.40.2-r3 (speed + Halation Radius, pause cap, #93)" (598a47c; the
+  first name was over build.py's 60-character limit).
+- cad's check: #93 adds no hook (pb_note rides crop's cr_pbk1, playback only); playfilm.s in ext13; nothing at start-up.
+  Sizes: ext11 64,064 / 65,536, ext12 262,072 / 262,144, ext13 77,888 / 81,920, ext14 13,216 / 16,384; loader end word
+  0x6101d000 (the radius work area; GX4-proven reserve to 0x6103f000).
+- Build of 598a47c, twice, byte-identical: E1479999.BIN cca13d25…9783, GUIDES.BIN e5c89518…a7a1. **Suite 121 of 121
+  pass** (exit 0, pass recorded on 598a47c). Package `test-builds/2026-11-20-speed-radius-93/` (private), go-back v0.40.2.
+- Behaviour different from v0.40.2, for the owner: the Halation Radius row (rows below move down one); playback of a
+  photo taken with no film shows "COLOR n"; the start-up copy is ~376 KB longer.
+- **r3 on the camera (owner's OM-3, 2026-11-20; E1479999.BIN cca13d25…9783): camera-tested.** #93 camera-tested: asked
+  "Did playback show FILM1 and FILM3 correctly?", the owner: "Yes, correct" (photo A, FILM 1, PB204573..575, and photo
+  B, FILM 3, PB204576, each showed its own film in playback). All photos saved, the radii recorded, both Wide bursts
+  complete. Log and photo list private: `test-builds/2026-11-20-speed-radius-93/camera-results/`. 57 photos, all
+  saved, every photo code as set (decoded: byte 57 Halation, byte 63 bits 2-3 the radius): 8 singles on a lamp (FILM
+  10, Halation 5) Bloom / Tight / Medium / Wide twice (PB204522..529; grain Off on the first four, level 3 on the
+  rest); a Wide burst of 22, RAW+JPEG, drive [32], all within ~1 s (PB204530..551); a Wide burst of 21, JPEG only
+  (PB204552..572, the #91 setup plus Halation); then #93's photos (PB204573..576, Halation 0). Log: grain tiles 47,
+  failed 0, Coarse last 328 ms (speed-1: 336); our passes 53 photos, last 888 ms (pass A 151, map 71, pass C 657,
+  pauses 0), longest 4388 ms; stacks as speed-1 (cached).
+  - **The last Halation photo is PB204572, a Wide one** (the #93 photos have Halation 0), so its parts are the radius
+    pass's: map 71 ms is Wide's own map (16 px cells; om-emu big5 at Halation 5: map 12.3 M steps against Bloom's
+    1.98 M, x6.2), not a change to Bloom (8 ms on speed-1). Pass A 151 ms (Wide 17.1 M steps, Bloom 25.2 M: the reading
+    sets the time), pass C 657 ms (Wide 124.6 M steps, Bloom 58.5 M, x2.1). A Wide photo of that scene: ~0.9 s in all.
+  - **The 4388 ms photo (analysis; the log keeps only the last photo's parts and pauses):** most likely a burst frame
+    whose pass waited while the camera's own burst work ran on the same CPU. Not Wide's own work: the same scene took
+    888 ms, so 4.4 s is ~5x. Not the cap failing in the old way: hl_yld checks the photo's measured sleep time before
+    each sleep and stops at 0.3 s (emulator test). But the cap cannot bound one sleep that starts under 0.3 s and
+    lasts long, and nothing bounds the waits between lock groups when no lock is held: in both, our task (the capture
+    job's) runs only when the camera's own tasks on that CPU let it, and a burst of 22 frames in ~1 s (the first one
+    RAW+JPEG) is the heaviest load tested. Which of the two cannot be told from this log. The photos' saving was not
+    held up (all 57 saved).
+  - **Ideas, not built (the owner's / cad's call):** log the longest photo's parts and pauses (not only the last
+    photo's), and the longest single sleep, to settle it next time. The radius pass keeps its own work area for one
+    photo at a time (hr_busy): a second photo processed at the same moment on another CPU gets Bloom while its code
+    says Wide, so two neighbouring burst frames' halos are worth one look by eye. The radius pass's rows still use
+    v0.40.2's hl_lp / hl_sp (om-emu: ~12.7 M stack accesses in Wide's pass C on big5, cheap on the camera's cached
+    stack but many calls) and its pass A still flushes after every group, as Bloom did before speed-1.
+
+## r4: the Halation Radius pictures, and the longest photo in the debug log (2026-11-20; emulator, camera test pending)
+- Owner, on r3's text cells: "the bloom option icons look out of place from our updated menu. Can we have something like
+  the grain icons (low, med coarse) that mabe shows the bloom, tight, ect". Preview `test-builds/2026-11-20-radius-icons/`
+  (private); owner: "Yes, build them".
+- **Pictures (mkicons.py `radius_patch` / `radius_cell`, our own drawing, no camera graphics):** a small night patch in a
+  white frame, a white light; Bloom a soft haze (dithered warm edge), Tight / Med / Wide a crisp light with a thin /
+  medium / wide orange ring (the Halation icon's oranges); the word under it. Sizes of the camera's Grain Size pictures
+  (14561.. 82 x 62, 14562.. 100 x 76, read from the stock picture table in om-emu: sizes only). Left column
+  PICTURES[15..18] (IC_RZ0..), strip PICTURES[19..22], new ids IC_RZS = 0x7fdc.. (hrrow.s `rz_l2`: type 3 pictures, were
+  the words ST_RZS in the camera's font). The pixels equal the approved preview's.
+- **Ids:** the first r4 build (c58451d) used 0x7fc8.., inside crop's labels CR_IC0 0x7fc4..0x7fcc (answered by `cr_ic`
+  before `ic_get`): om-emu's strip showed XPan / 21:9 / 5:4. Fixed in d77162a: 0x7fdc..0x7fdf, free between the body
+  diagrams (DG0 + NDG = 12 -> 0x7fdc; crop.s's comment still says 0x7fd8) and AR_IC0 0x7fe0. Picture ids in use now:
+  0x7f70..0x7fcc, 0x7fd0..0x7fdf, 0x7fe0..0x7fff; free 0x7fcd..0x7fcf.
+- **Space:** the eight streams are 14.4 KB (four left 6.4 KB, four strip 8.0 KB). rz_pay (.ext14) 8,160 -> 11,008 B holds
+  the left cells and the first two strip cells; `rz_pay2` (.ext13, 3,776 B) the other two (build.py packs them in
+  order). .ext14 16,064 / 16,384 B, .ext13 81,728 / 81,920 B (ends 0x60fbff40, below .ext14), .ext11 64,608 / 65,536 B,
+  ext12 262,072 / 262,144 B. The loader's end word unchanged (0x6101d000: the start-up copy as r3's).
+- **Debug log (log only):** the "Shot timing" line ends "; Halation's longest photo T (pass A a, map b, pass C c, pauses
+  for the camera n (s ms)); longest single pause P ms": `hl_xrec` (.ext11) at `hl_tk`'s end keeps the longest photo's
+  parts (tv0 - tv3), `hl_yld` the longest single sleep (`hl_ysx`, us). For the next 4.4 s photo.
+- **Tests:** new `halation-radius-pictures-as-drawn`: the picture hook's chain (`ar_ic`: diagrams, arrows, crop's
+  `cr_ic`, `ic_get`) for the eight ids answers ic_ent 15..22 with mkicons' sizes and bytes; c58451d's build (0x7fc8):
+  caught. The timing line's regex extended. Bloom 19 of 19 (emu_check), the radius pass 76 of 76 (emu_hr_check).
+- **Full suite on the d77162a build: 122 of 122 pass** (exit 0). Builds of d77162a twice, identical: E1479999.BIN
+  4e76915b…34b6, GUIDES.BIN bc373855…7966. Package
+  `test-builds/2026-11-20-r4/` (private), emulator screenshots of the row in `screenshots/`, go-back v0.40.2.
+- **For the owner (not built):** the approved preview's words sit on a black box (the word's own 2 px edge plus the
+  picture's ring); `option-word-outline.png` in the package shows them with the word's edge only, as Grain Size's words.
+
+## r5: the Radius pictures' words outlined as Grain Size's (2026-11-20; emulator, camera test pending)
+- Owner, on r4's `option-word-outline.png`: "oh I like the option way better. it should match the camera and grain. Make
+  that change then upload it to the sd card" (cad puts it on the card). Commit f04239d: `radius_cell`'s extra 2 px ring
+  goes round the patch only, the word keeps its own 2 px edge; the pixels equal the option's right side.
+- The outlined words encode bigger (15,488 B for the eight cells, were 14,424): build.py now puts the set of cells that
+  fills rz_pay best there (exhaustive over the 8: left Bloom / Med / Wide and strip Tight / Med / Wide, 11,232 of 11,264
+  B) and the rest in rz_pay2 (left Tight, strip Bloom: 4,288 of 4,352 B); `hl_ga` .. `hl_c2` (536 B of our helpers and
+  data) moved from .ext13 to .ext11 for the room (`hl_hp` stays in .ext13, alone in its 64-byte line). .ext11 65,104 /
+  65,536, .ext13 81,792 / 81,920 (ends 0x60fbff80), .ext14 16,320 / 16,384; the loader's end word unchanged. Little
+  room is left in .ext13 / .ext14 (128 / 64 B).
+- om-emu: `halation-radius-pictures-as-drawn` passes (the lookup chain, sizes and bytes); Bloom 19 of 19, the radius
+  pass 76 of 76. **Full suite on the f04239d build: 122 of 122 pass** (exit 0). Builds of f04239d twice, identical:
+  E1479999.BIN ec78fdb9…5e41, GUIDES.BIN ea9f267c…e920. Package `test-builds/2026-11-20-r5/` (private), row screenshots in
+  `screenshots/`, go-back v0.40.2.
+
+## v0.40.3-beta: r5 released as a test version (2026-11-20)
+- Owner (2026-11-20, after testing r5: "looks good"): "lets release this as a .40.3 (orwhatever number we are on) beta".
+  Branch `try/v0.40.3-beta` from try/speed-radius 48383d9 (r5 + notes); VERSION "v0.40.3-b (beta: faster Halation,
+  Halation Radius, #93)", Firmware Version page "0.40.3-b" (1d9f0bc). Release folder `releases/v0.40.3-beta/`:
+  patch.json (tools/mkpatch.py), NOTES.md, SHA256SUMS, and LOOKS.BIN, CURVES.BIN, DEBUG.TXT and the photo-code kit as
+  v0.40.2. E1479999.BIN 306149fb…5b17; `patch.py --release v0.40.3-beta` rebuilds it byte for byte. r5 (ec78fdb9…5e41)
+  differs only in the version name. Docs: CHANGELOG, README (test version line), releases/README, docs/USING.md (the
+  Halation Radius row; playback shows a photo's own film).
+
+## #91: Film Grain with Low ISO Processing = Drive Priority, fix91-1 (2026-11-20; camera-tested: fixed on the owner's camera)
+Branch `fix/91-drive-priority-grain` (from try/v0.40.3-beta ceb6d17), local.
+- **The report (camera-tested by the reporter fernandezk26 and the owner):** the camera switches itself off and stays off,
+  no photo, on the first photo of a **Sequential, JPEG-only** shot with **Film Grain on** at **ISO 1600 and below** when the
+  camera's **Low ISO Processing** is **Drive Priority**. Saves: ISO 2000+, Detail Priority, RAW+JPEG, Single. Halation not
+  needed, DEBUG.TXT changes nothing. Seen on v0.40.1, v0.40.2 and r5 (= v0.40.3-beta's firmware). The owner's repro
+  (private `issue-91/owner-repro-2026-11-20/`): COLOR 1 own settings, Film Grain 5 Coarse, JPEG only, ISO 1000, M; the
+  last log was written before the shot, the shut-down is never logged. Not known: v0.40 / v0.40-alpha / v0.30.3.
+- **Low ISO Processing in the firmware (om-emu measured unless marked):**
+  - Menu setting **1496** (menu table 0x6151a878 `{1496, string 4683 "Low ISO Processing"}`; values list 0x6151cb00:
+    **0 = Drive Priority** (string 3848), **1 = Detail Priority** (3849)); om-emu's default 0. The facade 0x603f0111 maps it
+    through 0x6062555c[1496] to **internal id 38993** (0x9851); its value byte is at 0x6295944e (getter trace).
+  - Who reads 38993 (static, then om-emu): the capture's settings snapshot 0x603e7aab -> **capture+38249**; and 0x605597ad
+    in 0x60559647 (at boot and from the menu, both its outcomes give 2: no effect seen). om-emu: no other lookup at boot,
+    half-press or menu. capture+38249 is read only by the choice below.
+  - **The per-photo choice 0x6055aa5c** (a0 = the request: +20 the capture, +186 its kind) -> **1 = Detail processing,
+    0 = Drive Priority's**. 1 when: kind 0x1003 / 0x1004 / 0x1013 (RAW+JPEG kinds? guess); 0x6055a36d / 0x6055a43f's
+    special cases; kind 0x100c with capture+38216 = 11 / 14; 0x6055a58e (capture+38216 = 19); **capture+38216 (the
+    sequence type, written at 0x603e8221..8381) = 0 (Single)**, 13, 15 or 21; capture+6140 = 13; or **capture+38249 = 1
+    (Detail Priority)**. Else 0. No ISO in it. om-emu, the function run natively on a fake request: sequence type 1 +
+    Drive -> 0, + Detail -> 1, Single -> 1 (about 360 instructions; the test below).
+  - Its two callers: **0x6054fffd** in 0x6054f8d2 -> the development parameters **+323**; each of the five request builders
+    (0x6055075e/784, 0x60557e89/eb1, 0x6055e590/5bc, 0x6055e872/8a1, 0x6055e9cf/9f7) calls the converter 0x6054f6bf
+    (0x60555e47, our xb_cap) first, then 0x6054f8d2. **0x60558041** in 0x60557f0e -> **capture+7482** (after 0x60557b8a ->
+    0x60557e57, the converter again). +323 is copied into the job's request templates (0x604b60e2 -> +184, 0x604b707d ->
+    +298, 0x604b750c -> +306) and read by seven pass set-ups (0x604c113a, 0x604c1c9d, 0x604c5b63, 0x604c848c, 0x604cc839,
+    0x604ccf2f, and the request helper 0x604ca3d5 of ~17 passes, Grainy Film's 0x604bc285 / 0x604bc5c7 among them), which
+    hand it to 0x6051ab95 with the ISO and other picks (analysis: the noise-reduction set-ups; a pass whose two picks are
+    0 is skipped). The ISO 1600 / 2000 edge is not in the choice, so it is in those tables (guess: at high ISO both
+    choices pick the same).
+  - **Why Drive Priority's processing + our grain takes the camera down: not found (analysis).** Our grain sends a COLOR
+    still down Grainy Film's work list (xb_wl) with the job key 11, so every pass is set up for COLOR; with the Drive
+    processing at low ISO some passes are set up differently. Every saving case on the camera is one where the choice is 1
+    (Single, Detail Priority; RAW+JPEG if 0x1003 / 0x1004 are its kinds) or where the picks are likely the same (ISO
+    2000+). om-emu takes no stills, so the shut-down cannot be reproduced there.
+- **fix91-1 (2950cc2): keep the grain, give such a photo the Detail processing.** Both call sites go through `fd_dec`
+  (ext11) behind section gates `fd_g1` / `fd_g2` (ext1, as mx_g: section 6's bit, else the stock call): the stock
+  choice, then 1 where it was 0 and the request's photo takes our grain texture (`fd_g`). `xb_cap` (code block) clears
+  `fd_g` for every request and sets it for a COLOR look whose slot has Grain (+53, the same stills xb_wl sends down
+  Grainy Film's list; the camera's own Art Filters never), and notes capture+38249 in `fd_lo`. So such a photo is
+  processed as with Detail Priority (what the camera itself does for Single); every other photo keeps the camera's
+  choice. Debug log, a new line after "Grain tiles": "#91 Low ISO Processing at the last photo: Drive Priority / Detail
+  Priority / none yet; grain photos given the Detail processing N (fd_n), Detail already M (fd_k)" (counts per request,
+  so a photo may count more than once).
+- **For cad's check:** new hooks **`hook_dp1` 0x6054fffd** (7 B, `call 0x6055aa5c,[d2,d3,a2,a3],40` -> `call
+  fd_g1,...`) and **`hook_dp2` 0x60558041** (5 B, the same call -> `jmp fd_g2`), stock bytes checked by build.py, added
+  to tools/test/hooks.json by hand (not --write-hooks). Both run only while a photo's requests are made: om-emu traced
+  from power-on (WBOOT) through half-presses and menus: 0 hits at both sites and at 0x6055aa5c. Nothing at start-up.
+  Space: ext1 1,592 / 1,744, ext11 65,440 / 65,536, ext13 81,856 / 81,920 (64 B left; the log call), loader end word
+  unchanged. **Behaviour that differs from v0.40.3-beta (the owner's call):** with Drive Priority, a Sequential photo
+  with our grain gets the Detail processing (noise reduction as Single / Detail Priority); bursts with grain may slow
+  down or fill the buffer sooner, as with Detail Priority (camera-only). Without grain nothing changes.
+- om-emu: new test `grain-photo-with-drive-priority-takes-detail` (the choice from both sites natively: Drive + grain 1,
+  Drive without grain 0, Detail 1, Single 1, registers / sp back, counters, the gate closed -> 0) passes;
+  `--without` the v0.40.3-beta build: **caught** (Drive + grain 0 at both sites). The shut-down is camera-only
+  (research/TESTING.md "Past regressions"). **Full suite on the 2950cc2 build: 123 of 123 pass** (exit 0); static
+  checks all pass. Builds of 2950cc2 twice, identical: E1479999.BIN 6948ffdf…9323, GUIDES.BIN 958da094…d9ac. Package
+  `test-builds/2026-11-20-fix91/` (private): TEST-STEPS (the owner's repro: Drive Priority, Sequential, JPEG only, ISO
+  1000, Film Grain 5), go-back v0.40.3-beta 306149fb…5b17 (`patch.py --release v0.40.3-beta` gives the same).
+- **Camera-tested 2026-11-20 (the owner's OM-3, fix91-1 flashed): no shut-down** (owner: "No, never"). Low ISO
+  Processing Drive Priority (the log), ISO 1000, JPEG only, COLOR 1 own settings with Film Grain 5 Coarse (grain plain
+  at 100 % in the burst photos): three Sequential bursts of 53, 77 and 26 photos and one Single, all 157 saved and
+  decode in full; the second burst 77 photos in about 5 s. The same set-up on r5 switched the camera off on the first
+  photo of a burst. The log covers only the last power-on (the Single: "Detail already 1"); the bursts' counts are not
+  in it. Not tested: other ISOs below 1600, RAW+JPEG (saved before), films with grain (the same route as COLOR 1).
+- **If the camera still shuts off with fix91-1** (then the cause is not the processing choice): options for the owner,
+  not built: (1) no grain on those photos (Drive Priority + Sequential + JPEG only), the only sure stop; (2) a test of
+  v0.30.3 (the camera's own grain tile, the same route) and v0.40-alpha (the first with our tile) to see whether the
+  route or our tile does it. #50 (photos not saved with Film Grain in a Sequential burst, 2026-11-16, never reproduced
+  on the owner's camera, which is on Detail Priority) may be the same bug: its reporter's Low ISO Processing is not known.
+
+## #97: Magnify and the Image Aspect screen in 5:4 / XPan / 21:9, fix97-1 (2026-11-20; emulator + analysis, camera test pending; branch fix/97-crop-magnify)
+- **Report (#97, v0.40.2, M, Image Aspect 5 = 5:4 in its log, "crop round 14"):** (1) Magnify in 5:4 / XPan / 21:9:
+  instead of the magnify frame the screen goes black, a click (as at auto power-off), focus lost, nothing more; fine in
+  the camera's own ratios. (2) Image Aspect menu: scrolling onto the crops shows "3:4" and the RAW size list on the
+  left disappears; after picking one and going back the names are right. Branch from fix/91-drive-priority-grain
+  (1970a2a = v0.40.3-beta + fix91-1, camera-tested).
+- **Magnify in om-emu:** om-emu's AF-ON / Fn keys do not reach the button functions (research/BUTTONS.md); Delete
+  does (#37). Delete = Magnify through the real menu: Custom Menu > Button Settings > Button Function (photo) > Delete
+  (11th row) > the magnifier (two rows up from Off, first column): sid 570 = 3352 (function code of LV_MAGNIFY, action
+  26; table 0x612f20a8). om-emu then draws the GUI's magnify frame and the 10x view at XPan as at 4:3 (the live view
+  picture is not emulated), and runs the live view's zoom code: getZoomArea 0x60c15477 and adjustCoordinates
+  0x60c14581 8 times per press.
+- **Cause 1 (om-emu + analysis):** CapThr_ThroughImage (section 6) reads the ratio through getAspectRatio 0x60c14644
+  (log "getAspectRatio ======== start"): Image Aspect 269 as it is (6 at XPan); 10 / 1 / 3 in video (44 = 1) and scene
+  modes 113..117. Five callers: getOutputAspect 0x60c14b3a, getOutputSize 0x60c14c8c, getTakeAreaSize 0x60c150ec (their
+  jump tables have the crops since round 1), and two that turn it into a table row with a compare chain for 1, 2, 3,
+  4, 9, 10 only:
+  - getZoomArea 0x60c15477 (log "CapThr_ThroughImage::getZoomArea aspect = %d"): row a3 = 0..5, entry = table (in the
+    CapThr object, 0x60c16f4a) + row x 80 + mode group + zoom rate (300..1400) x 4, 4 signed limit bytes; a miss
+    (0x60c154c0 -> 0x60c155dc) returns 0. selectDirectMove checks for 0 ("p_zoom_area is NULL!!"), adjustCoordinates
+    0x60c14581 does not: it reads the four limit bytes from address 0 and clamps the frame position with them.
+    om-emu, fix91-1 at XPan: the miss 19 times in one Magnify press, 0 at 4:3.
+  - adjustZoomFrameLimitPos 0x60c13f91 (log "[adjustZoomFrameLimitPos]ofs ..."): 16-B records by row (0x60c16fe6); a
+    miss takes row 0 (4:3's).
+  The black screen / click / stuck camera itself is not reproduced (om-emu runs no live view picture): analysis.
+- **Fix 1:** hook_cz1 (0x60c15483) and hook_cz2 (0x60c13f97), the two `call 0x60c14644,[d2],16` (5 B), become jumps to
+  cr_za1 / cr_za2 in ext6 (section 6's own tail: loaded with the code that jumps there, no gate): the stock call, then
+  cr_zm gives these two the crop's base, 5:4 -> 4:3 (1), XPan / 21:9 -> 16:9 (3), as the AF target screen does
+  (cr_spec, round 3), and counts it (cr_zn: the CROP MODES line, now "crop round 15", ends "; zoom reads given the base
+  N"). getOutputSize / getOutputAspect / getTakeAreaSize keep the crop. So Magnify uses 16:9's zoom areas at XPan / 21:9
+  (the frame can move above / below the strip) and 4:3's at 5:4 (left / right of it): the owner's to judge. Other LV
+  zoom code reads 269 directly (e.g. 0x60cbfc50 passes it on to a virtual call); not followed: if the camera still
+  fails, that is where to look next. MF Assist runs the same zoom code (LVZoom controller).
+- **Cause 2 (om-emu, reproduced on fix91-1):** the Image Aspect screen 0x611f9572 (Shooting Menu 1 > Image Aspect) has
+  its own lists: (a) the name under the cursor, 0x611c7785 by value from the record at 0x61577268 {u16 0, u16 6,
+  title 0x61577200, list 0x61577208 (1, 2, 3, 4, 9, 10: strings 292, 293, 291, 1792, 295, 3267), 0x61577250} (found
+  only by 0x611f9489): no entry for 5 / 6 / 7, so the name stayed the last one drawn ("3:4"); (b) the sizes, a loop
+  (0x611f9651..0x611f9792, 5 passes) over 266-B records at 0x61577278 {u16 ratio, 11 UTF-16 sizes of 24 B: RAW, Large,
+  Middle1, Middle2, Small1, Small2, then High Res Shot RAW tripod / handheld and its three JPEG sizes; setting 771
+  picks which}, records for 1, 3, 2, 4, 9: no match, so the flags that show the row names (screen +129..) stayed 0 and
+  the sizes stayed. The second loop (0x611f9793..) always takes the 4:3 record (the right-hand column). Found by an
+  execution-coverage diff in om-emu (cov tokens in a scratch driver: GUI code run on the step 1:1 -> 3:4 vs 3:4 -> 5:4).
+- **Fix 2:** (a) crop.py points the record's list at cr_ml0 (the menu's 9 entries, same strings; looked up by value)
+  and its count at 9 (patch sites 0x6157726a:1, 0x61577270:4). (b) 3 records for 5, 6, 7 (798 B: no section tail
+  has room) in the GUIDES.BIN code block, xb_szr, its offset at the block's +152 (xb_szo; xb_nrel moves to +156, read by
+  symbol). crop.size_records makes them from the photo size tables (W 0x606e60c0 / H 0x606e6270, ids 6 / 7 as round 1
+  rewrote them): each size's class is the one whose 4:3 size is the 4:3 record's; the RAW and High Res RAW sizes are
+  the full frame as in every stock record; the method is first checked against all five stock records (asserts). 5:4:
+  4864x3888, 3040x2432, 1840x1472, 1200x960, 960x768 (HR 9728x7776, 7648x6120, 5408x4320); XPan 5184x1920, 3200x1184,
+  1920x704, 1280x480, 1024x384 (HR 10368x3824, 8160x3008, 5760x2128); 21:9 5184x2224, 3200x1376, 1920x816, 1280x544,
+  1024x432 (HR 10368x4448, 8160x3504, 5760x2464). hook_cz3 (0x611f965a, the loop's `add 0x61577278,a1`, 6 B) -> cr_szr
+  (ext6): on the loop's first pass with 5 / 6 / 7 under the cursor and the block loaded (`xp`), a1 = our record (its
+  ratio matches, the loop takes it); else the stock add. The loop's setlb / Lcc are not disturbed (cr_szr and xp use
+  neither; the jump out and back is after setlb's 4 buffered bytes). Before the first half-press there is no block: the
+  names show, the sizes as before (start-up rule). om-emu: 5:4 / XPan / 21:9 each with its own name, sizes and the row
+  names; the 4:3 column unchanged.
+- **Start-up rule:** WATCH from switch-on (WBOOT, XPan restored at start-up, then half-press, menu): none of the three
+  hook sites runs; the zoom ones run only once Magnify has started (and while it is on). Section order: hook_cz1 / cz2
+  are section 6 -> ext6 (section 6); hook_cz3 is section 7 (GUI) -> ext6. `static:section-order` passes.
+- **Space:** ext6 580 / 608 B (28 B left), ext12 24 B left (the log text), GUIDES.BIN 14772 / 16448 B.
+- **Tests:** `crop-magnify-finds-its-zoom-area` (boot 1: XPan, Delete = Magnify, `hit:60c154c3:a3=2` = getZoomArea
+  takes 16:9's row, log "zoom reads given the base N > 0"; boot 2 after a power-off, 5:4 through the control panel then a
+  half-press (om-emu's Delete does nothing right after the panel), `a3=0`); `crop-image-aspect-screen-shows-crop-sizes`
+  (after a half-press, the screen on XPan and 21:9: ink at the row names x 90..180 y 290..320, the two frames differ).
+  `--without` fix91-1's build (out-f97-base = 1970a2a): both `caught`.
+- **Suite** (build of 6da4661 = the package, om-emu 0819080): **125 pass**, exit 0 (123 + the two new). `--without`
+  out-f97-base (1970a2a): both new tests `caught`. Both builds of 6da4661 the same byte for byte.
+- Package `test-builds/2026-11-20-fix97/1-test-build` (private folder): E1479999.BIN `0b5fb287…beed`, GUIDES.BIN
+  `3172384d…8a07`, VERSION "v0.40.3-f2 (fix91-1 + fix97-1: Magnify, Image Aspect, #97)"; go-back fix91-1
+  `6948ffdf…9323` / `958da094…d9ac`.
+- **Camera-only:** whether Magnify in a crop now shows the frame and the magnified view (no black screen / click /
+  stuck), what the magnified view shows at XPan (full width or the strip), MF Assist in a crop, the Image Aspect screen
+  on the camera.
+- **Camera-tested 2026-11-20 (the owner's OM-3, fix97-1): works** (owner: "it worked well"); the log: "crop round 15",
+  aspect 5 (5:4), zoom reads given the base 734, nothing unusual.
+
+## #99: the camera's own picture modes get their own WB shift back (2026-11-20; emulator only, fix99-1, camera test pending)
+
+Branch `fix/99-wb-shift-base` (from `fix/91-drive-priority-grain` 1970a2a = v0.40.3-beta + the #91 fix). Issue #99
+(crombach, v0.40.2): with a film or COLOR that has a WB shift, turning the Creative Dial to its centre (the camera's
+own picture modes) keeps the shift on those photos; v0.40.1's notes listed it under "Differences to know".
+
+**Reproduction (om-emu 0819080, the base build 6948ffdf… = fix91-1 byte for byte):** a film with Auto B5 picked, then
+the dial to om-emu's position 2 (driver token `cdial:N`; E147 positions 0 MONO, 1 COLOR, 2 the standard picture modes,
+3 ART, 4 CRT): the camera writes only **897 = 898** (the picture-mode family) through the manager, nothing of ours
+runs, and the stills fine-tune (1580 Auto) stays -5. Back to COLOR writes only 897 = 901, and the Picture Mode page
+opens (state 0x0418). Also on the base: from the standard modes (own Auto A1) back to COLOR 1 without a film, Picture
+Mode's opening copied the camera mode's A1 into COLOR 1's slot (#88's fw_pm / fw_sync), so COLOR 1 took it.
+
+**Owner (2026-11-20):** "Yes, restore it": leaving a film for a camera picture mode gives back the compensation that
+was there before the film set it (per WB mode); films keep theirs and stay editable in the panel (#88 stays); a change
+on a camera mode is that mode's own, kept for next time. Open points (through cad): COLOR 1-4 with no film act like
+films; **after a power-off: kept, "like the stock camera", and each custom mode keeps its own**; video unchanged.
+
+**Built (fix99-1, `firmware/src/editor.s`, ".. #99" block):**
+- State (ext13): `fw_on` (0 the camera mode's compensation is in the camera, 1 a COLOR's, 2 a COLOR's due, 0xff not
+  known), `fw_bs` the camera mode's 13 stills fine-tunes (A-B, G-M by the index in table 0x615d1944), `fw_bv`,
+  `fw_grp` (the mode group, `cm_gnow`: C1..C5 = 0..4, P / A / S / M / B = 5), `fw_mpd`.
+- The 897 write: `sl_set0` (the stock path, after sx_set's Creative Dial mapping) -> `fw_897j` -> `fw_fam`, before the
+  camera's own write. To 901 from a camera mode: `fw_snap` (the 13 pairs through sget), fw_on 2. To 898 / 899 / 900 /
+  988 from a COLOR: `fw_out` writes each pair back through the manager where it differs (0 / 0 when not known).
+  Nothing on the 897 write that comes with a new mode group: **om-emu: at a mode-dial turn the camera writes 897
+  before it puts the new group's own WB back**, so an early fix99 took P's film's values as C1's own.
+- `fw_chk` at Picture Mode opening (`fw_pm`) and each half-press (`ex_live`, before `fw_sync`): on a camera mode ->
+  fw_out; on COLOR k with fw_on 0 / 2 -> (fw_snap when 0) then `fw_ft` (COLOR k's shift into its own WB mode, as a
+  pick). A pick (`fw_apply` -> `fw_ent`): from a camera mode, fw_snap first. `fw_kft` (camera -> a film's slot) only
+  while fw_on is 1, so a film never takes a camera mode's compensation.
+- **Kept per mode group in camera memory:** record 'OM3W' at M + 0x3FE80 (180 B, after 'OM3S' which ends at
+  +0x3FE78, before the image's end at +0x40000): magic, u16 version 1, u16 length 180, CRC-32 of 12.., then 6 entries
+  of 28 B {1 = the camera mode's own are kept here and a COLOR's are in the camera, 0 = the camera mode's own are in
+  the camera; 0; 26 B}. Written at fw_snap and at fw_out's restore (`fw_msv` under LOCK, both M aliases, UB_DIRTY: the
+  camera saves M at the next return to shooting or power-off; held back while it saves M, `fw_mpd`, retried at the next
+  fw_st). Read at a new group (`fw_st` -> `fw_mld`, after the first look of a power-on): a good record -> fw_on / fw_bv
+  / fw_bs from the group's entry; **missing or bad (magic, version, length, CRC) -> not known** (fw_on 0xff: on COLOR it
+  counts as a COLOR's, and leaving it gives 0 / 0). Nothing read or written at start-up.
+- Guards: after the first look (`cm_init`), not while a mode-dial switch waits (`rc_pend`), photo modes only
+  (`ss_photo`): nothing at start-up, nothing in video. Writes: stills fine-tune ids 1580..1605 (handle rc_in, mode 0, as
+  rc_put) and the record. No new hooks.
+- Space (sections ≤ 6 where the half-press path reaches: static:section-order walks from hook_shutter through
+  ex_live): `.ext4` fw_st, fw_bid, fw_snap, fw_out, fw_chk (1740 / 1776); `.ext6` fw_msv (548 / 608); `.ext11` fw_mput
+  (65536 / 65536, full); `.ext1` fw_mok, fw_ment, fw_mld (1744 / 1744, full); `.ext13` the state (81920 / 81920,
+  full); `.ext8` fw_897j, fw_fam, fw_ent (sl_set's paths only). A first try with SEC_READY gates for sections 8 / 9 was
+  dropped: om-emu's word is 0x7f (sections 1..7), so the gates skipped the code there, and the camera may never set
+  those bits either. The 136 KB reserve was not needed.
+- The Firmware Version page shows at most 9 letters: VERSION "v0.40.3-wb (...)".
+
+**om-emu (fix99-1):** standard modes' own Auto A1 -> COLOR 1 (0) -> FILM 3 (B5; the list passed FILM 1, Custom WB A3
+M2) -> standard: Auto A1, Custom WB 0 / 0 -> COLOR: B5, no '*'. Off on FILM 3, on, standard: A1 (record kept); with
+the record's CRC broken before the first look: 0 / 0. P's standard A1 assigned to C1, P's own A2, a film in P: C1
+gets COLOR 1's own 0 at the half-press, its standard modes A1; P: B5, its standard modes A2.
+
+**Tests (emu_test.py, all five caught on the base for the right value):** `camera-mode-gets-its-own-wb-shift-back`,
+`color-gets-its-own-wb-shift-back-from-a-camera-mode`, `camera-mode-wb-shift-kept-over-a-power-off`,
+`camera-mode-wb-shift-not-known-without-a-good-record`, `custom-modes-keep-their-own-wb-shift`. Driver tokens `cdial:N`,
+`mbytes:ADDR:LEN`.
+Full suite on 358778b: 128 of 128 pass (exit 0). Package fix99-1: E1479999.BIN 9507c95c…f527, GUIDES.BIN
+c9fa1642…75eb (built twice, the same byte for byte); go-back fix91-1 6948ffdf…9323 / 958da094…d9ac.
+
+**Camera-only:** the real dial's centre position (om-emu's position 2 = family 898; the camera report of 2026-11-10
+named only CRT, ART, COLOR, MONO); live view's colour; photos; whether the camera keeps a fine-tune written at the 897
+write over a power-off (#88 saw one written at a half-press lost once in om-emu); timing of up to 26 setting writes
+at a dial turn (usually 1-3 differ); M's tail after +0x3FE78 being unused by the camera (as the other records'
+places: analysis + the mp1 probe for the tail in general); the camera's own WB menu outside the panel.
+
+- **Camera-tested 2026-11-20 (the owner's OM-3, fixes2 = fix91-1 + fix97-1 + fix99-1, v0.40.3-f3): works** (owner:
+  "It works!!"): the camera modes' own WB shift back from a film, kept over a power-off; Magnify at XPan still fine.
+
+## fixes2: fix91-1 + fix97-1 + fix99-1 fitted together (2026-11-20; emulator, camera test pending; branch try/v0.40.3-fixes2)
+- **fix97-1 camera-tested 2026-11-20** (main chat, owner: "it worked well"; log "crop round 15", zoom reads given the
+  base 734; test-builds/2026-11-20-fix97/camera-results): Magnify in the crops works on the camera.
+- The merge of fix/99-wb-shift-base (41a166a, VERSION v0.40.3-f3) did not link: `.ext6` 672 / 608 B (fix97-1's
+  cr_za1 / cr_za2 / cr_zm / cr_szr / cr_zn 125 B, fix99-1's fw_msv 92 B). 7c1a569 moves two fix97-1 pieces, code
+  unchanged: **cr_zm (34 B) to the section-4 tail ext4** (loaded before section 6, whose zoom code, cr_za1 / cr_za2, is
+  its only caller; its counter cr_zn stays in ext6) and **cr_szr (51 B) to ext14** (section 6's extension, loaded with
+  section 6, before the section-7 GUI code of hook_cz3 that jumps there). The calls to cr_zm are now 32-bit (7 B).
+  Now ext6 592 / 608 B, ext4 1772 / 1776, ext14 16368 / 16384; ext1, ext11, ext12 and ext13 full or nearly. Static
+  checks pass (hook-list and changed-bytes as fix97-1, section-order); the 136 KB reserve is not used.
+- **Suite** (build of 7c1a569 = the package, om-emu 0819080): **130 pass**, exit 0 (123 + #97's two + #99's five).
+  Both builds of 7c1a569 the same byte for byte. Package `test-builds/2026-11-20-fixes2/1-test-build` (private folder):
+  E1479999.BIN `fc80a4af…2d58`, GUIDES.BIN `4a50fe07…ad46d`; go-back fix97-1 `0b5fb287…beed` / `3172384d…8a07`.
+
+## v0.40.3-beta2 (2026-11-20; camera-tested as fixes2)
+Branch `try/v0.40.3-beta2` = `try/v0.40.3-fixes2` (fix91-1 + fix97-1 + fix99-1, camera-tested 2026-11-20, owner: "It
+works!!") + VERSION "v0.40.3-b2 (beta 2: fixes for #91, #97 and #99)". E1479999.BIN 977b25dd…4945 (GUIDES / LABELS /
+TONES built in); `patch.py --release v0.40.3-beta2` rebuilds it byte for byte. Card files as v0.40.3-beta. Published
+as a GitHub pre-release on the owner's OK ("Yes, release it"); v0.40.2 stays Latest.
+
+## The fixes2 boot loop: #99's section-8 code at the start-up 897 writes (2026-11-20; analysis + emulator; branch fix/bootloop-897-section8)
+- **Camera (owner, via the main chat):** fixes2 (7c1a569, also released as v0.40.3-beta2) passed its test ("It
+  works!!"), then later, card unchanged, the camera boot-looped; CADLOG.TXT was not written again (it died before our
+  log). v0.40.3-beta flashed back: it starts, on the same camera memory. The last good log: A, FILM 1, XPan saved with
+  its tag (43520006), the custom-mode record held back. Not known: the loop without a card, what was done in between.
+- **Cause (analysis + emulator; not seen on the camera):** fix99-1 put `sl_set0`'s 897 branch (`jmp fw_897j`) in
+  section 6's ext11, and `fw_897j` / `fw_fam` / `fw_ent` in `.ext8` = **section 8**. The camera's settings task writes
+  897 (the Creative Dial family) through the facade at every start-up (bp1 probe, camera: once, then twice more before
+  any key), and the camera application starts once sections 6 and 7 are in, while 8..10 are still being copied
+  (USTART5; "Section order audit"). So every start-up jumped into section 8 three times with nothing checking it was
+  there: a race, the pattern of v0.20 test 1 (section-8 code at start-up: boot loop) and crop round 7. om-emu (WATCH
+  from the lab's start, fixes2's build): `sl_set0` with 897 three times during the start, each running `fw_897j`, all
+  before the first look (`cm_go` at the half-press). fw_897j's work did nothing then anyway (`fw_st` waits for
+  `cm_init`). Why the race was lost only after the passing test is not known (timing: card, the state saved in M).
+- **Other paths checked:** a walk (static_check's `_walk`) from every hook in sections 6 and 7 into sections 8..10,
+  fixes2 against fix97-1 (camera-tested): only two new paths, both #99's: `fw_897j` (above) and `fw_ent` from
+  `fw_apply`, whose callers (`fl_set` behind PVAL, `fw_nf` from rc_go) run only with the films in (STATE: all ten
+  sections copied). #97's moved pieces stay in sections 4 and 6. `static:section-order` only walks from hooks in sections
+  1..5, which is why it passed.
+- **Fix (fw_g8):** `sl_set0`'s `jmp fw_897j` (ext11 is full: same 5 bytes) now goes to `fw_g8` in section 3's tail
+  (`.ext3`, copied before section 6; 20 B, ext3 487 / 492): `movbu (cm_init),d2; cmp 0,d2; beq` stock `sl_set0b`, else
+  `jmp fw_897j`. `cm_init` is set only by `cm_go` with the films in, so section 8 is in by then; before it fw_897j did
+  nothing, so #99 behaves as in fixes2. d2 is free there (sl_set0b sets it from MDR), MDR untouched. VERSION
+  "v0.40.3-f4 (fixes2 + the boot-loop fix for #99)".
+- **om-emu (the fix):** the three start-up 897 writes go to the stock path, `fw_897j` first runs at a Creative Dial turn
+  after the first look. Test `section-8-code-waits-for-the-first-look` (fixes2's build `caught`: "fw_897j ran 3 times
+  before the first look").
+- **Suite** (build of 94cd8c4 = the package, om-emu 0819080): **131 pass**, exit 0 (fixes2's 130 + the new one); static
+  checks pass. Package `test-builds/2026-11-20-bootloop-fix/1-test-build` (private folder): E1479999.BIN
+  `801e9623…b240`, GUIDES.BIN `a8788ffb…108e`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **v0.40.3-beta2 (published, fixes2's firmware with its own VERSION) has the same path**: for the owner.
+- Not done (follow-up): `static:section-order` walks only from hooks in sections 1..5; a walk from the hooks in
+  sections 6 / 7 into sections 8..10 (with the released paths behind STATE listed) would have flagged fw_897j.
+
+## fix99-2: the restart after the centre, back to a film and a film change (2026-11-20; analysis + emulator; branch fix/99-film-change-reboot)
+- **Camera (owner, via the main chat; v0.40.3-f4 = fixes2 + the boot-loop fix, E1479999 801e9623…b240):** "no loops,
+  but it does have a reboot": Creative Dial to the centre, back to a creative position, then a film change -> the
+  camera restarted; it left no log. The last log (event 20, at the centre, "nothing unusual") shows the same steps
+  passing once before: FILM 2 -> the centre (events 7-10) -> COLOR, FILM 3 picked in Picture Mode (event 11); then FILM
+  3 -> the centre (19-20) -> back, a film change -> the restart. The owner's Creative Dial rows: CRT COLOR, ART Normal,
+  COLOR COLOR, MONO COLOR.
+- **om-emu (f4's build, the owner's steps three times over, LOOKS_WB):** no restart (as #72's never showed there). With
+  WATCH + task ids, where each #99 write comes from: the turn to the centre, task 165 (the dial's 897 write): fw_897j ->
+  fw_fam -> fw_out (26 reads, the differing fine-tunes written) -> fw_msv, then the camera's own 897; the turn back:
+  task 165 fw_fam -> fw_snap -> fw_msv, then **task 168 (GUI) gx_map -> fw_pm -> fw_chk -> fw_ft -> the manager
+  (1580 / 1593) inside the state dispatcher, as Picture Mode (0x0418) opens**; a film change: task 168 fl_set -> fw_keep,
+  fl_sw, fw_apply -> fw_ent (fw_on 1: nothing) -> fw_ft (as v0.40.1). GUI stack at those writes about 0x300 B deep
+  (16 KB task), no nested dispatch.
+- **Cause (analysis, not seen on the camera):** the writes as Picture Mode opens are the one place where #99 changes
+  settings that v0.40.1 does not (#88's fw_pm only read: fw_sync -> fw_kft); they come from inside the GUI's state
+  dispatcher, mid change, while the dial's task may still be in the camera's own 897 write (the camera has two CPUs,
+  om-emu runs one and no live view). fw_wr writes only where the film's shift differs from the camera mode's, which
+  fits the first round passing and the second restarting, if the owner's FILM 2 has no shift and FILM 3 one (not known:
+  the owner's films live in camera memory). The other #99 moments of that sequence ran on the camera without trouble:
+  the turn to the centre (fw_out's writes and fw_msv in task 165) twice, film picks in Picture Mode (v0.40.1).
+- **Checked, not the cause:** frames and locals of fw_897j / fw_fam / fw_out / fw_snap / fw_msv / fw_mput / fw_ent / fw_st
+  (each call slot at (0,sp), locals below the saved registers, `[],0` / `[],4` callees as they return); MDR: fw_897j
+  sets it from (68,sp) before sl_set0b, fl_set and ed_set before `jmp manager`; LOCK = dispatch held, as cm_wr; the M
+  record within M's unused tail; byte access only on fw_bs. A walk (static_check `_walk`) from every hook in sections 6
+  and 7 into sections 8..10: against f4 only fw_fam -> fw_in (below, section 9, reached only through fw_g8's cm_init
+  gate); the rest are released paths (pf_put / pf_put1, ed_pmod, ed_isdef, gd_set / gd_load, xt_tab) and #99's two
+  already checked (fw_g8 -> fw_897j, fw_apply -> fw_ent).
+- **Fix (fix99-2):** fw_pm no longer calls fw_chk (it reads only, as in v0.40.1). At a turn from a camera mode to COLOR,
+  fw_fam (task 165, the 897 write, before the camera's own write, where the turn to a camera mode already writes)
+  calls `fw_in` right after fw_snap: 901's value (the COLOR choice, kept while another family is on) -> fl_k -> PVAL ->
+  fw_ft (handle rc_in, mode 0) -> fw_on 1; not COLOR 1-4 or no films: fw_on stays 2 (fw_chk at the half-press, HLS
+  task). `fw_in` is in `.ext9` (section 9, 40 B left; ext8 454 / 512). The value written at the 897 write stays over
+  the camera's own write (om-emu: Auto -5 after the turn). Behaviour as fix99-1. VERSION "v0.40.3-f5 (f4 + fix99-2: WB
+  shift in at the dial turn)".
+- Not changed: an M write (fw_msv) from the GUI still happens at a pick when fw_on is 0 (fw_ent -> fw_snap: a turn by a
+  mapped dial position whose remembered film equals the one already on, then a pick) and fw_st's retry of a held-back
+  save; neither is on the owner's path in om-emu.
+- **Test** `wb-shift-goes-in-at-the-dial-turn-not-as-picture-mode-opens` (the owner's steps: standard modes' own A1 ->
+  COLOR, FILM 3 (B5) -> the centre (A1) -> COLOR (B5) -> a film change in Picture Mode -> the centre (A1); WATCH
+  fw_897j, fw_pm, fl_set, fw_wr): no fine-tune write right after fw_pm, some at the dial turns. f4's build `caught`
+  ("4 WB settings written as Picture Mode opened (GUI task), not 0"); passes on the fix.
+- **Suite** (build of dd467ad = the package, om-emu 0819080): **132 pass**, exit 0 (f4's 131 + the new one); the static
+  checks pass (hook-list and changed-bytes as f4: no new hook or patch site). Both builds of dd467ad the same byte for
+  byte. Package `test-builds/2026-11-20-fix99-2/1-test-build` (private folder): E1479999.BIN `45fbac77…251b`,
+  GUIDES.BIN `4c5fbd63…ef42`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **Camera-only:** whether the restart is gone (the owner's steps, several rounds, other films, the CRT / MONO
+  positions mapped to COLOR, which om-emu has unset); live view; photos.
+
+## fix99-3: #99 writes and saves only at the half-press (2026-11-20; analysis + emulator; branch fix/99-shift-at-half-press)
+- **Camera (owner, via the main chat; v0.40.3-f5 = fix99-2):** "it rebooted once. I am struggling to reproduce it
+  consistently." No step or film known. The last log (event 22, "nothing unusual"): FILM 3 -> FILM 2 -> the centre
+  (events 13-16) -> FILM 2 -> Picture Mode, FILM 5 picked -> shooting; possibly before or after the restart.
+- **What #99 still did outside the half-press on fix99-2 (re-read; which can race, analysis):**
+  - the Creative Dial's 897 write (task 165, inside the camera's own SetValue, before its write): `fw_out` at a turn
+    to a camera mode (26 reads, the differing fine-tunes written, then `fw_msv`), at a turn to COLOR `fw_snap` (26
+    reads, `fw_msv`) and fix99-2's `fw_in` (2 writes). The camera's GUI task acts on the same turn (its own manager
+    write at once, Picture Mode opening); on two CPUs it can run while task 165 is still inside the store's write,
+    and our nested writes make that window longer. **Most likely of the remaining** (analysis; it ran without trouble
+    at most turns on f4 / f5, so the chance per turn is small);
+  - `fw_msv` (the 'OM3W' save) from task 165 or at a pick: under LOCK, which holds dispatch on one CPU only, so the
+    UB_BUSY check and the write are not one step against the camera's own save of M on the other CPU. Possible;
+  - `fw_ent` at a pick (GUI task, or task 165 by a mapped dial position): 26 reads (no harm seen in reads) and
+    `fw_snap`'s save; `fw_st`'s retry of a held-back save from any caller. Rare.
+  None of them seen on the camera; the restart is rare and was not reproduced, so which one it is (if any) is not known.
+- **The change (fix99-3):** nothing of #99 at the 897 write: `sl_set0` as before #99 (fix91-1); `fw_g8` (.ext3),
+  `fw_897j`, `fw_fam` (.ext8) and `fw_in` (.ext9) removed. `fw_ent` (a pick) only reads: from a camera mode `fw_snap`
+  keeps its own, the save due (`fw_mpd` now means "a save is due"). `fw_st` no longer retries a save. `fw_chk` (each
+  half-press, ex_live, HLS task) does every write and the save: what the camera is on (`fw_cur`) and `fw_on` decide it
+  (a camera mode with a COLOR's in: `fw_out`; COLOR from a camera mode: `fw_snap` + `fw_ft`), then a due save
+  (`fw_msv`). Picture Mode opening reads only (fix99-2). #88's own writes at a pick (`fw_apply`: the film's WB mode,
+  Kelvin and shift) stay, as in v0.40.1. Section tails: ext3 467 / 492, ext8 320 / 512, ext9 257 / 384, ext11 14 B
+  free; ext4 1772 / 1776 as before. The section 6 / 7 -> 8..10 walk: #99's only crossing left is `fw_apply -> fw_ent`
+  (picks, with the films in). VERSION "v0.40.3-f6 (f5 + fix99-3: #99 writes at half-press only)".
+- **Behaviour that differs from fix99-1 / -2 (the owner's call):** after a Creative Dial turn the camera keeps the old
+  WB shift until the next half-press (the panel and live view show the film's at the camera modes, the camera modes'
+  on a film), and a WB change made at a camera mode before that half-press is replaced by their kept one. Keeping such
+  a change would need a note of the film's values at the turn plus compare code in the half-press path (about 60 B in
+  sections <= 6, where 4..16 B are left per tail): not done.
+- **Tests:** #99's tests check the shift after the next half-press (`HP`); `wb-shift-written-at-the-half-press-only`
+  replaces fix99-2's (WATCH ex_live, fl_set, fw_pm, fw_wr, fw_msv with task ids: every save and every WB write in the
+  HLS task, except #88's at a pick). fix99-2's build `caught` (on its first value check, the shift at the turn; the
+  write check alone: 91 WB writes in task 165 at the turns). `section-8-code-waits-for-the-first-look` watches fw_ent.
+- **Suite** (build of 11748f9 = the package, om-emu 0819080): **132 pass**, exit 0; static checks pass (no new hook or
+  patch site). Both builds the same byte for byte. Package `test-builds/2026-11-20-fix99-3/1-test-build` (private
+  folder): E1479999.BIN `d123c024…956e`, GUIDES.BIN `5a22edaa…cc90`; go-back v0.40.3-beta `306149fb…5b17` /
+  `64030659…504c`.
+- **Camera-only:** whether the restart is gone (rare: many rounds of turns and picks, fast and slow); live view; photos.
+
+## fix99-4: the GX4 reserve opened as .ext15; a WB change on a camera mode before the half-press kept (2026-11-20; emulator only; branch fix/99-keep-wb-change)
+- **Owner (via the main chat):** "could we find more space?", then "open the space"; fix99-3 cleared by cad (rebuild
+  d123c024…956e). Wanted: keep a WB change made at the camera's own modes before the half-press (fix99-3 replaced it
+  with their kept one), the code in the new space, everything else as fix99-3.
+- **The space:** `.ext15` = 0x6101d000 (Halation Radius's HR_END) .. 0x6103f000 (section 7's start; static_check's
+  EXT_SPACE_LIMIT), 139,264 B, the rest of the GX4-proven reserve (camera, 2026-11-12: 4K video, photos, RAW+JPEG and
+  grain + Glow bursts, the stretch loaded and intact). build.py: EXT15, its blob sized and checked FF in the image,
+  after ext14; **the loader's end word 0x6101d000 -> 0x6103f000** (the GX4 probe's own end word); editor.ld places it.
+  static_check counts it as section 6. The camera's start-up copy of section 6 is 136 KiB longer (FF bytes).
+- **The change:** `sl_set0` (ext11, the 14 B fix99-3 freed) sends a stills fine-tune id (1580..1605) written through
+  the facade (the camera's WB screens) to `fw_ued` (.ext15), which calls `fw_uen` and goes on at sl_set0b (MDR from
+  (68,sp)). `fw_uen` (reads only): after the first look, photo mode, no mode-dial switch (fw_st), on a camera mode
+  (fw_cur), a COLOR's shift still in the camera (fw_on 1 / 2): the first change of that id since the turn sets its
+  `fw_msk` bit and keeps the camera's value then (the film's) in `fw_pre`. `fw_out` (moved from ext4 to .ext15) writes
+  through `fw_wu`: a noted id whose value is no longer fw_pre's is left as the user set it; the next turn to COLOR
+  keeps it as the camera mode's own (fw_snap). A change undone gets the camera mode's own. fw_chk clears the notes after
+  each half-press, fw_st at a new mode group. Nothing at the 897 write, no write or save outside the half-press (as
+  fix99-3). Our own writes go to the manager directly, not through the facade, so they are never noted.
+- om-emu: in the WB fine-tune screen the camera writes the value at each step; MENU there keeps the stepped value (it
+  does not undo it; if the camera undoes it, that counts as set back).
+- Not handled (as fix99-3): a change at a camera mode, then back to a film with no half-press in between: the change
+  stays in the camera on the film for that WB mode.
+- **Space after (build of the package):** ext1 0 / 1744, ext2 7, ext3 25, ext4 96 (1680 / 1776), ext5 4, ext6 16,
+  ext7 2, ext8 192, ext9 127, ext10 44, ext11 6, ext12 and ext13 full (as before), ext14 16, **ext15 138,916 free**
+  (348 / 139,264). Section 6 / 7 -> 8..10 walk: no new path (#99's only one, fw_apply -> fw_ent, behind the films).
+- **Tests:** `wb-change-on-a-camera-mode-before-the-half-press-kept` (fix99-3 `caught`: "1580: 1, not -4"),
+  `wb-change-undone-on-a-camera-mode-gets-their-own-back`, `ext15-code-waits-for-the-first-look` (from switch-on:
+  nothing in .ext15 before cm_go; fw_ued at the WB change, fw_out at the half-press). VERSION "v0.40.3-f7 (f6 +
+  fix99-4: a WB change kept; ext15 opened)". docs/USING.md: the camera modes' shift comes with the half-press.
+- **Suite** (build of daabec1 = the package; firmware as 700fbf0; om-emu 0819080): **135 pass**, exit 0 (fix99-3's 132
+  + the three new ones); static checks pass (loader-end with the new word; no new hook or patch site). Both builds the
+  same byte for byte. Package `test-builds/2026-11-20-fix99-4/1-test-build` (private folder): E1479999.BIN
+  `84b45c19…0a93`, GUIDES.BIN `ccf4af07…5053`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **Camera-only:** start-ups with the longer section-6 copy (about ten); the restart steps (many rounds); the kept
+  change in the real super control panel and WB screen (and whether the camera's MENU there undoes a step); live view;
+  photos.
+
+## fix99-4 camera-tested (2026-11-20)
+The owner's OM-3, v0.40.3-f7 (84b45c19…0a93: fixes2 + the boot-loop fix + fix99-3 + fix99-4, loader end word
+0x6103f000): "No, all good": about ten starts with the 136 KB longer section-6 copy, many rounds of the restart steps
+(centre, back to a film, a film change; CRT / MONO), no restart and no loop; a WB change on the centre kept at the
+half-press. Last log (event 36, "nothing unusual") in the private test-builds folder. So, camera-tested: the boot loop
+(f3) and the restarts (f4 / f5) are gone with #99's writes only at the half-press.
+
+## fix99-5: a film pick does no #99 work; a film's WB change before the half-press stays with it (2026-11-20; emulator only; branch fix/99-pick-reads-nothing)
+- **Camera (owner, via the main chat; v0.40.3-f7 = fix99-4, first round "No, all good"):** a restart every time after:
+  a film's WB changed, the Creative Dial to the centre, a WB change there, back to the film, another film picked.
+  Log `test-builds/2026-11-20-fix99-4/camera-results/repro-2` (event 10, at the centre, "nothing unusual"; the log is
+  written at each half-press release): FILM 1 (Poolside) -> centre (5-6) -> FILM 1, a half-press with edits waiting
+  (7-8) -> centre, one half-press (9-10) -> (the centre change, back, the pick, no half-press) -> restart.
+- **om-emu (f7's build):** no restart in 11 variants: with and without half-presses between the steps, the film's
+  change from the super control panel and from Picture Mode's WB row, a WB mode change as the centre's change, the
+  pick in Picture Mode (arrows, front dial) and from the panel. WATCH with task ids: the film change and the centre
+  change through sl_set0 -> fw_ued (GUI task 168, about 2.8 KB down its 16 KB stack); the pick fl_set -> fw_keep ->
+  fw_apply -> fw_ent -> fw_snap (26 reads, task 168) when fw_on was 0. Every route into sl_set0 keeps the manager's
+  frame, so fw_ued's MDR from (68,sp) is right; fw_pre / fw_msk indexes 0..25 (range-checked), table ids 1580..1605;
+  frames and locals as their calls. **No fault found; the restart's cause is not known** (camera-only: two CPUs,
+  live view, timing).
+- **Found on that path (om-emu, a data bug of fix99-3 / -4):** a film's WB changed right after the turn back (fw_on 0,
+  before the half-press; the owner's log has exactly that at events 7-8) was taken as the camera mode's own at the
+  half-press (fw_snap read it) and the film's old shift was put back over it (fw_ft); the centre then got the film's
+  change. And the pick read 26 settings inside the GUI's SetValue(901), the only #99 work left at a pick.
+- **The change:** the camera modes' own are kept while the camera is on them: `fw_kcm` (.ext15, from fw_chk after
+  fw_out at each half-press there) reads them into fw_bs with fw_bk 1 (fw_bv and the save left as they were: nothing to
+  keep in camera memory while their own are in the camera), and fw_uen puts each change the camera's screens write there
+  into fw_bs (fw_pos). A pick (fw_ent -> `fw_ownk`) only takes fw_bs as kept (fw_bv 1, the save due): nothing read
+  (fw_snap only when not seen since power-on or a new group, corrected with fw_pre for changes noted on the film).
+  fw_uen also notes a change on COLOR 1-4 while the camera mode's own are still in the camera (fw_on 0): at the
+  half-press `fw_cin` keeps the own (fw_ownk) and `fw_ftn` leaves the film's WB mode alone when its A-B or G-M was
+  changed (#88's fw_sync then puts it into the film, its '*'); after a turn back with no half-press fw_kcm puts the
+  camera mode's own back for such a change (`fw_rbit`). fw_bk is dropped when a COLOR's shift goes in (fw_chk, a
+  pick), at a new group (fw_st) and at power-on. Writes and saves still only at the half-press; nothing at the 897
+  write. Not handled: when only one of A-B / G-M is changed on the film, the other also stays as the camera had it.
+- Space: ext4 1640 / 1776, ext8 332 / 512, **ext15 844 / 139,264**; the others as fix99-4. Section 6 / 7 -> 8..10 walk:
+  no new path. VERSION "v0.40.3-f8 (f7 + fix99-5: a film pick reads nothing)".
+- **Test** `wb-film-change-then-the-standard-modes-then-a-pick` (the owner's steps, with value checks and WATCH fl_set /
+  ex_live / fw_snap: no reads at a pick); f7 `caught` ("1580: -5, not 2").
+- **Suite** (build of d2d2ef2 = the package, om-emu 0819080): **136 pass**, exit 0; static checks pass. Both builds the
+  same byte for byte. Package `test-builds/2026-11-20-fix99-5/1-test-build` (private folder): E1479999.BIN
+  `c1ac25b4…a22f`, GUIDES.BIN `7eba5f7e…f510`; go-back v0.40.3-beta `306149fb…5b17` / `64030659…504c`.
+- **Camera-only:** whether the restart is gone. If it is not: the same steps on v0.40.3-beta (no #99) say whether #99
+  is involved at all (TEST-STEPS step 3).
+
+## fix99-5 camera-tested (2026-11-21)
+- **v0.40.3-beta check first (camera):** the steps that restarted f7 (a WB change on a film, the centre, a WB change
+  there, back to the film position, another film) did not restart v0.40.3-beta, which has #88 but no #99 ("I couldn't
+  force a restart"; its log: one power-on, 56 shutter events, films 2 and 3 changed, film and centre several times).
+  So the f7 restart came from #99's work, not from #88's older film WB code.
+- **fix99-5 (camera):** the owner's OM-3, v0.40.3-f8 (c1ac25b4…a22f, GUIDES.BIN 7eba5f7e…f510): the test steps
+  (the restart steps many times, the earlier steps, the #99 checks, about ten starts, Magnify at XPan): "No restarts".
+  Last log (event 14, "nothing unusual", Magnify used) in the private test-builds folder.
+- So, camera-tested: with a film pick doing no #99 work, the restart on those steps is gone. Its exact cause stays
+  unknown (om-emu never reproduced it; the emu-coverage write rule flagged nothing on f7): analysis points at #99's
+  reads of the 26 WB fine-tunes at the pick, which f8 removed.
+
+## #101: the long press on Delete and the arrows, fix101 = v0.40.3-f9 (2026-11-21; emulator + analysis, camera test pending; branch fix/101-long-press)
+- **Issue #101 (v0.40.2):** with a function on ▲ ▼ ◀ ▶ or Delete through our Button Function rows, the short press
+  works and the long press does nothing. Keystone Comp.: on AF-ON a short press opens it and a long press turns it off;
+  on the five buttons the long press does nothing.
+- **Key events (static):** each key has press / release / long press / repeat (event table `0x612f3100`, phase 0..3).
+  Delete 0x01000026..29, AF-ON 0x01000032..35; AF-ON's long press has UI code 1 (none), so it acts only through state
+  blocks.
+- **Where Keystone runs (om-emu, f8):** Delete = Keystone Comp. (code 682, action 35). A short press opens Keystone
+  (screen with the two correction bars); the state block walked then is our `ar_blk` copy of state **0x5911** (34 + 2
+  entries, `firmware/build.py` adds ▲ / ◀ releases there since v0.27). Stock 0x5911 and 0x593a list AF-ON's release
+  `0x610a4209` and AF-ON's long press **`0x610a4327`**, and the same two handlers for ▼ / ▶ release (0x0f / 0x17) and
+  long press (0x10 / 0x18). `0x610a4327` copies the event, asks the dispatcher `0x61083022` for the pressed key's
+  action and runs that action's long-press step: 35 (Keystone, trace string `longPressCustomKeySubAppModuleDigitalShift`:
+  `0x610963bc`, then `0x61083d86`), 40 (Flicker Scan), 22 / 23 / 24, 36.
+- **Delete's cause (om-emu):** held, Delete posts 0x01000028 while Keystone is open. 0x5911 has no entry for it;
+  `dl_look` (#37 step 3) re-walked only Delete's press and release for AF-ON's (+12), so the long press found nothing
+  there or in the global block, and nothing ran. Keystone stayed open.
+- **Fix (f9):** `dl_look` takes Delete's press, release **and long press** (0x01000026..28) to AF-ON's entries, with the
+  same state range (0x5100..0x56ff, 0x5800..0x5bff; playback 0x57xx keeps its own). Repeat (..29) stays out: AF-ON's
+  repeat entries (0x5306, 0x5a02..0x5a0d) have no handler. Two compare-and-branch pairs changed, same size (ext12 as
+  full as before), no new hook or patch site.
+- **AF-ON's long-press handlers Delete now reaches (static):** `0x610a4327` (0x5911, 0x593a), `0x610a444a` (0x5300,
+  Flicker Scan only), `0x610b03d3` (0x5a02, `longPressCustomKey`), `0x610b0553` (0x5a08) and `0x610af980` (0x5a0b),
+  `0x610b5a42` (0x580b): each reads the pressed key's function through `0x610848f2` and the dispatcher, so Delete's own
+  setting decides. The bracketing states' `0x610a83bb` (0x590d), `0x610a6857`, `0x610a6b7d`, `0x610a6c45`,
+  `0x610a6d0d`, `0x610a7724`, `0x610a6e4c` (0x592b..0x593e) do the bracketing step without a key check, as AF-ON's
+  long press does there (Delete's release already reached those states' AF-ON release handlers since #37 d5). AF-ON's
+  {.., 1, 1, 0} long-press entries (0x5306, 0x5a03..0x5a0d) only consume it.
+- **om-emu (f9):** Delete = Keystone: short press opens Keystone, no long-press step; held, `0x610a4327` then
+  `0x61083d86` run once and the Keystone screen closes (f8: neither ran, Keystone stayed). Delete = Magnify: held,
+  the frame opens on the press, then AF-ON's Magnify long press `0x610b03d3` runs and the frame closes. That is new for
+  Delete (as AF-ON on the camera, by the same handler): the owner's call. In plain live view no key posts a long press
+  in om-emu (Delete unset, ▲, ▼, OK), so Delete = Off is unchanged.
+- **The arrows (om-emu + static, not changed):** with ✥ = ▲◀▶▼ and ▼ = Keystone, ▼ opens Keystone (0x5911 copy) but a
+  held ▼ posts no long press (0x0100000e / 0f only), on f8 and f9, although the stock 0x5911 block would send ▼'s long
+  press to `0x610a4327`. So for the arrows the long-press event itself is never made; the issue's ▼ / ▶ result on the
+  camera fits that. Scratch probes on f8 (not kept), each with a held ▼ in Keystone: ▼'s press on the full-button list
+  (`dl_full`, in Delete's place): its events became 0x010000cc / cd (in menus too), no long press; ▼'s key record
+  `full` = 1 (Delete's is 1, the arrows' 0): no long press; ▼'s press / release in 0x5100 through AF-ON's handlers
+  `0x610a2407` / `0x610a2dec`: no long press. The per-key switch is earlier, in the key driver (names `KeyCtrl::
+  setLongPressKey`, `getLongPressKeyID` in the API name table at `0x60367d58`, events reach the camera application at
+  `0x61081800..`); not found. Changing how the arrows' events are made would touch their own meaning (AF point,
+  menus, every state's navigation codes), so it stops here: no arrow function gets its long press, Keystone
+  included (and Magnify, Multi Function, HDR, Live ND, High Res still do not fully work on an arrow, 2026-11-10).
+- **Tests:** new `delete-long-press-runs-the-function-long-press` (f8 `caught`, f9 pass). Full suite on dce4fc1's build: 137 pass, 0 known, 0 FAIL. The emu-coverage
+  checks from `feature/emu-coverage` f61562e on f9: `staged-start-up-runs-no-code-of-a-section-not-in-yet`,
+  `busy-user-short-walk`, `writes-only-in-proven-patterns` pass.
+- **Build (dce4fc1, VERSION "v0.40.3-f9 (f8 + #101: long press on Delete)"):** E1479999.BIN 59949f70…7ef1, GUIDES.BIN
+  d8f8e359…47f3; built twice, the same byte for byte. Package `test-builds/2026-11-21-fix101` (private), with f8 to go
+  back to.
+
+## fix101 camera-tested (2026-11-21)
+The owner's OM-3, v0.40.3-f9 (59949f70…7ef1, GUIDES.BIN d8f8e359…47f3): the test steps (Keystone on Delete and
+AF-ON, short and long press; other functions on Delete; the arrows as before; Delete erasing in playback; a few
+starts; the #99 restart steps once): "It works". Last log (event 18, "nothing unusual") in the private test-builds
+folder. So, camera-tested: Delete's long press runs the function's long-press step as AF-ON's does. The arrows still
+get no long press (the camera posts none for them; not changed).
+
+## v0.40.3-beta3 (2026-11-21; camera-tested as f9)
+Branch `try/v0.40.3-beta3` = `fix/101-long-press` (f9: fixes2 + the boot-loop fix + fix99-2..5 + #101, camera-tested
+2026-11-21, owner: "It works") + `try/v0.40.3-beta2` merged for its record (beta2 withdrawn) + VERSION "v0.40.3-b3
+(beta 3: fixes for #91, #97, #99 and #101)". E1479999.BIN 8614c121…d37e (GUIDES / LABELS / TONES built in);
+`patch.py --release v0.40.3-beta3` rebuilds it byte for byte. Card files as v0.40.3-beta. Suite on the release build: 137 pass, exit 0. Owner: "Yes, make beta3", "Release it once the suite passes".
+
+## Separate WB shifts for films and the camera's own modes, w1 (2026-11-21; emulator only, camera test pending; branch fix/wb-separate-shift from v0.40.3-beta3)
+- **Owner (2026-11-21):** the half-press way (fix99-3..5, in v0.40.3-beta3) is "cumbersome and unintuitive". Wanted: a
+  shift set on a film is the film's at once; at the centre another shift, the camera's at once; back on the film its
+  shift is still there; no half-press. Chosen: a film's shift in place of the camera's (a shift at the centre does not
+  reach films); one shift per film whatever the WB mode; the WB mode stays shared as before; COLOR 1-4 like films.
+- **Why the old way could not do it (review of #88 / #99):** the camera has one fine-tune per WB mode. #88 (v0.40.1) made
+  the film's shift that setting so the panel showed it; #99 then needed the film's and the camera modes' own swapped at
+  every change, and each moment tried for the swap outside the half-press restarted the owner's camera (the 897
+  write, Picture Mode opening, a pick; om-emu never showed it).
+- **The design: nothing is swapped.** The camera's own stills fine-tunes (1580..1605) are never written by us. The
+  film's shift stays in its slot (+25 flag, +26 A-B, +27 G-M), as to v0.40.
+  - Photos: `wb_get` (ext1, behind the section-6 gate) -> `fw_wbg` (.ext15): on a COLOR profile (getter 38017 / 40209 =
+    11, profile 63153) the slot's shift in place of the stock value, 0 when its flag is off; keys 34041 / 38521 and
+    Auto's 7401 / 7433 / 7417 / 7449. v0.21..v0.40 added the slot's to the stock value (camera-proven sites).
+  - The camera's screens read a fine-tune through the facade GetValue (om-emu, beta3: the super control panel from
+    0x611b2139 / 0x611d2876 / 0x611d28c2, the WB screen 0x611b43ad; GUI task): `sl_get`'s chain, for 1580..1605, ->
+    `fw_get` (.ext15): on COLOR k (`fw_cs`: PVAL, fw_cur) the slot's shift (`fw_sv`), else on to vf_get as before.
+  - Their writes come through `sl_set0` -> `fw_ued`: on COLOR k (not in the Picture Mode row's own screen, gr_flag,
+    whose path stores it as before) the value into the slot, flag on, then `s_dirty` (P+DIRTY; the manager gets the
+    camera's own value back unchanged, as the row's writes have done since v0.25).
+  - Removed: #88's fw_ft / fw_put / fw_kft / fw_sync / fw_pm / fw_row / fw_wr / fw_sh / fw_tab / fw_done and all of #99
+    (fw_chk, fw_out, fw_snap, fw_ent, fw_st, the 'OM3W' record's code, fix99-4 / -5's notes). Kept: fw_keep / fw_apply
+    (the film's WB mode and Kelvin, v0.28), fw_cur, fw_nf. No hook or patch site added or removed.
+- **Space:** ext1 1608 / 1744, ext4 1308 / 1776, ext6 500 / 608, ext8 279 / 512, ext11 65408 / 65536, ext12 262096 /
+  262144, ext13 81280 / 81920, ext15 460 / 139264.
+- **Not handled:** a camera coming from v0.40.1..beta3 may hold a film's shift in its own fine-tunes (and beta3's kept
+  values sit unused in 'OM3W'): the centre shows it until the user sets it (TEST-STEPS says so; a one-time restore from
+  'OM3W' at a half-press is possible, the owner's call). Live view: whether its preview uses the hooked reads is not
+  known (om-emu runs none).
+- **Tests** (11 on WB; driver tokens `last:PC` / `expect:last:PC:D1=V`): `wb-shift-separate-for-a-film-and-the-camera-modes`
+  (the owner's four steps, no half-press: what the WB screen is given at `fw_gv`, the slot, the camera's own value),
+  `camera-modes-wb-shift-untouched-by-films` (beta3 `caught`: "1580: -5, not 1"),
+  `photo-wb-reads-take-the-film-shift-in-place-of-the-cameras`, `wb-reads-give-the-film-shift-on-color`,
+  `film-wb-shift-stays-in-the-film`, `film-wb-code-waits-for-the-first-look`, and the #88 tests turned to the slot.
+  #99's tests are gone with its code.
+- **Suite** (build of 1c4fdff = the package, om-emu 0819080): **129 pass**, exit 0; static checks pass. Both builds the
+  same byte for byte. Package `test-builds/2026-11-21-wb-separate-1/1-test-build` (private folder): E1479999.BIN
+  `ab3db69a…a2cb`, GUIDES.BIN `907ae295…5b14`; go-back v0.40.3-beta3 `8614c121…d37e`. VERSION "v0.40.3-w1 (beta3 +
+  separate WB shifts: film / camera)".
+- **Camera-only:** the panel and WB screen on the real camera; photos; live view's colour; the old restart steps.
+- **Camera-tested 2026-11-21 (the owner's OM-3, w1, E1479999 ab3db69a…a2cb, via the main chat):** asked whether anything
+  was odd (a restart, a freeze, a wrong value): "no. it worked really well." Log (last power-on only: 8 events, no
+  photos, at the centre with the WB screen open at event 5, FILM 1 with a '*'; start-up normal, 54 ms at event 1):
+  nothing unusual. So on the camera: the panel and WB screen show and change a film's and the centre's shift apart,
+  no half-press, no restart. **Still not camera-confirmed:** that a photo taken on a film has the film's shift (no
+  photos were taken with w1), and whether live view's preview shows it (the owner said nothing on it).
+- **Camera (owner, 2026-11-21, w1, via the main chat): "yes, the live view showed the shift".** So live view on a film
+  shows the film's WB shift (camera-tested). Still not checked on the camera: a photo taken on a film with a shift.
+
+## v0.40.3-beta4 (2026-11-21; camera-tested as w1)
+Branch `try/v0.40.3-beta4` = `fix/wb-separate-shift` (w1: v0.40.3-beta3 + separate WB shifts, camera-tested
+2026-11-21, owner: "it worked really well", "yes, the live view showed the shift") + VERSION "v0.40.3-b4 (beta 4:
+separate WB shifts, films and modes)". E1479999.BIN 7be6725d…8f16 (GUIDES / LABELS / TONES built in);
+`patch.py --release v0.40.3-beta4` rebuilds it byte for byte. Card files as v0.40.3-beta3. Suite on the release build: 129 pass, exit 0. Owner: "Yes, make beta4".
+Still not checked on the camera: a photo on a film with a shift (live view shows it).
+
+## v0.40.3 (2026-11-23; camera-tested as v0.40.3-beta4 / w1)
+- Owner: "the beta we have on github right now (beta4) lets go ahead and push that as a full release". beta4's sources
+  with `firmware/VERSION` "v0.40.3", merged into main with main's LookLab commits. E1479999.BIN 1545404e…c933
+  (`patch.py --release v0.40.3` byte for byte); the release-name build itself was not flashed (only the name and the
+  code it moves differ from beta4). Feedback on beta4 before release: crombach on #99, "does seem to work as you
+  outlined"; the WB menu's stars on a film with a shift are cosmetic.
 
 ## Look sets: switch film sets from the camera menu (2026-11-22; research + probe w1, emulator only; branch experiment/look-sets-walk)
 Request (buburun): film sets as files in a LOOKS folder, `OM3MOD/LOOKS.BIN` the default; a "Looks set" row in the

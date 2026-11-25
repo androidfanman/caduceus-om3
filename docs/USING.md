@@ -56,6 +56,7 @@ The rows under Picture Mode change the film (or the COLOR) you're on, straight a
 | **Shading** | Darker or lighter corners, as an effect. |
 | **Glow Effect** | +1 to +5 adds a soft glow. −1 to −5 adds Clarity (crisper local contrast). 0 = off. |
 | **Halation Effect** | 0 to 5: a red-orange glow around bright lights, as on cinema film (CineStill). Works with or without Glow; fades out in bright daylight scenes. The halo fades away from the light. Saving takes a little longer with it on (much less since v0.30.3, and less again since v0.40-beta3). |
+| **Halation Radius** | From v0.40.3-beta: Bloom (the halo above, the default), Tight, Medium or Wide: how far the glow spreads from bright lights (about 32, 64 and 128 pixels), separate from its strength. Each film keeps its own. LookLab can't set it yet. |
 | **Film Grain Effect** | Off, Low, Med or High. Added in colour, with no extra wait after the photo. From v0.40-alpha: our own colour grain, Off and 1 to 5 (a film's Low / Med / High become 2 / 3 / 5); highlights stay white and Halation keeps its glow. |
 | **Grain Size** | From v0.40-alpha: Fine, Medium or Coarse, for Film Grain. From v0.40.1 the clumps are round, with fewer repeats; from v0.40.2 the colour speckle is smoother, with less red-green. |
 | **Border** | From v0.40-alpha: a white border, 0 (off) to 5, the same width on every side; from v0.40-beta the row runs from −5 to +5: minus is black, plus is white. JPEG only: the photo keeps its size and the border covers its outer edge; RAW is untouched. In live view a thin frame line shows where its inner edge will be (from the first half-press; not in video). |
@@ -118,13 +119,16 @@ Both are in the camera's **Button Function** menu, with the other buttons.
 
 ## The film's white balance
 
-Each film and COLOR remembers the white balance you last used with it (any mode, Custom WB with its Kelvin, and its
-WB compensation), as it keeps its HSL. Picking the film brings that white balance back; one that never had its own
-gets Auto with no compensation. Set a film's white balance in LookLab, or just change it on the camera while you're on
-that film: a change in the super control panel's White Balance screen goes into the film (it gets a "*"), and
-resetting the film brings its own back. The camera keeps one compensation per white balance mode, so if you switch
-the mode by hand, that mode's own compensation applies. The camera's own picture modes (Natural, Vivid, ...) keep the
-white balance the last film left.
+Each film and COLOR remembers the white balance mode you last used with it (any mode, Custom WB with its Kelvin), as it
+keeps its HSL. Picking the film brings that mode back; one that never had its own gets Auto. The camera's own picture
+modes (Natural, Vivid, ...) keep the white balance mode the last film left.
+
+WB compensation (the A-B / G-M shift) is kept apart for films and for the camera's own picture modes. Each film and
+COLOR has one shift of its own: on a film, the super control panel's White Balance screen shows the film's shift, a
+change you make there goes into the film at once (it gets a "*"; resetting the film brings its own back), and your
+photos use the film's shift in place of the camera's. Turn the Creative Dial to the camera's own picture modes and the
+camera's own compensation is there, as you left it; a change there is the camera's and never reaches a film. No
+half-press is needed in between. Set a film's shift in LookLab too.
 
 ## The film in your photos
 
@@ -132,7 +136,8 @@ Every JPEG taken on a FILM keeps the film in its EXIF: the name (Image Descripti
 the whole recipe as a short code in the User Comment: the film as it was set when you took the photo, with your
 changes on the camera and the white balance. Open the JPEG in LookLab (**Open...**), or paste the
 comment with **Paste link**, and the film is added to your films. Photos on COLOR 1–4 with your own settings, CRT, ART
-and MONO don't get one.
+and MONO don't get one. From v0.40.3-beta playback shows each photo's own film, read from the photo (a photo taken
+with no film shows "COLOR n").
 
 ## New films from LookLab
 

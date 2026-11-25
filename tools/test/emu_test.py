@@ -499,13 +499,24 @@ WB_ROW_A_PLUS_1 = 'down wait ' * 5 + 'ok wait right wait'
 # Stills fine-tune ids (table 0x615d1944: A-B id, G-M = + 13): Custom WB, Shade, Auto, Sunny; movie Auto and Custom WB
 CWB_AB, CWB_GM, SHADE_AB, SHADE_GM, AUTO_AB, SUNNY_AB, SUNNY_GM = 1592, 1605, 1587, 1600, 1580, 1584, 1597
 MOVIE_AUTO_AB, MOVIE_CWB_AB = 1606, 1618
-SLOT1_AB = 58                                    # COLOR 1's slot +26 (A-B) at P + 32 + 26, for expect:p:
+SLOT1_AB, SLOT1_GM = 58, 59                      # COLOR 1's slot +26 (A-B) / +27 (G-M) at P + 32 + 26, for expect:p:
 WB_LINE = lambda wb: rf'^White balance: {wb} \['
+# #99: the Creative Dial (cdial:N, om-emu's positions: 1 COLOR, 2 the camera's standard picture modes, family 898).
+# On the standard modes, the camera's own Auto WB compensation one step to A (the panel's cursor on Picture Mode); then
+# COLOR, whose Picture Mode page opens at the turn: FILM 3 (Auto, B5 in LOOKS_WB) six films on from COLOR 1.
+TO_STANDARD, TO_COLOR = 'cdial:2 wait wait', 'cdial:1 wait wait'
+HP = 's1 wait wait'
+STANDARD_OWN_A1 = f's1 wait wait {TO_STANDARD} {HP} {WB_SCREEN_A_PLUS_1} expect:val:{AUTO_AB}=1'
+PAGE_TO_FILM_3 = 'right wait ' * 6 + 'ok wait wait'
+# Shooting menu 1 > Custom Mode > C1 > Assign > Set, from the shooting screen (as BOOT1_ASSIGN_C1), and the camera's
+# own WB screen again with the panel's cursor still on the WB cell.
+ASSIGN_C1 = 'menu wait' + ' right wait' * 7 + ' ok wait ok wait down wait ok wait ok wait menu wait menu wait menu wait wait'
+WB_SCREEN_AGAIN_A_PLUS_1 = 'ok wait ok wait down wait down wait ok wait right wait ok wait wait'
 # From the shooting screen: the RGB row (the third in Picture Mode), the rear dial once on Red's first point, out.
 OPEN_RGB = 'ok wait ok wait down wait down wait'
-# borders: Picture Mode's Border row, the 18th (pm_list: after Film Grain and Grain Size, better grain g2); COLOR 1's
-# slot +50 is P + 82
-OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 17
+# borders: Picture Mode's Border row, the 19th (pm_list: after Film Grain and Grain Size, better grain g2, and Halation
+# Radius); COLOR 1's slot +50 is P + 82
+OPEN_BORDER = 'ok wait ok wait' + ' down wait' * 18
 # border preview (2026-11-17): with a Border on the look, the shooting screen's grid shows the border's inner edge as
 # a frame line. Rear screen 900 x 600, 4:3: the picture x 50..850, y 0..599; Border 3 is 26 px in (bd_run's width), so
 # the left line is on x 75..76 and the top one on y 25..26. Each line is checked against a point beside it on om-emu's
@@ -545,7 +556,7 @@ CONTRAST_ON_FILM_2 = (f's1 wait wait {PICK_FILM_2} s1 wait wait ok wait ok wait'
 FILM_2_CHANGED = r'^Films with changes \(a \* in the camera\): 2$'
 DIAL_AS_CONTRAST = (f's1 wait wait ok wait ok wait' + ' down wait' * 8 +
                     f' main+1 wait expect:val:{CONTRAST_COLOR_1}=1 sub+1 wait sub+1 wait expect:val:{CONTRAST_COLOR_1}=-1' +
-                    ' down wait' * 9 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
+                    ' down wait' * 10 + ' right wait right wait expect:p:82=02 main+1 wait expect:p:82=03'
                     ' sub+1 wait sub+1 wait expect:p:82=01 menu wait wait s1 wait wait poweroff')
 # dial direction (2026-11-18): the same for Glow, Halation, Split Tone Balance and Film Grain. Contrast first, then
 # the row (moves from Contrast, the 9th row): right twice, the rear dial once (+1), the front dial twice (-2). The
@@ -559,11 +570,16 @@ BAR_DIAL = lambda moves, off, two, three, one: (
 GLOW_DIAL = BAR_DIAL('down wait ' * 5, 81, 'fe', 'fd', 'ff')
 HALATION_DIAL = BAR_DIAL('down wait ' * 6, 62, '02', '03', '01')
 BALANCE_DIAL = BAR_DIAL('up wait ' * 4, 65, '02', '03', '01')
-GRAIN_DIAL = BAR_DIAL('down wait ' * 7, 85, '01', '02', '01')
+GRAIN_DIAL = BAR_DIAL('down wait ' * 8, 85, '01', '02', '01')   # Halation Radius: one row more (under Halation)
 GRAIN_1_MEDIUM = '^Film Grain on COLOR 1-4: 1 Medium, Off, Off, Off$'
-# better grain g2: the Film Grain strength row, the 16th (Grain Size under it); COLOR 1's level byte +53 is P + 85
-OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 15
+# better grain g2: the Film Grain strength row, the 17th (Grain Size under it); COLOR 1's level byte +53 is P + 85
+OPEN_GRAIN = 'ok wait ok wait' + ' down wait' * 16
 GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
+# Halation Radius: its row, the 16th (under Halation, Film Grain under it); kept in the curves record's spare byte G
+# with the grain (the debug log's NOW lines)
+OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 15
+RADIUS_LINE = lambda r: f'^Halation Radius on COLOR 1-4: {r}, Bloom, Bloom, Bloom$'
+GRAIN_2_MEDIUM = '^Film Grain on COLOR 1-4: 2 Medium, Off, Off, Off$'
 EDIT_RGB = f'{OPEN_RGB} main+1 wait menu wait wait'
 
 
@@ -597,6 +613,26 @@ def CROP_NOW(now):
 def CROP_SAVES(memory, put_back, tag):           # crop83-3: saves of M from memory, crop put back after, last tag written
     return (rf'^CROP MODES \(crop round \d+\w*\): .*; saves of M this power-on: from memory {memory} \(crop put back after '
             rf'{put_back}\), after a menu \d+, last tag written {tag}')
+
+
+# #97: Custom Menu > Button Settings > Button Function (photo) > Delete (the 11th row) -> Magnify (two rows up from Off
+# in its picker, first column), back to shooting. om-emu's AF-ON and Fn keys do not reach the button functions; Delete does.
+DELETE_MAGNIFY = 'menu left left left left left ok ok' + ' down' * 10 + ' ok wait up up left ok wait menu wait menu wait'
+# #101: the same row -> Keystone Comp. (its picker is 4 wide: from Off, 7 rows up and one right). Held, Delete posts
+# its long press (om-emu: while Keystone is open); the camera's long-press handler for a Keystone state (0x610a4327, AF-ON's
+# long press there) runs the function's long-press step by the pressed button's setting: for Keystone, KEYSTONE_LONG.
+DELETE_KEYSTONE = 'menu left left left left left ok ok' + ' down' * 10 + ' ok wait' + ' up' * 7 + ' right ok wait menu wait menu wait'
+KEYSTONE_LONG = '61083d86'
+# #97: Shooting Menu 1 > Image Aspect (the menu opens on the Setup tab's first page: seven pages on), its own screen
+OPEN_IMAGE_ASPECT = 'menu' + ' right' * 7 + ' down down down ok wait'
+# #97: on that screen, the row names (RAW, Large ...) left of the sizes (rear screen 900 x 600)
+ASPECT_ROW_NAMES = 'expect:ink:90,290,180,320'
+# #97: CapThr_ThroughImage::getZoomArea after its ratio -> row chain (a3 = the row: 0 4:3, 2 16:9); its miss jumps away
+ZOOM_ROW = '60c154c3'
+
+
+def CROP_ZOOM_MAPPED():                          # #97: zoom table reads given the crop's base (cr_zm), at least one
+    return r'^CROP MODES \(crop round \d+\w*\): .*; zoom reads given the base [1-9]\d*'
 
 
 def CROP_SET_AGAIN(n):                           # crop83-2: times cr_chk set the crop again after its start-up restore
@@ -663,6 +699,23 @@ def watch_hit_seen(hits):
     return [] if hits else ['no getter hit']
 
 
+def film_wb_code_waits_for_the_first_look(hits):
+    """Separate WB shifts (2026-11-21): from switch-on (WATCH from the lab's start), nothing answers or stores a film's
+    WB shift before the first look (cm_go: the films in): no fw_gv (a film's shift given to the camera's screens), no
+    fw_sv (a slot's shift read, also for a photo), no fw_ued (a change by the camera's screens caught). After it they
+    run: the WB screen on a film reads and writes the film's shift."""
+    names = [h[0] for h in hits]
+    first = names.index('cm_go') if 'cm_go' in names else len(names)
+    early = sorted({n for n in names[:first] if n != 'cm_go'})
+    errors = [f'ran before the first look: {early}'] if early else []
+    if 'cm_go' not in names:
+        errors.append('no first look (cm_go)')
+    for n in ('fw_gv', 'fw_ued'):
+        if n not in names[first:]:
+            errors.append(f'{n} did not run after the first look')
+    return errors
+
+
 def no_card_file_reads(hits):
     """fopen hits: DEBUG.TXT asked (so the probe sees fopen), BUNDLES.BIN and EDITS.BIN never."""
     paths = [s or '' for _, s in hits]
@@ -727,7 +780,8 @@ def log_written_off_the_shutter_task(hits):
 SHOT_TIMING_LINE = (r'^Shot timing \(ms\): our code at shutter events last \d+, longest \d+ \(event \d+\); '
                     r'log file writes last \d+, longest \d+; photos with our passes \(Halation, Border, CPU grain\) '
                     r'0, last 0, longest 0; Halation\'s last photo: pass A 0, map 0, pass C 0, pauses for the camera 0 '
-                    r'\(0 ms\)$')
+                    r'\(0 ms\); stacks at Halation [0-9A-Fa-f]{8}, grain tile [0-9A-Fa-f]{8}; Halation\'s longest photo 0 '
+                    r'\(pass A 0, map 0, pass C 0, pauses for the camera 0 \(0 ms\)\); longest single pause 0 ms$')
 SHOT_TIMING = ('lg_write', 'lg_ptm', 'lg_wkw', 'lg_ums')
 
 
@@ -875,29 +929,30 @@ TESTS = {
         Boot(f's1 wait wait {PICK_FILM_1} expect:val:107=3200 expect:val:1632=3200 s1 wait wait poweroff',
              expect=[WB_LINE('CWB 3200K')], card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: picking a film sets its WB Compensation as the camera's own fine-tune of the film's WB mode (the super
-    # control panel shows it); a film with no shift sets 0 / 0; video's fine-tune is left alone. v0.40 added it
-    # invisibly at the photo's reads and left the camera's at 0.
-    'film-wb-shift-set-in-the-camera-fine-tune': [
-        Boot(f's1 wait wait {PICK_FILM_1} expect:val:{CWB_AB}=3 expect:val:{CWB_GM}=-2 '
-             f'{PICK_NEXT_FILM} expect:val:{SHADE_AB}=0 expect:val:{SHADE_GM}=4 '
-             f'{PICK_NEXT_FILM} expect:val:{AUTO_AB}=-5 '
-             f'{PICK_NEXT_FILM} expect:val:{SUNNY_AB}=0 expect:val:{SUNNY_GM}=0 '
+    # Separate WB shifts (2026-11-21, in place of #88's and #99's swapping): picking films leaves the camera's own WB
+    # fine-tunes alone (0 here, stills and video); each film's shift is in its slot (FILM 1 A3 M2, FILM 2 G4, FILM 3 B5).
+    'film-wb-shift-stays-in-the-film': [
+        Boot(f's1 wait wait {PICK_FILM_1} expect:p:{SLOT1_AB}=03 expect:p:{SLOT1_GM}=fe expect:val:{CWB_AB}=0 '
+             f'expect:val:{CWB_GM}=0 {PICK_NEXT_FILM} expect:p:{SLOT1_GM}=04 expect:val:{SHADE_GM}=0 '
+             f'{PICK_NEXT_FILM} expect:p:{SLOT1_AB}=fb expect:val:{AUTO_AB}=0 '
              f'expect:val:{MOVIE_AUTO_AB}=0 expect:val:{MOVIE_CWB_AB}=0 s1 wait wait poweroff',
-             expect=[WB_LINE('Sunny')], card={'LOOKS.BIN': 'LOOKS_WB'}),
+             expect=[WB_LINE('Auto')], card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: the photo's WB reads get the film's shift once: the camera's own fine-tune, with nothing added (v0.40 added
-    # it to a fine-tune of 0; adding it to the camera's fine-tune now would double it).
-    'film-wb-shift-counts-once': [
-        Boot(f's1 wait wait {PICK_FILM_1} expect:cap:{{wb_get}}:34041=3 expect:cap:{{wb_get}}:38521=-2 '
-             's1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+    # The photo's WB reads (7401: Auto's A-B; 34041 / 38521: the WB mode's): at the standard modes the camera's own
+    # shift (A1); on FILM 3 the film's B5 in its place
+    # (not A1 + B5: v0.21..v0.40 added them); on FILM 4 (no shift) none, though the camera's own Auto shift is A1.
+    'photo-wb-reads-take-the-film-shift-in-place-of-the-cameras': [
+        Boot(f'{STANDARD_OWN_A1} expect:cap:{{wb_get}}:7401=1 {TO_COLOR} {PAGE_TO_FILM_3} '
+             f'expect:cap:{{wb_get}}:7401=-5 expect:cap:{{wb_get}}:34041=-5 expect:cap:{{wb_get}}:38521=0 '
+             f'expect:val:{AUTO_AB}=1 {PICK_NEXT_FILM} expect:cap:{{wb_get}}:7401=0 {TO_STANDARD} '
+             f'expect:cap:{{wb_get}}:7401=1 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: the film remembers a WB Compensation changed in the super control panel (owner, 2026-11-19), as it remembers
-    # its WB mode: A3 -> A4 there, FILM 2 and back to FILM 1: A4 again, and FILM 1 has a '*'.
+    # The film remembers a WB Compensation changed in the super control panel (owner, 2026-11-19): A3 -> A4 there (into
+    # the film; the camera's own stays 0), FILM 2 and back to FILM 1: A4 again, and FILM 1 has a '*'.
     'film-keeps-a-wb-shift-changed-in-the-panel': [
-        Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} expect:val:{CWB_AB}=4 {PANEL_TO_PICTURE_MODE} '
-             f'right wait ok wait wait expect:val:{SHADE_GM}=4 {PICK_FILM_BEFORE} expect:val:{CWB_AB}=4 '
-             's1 wait wait poweroff',
+        Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} expect:p:{SLOT1_AB}=04 expect:val:{CWB_AB}=0 '
+             f'{PANEL_TO_PICTURE_MODE} right wait ok wait wait expect:p:{SLOT1_GM}=04 expect:p:{SLOT1_AB}=00 '
+             f'{PICK_FILM_BEFORE} expect:p:{SLOT1_AB}=04 expect:val:{CWB_AB}=0 s1 wait wait poweroff',
              expect=[r'^Picture mode: COLOR 1, FILM 1\b', r'^Films with changes \(a \* in the camera\): 1$'],
              card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
@@ -907,21 +962,50 @@ TESTS = {
         Boot(f's1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} {PANEL_TO_PICTURE_MODE} expect:p:{SLOT1_AB}=04 '
              'menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
-    # #88: the WB Compensation row (the fine-tune screen it opens) changes the camera's own fine-tune too.
-    'picture-mode-row-wb-shift-sets-the-camera': [
+    # The WB Compensation row (the fine-tune screen it opens) changes the film's shift, not the camera's own.
+    'picture-mode-row-wb-shift-stays-in-the-film': [
         Boot(f's1 wait wait {PICK_FILM_1} ok wait ok wait {WB_ROW_A_PLUS_1} expect:p:{SLOT1_AB}=04 '
-             f'expect:val:{CWB_AB}=4 menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+             f'expect:val:{CWB_AB}=0 menu wait wait s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
     ],
     # #88 (bug in v0.40, om-emu): a new film set that changes the film on screen gives the camera that film's WB (mode,
-    # Kelvin and shift), and leaving the film after a power-off gives it no '*'. v0.40 left the old film's WB in the
+    # Kelvin; its shift in its slot), and leaving the film after a power-off gives it no '*'. v0.40 left the old film's WB in the
     # camera, and leaving the film stored it into the new one with a '*'.
     'new-film-set-sets-the-film-wb': [
         Boot(f's1 wait wait {PICK_FILM_1} s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
-        Boot(f'wait wait s1 wait wait expect:val:107=5000 expect:val:{CWB_AB}=-3 expect:val:{CWB_GM}=1 '
-             's1 wait wait poweroff', expect=[WB_LINE('CWB 5000K'), NO_FILM_CHANGES],
+        Boot(f'wait wait s1 wait wait expect:val:107=5000 expect:p:{SLOT1_AB}=fd expect:p:{SLOT1_GM}=01 '
+             f'expect:val:{CWB_AB}=0 s1 wait wait poweroff', expect=[WB_LINE('CWB 5000K'), NO_FILM_CHANGES],
              card={'LOOKS.BIN': 'LOOKS_WB_NEW'}),
-        Boot(f'wait wait s1 wait wait expect:val:{CWB_AB}=-3 {PICK_NEXT_FILM} s1 wait wait poweroff',
+        Boot(f'wait wait s1 wait wait expect:p:{SLOT1_AB}=fd {PICK_NEXT_FILM} s1 wait wait poweroff',
              expect=[WB_LINE('Shade'), NO_FILM_CHANGES]),
+    ],
+    # Separate WB shifts (owner, 2026-11-21: "a half press isn't needed"; #99's cure in place of fix99-1..5): the
+    # owner's four steps, no half-press between them. FILM 3 (B5): the WB screen shows B5, one step: B4 in the film,
+    # the camera's own still 0. The standard modes: the screen shows the camera's own (nothing of a film given), one
+    # step: A1 there, the film still B4. Back on the film: the screen shows B4, a step: B3 in the film, the camera's own
+    # still A1. The standard modes again: A1.
+    'wb-shift-separate-for-a-film-and-the-camera-modes': [
+        Boot(f's1 wait wait {TO_STANDARD} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=0 expect:p:{SLOT1_AB}=fb '
+             f'last:{{fw_gv}} {WB_SCREEN_A_PLUS_1} expect:last:{{fw_gv}}:0=-5 expect:val:{AUTO_AB}=0 '
+             f'expect:p:{SLOT1_AB}=fc {TO_STANDARD} last:{{fw_gv}} {WB_SCREEN_AGAIN_A_PLUS_1} '
+             f'expect:last:{{fw_gv}}:0=none expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fc {TO_COLOR} ok wait wait '
+             f'{WB_SCREEN_A_PLUS_1} expect:last:{{fw_gv}}:0=-4 expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fd '
+             f'{TO_STANDARD} expect:val:{AUTO_AB}=1 s1 wait wait poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
+             expect=[r'^Films with changes \(a \* in the camera\): 3$']),
+    ],
+    # The camera modes' own shift (A1) is never touched by films: through a turn to COLOR, the Picture Mode list past
+    # FILM 1 (Custom WB A3 M2) to FILM 3 (B5), half-presses, a power-off on the film and the turn back.
+    'camera-modes-wb-shift-untouched-by-films': [
+        Boot(f'{STANDARD_OWN_A1} {TO_COLOR} {PAGE_TO_FILM_3} expect:val:{AUTO_AB}=1 expect:val:{CWB_AB}=0 '
+             f'expect:val:{CWB_GM}=0 {HP} expect:val:{AUTO_AB}=1 {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'}),
+        Boot(f'wait wait s1 wait wait expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fb {TO_STANDARD} {HP} '
+             f'expect:val:{AUTO_AB}=1 {TO_COLOR} {HP} expect:val:{AUTO_AB}=1 expect:p:{SLOT1_AB}=fb s1 wait wait poweroff',
+             expect=[NO_FILM_CHANGES]),
+    ],
+    # From switch-on, nothing answers or stores a film's WB shift before the first look; afterwards the WB screen on a
+    # film reads and writes it (.ext15).
+    'film-wb-code-waits-for-the-first-look': [
+        Boot(f'wait wait s1 wait wait {PICK_FILM_1} {WB_SCREEN_A_PLUS_1} {HP} poweroff', card={'LOOKS.BIN': 'LOOKS_WB'},
+             watch=('cm_go', 'fw_gv', 'fw_sv', 'fw_ued'), hits=film_wb_code_waits_for_the_first_look),
     ],
     # borders: the Border row steps -5..+5 (2026-11-18: - black, + white; right / left, no step past either end) into
     # COLOR 1's slot +50, and the value is kept over a power-off (saved at the half-press).
@@ -1073,12 +1157,45 @@ TESTS = {
         Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait left wait wait main-1 wait '
              'expect:pxdiff:2,300,10,300 expect:pxdiff:506,300,500,300 menu wait s1 wait wait poweroff'),
     ],
+    # #97: Magnify (Delete = Magnify) at XPan: the live view's zoom area lookup (getZoomArea) finds 16:9's row (a3 2);
+    # before, its chain had no row for 5 / 6 / 7 and it gave no area (0), whose limits adjustCoordinates then read from
+    # address 0 (camera: black screen, a click, the camera stuck). After a power-off, at 5:4: 4:3's row (a3 0).
+    # #101: Delete = Keystone. A short press opens Keystone and runs no long-press step; held, Delete's long press goes
+    # down the Keystone state's AF-ON long-press entry, as AF-ON's does, and the camera's Keystone long-press step runs
+    # once (the Keystone screen closes). Before, the long press found no entry and nothing ran.
+    'delete-long-press-runs-the-function-long-press': [
+        Boot(f's1 wait wait {DELETE_KEYSTONE} s1 wait wait count:{KEYSTONE_LONG}:* delete wait '
+             f'expect:count:{KEYSTONE_LONG}=0 hold:delete wait expect:count:{KEYSTONE_LONG}=1 s1 wait wait poweroff'),
+    ],
+    'crop-magnify-finds-its-zoom-area': [
+        Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait {DELETE_MAGNIFY} s1 wait wait hit:{ZOOM_ROW}:a3=2 delete wait '
+             'expect:hit delete wait s1 wait wait poweroff', expect=[CROP_NOW(6), CROP_ZOOM_MAPPED()]),
+        Boot(f'wait wait {CROP_ASPECT_IS(6)} s1 wait wait {SCP_ASPECT(-1)} {CROP_ASPECT_IS(5)} s1 wait wait '
+             f'hit:{ZOOM_ROW}:a3=0 delete wait expect:hit delete wait s1 wait wait poweroff', expect=[CROP_NOW(5), CROP_ZOOM_MAPPED()]),
+    ],
+    # #97: the Image Aspect screen on XPan and 21:9 (after the first half-press: their sizes are in the code block)
+    # shows the row names (RAW, Large ...) and a screen of its own for each; before, both kept 3:4's name and sizes and
+    # the row names went (the screen's records had 4:3, 16:9, 3:2, 1:1 and 3:4 only).
+    'crop-image-aspect-screen-shows-crop-sizes': [
+        Boot(f's1 wait wait {OPEN_IMAGE_ASPECT}' + ' down wait' * 6 + f' {ASPECT_ROW_NAMES} fhash:xpan down wait '
+             f'{ASPECT_ROW_NAMES} fhash:w21 expect:fdiff:xpan:w21 menu wait menu wait s1 wait wait poweroff'),
+    ],
     # better grain g2: the Film Grain row steps 0..5 (no step past 5) and keeps the old level byte in step (5 -> High 3,
     # 2 -> Low 1); the Grain Size row (Medium -> Coarse); both kept over a power-off (the debug log's NOW line).
     'grain-rows-strength-and-size-kept': [
         Boot(f's1 wait wait {OPEN_GRAIN}' + ' right wait' * 7 + ' expect:p:85=03 left wait left wait left wait'
              ' expect:p:85=01 down wait right wait menu wait wait s1 wait wait poweroff', expect=[GRAIN_2_COARSE]),
         Boot('wait wait s1 wait wait expect:p:85=01 poweroff', expect=[GRAIN_2_COARSE]),
+    ],
+    # Halation Radius: the row steps Bloom -> Tight -> Medium (a choice row: it wraps, Wide -> Bloom, as the others); a
+    # Film Grain strength set after it keeps the radius (gs_wr / rz_gk), and the radius set back to Bloom keeps the
+    # grain (rz_wr); all kept over a power-off.
+    'halation-radius-row-kept-with-grain': [
+        Boot(f's1 wait wait {OPEN_RADIUS}' + ' right wait' * 2 + ' down wait right wait right wait'
+             ' menu wait wait s1 wait wait poweroff', expect=[RADIUS_LINE('Medium'), GRAIN_2_MEDIUM]),
+        Boot('wait wait s1 wait wait poweroff', expect=[RADIUS_LINE('Medium'), GRAIN_2_MEDIUM]),
+        Boot(f'wait wait s1 wait wait {OPEN_RADIUS}' + ' left wait' * 2 + ' menu wait wait s1 wait wait poweroff',
+             expect=[RADIUS_LINE('Bloom'), GRAIN_2_MEDIUM]),
     ],
     'curves-file-kept-in-camera': [
         Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff', card={'CURVES.BIN': 'CURVES_A'},
@@ -2113,41 +2230,37 @@ def call_spec(name, fn, imm, d0, mem=(), count=()):
 
 
 s8 = lambda v: v - 256 if v > 127 else v
-# v0.21..v0.40: wb_get added the active COLOR's slot +26 (A-B) / +27 (G-M) to the stock read when its +25 & 0x81 == 1.
-# #88: the film's shift is the camera's own fine-tune now, so wb_get gives the stock read alone, whatever the slots
-# hold. Each case: slot +25..+27 for COLOR 1..4. The test camera is on COLOR 1.
-WB_CASES = [('none', [(0, 0, 0)] * 4),
-            ('color-1', [(1, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
-            ('color-1-off', [(0x81, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)]),
-            ('color-2-only', [(0, 0, 0), (1, 5, 5), (0, 0, 0), (0, 0, 0)])]
-WB = 'wb-reads-add-no-film-shift'
+# Separate WB shifts (2026-11-21): on a COLOR profile wb_get gives the profile's slot shift (+26 A-B / +27 G-M when
+# +25 & 0x81 == 1, else 0) in place of the camera's own read (v0.21..v0.40 added it; #88 gave the stock read alone).
+# Each case: slot +25..+27 for COLOR 1..4 and what the reads give. The test camera is on COLOR 1.
+WB_CASES = [('none', [(0, 0, 0)] * 4, (0, 0)),
+            ('color-1', [(1, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)], (3, -2)),
+            ('color-1-off', [(0x81, 3, 0xfe), (0, 0, 0), (0, 0, 0), (0, 0, 0)], (0, 0)),
+            ('color-1-out-of-range', [(1, 9, 0xf0), (0, 0, 0), (0, 0, 0), (0, 0, 0)], (0, 0)),
+            ('color-2-only', [(0, 0, 0), (1, 5, 5), (0, 0, 0), (0, 0, 0)], (0, 0))]
+WB = 'wb-reads-give-the-film-shift-on-color'
 
 
 def run_wb(emu, build, out, card0):
-    """wb_get on each WB_KEYS read, per WB_CASES look: the stock value and one getter call, shift or not (#88)."""
+    """wb_get on each WB_KEYS read, per WB_CASES look: COLOR 1's slot shift, 0 when it has none."""
     d = out / WB
     d.mkdir(parents=True, exist_ok=True)
     sym = elf_symbols(build / 'p.elf')
     spec = [call_spec('mode', sym['getter'], 12, 63153)]
-    spec += [call_spec(f'stock:{k}', sym['getter'], 12, key) for k, key in WB_KEYS.items()]
-    for name, slots in WB_CASES:
+    for name, slots, _ in WB_CASES:
         mem = [[f'P+{32 + 64 * k + 25}', bytes(s).hex()] for k, s in enumerate(slots)]
-        spec += [call_spec(f'{name}:{k}', sym['wb_get'], 12, key, mem, [sym['getter']]) for k, key in WB_KEYS.items()]
+        spec += [call_spec(f'{name}:{k}', sym['wb_get'], 12, key, mem) for k, key in WB_KEYS.items()]
     res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
     if isinstance(res, str):
         return WB, [res]
     if int(res['mode']['regs']['d0'], 16) & 255 != 1:
         return WB, [f"the camera is not on COLOR 1 (getter 63153: {res['mode']['regs']['d0']}, out.json)"]
     errors = []
-    for name, slots in WB_CASES:
-        for k in WB_KEYS:
-            want = s8(int(res[f'stock:{k}']['regs']['d0'], 16) & 255)
+    for name, slots, wants in WB_CASES:
+        for k, want in zip(WB_KEYS, wants):
             got = s8(int(res[f'{name}:{k}']['regs']['d0'], 16) & 255)
             if got != want:
-                errors.append(f'{name} {k}: wb_get gives {got}, the camera\'s own read {want} (out.json)')
-            calls = res[f'{name}:{k}']['count'][0]
-            if calls != 1:
-                errors.append(f'{name} {k}: wb_get calls the getter {calls} times, want 1 (out.json)')
+                errors.append(f'{name} {k}: wb_get gives {got}, want {want} (out.json)')
     return WB, errors
 
 
@@ -2418,29 +2531,35 @@ def run_cropsave(emu, build, out, card0):
 
 
 # glow-shots-2: hl_run gives its CPU back between lock groups (hl_yld) only while the shutter button is half-pressed
-# (hl_hp, set by lg_pr through the uncached alias), at most HL_YMAX sleeps a photo. Called directly: button up, button
-# held, the cap reached; the sleep itself (sdl_dly_tsk) is camera-only, so the call stops at it (hl_ydl). Then a boot:
-# a release clears hl_hp (poked to 1 first). Halation's bytes with the new calls: halation-matches-the-model.
+# (hl_hp, set by lg_pr through the uncached alias), until the photo's sleeps add up to HL_YUS (r1, 2026-11-20: was 800
+# sleeps; a held burst stretched a photo to 4.9 s). Called directly: button up, button held, 799 sleeps taking
+# 0.299 s (still sleeps: the count no longer caps), 0.3 s reached (returns, whatever the count); the sleep itself
+# (sdl_dly_tsk) is camera-only, so the call stops at it (hl_ydl). Then a boot: a release clears hl_hp (poked to 1
+# first). Halation's bytes with the new calls: halation-matches-the-model.
 HLYIELD = 'halation-pauses-only-while-half-pressed'
-HL_YMAX = 800
+HL_YUS = 300000
 
 
 def run_hlyield(emu, build, out, card0):
     d = out / HLYIELD
     d.mkdir(parents=True, exist_ok=True)
     sym = elf_symbols(build / 'p.elf')
-    hp, yn, ydl = sym['hl_hp'] + 0x40000000, sym['hl_yn'], sym['hl_ydl']
-    def case(name, pressed, sleeps):
+    hp, yn, yus, ydl = sym['hl_hp'] + 0x40000000, sym['hl_yn'], sym['hl_yus'], sym['hl_ydl']
+    def case(name, pressed, sleeps, us=0):
         return {'name': name, 'pc': 'B', 'stop': ['B+7', f'{ydl:#x}'], 'max': 20000,
                 'mem': [['B', 'dd'], ['B+1', f"={sym['hl_yld']:#x}-B"], ['B+5', 'f014'],    # call hl_yld,[d2,d3,a2,a3],20
-                        [f'{hp:#x}', f'{pressed:02x}'], [f'{yn:#x}', sleeps.to_bytes(4, 'little').hex()]],
-                'read': [[f'{yn:#x}', 4]], 'restore': [[f'{hp:#x}', '00'], [f'{yn:#x}', '00000000']]}
-    spec = [case('button-up', 0, 0), case('half-pressed', 1, 0), case('cap-reached', 1, HL_YMAX)]
+                        [f'{hp:#x}', f'{pressed:02x}'], [f'{yn:#x}', sleeps.to_bytes(4, 'little').hex()],
+                        [f'{yus:#x}', us.to_bytes(4, 'little').hex()]],
+                'read': [[f'{yn:#x}', 4]],
+                'restore': [[f'{hp:#x}', '00'], [f'{yn:#x}', '00000000'], [f'{yus:#x}', '00000000']]}
+    spec = [case('button-up', 0, 0), case('half-pressed', 1, 0), case('under-the-time-cap', 1, 799, HL_YUS - 1000),
+            case('time-cap-reached', 1, 3, HL_YUS)]
     res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
     if isinstance(res, str):
         return HLYIELD, [res]
     errors = []
-    want = {'button-up': (False, 0), 'half-pressed': (True, 1), 'cap-reached': (False, HL_YMAX)}
+    want = {'button-up': (False, 0), 'half-pressed': (True, 1), 'under-the-time-cap': (True, 800),
+            'time-cap-reached': (False, 3)}
     for name, (sleeps, n) in want.items():
         r = res[name]
         pc, got = int(r['regs']['pc'], 16), int.from_bytes(bytes.fromhex(r['mem'][0]), 'little')
@@ -2458,8 +2577,230 @@ def run_hlyield(emu, build, out, card0):
     return HLYIELD, errors + more
 
 
+# #93 (v0.40.2): playback labels a photo's picture mode with the shooting screen's "COLOR1".."COLOR4" pictures (15706..),
+# which fl_lvp answered with COLOR k's film now, so every COLOR 1 photo read "FILM3" once COLOR 1 was on FILM 3.
+# SimplePlayCommon's info build (cr_pbk1) now reads the shown photo's ImageDescription through the camera's Exif tag
+# read, 0x6042f92e (group 1, tag 270), and the label shows that photo's own "FILM n" (playfilm.s). om-emu's playback
+# reads no photo's Exif, so the tag read is stood in (mov TEXT,a0; ret [d2,d3,a2,a3],80) for the calls of cr_pbk1, and
+# the picture getter is then asked in playback (GUI class 5) and on the shooting screen (1). COLOR 1 holds FILM 2.
+PBFILM = 'playback-labels-a-photo-by-its-own-film'
+PBFILM_TAG, PBFILM_TAG_STOCK = 0x6042f92e, '4318f1d6f89b22f897'   # its first 9 bytes, put back after each stand-in
+PBFILM_TEXT = {'FILM 7 Velvia 50': 7, 'FILM 20 Astia 100F': 20, 'FILM 1': 1, 'FILM 12 Ektar 100': 12,
+               'OM SYSTEM DIGITAL CAMERA': 0, ' ' * 31: 0, 'FILM 21 X': 0, 'FILM 0 X': 0, 'FILM 12x': 0, 'FILMS 1': 0,
+               'FILM  1': 0, None: 0xff}   # None: the tag read finds no text (a0 0)
+# The label calls, in order: (name, the note before it: text or '-' for none, GUI class, picture id) -> what the getter
+# gives: ('ours', k, N) = our block's picture k drawn as "FILM N" (no star), ('now', k) = COLOR k's film now (FILM 2:
+# N 2), 'stock' = the camera's own picture.
+PBFILM_LABELS = [
+    ('photo-on-film-7-in-playback', 'FILM 7 Velvia 50', 5, 15706, ('ours', 0, 7)),
+    ('a-color-2-photo-on-film-7', '-', 5, 15707, ('ours', 1, 7)),
+    ('the-same-photo-starred-id', '-', 5, 15710, ('ours', 0, 7)),
+    ('shooting-screen-after-playback', '-', 1, 15706, ('now', 0)),
+    ('playback-again-nothing-read-yet', '-', 5, 15706, ('now', 0)),
+    ('photo-on-film-20', 'FILM 20 Astia 100F', 5, 15706, ('ours', 0, 20)),
+    ('photo-with-no-film', 'OM SYSTEM DIGITAL CAMERA', 5, 15706, 'stock'),
+    ('photo-with-no-text-read', None, 5, 15706, ('now', 0)),
+]
+
+
+def run_pbfilm(emu, build, out, card0):
+    """cr_pbk1 with the tag read stood in for PBFILM_TEXT (pb_fn; the stock registers kept), once with the real tag read
+    (om-emu: no photo Exif, so pb_fn 0xff), then the picture getter for PBFILM_LABELS."""
+    d = out / PBFILM
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    fn = f"{sym.get('pb_fn', 0):#x}"
+    tag = f'{PBFILM_TAG:#x}'
+    regs0 = {'d0': '4', 'd1': '0x11', 'd3': '0xd3d3d3d3', 'a1': '0xa1a1a1a1', 'a2': 'B+0x300', 'a3': 'B+0x302'}
+    def note(name, text, stand_in=True):
+        mem = [['B', 'dc'], ['B+1', f"={sym.get('cr_pbk1', 0):#x}-B"], ['B+0x300', '00140008'],   # 5120 x 2048: no crop
+               ['SP+2844', '78563412']]
+        restore = []
+        if stand_in:
+            mem += [[tag, 'fcdc'], [f'{PBFILM_TAG + 2:#x}', '=B+0x400' if text is not None else '00000000'],
+                    [f'{PBFILM_TAG + 6:#x}', 'dff050']]
+            if text is not None:
+                mem.append(['B+0x400', text.encode('ascii').hex() + '00'])
+            restore = [[tag, PBFILM_TAG_STOCK]]
+        return {'name': name, 'pc': 'B', 'stop': ['0x61113424'], 'max': 200000, 'mem': mem, 'regs': regs0,
+                'read': [[fn, 1]], 'restore': restore}
+    def label(name, cls, pic):
+        return {'name': name, 'pc': 'B', 'stop': ['B+7'], 'max': 2000000,
+                'mem': [['B', 'dd'], ['B+1', '=0x610f5611-B'], ['B+5', '0000'], ['W(0x603713a4)', f'{cls:02x}']],
+                'regs': {'d0': str(pic)}, 'read': [['P+832', 4], ['W(P+832)+112', 16], ['0x60379740', 4], [fn, 1]],
+                'restore': [['W(0x603713a4)', '01']]}
+    spec = [{'name': 'stock', 'pc': 'B', 'stop': ['B'], 'read': [['W(0x603713a4)', 2], [tag, 9]]}]
+    spec += [note(f'note {t!r}', t) for t in PBFILM_TEXT]
+    spec.append(note('note with the real tag read', None, stand_in=False))
+    for name, text, cls, pic, _ in PBFILM_LABELS:
+        if text != '-':
+            spec.append(note(f'before {name}', text))
+        spec.append(label(name, cls, pic))
+    res = run_ncall(emu, build, d, card0, f's1 wait wait {PICK_FILM_2} s1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return PBFILM, [res]
+    errors = []
+    reg = lambda r, k: int(r['regs'][k], 16)
+    byte = lambda r, i: int(r['mem'][i][:2], 16) if not r['mem'][i].startswith('ERR') else None
+    word = lambda h, i=0: int.from_bytes(bytes.fromhex(h[8 * i:8 * i + 8]), 'little')
+    mem = res['stock']['mem']
+    if bytes.fromhex(mem[0])[0] != 1:
+        errors.append(f'the GUI state at the calls is {mem[0]}, not shooting (class 1): the restore would be wrong')
+    if mem[1] != PBFILM_TAG_STOCK:
+        errors.append(f'{tag} is {mem[1]}, not the stock {PBFILM_TAG_STOCK}: the stand-in would not put it back')
+    want_regs = (4, 0x11, 0x12345678, 0xd3d3d3d3, 78, 0xa1a1a1a1)
+    for t, want in [*PBFILM_TEXT.items(), ('real', 0xff)]:
+        r = res[f'note {t!r}' if t != 'real' else 'note with the real tag read']
+        if r['steps'] >= 200000:
+            errors.append(f'cr_pbk1 with text {t!r}: did not reach 0x61113424')
+            continue
+        got = tuple(reg(r, k) for k in ('d0', 'd1', 'd2', 'd3', 'a0', 'a1'))
+        if got != want_regs:
+            errors.append(f'cr_pbk1 with text {t!r}: d0 d1 d2 d3 a0 a1 {[hex(x) for x in got]}, not as stock')
+        if reg(r, 'a3') != reg(r, 'a2') + 2 or reg(r, 'a2') & 0xff:
+            errors.append(f'cr_pbk1 with text {t!r}: a2 / a3 {r["regs"]["a2"]} / {r["regs"]["a3"]}, not B + 0x300 / 0x302')
+        if byte(r, 0) != want:
+            errors.append(f'the photo text {t!r}: pb_fn {r["mem"][0]}, not {want:#04x}')
+    for name, _, cls, pic, want in PBFILM_LABELS:
+        r = res[name]
+        if r['steps'] >= 2000000:
+            errors.append(f'{name}: the picture getter did not return')
+            continue
+        a0, blk, table = reg(r, 'a0'), word(r['mem'][0]), word(r['mem'][2])
+        drawn = [word(r['mem'][1], k) for k in range(4)]
+        if want == 'stock':
+            if a0 != (table + 4 * pic) & 0xffffffff:
+                errors.append(f'{name}: picture {pic} gives {a0:#x}, not the camera\'s own ({table + 4 * pic:#x})')
+            continue
+        k = want[1]
+        if a0 != blk + 4 * k:
+            errors.append(f'{name}: picture {pic} gives {a0:#x}, not our picture {k} ({blk + 4 * k:#x})')
+        elif want[0] == 'ours' and drawn[k] != want[2]:
+            errors.append(f'{name}: our picture {k} is drawn as {drawn[k]:#x}, not the photo\'s FILM {want[2]}')
+        elif want[0] == 'now' and drawn[k] & 0xff != 2:
+            errors.append(f'{name}: our picture {k} is drawn as {drawn[k]:#x}, not COLOR 1\'s film now (FILM 2)')
+    if byte(res['shooting-screen-after-playback'], 3) != 0xff:
+        errors.append('the shooting screen\'s label did not forget the photo\'s film (pb_fn '
+                      f"{res['shooting-screen-after-playback']['mem'][3]})")
+    return PBFILM, errors
+
+
+
+# r4 (2026-11-20, owner: "Yes, build them"): the Halation Radius row's pictures. The picture hook's chain (ar_ic: the
+# body diagrams, the arrows, crop's labels cr_ic, then ic_get) called for the left cells IC_RZ0 .. + 3 and the strip
+# cells IC_RZS .. + 3 must answer ic_ent 15..22, whose descriptors hold mkicons' pictures (82 x 62 left, 100 x 76
+# strip, as the camera's Grain Size pictures) byte for byte. (The first r4 build put the strip at 0x7fc8, inside
+# crop's labels: the strip showed XPan / 21:9 / 5:4.) The row's own behaviour: halation-radius-row-kept-with-grain.
+HLRZPICS = 'halation-radius-pictures-as-drawn'
+
+
+def run_hlrzpics(emu, build, out, card0):
+    d = out / HLRZPICS
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    pics = mkicons.streams()
+    ids = [(sym['IC_RZ0'] + k, 15 + k) for k in range(4)] + [(sym['IC_RZS'] + k, 19 + k) for k in range(4)]
+    spec = []
+    for pid, k in ids:
+        ent = sym['ic_ent'] + 4 * k
+        spec.append({'name': f'id-{pid:#x}', 'pc': 'B', 'stop': ['B+7'], 'max': 2000,
+                     'mem': [['B', 'dd'], ['B+1', f"={sym['ar_ic']:#x}-B"], ['B+5', '0000']],     # call ar_ic,[],0
+                     'regs': {'d0': hex(pid)},
+                     'read': [[f'W({ent:#x})', 24], [f'W(W({ent:#x})+16)', len(pics[k][2])]]})
+    res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return HLRZPICS, [res]
+    errors = []
+    for (pid, k), cs in zip(ids, spec):
+        r = res[cs['name']]
+        w, h, st = pics[k]
+        if r['steps'] >= 2000:
+            errors.append(f'{cs["name"]}: the picture lookup did not return (out.json)')
+            continue
+        if int(r['regs']['a0'], 16) != sym['ic_ent'] + 4 * k:
+            errors.append(f"{cs['name']}: the lookup gave {r['regs']['a0']}, not ic_ent entry {k}")
+        desc = bytes.fromhex(r['mem'][0])
+        fmt, dw, dh = struct.unpack_from('<3H', desc)
+        size = struct.unpack_from('<I', desc, 12)[0]
+        if (fmt, dw, dh, size) != (14, w, h, len(st)):
+            errors.append(f"{cs['name']}: descriptor {fmt} {dw} x {dh}, {size} B, not 14 {w} x {h}, {len(st)} B")
+        elif r['mem'][1] != st.hex():
+            errors.append(f"{cs['name']}: the picture's bytes differ from mkicons' (out.json)")
+    return HLRZPICS, errors
+
+# #91 (fernandezk26; owner's camera, 2026-11-20): a sequential JPEG with Film Grain at ISO 1600 and below shut the
+# camera off with Low ISO Processing = Drive Priority, and saved with Detail Priority. The camera's per-photo choice
+# 0x6055aa5c (a0 = the request: +20 the capture, +186 its kind; capture+38216 the sequence type, 0 Single;
+# capture+38249 Low ISO Processing, 0 Drive / 1 Detail) -> 1 Detail processing, 0 Drive Priority's. fix91-1 (fd_dec,
+# behind the section gates fd_g1 / fd_g2) answers 1 for a photo with our grain (fd_g, set by xb_cap) where the camera
+# chose 0, at both of its call sites (0x6054fffd, 0x60558041). Run natively from the hook sites on a fake request, so a
+# build without the fix (the stock call there) answers 0 for Drive Priority + grain. The crash itself needs a still:
+# camera-only (research/TESTING.md, "Past regressions").
+FDDRIVE = 'grain-photo-with-drive-priority-takes-detail'
+FDDRIVE_SITES = {1: (0x6054fffd, 0x60550004), 2: (0x60558041, 0x60558046)}
+FDDRIVE_CASES = [   # name, site, sequence type (capture+38216), Low ISO Processing (+38249), our grain (fd_g), choice
+    ('drive-grain', 1, 1, 0, 1, 1), ('drive-no-grain', 1, 1, 0, 0, 0), ('detail-grain', 1, 1, 1, 1, 1),
+    ('single-no-grain', 1, 0, 0, 0, 1), ('drive-grain-site-2', 2, 1, 0, 1, 1), ('drive-no-grain-site-2', 2, 1, 0, 0, 0)]
+
+
+def run_fddrive(emu, build, out, card0):
+    """The hook sites of the camera's Detail / Drive Priority choice on FDDRIVE_CASES: the choice in d0, the caller's
+    d2 / d3 / a2 / a3 and sp back, fd_n / fd_k counted once per changed / kept choice; last, section 6 not ready (the
+    gate): the camera's own choice."""
+    d = out / FDDRIVE
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    g = f"{sym['fd_g']:#x}" if 'fd_g' in sym else 'B+0x300'      # a build without the fix: a flag nobody reads
+    cap = 'B+0x100-38216'                                      # capture+38216 / +38249 at B+0x100 / B+0x121
+    keep = {'d2': '0x11111111', 'd3': '0x22222222', 'a2': '0x33333333', 'a3': '0x44444444'}
+    def case(name, site, seq, low, grain, extra=()):
+        pc, stop = FDDRIVE_SITES[site]
+        mem = [['B+0x200', '00' * 192], ['B+0x214', f'={cap}'], ['B+0x2ba', '0010'],        # request: kind 0x1000
+               [f'{cap}+6140', '00000000'], ['B+0x100', f'{seq:02x}'], ['B+0x121', f'{low:02x}'], [g, f'{grain:02x}'],
+               *extra]
+        read = [[f"{sym[k]:#x}", 4] for k in ('fd_n', 'fd_k') if k in sym]
+        return {'name': name, 'pc': f'{pc:#x}', 'stop': [f'{stop:#x}'], 'max': 200000, 'mem': mem,
+                'regs': {'a0': 'B+0x200', **keep}, 'read': read}
+    spec = [case(n, site, seq, low, grain) for n, site, seq, low, grain, _ in FDDRIVE_CASES]
+    spec.append(case('gate-closed', 1, 1, 0, 1, extra=([f'{0xa32de58c:#x}', '1f000000'],)))  # sections 1..5 only
+    res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return FDDRIVE, [res]
+    sp = json.loads((d / 'out.json').read_text())['SP']
+    want = {n: v for n, *_, v in FDDRIVE_CASES}
+    want['gate-closed'] = 0
+    errors, before = [], (0, 0)                              # a fresh boot: no photo, no choice yet
+    for o in spec:
+        r = res[o['name']]
+        if r['steps'] >= 200000:
+            errors.append(f"{o['name']}: the choice did not return (out.json)")
+            continue
+        got = int(r['regs']['d0'], 16) & 0xffff
+        if got != want[o['name']]:
+            errors.append(f"{o['name']}: choice {got} (1 Detail, 0 Drive Priority's), not {want[o['name']]}")
+        for k, v in keep.items():
+            if int(r['regs'][k], 16) != int(v, 16):
+                errors.append(f"{o['name']}: {k} {r['regs'][k]}, not {v[2:]}")
+        if r['regs']['sp'] != sp:
+            errors.append(f"{o['name']}: sp {r['regs']['sp']}, not {sp}")
+        if r['mem']:
+            counts = tuple(int.from_bytes(bytes.fromhex(m), 'little') for m in r['mem'])
+            if before is not None and o['name'] != 'gate-closed':
+                n, k = counts[0] - before[0], counts[1] - before[1]
+                grain = next(c[4] for c in FDDRIVE_CASES if c[0] == o['name'])
+                stock = 1 if o['name'].startswith(('detail', 'single')) else 0
+                wn, wk = (1, 0) if grain and not stock else (0, 1) if grain else (0, 0)
+                if (n, k) != (wn, wk):
+                    errors.append(f"{o['name']}: fd_n / fd_k went up by {n} / {k}, not {wn} / {wk}")
+            before = counts
+    if 'fd_g' not in sym:
+        errors.append('no fd_g in this build (fix91-1 not in it)')
+    return FDDRIVE, errors
+
+
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
-DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield}
+DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
+          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive}
 
 
 def newest_looks():

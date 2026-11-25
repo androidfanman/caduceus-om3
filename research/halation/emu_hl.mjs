@@ -43,6 +43,9 @@ const FN = spec.fn ?? spec.hl_run, FRM = spec.frame ?? 124;
 const rel = (FN - STUB) | 0;
 dd.write(STUB, Uint8Array.from([0xdd, ...u32b(rel), 0xf0, FRM, 0xcb, 0xcb]));   // call hl_run,[d2,d3,a2,a3],124 (or fn, frame)
 const RET = STUB + 7;
+// speed-1 (2026-11-19): with spec.malloc / spec.free, every block malloc hands out during the case (its a0 at the
+// return) must be given back to free exactly once (hl_run's grids come from hl_ga / hl_gf: aligned, through the cached
+// alias, malloc's own pointer kept before each)
 const limit0 = CPU.limit; CPU.limit = 0;   // no insn limit while the cases run (restored after)
 const out = [];
 for (const cs of spec.cases) {
@@ -61,12 +64,18 @@ for (const cs of spec.cases) {
   r[0] = cs.level; r[1] = 0x11111111; r[2] = 0x22222222; r[3] = 0x33333333; r[4] = REC; r[5] = 0x55555555;
   r[6] = 0x66666666; r[7] = 0x77777777; r[8] = SP; r[9] = STUB; r[11] = 0x12345678;
   dd.m.setRegs(r);
+  const mrets = new Map(), got = [], freed = [];
   const prof = process.env.PROFILE ? new Map() : null;
   const max = cs.max || 2e9;
   let n = 0, flushes = 0, locks = 0, inLock = -1, maxLock = 0, lockSum = 0, lockAt = 0;
   for (;;) {
     const pc = dd.m.getRegs()[9] >>> 0;
     if (pc === RET || n >= max) break;
+    if (spec.malloc) {
+      if (pc === spec.malloc) { const ra = lab.sim.u32(((dd.m.getRegs()[8] >>> 0) + 4) >>> 0) >>> 0; mrets.set(ra, (mrets.get(ra) || 0) + 1); }
+      else if (pc === spec.free) freed.push(dd.m.getRegs()[4] >>> 0);
+      else if (mrets.has(pc)) { got.push(dd.m.getRegs()[4] >>> 0); const k = mrets.get(pc) - 1; if (k) mrets.set(pc, k); else mrets.delete(pc); }
+    }
     if (pc === spec.flush) flushes++;
     else if (pc === spec.lock) { locks++; inLock = n; }
     else if (pc === spec.unlock && inLock >= 0) { const k = n - inLock; lockSum += k; if (k > maxLock) { maxLock = k; lockAt = locks; } inLock = -1; }
@@ -76,6 +85,7 @@ for (const cs of spec.cases) {
   }
   const g = dd.m.getRegs();
   const o = { name: cs.name, steps: n, done: (g[9] >>> 0) === RET, flushes, locks, maxLock, maxLockAt: lockAt, lockSum,
+    heap: spec.malloc ? { got, freed, same: got.length === freed.length && [...got].sort().join() === [...freed].sort().join() } : null,
     regsBack: g[2] === 0x22222222 && g[3] === 0x33333333 && g[6] === 0x66666666 && g[7] === 0x77777777 && (g[8] >>> 0) === SP,
     guard: Buffer.from(rd(FRAME + frame.length, GUARD)).equals(Buffer.from(guard)) };
   fs.writeFileSync(cs.out, rd(FRAME, frame.length));

@@ -95,6 +95,12 @@ bytes: COLOR 1–4's slots now (4), EDITS record r's (24), then the same 28 for 
 bit 0 its curves follow its film's built-in, bit 1 its mix does, bit 7 the flags are set; 0 from older firmware, whose
 all-zero parts then follow), byte 7 zero. Not in LOOKS.BIN, EDITS.BIN or the photo code yet.
 
+## The `OM3W` record (v0.40.3-beta2 / beta3 only, no longer used)
+
+Those two test versions kept the camera modes' own WB compensation in a record `OM3W` at image offset 0x3FE80 of the
+same store (180 bytes, after `OM3S`) while a film's was in the camera. Later firmware keeps a film's shift in the film
+and never reads or writes this record; what an earlier version left there is ignored.
+
 ## CURVES.BIN v1 (432 bytes, v0.30)
 
 Each film's built-in RGB curves and colour mix: what a film shows before you change them on the camera, and what
