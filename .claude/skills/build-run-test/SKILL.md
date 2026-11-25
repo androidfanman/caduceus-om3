@@ -18,7 +18,7 @@ description: How to build, run and test this repo. Read before any build, run or
 ## Targets
 
 - `build-firmware`: package into `BUILD_DIR` (default `~/om3-work/out-make`), about 240 MB. `build.json` `package_sha256`.
-- `test-emu`: emulator suite on `BUILD_DIR`. 129 tests, `--jobs 4`, about 17 min. Exit 1 on any `FAIL`. Run on a clean committed tree to record the pass `tools/test/pr_gate.py` needs.
+- `test-emu`: emulator suite on `BUILD_DIR`. 129 tests, jobs from cores and free memory (4 on 12-core 32 GB Mac), about 17 min. Exit 1 on any `FAIL`. Run on a clean committed tree to record the pass `tools/test/pr_gate.py` needs.
 - Never run two emulator suites or a toolchain build side by side: CPU and memory contention, OOM risk.
 - `test-unit`: 21 unittest cases, seconds, needs workspace venv.
 - `test-webapp`: vitest, 116 tests, offline. Needs `python3` on PATH (`om3.test.ts` runs `card/mkprofiles.py`). 3 tone tests skip: E-P7 tools absent.

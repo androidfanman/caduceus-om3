@@ -16,7 +16,7 @@ This folder is everything needed to read it:
 | `demo.html` | A one-page reader: open a JPEG or paste a comment. Serve the folder over http (ES modules don't load from `file://`). |
 
 Other implementations in the [repository](https://github.com/androidfanman/caduceus-om3): Python `firmware/photocode.py`;
-the Control Panel's `recordFromPhotoCode` / `lookFromPhotoCode` in `webapp/src/om3.ts` (its Open and Paste link take
+LookLab's `recordFromPhotoCode` / `lookFromPhotoCode` in `webapp/src/om3.ts` (its Open and Paste link take
 a JPEG or a code).
 
 The same files come as a zip with each release (`caduceus-om3-photo-code-kit.zip` on the
@@ -98,7 +98,7 @@ table marks it unsigned.
 | 58 | Tone Balance | −5…5 | v0.28: − the shadow colour reaches further, + the highlight colour |
 | 59–60 | Custom WB Kelvin | −5…5 each | v0.28: v = byte 59 + 11 × byte 60; Kelvin = 2000 + 100 × (v + 60) when the mode is Custom WB |
 | 61–62 | WB mode | −5…5 each | v0.28: the camera's WB when the photo was taken, byte 61 + 11 × byte 62: 0 Auto (or an older photo), 1 Sunny, 2 Shade, 3 Cloudy, 4 Incandescent, 5 Fluorescent, 6 Underwater, 7 Flash, 8–11 One-touch 1–4, 12 Custom WB |
-| 63 | Split toning half steps (unsigned) | 0–3 | v0.28: bit 0 Shadows, bit 1 Highlights (a half step on top of 54 / 56) |
+| 63 | Split toning half steps, Halation Radius (unsigned) | 0–15 | v0.28: bit 0 Shadows, bit 1 Highlights (a half step on top of 54 / 56). v0.40.3: bits 2–3 Halation Radius, 0 Bloom, 1 Tight, 2 Medium, 3 Wide |
 
 Colour wheel (clockwise from 12 o'clock, as on the camera): 0 Yellow, 1 Orange, 2 Orange-red, 3 Red, 4 Magenta,
 5 Violet, 6 Blue, 7 Blue-cyan, 8 Cyan, 9 Green-cyan, 10 Green, 11 Yellow-green.

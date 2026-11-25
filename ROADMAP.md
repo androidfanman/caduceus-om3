@@ -6,7 +6,7 @@ What's planned for Caduceus for OM-3. Nothing here is promised or dated: feature
 Ideas and requests are welcome in [Issues](https://github.com/androidfanman/caduceus-om3/issues).
 
 The order (owner, 2026-11-09): colour profiles first, then video. The colour profiles are now complete; video is next.
-The lens and button requests below are planned too; their place in that order isn't set yet.
+The button requests below are planned too; their place in that order isn't set yet.
 
 Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 
@@ -15,7 +15,7 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 | Feature | What it means | Status |
 |---|---|---|
 | **Films in the camera** ([#35](https://github.com/androidfanman/caduceus-om3/issues/35)) | Films, edits and Extras kept in the camera's own memory, so any SD card works. Research by iancw. | **Done (v0.29)** |
-| **Films from your own LUTs and Lightroom presets** (LookLab) | Make a film from a `.cube` LUT or a Lightroom preset; the file stays in your browser. | Testing |
+| **Films from your own LUTs and Lightroom presets** (LookLab) | Make a film from a `.cube` LUT or a Lightroom preset; the file stays in your browser. | **Done (LookLab, 2026-11-13)** |
 | **Halation** | The red glow around bright lights, its own Picture Mode row (0–5). | **Done (v0.28)** |
 | **Split toning** | Shadows and Highlights wheels in half steps, plus a Tone Balance row. | **Done (v0.28)** |
 | **Blacks / Whites grid** | One grid row, −7 to +7 each. | **Done (v0.28)** |
@@ -51,8 +51,8 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 | Feature | What it means | Status |
 |---|---|---|
 | **Focus stacking with more lenses** ([#79](https://github.com/androidfanman/caduceus-om3/pull/79), by Bensonson) | Focus stacking with more autofocus lenses. [Details](docs/FOCUS_STACKING.md). | **Done (v0.40)** |
-| **Panasonic lenses work properly** ([#29](https://github.com/androidfanman/caduceus-om3/issues/29)) | The aperture ring on Panasonic lenses sets the aperture. | Requested |
-| **Sync image stabilisation with Panasonic lenses** ([#47](https://github.com/androidfanman/caduceus-om3/issues/47)) | Camera and lens stabilisation working together. | Requested |
+| **Panasonic lenses work properly** ([#29](https://github.com/androidfanman/caduceus-om3/issues/29)) | The aperture ring on Panasonic lenses sets the aperture. | Not planned (2026-11-25) |
+| **Sync image stabilisation with Panasonic lenses** ([#47](https://github.com/androidfanman/caduceus-om3/issues/47)) | Camera and lens stabilisation working together. | Not planned (2026-11-25) |
 
 ## Buttons and controls
 

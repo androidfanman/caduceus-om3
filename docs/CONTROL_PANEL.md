@@ -15,9 +15,9 @@ uploaded.
    negative films, Fujifilm-style simulations, instant films and cinema print stocks). **Colour matched** shows the 18
    films graded against film scans of a colour chart; **Hand-tuned** the others, designed from descriptions. Click one to preview it on your
    photo; **+ Add** puts it in an empty place (or offers to replace one when all 20 are used).
-4. **Edit** a film, laid out like the camera's Picture Mode screen: the HSL wheel with the camera's five pages (Color,
-   Hue, Luminance, Shadows, Highlights; drag a colour on the wheel or use the slider), the Highlight & Shadow curve
-   (drag its handles), the Blacks / Whites grid and the WB grid (click or drag) and the rows below. In short: Hue,
+4. **Edit** a film, laid out like the camera's Picture Mode screen: the color wheel with Hue / Saturation / Luminance
+   pages (drag a color on the wheel or use the slider), the Split toning panel (Shadows / Balance / Highlights), the
+   Highlight & Shadow curve with Blacks and Whites as its ends (drag its handles), the WB grid (click or drag) and the rows below. In short: Hue,
    Lightness and Saturation for each of the 12 colours; split toning (Shadows / Highlights, 0–10) and its Tone Balance;
    the tone (Highlights, Shadows, Midtones, Blacks, Whites to ±7); the camera's Contrast and Shading; the WB shift (A-B /
    G-M) and the film's WB mode (Auto, Sunny, … Custom WB with its Kelvin); and the Extras (Noise Filter, lens vignette
@@ -26,8 +26,9 @@ uploaded.
    correction are not previewed. Art Effects are not used from v0.25. **Split toning** and **Tone Balance** show in the
    preview too; the **WB mode** as if the photo was taken in daylight; **Halation** around bright lights in night
    photos (as on the camera, it fades out in bright daylight photos).
-5. **Export › Save to card…** (Chrome or Edge on a computer) writes `OM3MOD/LOOKS.BIN` (and `NAMES.BIN`) straight
-   onto the card; **Card folder (.zip)** downloads them. From v0.29 only `LOOKS.BIN` matters, and the camera takes a set
+5. **Export › Save to card…** (Chrome or Edge on a computer) writes `OM3MOD/LOOKS.BIN`, `NAMES.BIN` and, for
+   v0.28 or later, `CURVES.BIN` straight onto the card. **Card folder (.zip)** downloads them. From v0.29 the camera
+   reads `LOOKS.BIN`, and from v0.30 `CURVES.BIN` too. It takes a set
    of films only if it never had it (change anything to make it new). Keep **Firmware on the camera: v0.28 or later** (older choices leave Halation, Tone Balance, the WB mode and
    Blacks / Whites past ±5 out).
 6. On the camera: switch on and half-press the shutter once (that loads your films): they are FILM 1–20 in Picture Mode. A film you changed in the
@@ -67,5 +68,5 @@ S-Log, Log to Rec.709) expect flat footage and are flagged. Your file stays in y
 
 ## Good to know
 
-The preview is an approximation of the camera, good for direction and strength: judge the final look in live view. On a Mac, Safari's **File › Add to Dock** makes the Control
-Panel an app.
+The preview is an approximation of the camera, good for direction and strength: judge the final look in live view. On a Mac, Safari's **File › Add to Dock** makes
+LookLab an app.

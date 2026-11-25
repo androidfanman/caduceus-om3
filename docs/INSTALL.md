@@ -146,9 +146,8 @@ to the card, and update the camera as in step 4. Versions before v0.29 read your
 `LOOKS.BIN`, `EDITS.BIN` and `BUNDLES.BIN` as they were when you installed v0.29 (v0.29 keeps its changes in the
 camera's memory, which older versions don't read).
 
-On every version except v0.26.2 and v0.27, half-press the shutter once after switching on: that's when your films
-load. (v0.26.2 and v0.27 loaded them by themselves at switch-on, which could rarely freeze the camera; v0.27.1 went
-back to the half-press.)
+From v0.30 your films load as the camera starts. v0.27.1 to v0.29.5 load them at the first half-press after
+switching on. v0.26.2 and v0.27 load them at switch-on, which could rarely freeze the camera.
 
 ## Going back to the camera's own firmware
 
@@ -168,7 +167,7 @@ your `OM3MOD` files if you can.
 **Holding OK doesn't start the update.** Check that the file is at `DCOLYMP/E1479999.BIN` at the top of the card (not
 inside another folder), that the battery is full, and that you hold OK *before* switching on.
 
-**There are no films in Picture Mode.** Half-press the shutter once after switching on (that loads them). The first
+**There are no films in Picture Mode.** Half-press the shutter once. The camera reads new card files then. The first
 time with v0.29, or after a Reset in the camera's menu, the camera needs `OM3MOD/LOOKS.BIN` on the card (step 3): check it is there and exactly 1,632
 bytes; if not, download it again, or save it again from LookLab. Check the update really went on: v0.27 adds
 rows called CRT, ART, COLOR and MONO to the camera's Button Function menu. If they aren't there, do step 4 again.

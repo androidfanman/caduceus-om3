@@ -220,7 +220,7 @@ Stock: OLY_E_147_1100_0000_0000_3.BIN sha 8c133084…696d, main 5e8d376e…7d59.
 - `tests/om3.test.ts`: PROFILES.BIN round trip and byte check against `card/mkprofiles.py`. Emulator check
   (out-ed18): a Control Panel PROFILES.BIN + NAMES.BIN load; Profiles 1 and 2 show descriptors of 2604 / 2188 B, the
   NAMES.BIN entry lengths, and load the profile's wheels.
-- Pages: `looklab/` is the build (`cd webapp && npm ci && VITE_DEFAULT_CAMERA=om3 npm run build`, copy `dist/*`).
+- Pages: `looklab/` is the build (`cd webapp && npm ci && npm run build`, copy `dist/*`).
 
 ## v0.20 grain research (2026-11-05)
 - E-P7 history (cakelesscoder docs/GRAIN_PORT.md, CHANGELOG v0.21/v0.22): combiner-32 grain on COLOR jobs = nothing

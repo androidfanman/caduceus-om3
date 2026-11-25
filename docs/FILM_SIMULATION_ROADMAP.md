@@ -3,7 +3,7 @@
 **Goal:** make the OM-3 with Caduceus the best film-replicating camera available: looks that render like real film
 stock straight out of the camera, and that load and shoot like a roll of film.
 
-Last updated 2026-11-19 (checked against v0.40, the latest release). Update the
+Last updated 2026-11-19 (checked against v0.40). Update the
 status column as work moves, and add findings to the research log at the end (details go in
 [`research/NOTES.md`](../research/NOTES.md)). The general roadmap is [`ROADMAP.md`](../ROADMAP.md).
 
@@ -91,7 +91,7 @@ Efforts are estimates from what we know of the firmware today.
 | 2026-11-08 | v0.24.1 films in the list | Films (FILM n) in the Picture Mode list with their names; changes kept per film; the Extras as Picture Mode rows. Glow / Clarity and Art Effects off and the Shading row hidden for now. (v0.24 was withdrawn the same day: Film Grain High rebooted the camera.) |
 | 2026-11-07 | v0.22 Sharp | Sharpening per look, −5 (Off) to +2; film sims set it. |
 | 2026-11-07 | Photo-to-look instructions | A look built from any photo, loaded by a link. |
-| 2026-11-06 | 60 film sims | Our own looks, one per film, in five groups (62 in LookLab today). |
+| 2026-11-06 | 60 film sims | Our own looks, one per film, in five groups (67 in LookLab today). |
 | 2026-11-06 | v0.21 Grain and VigFix | The camera's own grain on colour photos; lens vignette correction off per look. |
 | 2026-11-05 | v0.20 Extras page | NR per look, Glow / Clarity, WB shift, Art Effects, Blacks / Whites, white Frame. |
 | 2026-11-05 | v0.19 Looks | Five complete looks per COLOR with names, chosen on the Film page. |

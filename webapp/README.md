@@ -13,7 +13,7 @@ cakelesscoder's own tool for the E-P7.
 - **The list**: FILM 1–20 in camera order (positions in a bank of 4 × 5, `src/om3.ts`). Drag, ↑ ↓ or Alt+↑/↓ move a
   film; × empties a place. An empty place offers a blank look, a film sim, a library look or a pasted link.
 - **Editor**: Hue / Lightness / Saturation ±5 per colour, Tone (Highlights / Shadows / Midtones ±7, Blacks / Whites
-  ±5), the camera's Contrast, Sharpness and Shading, a WB shift (±5), split toning (v0.26, `src/split.ts`) and the
+  ±7), the camera's Contrast, Sharpness and Shading, a WB shift (±7), split toning (v0.26, `src/split.ts`) and the
   Extras: Noise Filter, Glow / Clarity, lens vignette correction and Grain. Names are up to 15 characters.
 - **Lists**: named sets of all 20 films (localStorage `caduceus.om3.lists.v1`; the looks from before lists are
   "Default"), with Save as…, Rename and Delete; the current list is the one being edited.
@@ -21,8 +21,8 @@ cakelesscoder's own tool for the E-P7.
   the 20 defaults first.
 - **Preview**: turns hue the OM-3 way (+ toward the clockwise neighbour) and includes Contrast, Sharpness, Shading,
   split toning and the grain (`research/grain/model.py`). Drag the line on the photo to compare before and after.
-- **Open**: the card's `OM3MOD/LOOKS.BIN` (to keep looks made on the camera) or a looks file (`*.om3.json`).
-- **Export**: `LOOKS.BIN` + `NAMES.BIN` (the names as pictures in the camera's label style) straight to the card
+- **Open**: a `LOOKS.BIN`, a `CURVES.BIN` or a looks file (`*.om3.json`).
+- **Export**: `LOOKS.BIN`, `CURVES.BIN` (for v0.28 or later) and `NAMES.BIN` (the names as pictures in the camera's label style) straight to the card
   (Chrome / Edge), as a card zip, or singly; a looks file; RapidRAW presets. "Firmware on the camera" picks the file
   layout (v0.26 adds split toning at record +53..+56).
 - **Share**: a link to all films (`ob1_…`) or one (`op1_…`): base64url of the deflated JSON, in the URL fragment
@@ -65,7 +65,7 @@ cd webapp
 npm ci
 npm run dev        # http://localhost:5173
 npm test
-npm run build      # typecheck, then vite build: static site in dist/
+npm run build      # typecheck, then vite build: static site in dist/. `make looklab` copies it to ../looklab/
 ```
 
 To publish: from the repo root, `make looklab` builds, copies `dist/` into `looklab/` and removes the old
