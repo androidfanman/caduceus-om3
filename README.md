@@ -176,6 +176,9 @@ stop a camera from starting.
 - `firmware/frames.py`: the white Frame layers (our own JPEGs, written into the resource component).
 - `firmware/build.py`: builds the update file from source. It needs binutils built for `--target=mn10300-elf`.
   Run `python3 firmware/build.py --stock OLY_E_147_1100_0000_0000.BIN --toolchain BINUTILS_BUILD --out NEW_DIR`.
+  Easier with `make`: once, `make setup-manual STOCK=/path/to/OLY_E_147_1100_0000_0000.BIN` sets up the firmware
+  workspace (`research/setup.sh`, which builds the mn10300-elf binutils). Then `make build-firmware` and `make test`.
+  `make` alone lists all targets.
 - `firmware/patch.py` and `releases/vX/patch.json`: the user-side patcher (pure Python) and each release's prebuilt
   patch. A patch holds only the bytes this project writes.
 - `card/`: makers for `GUIDES.BIN` (page labels), `LABELS.BIN` (Extras labels), `LOOKS.BIN` (films), and `CURVES.BIN`

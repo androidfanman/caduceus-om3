@@ -34,8 +34,10 @@ say "1/6 prerequisites"
 missing=()
 for c in python3 node git make gcc g++ xz curl mcopy; do command -v "$c" >/dev/null || missing+=("$c"); done
 if ((${#missing[@]})); then echo "missing: ${missing[*]} (install them, e.g. apt-get install build-essential nodejs git xz-utils curl mtools)"; exit 1; fi
-python3 -c 'import PIL, numpy, scipy' 2>/dev/null || pip install --quiet --break-system-packages pillow numpy scipy \
-  || pip install --quiet pillow numpy scipy
+VENV=$WORK/venv
+[ -x "$VENV/bin/python" ] || python3 -m venv "$VENV"
+export PATH="$VENV/bin:$PATH"
+python3 -c 'import PIL, numpy, scipy' 2>/dev/null || python3 -m pip install --quiet pillow numpy scipy
 echo "python $(python3 -V 2>&1 | cut -d' ' -f2), node $(node --version)"
 
 say "2/6 toolchain (binutils 2.42 for mn10300-elf)"
@@ -50,8 +52,8 @@ else
   mkdir -p build && cd build
   [ -f Makefile ] || ../binutils-2.42/configure --target=mn10300-elf --prefix="$WORK/toolchain/install" --disable-nls \
     --disable-werror --disable-gdb --disable-sim --disable-gprof --disable-gold --disable-libctf --disable-gprofng \
-    --disable-shared >configure.log 2>&1
-  make -j"$(nproc)" MAKEINFO=true all-gas all-ld all-binutils >make.log 2>&1 || { echo "build failed: see $TC/make.log"; exit 1; }
+    --disable-shared $([ "$(uname)" = Darwin ] && echo --with-system-zlib) >configure.log 2>&1
+  make -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)" MAKEINFO=true all-gas all-ld all-binutils >make.log 2>&1 || { echo "build failed: see $TC/make.log"; exit 1; }
   echo "built: $TC"
 fi
 
@@ -138,7 +140,7 @@ print(max((d for d in pathlib.Path(sys.argv[1]).iterdir() if d.name.startswith('
 " "$REPO/releases")
 want=$(grep 'DCOLYMP/E1479999.BIN' "$latest/SHA256SUMS" | cut -d' ' -f1)
 if [ "$got" = "$want" ]; then echo "this checkout rebuilds $(basename "$latest") byte for byte ($got)"
-else echo "built $got; $(basename "$latest") is $want (expected if this branch changes the firmware)"; fi
+else echo "built $got; $(basename "$latest") is $want (differs when this branch changes the firmware, or when this machine's fonts or Pillow differ from the release author's: the release check is patch.py --release, static:release-rebuild)"; fi
 rm -f "$OUT/E1479999.BIN"      # keep main.bin and the card files for the emulator; the package is 240 MB
 
 # an emulator SD card: blank, formatted by the firmware, then this build's OM3MOD card files
@@ -155,6 +157,7 @@ echo "emulator card: $CARD (OM3MOD/GUIDES.BIN and LABELS.BIN of this build)"
 cat >"$WORK/env.sh" <<EOF
 # Caduceus for OM-3 workspace (made by research/setup.sh)
 export OM3_REPO="$REPO" OM3_WORK="$WORK" OM3_STOCK="$STOCK" OM3_MAIN="$MAIN"
+export PATH="$VENV/bin:\$PATH"
 export OM3_TOOLCHAIN="$TC" OBJDUMP="$TC/binutils/objdump" OM3_EMU="$EMU/emu" OM_EMU_MODEL=E147 OM3_CARD="$CARD"
 EOF
 say "ready"

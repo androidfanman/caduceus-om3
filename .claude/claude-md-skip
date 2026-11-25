@@ -1,0 +1,8 @@
+# Folders with no CLAUDE.md of their own (see .claude/scripts/lint_claude_md.py).
+releases/*
+looklab/*
+pages/showcase/img/*
+research/archive/*
+webapp/public/fonts
+webapp/src/fonts
+webapp/public/samples

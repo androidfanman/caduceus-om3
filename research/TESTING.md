@@ -1,7 +1,9 @@
 # Deterministic firmware tests
 
 Research, 2026-11-15. Status: analysis, with emulator runs where marked. Nothing here is camera-tested. The suite is
-built: seven emulator tests, the patch audit, and six static build checks, all run by `tools/test/emu_test.py`.
+built: about 130 tests in all (emulator tests, the patch audit, and seven static build checks: release-rebuild,
+hook-list, hook-sections, changed-bytes, loader-end, section-order, comment-swallow), all run by `tools/test/emu_test.py`.
+There are also 21 unit tests (`tools/test/test_pr_gate.py`, `tools/test/test_provenance.py`).
 
 A deterministic regression suite for the firmware is possible and cheap to start. The emulator, om-emu, gave
 byte-identical screenshots, card images, and settings files when one build ran the same script twice. om-emu also
@@ -15,12 +17,16 @@ evidence and the open questions.
 
 ## Running the tests
 
-Build the firmware, then point the runner at the build folder and at om-emu:
+Use the workspace's python (`~/om3-work/venv/bin/python`, or `. ~/om3-work/env.sh` first). The system `python3` has no
+numpy and fails on import. Build the firmware, then point the runner at the build folder and at om-emu:
 
 ```sh
 python3 firmware/build.py --stock $OM3_STOCK --toolchain $OM3_TOOLCHAIN --out $OM3_WORK/out-NAME
 OM3_EMU=$OM3_WORK/om-emu/emu python3 tools/test/emu_test.py $OM3_WORK/out-NAME
 ```
+
+The Makefile wraps both: `make test-emu BUILD_DIR=$OM3_WORK/out-NAME` runs the emulator suite on a build, and
+`make test-unit` runs the unit tests.
 
 The static checks need the stock firmware. The runner takes it from `--stock`, else `$OM3_STOCK`, else
 `$OM3_WORK/stock`. A check that cannot run counts as `FAIL`.
@@ -33,8 +39,10 @@ and `debug-log/DEBUG.TXT`. Each test then boots the build one or more times on a
 the camera's settings from boot to boot. It checks the debug log the firmware writes at each half-press. A first
 boot that two or more tests share runs once, and each of those tests starts from its card and settings. Tests
 run side by side (`--jobs`). By default the count comes from the machine: one core and 2.5 GB of free memory
-for each test, with 2 cores and 6 GB left for other work. The first line of the run shows the count. The whole suite takes about a minute and a half: 85 s on a 32 GB Mac, against 153 s with
-two jobs and no shared boots. It prints `pass`, `known`, or `FAIL` per test, with the
+for each test, with 2 cores and 6 GB left for other work. The first line of the run shows the count. With 130 tests
+the whole suite takes about 15 minutes on a 12-core, 32 GB Mac at 4 jobs (851–973 s, measured 2026-11-25). The emulator
+is CPU-bound: about one core and 1–2.3 GB per test, more for longer tests. Each camera boot costs about 6.5 s and each
+menu step about 0.8 s. It prints `pass`, `known`, or `FAIL` per test, with the
 reason, and exits 1 on any `FAIL`. Each test's boots, logs, and cards stay in the `--out` folder.
 
 Options:
@@ -285,7 +293,7 @@ Three layers, cheapest first. A change must pass each layer before the next one 
 |---|---|---|---|
 | Static build checks | `firmware/build.py` asserts, plus `tools/test/static_check.py` | Seconds | Wrong stock bytes, code outside proven space, stray writes, a changed hook list |
 | Release rebuild | `static:release-rebuild`, from `firmware/patch.py --release vX` | Seconds | An unintended change to a shipped release |
-| Emulator tests | `tools/test/emu_test.py` | 10–30 s each, several side by side | Menu flow, saved settings across boots, card-file handling, start-up tasks, unloaded code |
+| Emulator tests | `tools/test/emu_test.py` | median 6 s, up to 90 s each, four side by side | Menu flow, saved settings across boots, card-file handling, start-up tasks, unloaded code |
 
 `emu_test.py` runs the static checks too, as the `static:*` tests. Built: all three layers. Not built: the card-file
 size and checksum check, and the editor, no-card, and damaged-`LOOKS.BIN` emulator tests under "Tests to add next".

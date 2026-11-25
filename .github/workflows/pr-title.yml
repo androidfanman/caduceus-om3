@@ -1,0 +1,55 @@
+# Fails a PR whose title is not a Conventional Commit.
+# Spec: https://www.conventionalcommits.org/en/v1.0.0/
+#
+# The title arrives via env, never interpolated into the shell: a title holding
+# shell metacharacters cannot inject commands.
+# Adding a type: extend `pattern` here and the template's type list.
+name: PR Title
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional-commit-title:
+    # Bots title PRs their own way (Renovate's default is prose), configured in the
+    # bot rather than by a contributor. Humans cannot set this field.
+    if: github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          # <type>(<scope>)?!?: [<issue>]? <imperative summary>, matched
+          # case-insensitively: the spec treats the units as case-insensitive, only
+          # BREAKING CHANGE must be upper. The bracketed ticket ID is part of the
+          # summary, so `.+` already accepts it, and whether a PR has a ticket is not
+          # knowable here. The hook checks that half.
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^()[:space:]]+\))?!?: .+'
+          if printf '%s' "$TITLE" | grep -qEi "$pattern"; then
+            echo "OK: $TITLE"
+            exit 0
+          fi
+          cat >&2 <<'MSG'
+          This title and every commit subject share the Conventional Commits 1.0.0 format:
+          https://www.conventionalcommits.org/en/v1.0.0/
+
+            <type>(<scope>)?!?: [<issue>]? <imperative summary>
+
+          types    build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test
+          (scope)  the module changed, in parentheses. Optional
+          !        optional, marks a breaking change
+          [issue]  the main ticket ID in brackets. Omit when there is no ticket
+          :        required, followed by one space
+
+            feat(auth): [YCOM-21] add device-code login
+            refactor(api)!: drop v1 response envelope
+
+          MSG
+          echo "Got: $TITLE" >&2
+          exit 1

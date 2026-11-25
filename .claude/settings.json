@@ -10,7 +10,115 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/claude_md_hook.py",
+            "if": "Bash(git commit *)"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/claude_md_hook.py",
+            "if": "Bash(git push *)"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/build_hint.py"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check_conventions.py",
+            "if": "Bash(git commit *)"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check_conventions.py",
+            "if": "Bash(gh pr create *)"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check_conventions.py",
+            "if": "Bash(gh pr edit *)"
+          }
+        ]
       }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make help)",
+      "Bash(make setup)",
+      "Bash(make build *)",
+      "Bash(make build-firmware *)",
+      "Bash(make build-webapp)",
+      "Bash(make run)",
+      "Bash(make test)",
+      "Bash(make test *)",
+      "Bash(make test-unit)",
+      "Bash(make test-webapp)",
+      "Bash(make test-emu)",
+      "Bash(make test-emu *)",
+      "Bash(make looklab)",
+      "Bash(npm ci)",
+      "Bash(npm test)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx vite build)",
+      "Bash(python3 firmware/build.py *)",
+      "Bash(python3 firmware/patch.py *)",
+      "Bash(python3 tools/test/emu_test.py *)",
+      "Bash(python3 tools/test/static_check.py *)",
+      "Bash(python3 -m unittest tools/test/*)",
+      "Bash(python3 tools/mkpatch.py *)",
+      "Bash(~/om3-work/venv/bin/python firmware/build.py *)",
+      "Bash(~/om3-work/venv/bin/python tools/test/emu_test.py *)",
+      "Bash(node tools/emulator/*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git stash *)",
+      "Bash(git worktree *)",
+      "Bash(git fetch *)",
+      "Bash(git checkout -b *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/*.jks)",
+      "Read(**/*credentials.json)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git filter-branch *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Bash(git reset --hard*)",
+      "Bash(git commit --amend*)",
+      "Bash(git merge *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh pr comment *)",
+      "Bash(gh pr edit *)",
+      "Bash(gh issue *)",
+      "Bash(gh release *)",
+      "Bash(gh label *)",
+      "Bash(gh api *)",
+      "Bash(gh repo *)",
+      "Bash(gh workflow run *)",
+      "Bash(python3 tools/test/static_check.py * --write-hooks*)",
+      "Bash(python3 tools/test/static_check.py --write-hooks*)",
+      "Bash(make setup-manual*)"
     ]
   }
 }

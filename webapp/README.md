@@ -43,22 +43,33 @@ cakelesscoder's own tool for the E-P7.
 | `src/split.ts` | Split toning (same table as the firmware) |
 | `src/pack.ts` | The look model and parsing |
 | `src/preview.ts`, `src/tone.ts` | Approximate preview and its tone LUT |
+| `src/convert.ts` | Make a film from your own .cube LUT or Lightroom preset (approximate, stays in the browser) |
+| `src/curves.ts`, `src/curvesbin.ts` | Per-film R / G / B tone curves and Color Mix, and `CURVES.BIN` |
+| `src/wheel.ts` | The color wheel's "Sat. All" (all 12 saturations together) |
+| `src/history.ts` | Undo / redo |
+| `src/recipe.ts` | Reads a readable recipe `.json` (photo code plus curves and Color Mix) |
+| `src/saved.ts` | Your own saved film sims, kept in this browser |
+| `src/photos.ts`, `src/photostore.ts` | Your own photos in the preview, and keeping them for your next visit |
+| `src/theme.css`, `src/fonts/` | Look of the tour and guide pages, and the self-hosted fonts |
 | `src/reset.ts` | Reset a look to its library or film values |
 | `src/rapidraw.ts`, `src/zip.ts`, `src/format.ts` | RapidRAW presets, zip, CRC-32 |
-| `tests/` | `om3.test.ts` checks `LOOKS.BIN` byte for byte against `card/mkprofiles.py` of this repo |
+| `tests/` | `om3.test.ts` checks the `PROFILES.BIN` writer byte for byte against `card/mkprofiles.py` of this repo. `tone.test.ts` checks the tone model against the E-P7 tools when they are present (skipped in this repo) |
 | `public/samples/` | Sample photos ([CREDITS.md](public/samples/CREDITS.md)) |
 
 ## Run it locally
 
-Node 20+:
+Node 22 (20.19+ works):
 
 ```bash
 cd webapp
 npm ci
 npm run dev        # http://localhost:5173
 npm test
-npm run build      # static site in dist/; copy it to ../looklab/ for the live site
+npm run build      # typecheck, then vite build: static site in dist/. `make looklab` copies it to ../looklab/
 ```
+
+To publish: from the repo root, `make looklab` builds, copies `dist/` into `looklab/` and removes the old
+`assets/index-*.js` and `index-*.css`.
 
 ## Self-host on a NAS (Docker)
 
@@ -98,4 +109,4 @@ little stronger than the full-size grain would look when scaled down, so you can
 Effects are not previewed. The tone is applied to luminance only, as a display-domain LUT after the base curve:
 each display value goes through the camera's contrast-0 LUT -> the same LUT with the look's tone, which is a
 bit-exact port of the firmware model from Caduceus for the E-P7 (`tools/ep7_tone_model.py` for H/S/M, `tools/ep7_tone.py` for Blacks/Whites;
-`npm run gen-library` copies its data to `src/data/tone_hsm.json`).
+`src/data/tone_hsm.json` was generated from that project's `tools/ep7_tone_model.py`. `npm run gen-library` regenerates it only with that checkout present).
