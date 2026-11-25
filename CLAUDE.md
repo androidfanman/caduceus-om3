@@ -59,9 +59,6 @@ Branches: `main` = released and safe. `feature/...` = work meant to ship (README
 - **Images in LookLab:** send any new or changed image to the owner for approval before publishing.
 - **Film sims are our own designs:** no copied looks, LUTs or presets; no grain, Glow / Clarity or Art Effects in
   film sims (the user adds those).
-- **Leave the camera's start-up alone (owner, 2026-11-13):** no loading, setting changes or other work of ours while
-  the camera starts; things load at the first half-press. Three tries (v0.26.2's automatic load, v0.27's dial mapping at
-  power-on, the 2026-11-13 films at switch-on) lagged or froze the camera at start-up. Notes: `research/NOTES.md`.
 - **Do not touch** cakelesscoder's repositories (Caduceus for the E-P7); credit them where their work is used.
 
 ## Firmware safety
@@ -109,7 +106,7 @@ in twenty minutes.
 - **No plan documents, research rounds or review agents** unless the owner asks for them. No review round goes back to
   a session for wording or notes.
 - **cad's check before a build goes on the card:** one read of what changed, for what could harm a camera (hooks and
-  their stock bytes, code space, the start-up rule, video, no card / no films), and a rebuild that matches the package's
+  their stock bytes, code space, a start-up freeze or lag, video, no card / no films), and a rebuild that matches the package's
   sha256. A real risk goes back to the owner in plain words; everything else is the owner's camera test to judge.
 - **Pull requests from contributors:** when the owner says, merge them as their authors wrote them, fix conflicts,
   make a test build, the owner tests, then release. Don't add changes of our own to them unless the owner asks.
@@ -119,7 +116,7 @@ in twenty minutes.
   that commit, run `python3 tools/test/emu_test.py BUILD_DIR --stock STOCK_BIN` on the build (`research/TESTING.md`),
   and put its pass / known / FAIL lines in the PR body. Open the PR only when it exits 0. A `FAIL` blocks the PR.
   Never add a test to `KNOWN_FAILURES` to get past one. Never run `static_check.py --write-hooks` to get past
-  `static:hook-list` or `static:changed-bytes`: review the new hook or patch site against the start-up rule first,
+  `static:hook-list` or `static:changed-bytes`: review the new hook or patch site for camera harm first,
   and name it in the PR body. The hook in `.claude/settings.json` (`tools/test/pr_gate.py`) refuses `gh pr create`
   until the suite has passed on HEAD with a build of this checkout.
 - **Every bug fix and every new feature adds a test** in `tools/test/emu_test.py` in the same branch. One behavior
