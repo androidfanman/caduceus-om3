@@ -1,6 +1,6 @@
 # Using Caduceus for OM-3
 
-This page is for **v0.40.2**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
+This page is for **v0.40.3**, the latest version. Not installed yet? Start with [Install](INSTALL.md).
 
 > [!NOTE]
 > Caduceus works on the **COLOR** profiles (COLOR 1–4) and your **films** (FILM 1–20). The Monochrome profiles keep
@@ -56,7 +56,7 @@ The rows under Picture Mode change the film (or the COLOR) you're on, straight a
 | **Shading** | Darker or lighter corners, as an effect. |
 | **Glow Effect** | +1 to +5 adds a soft glow. −1 to −5 adds Clarity (crisper local contrast). 0 = off. |
 | **Halation Effect** | 0 to 5: a red-orange glow around bright lights, as on cinema film (CineStill). Works with or without Glow; fades out in bright daylight scenes. The halo fades away from the light. Saving takes a little longer with it on (much less since v0.30.3, and less again since v0.40-beta3). |
-| **Halation Radius** | From v0.40.3-beta: Bloom (the halo above, the default), Tight, Medium or Wide: how far the glow spreads from bright lights (about 32, 64 and 128 pixels), separate from its strength. Each film keeps its own. LookLab can't set it yet. |
+| **Halation Radius** | From v0.40.3-beta: Bloom (the halo above, the default), Tight, Medium or Wide: how far the glow spreads from bright lights (about 32, 64 and 128 pixels), separate from its strength. Each film keeps its own. LookLab shows it in the preview and photo codes carry it, but no card file does, so set it on the camera. |
 | **Film Grain Effect** | Off, Low, Med or High. Added in colour, with no extra wait after the photo. From v0.40-alpha: our own colour grain, Off and 1 to 5 (a film's Low / Med / High become 2 / 3 / 5); highlights stay white and Halation keeps its glow. |
 | **Grain Size** | From v0.40-alpha: Fine, Medium or Coarse, for Film Grain. From v0.40.1 the clumps are round, with fewer repeats; from v0.40.2 the colour speckle is smoother, with less red-green. |
 | **Border** | From v0.40-alpha: a white border, 0 (off) to 5, the same width on every side; from v0.40-beta the row runs from −5 to +5: minus is black, plus is white. JPEG only: the photo keeps its size and the border covers its outer edge; RAW is untouched. In live view a thin frame line shows where its inner edge will be (from the first half-press; not in video). |
@@ -84,7 +84,7 @@ Blue-cyan, Cyan, Green-cyan, Green, Yellow-green.
 
 **Split toning** uses the **Shadows** and **Highlights** pages. Each tints the dark or the bright parts of the photo
 toward one colour. The front dial picks the colour, the rear dial the strength (0 to 10; 0 = off). For a classic
-split tone, use both: for example blue shadows and orange highlights. The **Tone Balance** row (under HSL) moves where
+split tone, use both: for example blue shadows and orange highlights. The **Split Tone Balance** row moves where
 the two meet.
 
 <!-- picture: the HSL wheel on the Hue page; the Shadows page -->
@@ -93,7 +93,7 @@ the two meet.
 
 - Change a film and the change stays: switch to another film and back, or switch the camera off and on, and it's
   still there. COLOR 1–4 keep their own changes the same way.
-- Changes are saved to the card at the next half-press.
+- The camera saves your changes in its own memory when you go back to shooting and when you switch off.
 - A **`*`** after a name means it's changed: after FILM n, something differs from how the film was built; after
   COLOR n, something differs from the camera's factory settings. A row with its own `*` is one of the changes.
 
@@ -114,8 +114,7 @@ Both are in the camera's **Button Function** menu, with the other buttons.
   **Normal** (its usual mode), **CRT**, **ART**, **COLOR** or **MONO**.
 - **A film per position:** every position set to COLOR remembers the COLOR 1–4 or FILM 1–20 you pick while the dial is
   on it. Set all four to COLOR and you have four films on the dial.
-- After you switch the camera on, half-press once: that loads your films, and the dial position's setting takes effect
-  (a dial turn does it too).
+- When you switch the camera on, your films are ready and the dial position's setting is in effect.
 
 ## The film's white balance
 
@@ -169,7 +168,7 @@ Image Aspect has three more choices, on the super control panel and in the Image
 - **Switching on:** from v0.40-beta the crop is back as soon as the camera has started, with no half-press. (In
   v0.40-alpha the camera showed 16:9 or 4:3 until your first half-press.) The camera's green frame lines sit at the
   crop's edges.
-- Photos only. LookLab doesn't know the crops yet.
+- Photos only. LookLab previews the crops.
 
 ## Choosing what the shooting screen shows (v0.40-beta)
 

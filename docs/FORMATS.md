@@ -41,8 +41,9 @@ whole file otherwise), so LookLab's older exports leave them out; its v0.21 expo
 in `+42` instead (−2..+2, softer values as −2).
 
 The camera checks size, magic, CRC, version, selection range and every record byte's range; a file that fails is
-ignored and left alone (the Looks page is then hidden). With no file, the camera starts a neutral bank and
-writes the file the first time a look is used. Writes go to `LOOKS.NEW`, are read back, then to `LOOKS.BIN`.
+ignored and left alone (the Looks page is then hidden). From v0.29 the camera never writes this file.
+Before v0.29, with no file, the camera started a neutral bank and wrote the file the first time a look was used,
+through `LOOKS.NEW`.
 
 Generators: `card/mkprofiles.py` (JSON → file) and LookLab (`webapp/src/om3.ts`: `profilesBin` / `readProfiles`), byte-identical
 (`webapp/tests/om3.test.ts`).
@@ -71,7 +72,7 @@ are read only when the camera's block is empty or invalid (the first start). Blo
 `GUIDES.BIN`, `LABELS.BIN` and `TONES.BIN` are built into the firmware from v0.29 (the formats below are unchanged;
 copies on a card are ignored).
 
-## The RGB curves record (feature/rgb-curves, not released)
+## The RGB curves record (v0.30)
 
 Per COLOR / film R / G / B tone curves (5 points each at 0 / 25 / 50 / 75 / 100 %, offsets −7..+7) are kept in a record of their own in the same
 store, at image offset 0x3B100 (3,348 bytes), so no file above changes and older firmware never reads it:
@@ -127,7 +128,7 @@ camera behaves as v0.29.5 with flat built-in curves and mix.
 
 ## EDITS.BIN (1648 bytes, v0.24)
 
-Written by the camera only (at the half-press save, when something changed); the changes you make to each film and
+Written by the camera only, before v0.29 (at the half-press save, when something changed). It holds the changes you make to each film and
 COLOR 1–4's own settings while a film sits on that COLOR. The films as built stay in `LOOKS.BIN`.
 
 | Offset | Size | Field |
