@@ -42,9 +42,10 @@ No. Caduceus works on COLOR 1–4 and your films, FILM 1–20. The Monochrome pr
 
 ### Does it work for video?
 
-Not yet: video keeps the camera's normal look. From v0.30.4-alpha split toning, Tone Balance, RGB curves, Glow and the Art
-Effects stay out of video and S&Q; a film's basic picture settings can still show. Films in video are on the
-[roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/), after the photo side is finished.
+No, and it isn't planned: Caduceus for OM-3 is for photos (2026-11-25, see the
+[roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/)). Video keeps the camera's normal look. From
+v0.30.4-alpha split toning, Tone Balance, RGB curves, Glow and the Art Effects stay out of video and S&Q; a film's basic
+picture settings can still show. If Caduceus ever breaks video (a crash or a freeze), that's a bug: please report it.
 
 ### What does the `*` mean?
 

@@ -5,8 +5,9 @@
 What's planned for Caduceus for OM-3. Nothing here is promised or dated: features land when they work on a real camera.
 Ideas and requests are welcome in [Issues](https://github.com/androidfanman/caduceus-om3/issues).
 
-The order (owner, 2026-11-09): colour profiles first, then video. The colour profiles are now complete; video is next.
-The button requests below are planned too; their place in that order isn't set yet.
+Caduceus for OM-3 is for photos (owner, 2026-11-25): no video features are planned. Video keeps working as it does
+now, and a change of ours that breaks video is still a bug and gets fixed. See "Video: not planned" below.
+The button requests below are planned too.
 
 Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 
@@ -62,16 +63,21 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 | **ISO Auto and WB Lock keys** ([#52](https://github.com/androidfanman/caduceus-om3/issues/52), [#77](https://github.com/androidfanman/caduceus-om3/pull/77), [#78](https://github.com/androidfanman/caduceus-om3/pull/78), by ryanbughuang) | Two new button functions, offered as pull requests. | In progress |
 | **Touchscreen Delete button in Playback** ([#49](https://github.com/androidfanman/caduceus-om3/issues/49)) | A touch Delete button in playback. | Requested |
 
-## Video (after the photo side is finished)
+## Video: not planned
 
-| Feature | What it means | Status |
+The owner decided on 2026-11-25 that Caduceus for OM-3 stays photo-only. The owner doesn't shoot video and can't
+review or test video changes well; our emulator doesn't simulate video recording; the code space proven safe on the
+camera is almost full; and there isn't time to look after both sides. The requests below are closed. Video keeps
+working as it does now, and a change of ours that breaks video is still a bug and gets fixed.
+
+| Request | What it meant | Status |
 |---|---|---|
-| **Colour profiles in video** ([#3](https://github.com/androidfanman/caduceus-om3/issues/3)) | Your films also apply when recording video. | Requested |
-| **10-bit beyond Log and HLG** ([#1](https://github.com/androidfanman/caduceus-om3/issues/1), [#3](https://github.com/androidfanman/caduceus-om3/issues/3)) | 10-bit with the standard and COLOR profiles, or cleaner 8-bit. | Requested |
-| **H.265 and a bitrate setting** ([#51](https://github.com/androidfanman/caduceus-om3/pull/51), by buburun) | H.265 for every picture mode, plus a bitrate choice. | Requested |
-| **Sharpness in video** ([#6](https://github.com/androidfanman/caduceus-om3/issues/6)) | Sharpness down to Off in video. | Requested |
-| **Wider C-AF settings for video** ([#14](https://github.com/androidfanman/caduceus-om3/issues/14)) | C-AF speed and sensitivity beyond −2..+2. | Requested |
-| **Open gate video** ([#24](https://github.com/androidfanman/caduceus-om3/issues/24)) | Record from the whole sensor height. | Requested |
+| **Colour profiles in video** ([#3](https://github.com/androidfanman/caduceus-om3/issues/3)) | Your films also apply when recording video. | Not planned |
+| **10-bit beyond Log and HLG** ([#1](https://github.com/androidfanman/caduceus-om3/issues/1), [#3](https://github.com/androidfanman/caduceus-om3/issues/3)) | 10-bit with the standard and COLOR profiles, or cleaner 8-bit. | Not planned |
+| **H.265 and a bitrate setting** ([#51](https://github.com/androidfanman/caduceus-om3/pull/51), by buburun) | H.265 for every picture mode, plus a bitrate choice. | Not planned |
+| **Sharpness in video** ([#6](https://github.com/androidfanman/caduceus-om3/issues/6)) | Sharpness down to Off in video. | Not planned |
+| **Wider C-AF settings for video** ([#14](https://github.com/androidfanman/caduceus-om3/issues/14)) | C-AF speed and sensitivity beyond −2..+2. | Not planned |
+| **Open gate video** ([#24](https://github.com/androidfanman/caduceus-om3/issues/24)) | Record from the whole sensor height. | Not planned |
 
 ## Done
 

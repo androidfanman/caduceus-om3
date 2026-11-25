@@ -15,7 +15,7 @@ Update this page when either project ships a feature, and regenerate the page wi
 3. **Propose schema and min_fw upstream.** Added to our looks today. Their rules ask for new fields to be proposed there first, and their copy of our om3.ts will need one more line at their next sync.
 4. **Settle the hue direction.** The two projects report opposite directions for + hue. One same-scene test on both bodies decides whether shared looks turn hue the right way.
 5. **Line up where Grain, NR and Sharp live.** On the E-P7 they are COLOR profile settings, here they are part of the film. A shared look carries them either way, but the two cameras apply them differently.
-6. **Trade features.** To the OM-3: halation (Next), XPan / 21:9, video colour profile, button functions. To the E-P7: split toning, fast colour grain, the RAW+JPEG grain lesson. (Loading at power-on is off the list: the OM-3 dropped it in v0.27.1 because it could freeze the camera at start-up.)
+6. **Trade features.** To the OM-3: halation (Next), XPan / 21:9, button functions (the OM-3 is photo-only from 2026-11-25, so no video). To the E-P7: split toning, fast colour grain, the RAW+JPEG grain lesson. (Loading at power-on is off the list: the OM-3 dropped it in v0.27.1 because it could freeze the camera at start-up.)
 
 ## Control Panel and formats
 
@@ -73,9 +73,9 @@ Update this page when either project ships a feature, and regenerate the page wi
 
 | Feature | E-P7 | OM-3 | Parity | Notes |
 |---|---|---|---|---|
-| **Colour profile for video** | Movie Vivid becomes its own profile (MOVIE.BIN); camera-tested | Planned (#3) | E-P7 only |  |
+| **Colour profile for video** | Movie Vivid becomes its own profile (MOVIE.BIN); camera-tested | Not planned (#3 closed: OM-3 is photo-only) | E-P7 only |  |
 | **Colour profile in AP modes** | v0.30 (AP.BIN) | Not researched | E-P7 only |  |
-| **Log video** | Hidden log curve via Muted; camera-tested | OM-Log400 is stock; 10-bit for other profiles planned | Both, different |  |
+| **Log video** | Hidden log curve via Muted; camera-tested | OM-Log400 is stock; 10-bit for other profiles not planned | Both, different |  |
 | **XPan 65:24 and 21:9 stills** | Camera-tested (v0.29 fixes) | Planned (custom crop modes) | E-P7 only | Their docs/ASPECT.md is the map to follow. |
 | **Live ND** | ND3 / ND4 via Multiple Exposure (early alpha) | Stock camera feature (the E-P7 notes confirm the OM module) | Both, different | Nothing to port. |
 | **Lowest shutter speed setting** | v0.30 (Custom Menu E1) | Not researched | E-P7 only |  |
