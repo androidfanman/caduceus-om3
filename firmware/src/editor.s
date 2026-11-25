@@ -23411,4 +23411,4 @@ bl_v:                             /* the value */
  .include "playfilm.s"            /* #93: playback labels a photo by the film in its own Exif (ext13) */
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
  .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
- .include "looksets.s"             /* look sets: switch film sets from the Card/Folder/File menu (ext13) */
+ .include "looksets.s"             /* look sets: switch film sets from the Card/Folder/File menu (ext15) */

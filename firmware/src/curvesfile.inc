@@ -558,7 +558,7 @@ ck_load:
 /* ck_card: `call ck_card,[d2,d3,a2,a3],24` from lg_pr (every shutter event, HLS task): a held-back write; once, at
  * the first shutter event with the films in and a card: the curves file of the set in use (ls_cvp: C:\OM3MOD\CURVES.BIN,
  * or C:\OM3MOD\LOOKS\NAME.CRV with a set from the folder, so CURVES.BIN does not replace that set's), then ck_bi from
- * what the camera has now (el_card may have brought new films): ck_set (looksets.s: ext11 is full). */
+ * what the camera has now (el_card may have brought new films): ck_set (looksets.s). */
 ck_card:
  movbu (ck_pend),d0
  cmp 0,d0

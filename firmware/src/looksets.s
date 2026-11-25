@@ -28,7 +28,7 @@
 .set LR_MAGIC, 0x4c334d4f          /* "OM3L" */
 .set LR_LEN, 32                    /* +0 magic, +4 u16 1, +6 u16 32, +8 CRC-32 of 12.., +12 the 11-character name (zero:
                                     * LOOKS.BIN), +23..31 zero */
-.section .ext13,"ax"
+.section .ext15,"ax"                 /* as ext13, a part of section 6 (v0.40.3: ext13 is full) */
 
 /* ls_init: `call ls_init,[d2,d3,a2,a3],20`, once per power-on (el_go in the GUI task after every section is in, or
  * ls_go): the record from M, and the list before the scan (no card access, no setting written). */
@@ -624,9 +624,27 @@ ls_fix:
  beq 9f
  mov LS_SID,d0
  mov 0,a1
- call fw_wr,[d2,d3,a2,a3],36
+ call ls_sv,[d2,d3,a2,a3],36
 9:
  ret [d2,d3,a2,a3],48
+
+/* ls_sv: `call ls_sv,[d2,d3,a2,a3],36`, d0 = a setting id, d1 = the value, a0 / a1 the manager's handle / mode: the
+ * manager writes it when the camera's value differs (as fw_wr until v0.40.2). Locals (4) id, (8) value, (12) a0, (16) a1. */
+ls_sv:
+ mov d0,(4,sp)
+ mov d1,(8,sp)
+ mov a0,(12,sp)
+ mov a1,(16,sp)
+ call sget,[],4
+ mov (8,sp),d1
+ cmp d1,d0
+ beq 9f
+ mov (4,sp),d0
+ mov (12,sp),a0
+ mov (16,sp),a1
+ call manager,[d2,d3,a2,a3],68
+9:
+ ret [d2,d3,a2,a3],36
 
 /* ls_wr: `call ls_wr,[d2,d3,a2,a3],20`: ls_rec -> M (both aliases), as cm_wr; held while the camera saves M (ls_wp:
  * again at the next shutter event). */
