@@ -364,6 +364,8 @@ WHEEL_RESET_LABEL = (f'{OPEN_WHEEL} info wait info wait {LABEL_IS("Hue")} menu w
 # Picture Mode closes after 30 s idle (#75, stock 8 s), counted again from each key or dial turn. The super control
 # panel and the white balance screen keep 8 s. A dial turn every 12 s keeps the wheel open for 48 s.
 WAITS = lambda n: 'wait ' * n     # a wait, a dial or an expect token runs 1.2 s, a key 1.35 s
+# These tests count the idle time in tokens, so they take the driver's fixed wait after every token (SETTLE=0).
+FIXED_WAIT = (('SETTLE', '0'),)
 PICTURE_MODE, SHOOTING = 'expect:gui:ID_ST_DIRECT_PICTUREMODE_ART', 'expect:gui:ID_ST_CA_REQ_DISP'
 PANEL, WHITE_BALANCE = 'expect:gui:ID_ST_MENU_DTL_SCP', 'expect:gui:ID_ST_DIRECT_WB'
 OPEN_PICTURE_MODE, OPEN_WHITE_BALANCE = 's1 wait wait ok wait ok wait', 's1 wait wait ok wait right wait ok wait'
@@ -1292,31 +1294,31 @@ TESTS = {
         Boot(WHEEL_SAT_GUIDES),
     ],
     'picture-mode-closes-after-30-s-idle': [
-        Boot(PICTURE_MODE_IDLE_30S),
+        Boot(PICTURE_MODE_IDLE_30S, env=FIXED_WAIT),
     ],
     'super-control-panel-closes-after-8-s-idle': [
-        Boot(PANEL_IDLE_8S),
+        Boot(PANEL_IDLE_8S, env=FIXED_WAIT),
     ],
     'picture-mode-rear-dial-restarts-the-idle-time': [
-        Boot(WHEEL_DIAL_KEEPS_OPEN('main')),
+        Boot(WHEEL_DIAL_KEEPS_OPEN('main'), env=FIXED_WAIT),
     ],
     'picture-mode-front-dial-restarts-the-idle-time': [
-        Boot(WHEEL_DIAL_KEEPS_OPEN('sub')),
+        Boot(WHEEL_DIAL_KEEPS_OPEN('sub'), env=FIXED_WAIT),
     ],
     'picture-mode-up-key-restarts-the-idle-time': [
-        Boot(PICTURE_MODE_KEEPS_OPEN('up')),
+        Boot(PICTURE_MODE_KEEPS_OPEN('up'), env=FIXED_WAIT),
     ],
     'picture-mode-touch-restarts-the-idle-time': [
-        Boot(PICTURE_MODE_TOUCH_30S),
+        Boot(PICTURE_MODE_TOUCH_30S, env=FIXED_WAIT),
     ],
     'super-control-panel-touch-keeps-8-s': [
-        Boot(PANEL_TOUCH_8S),
+        Boot(PANEL_TOUCH_8S, env=FIXED_WAIT),
     ],
     'function-screen-touch-keeps-8-s': [
-        Boot(FUNCTION_TOUCH_8S),
+        Boot(FUNCTION_TOUCH_8S, env=FIXED_WAIT),
     ],
     'white-balance-closes-after-8-s-idle': [
-        Boot(WHITE_BALANCE_IDLE_8S),
+        Boot(WHITE_BALANCE_IDLE_8S, env=FIXED_WAIT),
     ],
     'color-wheel-dial-step-writes-the-cursor-only': [
         Boot(WHEEL_STEP_WRITES_CURSOR),
@@ -2695,6 +2697,32 @@ def run_fddrive(emu, build, out, card0):
     return FDDRIVE, errors
 
 
+SETTLE = 'settle-ends-where-the-fixed-wait-ends'
+# Keys with no wait between them, so the driver's settle decides when each next key goes in.
+SETTLE_TOKENS = 's1 wait wait ok ok down down down info info info info main+1 sub+1 fhash:end s1 poweroff'
+
+
+def run_settle(emu, build, out, card0):
+    """The same keys from a blank camera, once with the driver's settle and once with its fixed wait (SETTLE=0):
+    every step's state, the last screen and the debug log are the same."""
+    d = out / SETTLE
+    runs = {}
+    for name, env in (('settle', ()), ('fixed', (('SETTLE', '0'),))):
+        (d / name).mkdir(parents=True, exist_ok=True)
+        (d / name / 'nv.bin').unlink(missing_ok=True)
+        _, lines, errs, fatal = run_boot(emu, build, d / name, 1, Boot(SETTLE_TOKENS, env=env), card0, {})
+        if fatal or errs:
+            return SETTLE, [f'{name}: {e}' for e in [fatal, *errs] if e]
+        steps = json.loads((d / name / 'boot1.json').read_text())['log']
+        screen = [l for l in (d / name / 'boot1.log').read_text().splitlines() if l.startswith('FHASH ')]
+        runs[name] = steps, screen, lines
+    errors = []
+    for what, a, b in zip(('step states', 'last screen', 'debug log'), runs['settle'], runs['fixed']):
+        if a != b:
+            errors.append(f'{what} differ between settle and fixed wait ({SETTLE}/settle, {SETTLE}/fixed)')
+    return SETTLE, errors
+
+
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
           PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive}
@@ -2711,7 +2739,7 @@ def newest_looks():
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('build', type=pathlib.Path)
-    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC]))
+    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, SETTLE, *DIRECT, *STATIC]))
     ap.add_argument('--jobs', type=lambda v: max(1, int(v)), help='sessions side by side (default: from cores and free memory)')
     ap.add_argument('--out', type=pathlib.Path)
     ap.add_argument('--looks', type=pathlib.Path)
@@ -2734,7 +2762,7 @@ def main():
     looks = (a.looks or newest_looks()).resolve()
     make_card(emu, build, looks, card0)
     fixtures = make_fixtures(out, looks)
-    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC])
+    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, SETTLE, *DIRECT, *STATIC])
     stock = static_check.find_stock(a.stock) if any(n in STATIC for n in names) else None
     runs = [(n, k) for n in names for k in range(1, a.repeat + 1)]
     auto = a.jobs is None
@@ -2787,6 +2815,8 @@ def main():
                 return run_gates(emu, build, d, card0)
             if n == GRAINTILE:
                 return run_graintile(emu, build, d, card0)
+            if n == SETTLE:
+                return run_settle(emu, build, d, card0)
             if n in DIRECT:
                 return DIRECT[n](emu, build, d, card0)
             first = shared.get((k, boot_key(TESTS[n][0])))

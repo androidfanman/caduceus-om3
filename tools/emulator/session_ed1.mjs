@@ -96,7 +96,7 @@ if (process.env.MMIO) Debugger.attach(lab.sim, { lab }).traceMmio((r) => fs.appe
 // SHOTAT=PC,... (hex): during a frames: token, also shoot the screen as it stands when the code reaches each PC
 // (at_PC_N.png, no scene tick first), the state the camera's display can show mid-update.
 let shotArm = false, shotN = 0; let kept = 0;   // keep: checks passed
-const lasts = new Map();    // last: / expect:last: (PC -> d1 -> the last d0)
+const lasts = new Map(); let lastsN = 0;    // last: / expect:last: (PC -> d1 -> the last d0), lastsN its hits
 const counts = new Map();   // count: / expect:count: (PC -> { any, d0, n })
 let hits_n = 0;                                 // hit: matches
 if (process.env.SHOTAT) Debugger.attach(lab.sim, { lab }).traceExec((r) => { if (shotArm) shot('at_' + r.pc.toString(16) + '_' + shotN++ + '.png', false); },
@@ -113,6 +113,29 @@ function getv(id) {
   dd.m.setRegs(saved);
   return v;
 }
+// After a token the camera idles POST_NS. SETTLE=0 always idles all of it, and a wait token always does. Otherwise
+// it idles in SLICE_NS steps and stops once SETTLE_K steps in a row change nothing settleSig() reads.
+const POST_NS = 1200e6, SLICE_NS = 100e6, SETTLE = process.env.SETTLE !== '0', SETTLE_K = Number(process.env.SETTLE_K || 2);
+// The screen: the GUI's OSD surfaces (om-emu lab.surfaces), each one once. The OSD engine redraws them every 200 ms
+// on some screens, so its counters move with nothing changed.
+const screenHash = () => { const h = createHash('sha1'), seen = new Set();
+  for (const x of lab.surfaces || []) { const k = x.base + ':' + x.stride * x.height; if (!seen.has(k)) { seen.add(k); h.update(rd(x.base, x.stride * x.height)); } }
+  return h.digest('hex'); };
+let cardSaves = 0; { const save = card.save; card.save = (x) => { cardSaves++; save(x); }; }
+const settleSig = () => {
+  const st = u16(STATE), P = POOL + st - 1, ed = st >= 1 && st - 1 < HMAX ? createHash('sha1').update(rd(P, 720)).digest('hex') : '';
+  let cn = 0; for (const c of counts.values()) cn += c.n;
+  return [st, lab.state(), screenHash(), ed, hits.length, hits_n, kept, cn,
+    lastsN, globalThis.__wc?.n ?? 0, cardSaves, lab.store_log?.nvram?.saves.length ?? 0].join();
+};
+const settle = (t) => {
+  const end = lab.lab_time() + POST_NS; let prev = settleSig(), same = 0, n = 0;
+  while (lab.lab_time() < end && same < SETTLE_K) {
+    s.idle_slice(Math.min(end, lab.lab_time() + SLICE_NS)); n++;
+    const sig = settleSig(); same = sig === prev ? same + 1 : 0; prev = sig;
+    if (process.env.SETTLE_TRACE) console.error('settle', t, n, sig);
+  }
+};
 for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   if (process.env.WFROM && t === process.env.WFROM) globalThis.__armed = true;
   curStep = t + "#" + log.length;
@@ -129,7 +152,7 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   }
   else if (t.startsWith('frames:')) {
     // frames:KEY:N:MS:PREFIX presses KEY, then shoots N frames MS ms apart (PREFIX0.png..), the key held 150 ms:
-    // shows a redraw before it settles (a plain key token idles 1350 ms first). Each frame is a fresh compose.
+    // shows a redraw before it settles (a plain key token idles up to 1350 ms first). Each frame is a fresh compose.
     const [k, n, ms, pre] = t.slice(7).split(':'); let held = true, at = lab.lab_time();
     shotArm = true; s.key(k, 'down'); s.camapp.pump();
     for (let i = 0; i < Number(n); i++) {
@@ -254,7 +277,8 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     // fhash:NAME notes the screen's hash (as shot: composes a fresh frame). expect:fsame:A:B / expect:fdiff:A:B end the
     // run with exit 1 unless the frames noted as A and B are the same / differ.
     s.scene_frame(); s.a15_apply(DEV);
-    (globalThis.__fh ??= {})[t.slice(6)] = createHash('sha256').update(lab.compose(DEV, true, true).raw).digest('hex');
+    const h = (globalThis.__fh ??= {})[t.slice(6)] = createHash('sha256').update(lab.compose(DEV, true, true).raw).digest('hex');
+    console.log('FHASH', t.slice(6), h);
   }
   else if (t.startsWith('expect:fsame:') || t.startsWith('expect:fdiff:')) {
     const [a, b] = t.slice(13).split(':'), fh = globalThis.__fh || {}, same = fh[a] === fh[b];
@@ -283,7 +307,7 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
     // camera's screen was given for it.
     const ex = t.startsWith('expect:'), [pc, rest] = t.slice(ex ? 12 : 5).split(':'), PC = parseInt(pc, 16) >>> 0;
     let c = lasts.get(PC);
-    if (!c) { c = new Map(); lasts.set(PC, c); Debugger.attach(lab.sim, { lab }).traceExec((r) => { c.set(r.d1 | 0, r.d0 | 0); }, { pcs: [PC] }); }
+    if (!c) { c = new Map(); lasts.set(PC, c); Debugger.attach(lab.sim, { lab }).traceExec((r) => { c.set(r.d1 | 0, r.d0 | 0); lastsN++; }, { pcs: [PC] }); }
     if (ex) { const [d1, want] = rest.split('='), got = c.has(parseInt(d1, 10)) ? String(c.get(parseInt(d1, 10))) : 'none';
       if (got !== want) { console.error(`expect:last ${pc} ${d1}: ${got}, not ${want}`); process.exit(1); } }
     else c.clear();
@@ -477,7 +501,7 @@ for (const t of SCRIPT.split(/\s+/).filter(Boolean)) {
   }
   else if (t.startsWith('hold:')) { const k = t.slice(5); s.key(k, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 2000e6); s.key(k, 'up'); s.camapp.pump(); }
   else if (t !== 'wait') { s.key(t, 'down'); s.camapp.pump(); s.idle_slice(lab.lab_time() + 150e6); s.key(t, 'up'); s.camapp.pump(); }
-  curStep = t; s.idle_slice(lab.lab_time() + 1200e6); snap(t);
+  curStep = t; if (t === 'wait' || !SETTLE) s.idle_slice(lab.lab_time() + POST_NS); else settle(t); snap(t);
   if (wdbg) { if (t === 'down') wdbg.watch(WRANGE.split(',').map((r, i) => { const [lo, n] = r.split(':'); return { id: i, lo: parseInt(lo, 16), len: parseInt(n, 16), kind: process.env.WKIND || 'r', action: 'log' }; })); for (const r of wdbg.watchLog()) wlog.push({ step: t, id: r.id, pc: r.pc.toString(16), addr: (r.addr >>> 0).toString(16) }); }
 }
 const st = s.storage;
