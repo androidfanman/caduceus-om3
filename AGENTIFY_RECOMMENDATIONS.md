@@ -18,6 +18,6 @@ These items came up during the 2026-11-24 agentify run and are still open. Each 
 - **Two tone tests skip without the E-P7 tools.** `webapp/tests/tone.test.ts` needs `tools/ep7_tone.py` and
   `tools/ep7_tone_model.py` from the Caduceus for E-P7 project. Copying them in means taking cakelesscoder's code, so
   this is the owner's call.
-- **The emulator suite takes about 17 minutes.** The emulator is CPU-bound, and each test boots the camera from
-  scratch. The cheapest gain is `--jobs 8` in place of 4: about 9 minutes, and up to about 18 GB of memory. A bigger
-  gain needs snapshots in om-emu, so that tests can share the same start.
+- **The emulator suite takes about 17 minutes.** #110 picks the job count from the machine and #111 replaces the
+  fixed wait after each step, about 14% faster. When both are in `main`, update the run time and job count in
+  `research/TESTING.md` and in the `build-run-test` skill.

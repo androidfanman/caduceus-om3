@@ -45,7 +45,7 @@ cakelesscoder's own tool for the E-P7.
 | `src/preview.ts`, `src/tone.ts` | Approximate preview and its tone LUT |
 | `src/convert.ts` | Make a film from your own .cube LUT or Lightroom preset (approximate, stays in the browser) |
 | `src/curves.ts`, `src/curvesbin.ts` | Per-film R / G / B tone curves and Color Mix, and `CURVES.BIN` |
-| `src/wheel.ts` | The colour wheel's "Sat. All" (all 12 saturations together) |
+| `src/wheel.ts` | The color wheel's "Sat. All" (all 12 saturations together) |
 | `src/history.ts` | Undo / redo |
 | `src/recipe.ts` | Reads a readable recipe `.json` (photo code plus curves and Color Mix) |
 | `src/saved.ts` | Your own saved film sims, kept in this browser |

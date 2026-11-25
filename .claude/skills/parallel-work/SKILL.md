@@ -28,6 +28,6 @@ description: Which parts of this repo are safe to edit at the same time. Read be
 
 - One workspace for all worktrees. Never run `research/setup.sh` from a worktree: it rewrites `env.sh` `OM3_REPO` to that worktree.
 - Give each worktree its own `BUILD_DIR` (`make build-firmware BUILD_DIR=~/om3-work/out-NAME`). Default `out-make` is shared.
-- Never run two emulator suites or a toolchain build at once: CPU contention turns a run of minutes into 15+.
+- Never run two emulator suites or a toolchain build at once: CPU and memory contention, OOM risk.
 - PR gate pass record (`emu-test-pass.json`) lives in each worktree's own git dir. Safe.
 - Ports: Vite 5173 moves to the next free port. Docker compose 8080 fixed (`CADUCEUS_PORT` overrides).

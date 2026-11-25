@@ -18,8 +18,8 @@ description: How to build, run and test this repo. Read before any build, run or
 ## Targets
 
 - `build-firmware`: package into `BUILD_DIR` (default `~/om3-work/out-make`), about 240 MB. `build.json` `package_sha256`.
-- `test-emu`: emulator suite on `BUILD_DIR`. 129 tests, `--jobs 4`, minutes. Exit 1 on any `FAIL`. Run on a clean committed tree to record the pass `tools/test/pr_gate.py` needs.
-- Never run two emulator suites or a toolchain build side by side: CPU contention slows runs from minutes to 15+.
+- `test-emu`: emulator suite on `BUILD_DIR`. 129 tests, `--jobs 4`, about 17 min. Exit 1 on any `FAIL`. Run on a clean committed tree to record the pass `tools/test/pr_gate.py` needs.
+- Never run two emulator suites or a toolchain build side by side: CPU and memory contention, OOM risk.
 - `test-unit`: 21 unittest cases, seconds, needs workspace venv.
 - `test-webapp`: vitest, 116 tests, offline. Needs `python3` on PATH (`om3.test.ts` runs `card/mkprofiles.py`). 3 tone tests skip: E-P7 tools absent.
 - `build-webapp`: `tsc --noEmit` + `vite build` into `webapp/dist`.
@@ -32,5 +32,5 @@ description: How to build, run and test this repo. Read before any build, run or
 - `VITE_DEFAULT_CAMERA=om3` in older docs is unused. `npm run build` gives the same output.
 - `npm run gen-library` needs E-P7 checkout inputs. Outputs are committed.
 - `releases/vX` rebuild: `python3 firmware/patch.py --stock $OM3_STOCK --release vX --out DIR`, compare `SHA256SUMS`. A build of `main` need not match the latest release.
-- No CI build or test. `.github/workflows/releases.yml` only publishes `releases/`.
+- CI: `.github/workflows/test.yml` runs LookLab `npm test` + `npm run build` on each PR. No firmware CI: needs stock BIN. `releases.yml` publishes `releases/`.
 - Docker: `cd webapp && docker compose up -d --build`, http://localhost:8080, `/healthz`.
