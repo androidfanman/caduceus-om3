@@ -163,6 +163,11 @@ ls_pick:
  mov 12,d1
  call ub_cpy,[],0
  call ls_wr,[d2,d3,a2,a3],20
+ mov (8,sp),a2                    /* its built-in curves and mix, for the films in use now (the COLORs made meanwhile
+                                   * from the last set's follow: ck_fixall) */
+ call ck_set,[d2,d3,a2,a3],24
+ movbu (ck_st),d0
+ movbu d0,(ls_cst)
  bra 9f
 5:
  call ls_fix,[d2,d3,a2,a3],48     /* not taken: the row back to the set in use */
@@ -352,6 +357,7 @@ ls_rd:
  * else C:\OM3MOD\LOOKS\NAME.EXT in ls_pbuf (spaces trimmed) */
 ls_path:
  call ls_ent,[],0
+ls_pathn:                          /* as ls_path, a0 = the name */
  movbu (a0),d0
  cmp 0,d0
  bne 1f
@@ -401,6 +407,101 @@ ls_path:
  clr d0
  movbu d0,(a3)
  mov ls_pbuf,a0
+ ret [d2,d3,a2,a3],20
+
+/* ck_set: `call ck_set,[d2,d3,a2,a3],24`, a2 = P (ck_card; ls_pick after a set was taken): the curves file of the set in
+ * use (ls_rec) -> ck_st 0 none, 1 taken (valid and not what the camera has: kept in M, ck_wr), 2 the same, 3 not valid;
+ * then ck_bi for the films P has now and COLOR 1..4 follow it. No file or not valid: what the camera has stays, and
+ * gives values only to the films it was made for (their CRC). Read into ck_rb: ck_buf may hold a write that waits. */
+ck_set:
+ call ls_cvp,[d2,d3,a2,a3],20     /* a0 = its path */
+ clr d0
+ movbu d0,(ck_st)
+ mov gd_mode,a1
+ call fopen,[],4
+ cmp 0,a0
+ beq 6f
+ mov a0,a3
+ mov ck_rb,a0
+ mov 1,d0
+ mov CK_LEN + 1,d1
+ mov a3,a1
+ call fread,[d2,d3,a2,a3],24
+ mov d0,d2
+ mov a3,a0
+ call fclose,[d2,a2,a3],16
+ mov 3,d0
+ movbu d0,(ck_st)
+ cmp CK_LEN,d2
+ bne 6f
+ mov ck_rb,a0
+ call ck_valid,[d2,d3,a2,a3],20
+ cmp 0,d0
+ beq 6f
+ mov 2,d0
+ movbu d0,(ck_st)
+ movbu (ck_have),d0
+ cmp 0,d0
+ beq 2f
+ call ck_img,[],0
+ mov a0,a1
+ mov ck_rb,a0
+ mov CK_LEN,d1
+ call ck_cmp,[d2],8
+ cmp 0,d0
+ beq 6f
+2:
+ mov ck_buf,a0
+ mov ck_rb,a1
+ mov CK_LEN,d1
+ call ub_cpy,[],0
+ mov 1,d0
+ movbu d0,(ck_st)
+ movbu d0,(ck_have)
+ call ck_wr,[d2,d3,a2,a3],20
+6:
+ movbu (ck_have),d0
+ cmp 0,d0
+ beq 9f
+ call ck_img,[],0
+ call ck_mk,[d2,d3,a2,a3],24
+ call ck_fixall,[d2,d3,a2,a3],20
+9:
+ ret [d2,d3,a2,a3],24
+
+/* ck_img: `call ck_img,[],0` -> a0 = the image the camera has: ck_buf while its write waits, else the copy in M. Uses
+ * d0, a0. */
+ck_img:
+ movbu (ck_pend),d0
+ cmp 0,d0
+ beq 1f
+ mov ck_buf,a0
+ ret [],0
+1:
+ mov CK_C,a0
+ ret [],0
+
+/* ls_cvp: `call ls_cvp,[d2,d3,a2,a3],20` -> a0 = the path of the curves file of the set in use: C:\OM3MOD\CURVES.BIN
+ * with LOOKS.BIN, else C:\OM3MOD\LOOKS\NAME.CRV (the CURVES.BIN format; the folder's list takes only .BIN) */
+ls_cvp:
+ movbu (ls_rec + 12),d0
+ cmp 0,d0
+ bne 1f
+ mov ck_path,a0
+ ret [d2,d3,a2,a3],20
+1:
+ mov ls_cnm,a0
+ mov ls_rec + 12,a1
+ mov 12,d1
+ call ub_cpy,[],0
+ mov 67,d0                        /* "CRV" */
+ movbu d0,(ls_cnm + 8)
+ mov 82,d0
+ movbu d0,(ls_cnm + 9)
+ mov 86,d0
+ movbu d0,(ls_cnm + 10)
+ mov ls_cnm,a0
+ call ls_pathn,[d2,d3,a2,a3],20
  ret [d2,d3,a2,a3],20
 
 /* ls_scan: `call ls_scan,[d2,d3,a2,a3],36`: the folder's sets into entries 1.., by name (ls_cb); LOOKS.BIN entry 0;
@@ -753,7 +854,8 @@ ls_cnt:
 
 /* ls_txt: `call ls_txt,[d2,d3,a2,a3],24` from the debug log writer: "Film sets: in use NAME, list N (files F, walk
  * W, T us): A | B ..., picks loaded L, last pick NAME result R" (R: 1 taken, 2 the same films, 3 no file, 4 not
- * valid, 5 no memory; 0 none yet) */
+ * valid, 5 no memory; 0 none yet); "Film set curves: last pick NAME: none / taken / the same / not valid; films with
+ * built-in curves or mix in use: N" (N: the films the curves the camera has were made for) */
 ls_txt:
  LGS lsl_1
  mov ls_rec + 12,a0               /* the set in use: its row text when listed, else its 8.3 name */
@@ -804,6 +906,22 @@ ls_txt:
  LGS lsl_10
  movbu (ls_res),d0
  LGD
+ LGS lsl_11                       /* the pick's curves file */
+ mov ls_last,a0
+ movbu (a0),d0
+ cmp 0,d0
+ bne 5f
+ mov lsl_no,a0
+5:
+ call lg_s,[],0
+ LGS lsl_12
+ movbu (ls_cst),d0
+ mov lg_qst,a0
+ call lg_nth,[],0
+ call lg_s,[],0
+ LGS lsl_13
+ mov (ck_nm),d0
+ LGD
  ret [d2,d3,a2,a3],24
 lsl_1:
  .asciz "\r\nFilm sets: in use "
@@ -825,6 +943,12 @@ lsl_9:
  .asciz ", last pick "
 lsl_10:
  .asciz " result "
+lsl_11:
+ .asciz "\r\nFilm set curves: last pick "
+lsl_12:
+ .asciz ": "
+lsl_13:
+ .asciz "; films with built-in curves or mix in use: "
 ls_deft:
  .asciz "LOOKS.BIN"
 lsl_no:
@@ -843,6 +967,10 @@ ls_def:                           /* LOOKS.BIN's name: all 0 */
 ls_rec:                           /* the record ('OM3L'), as in M */
  .space LR_LEN
 ls_last:
+ .space 12
+ck_rb:                            /* the card's curves file (one byte more is asked for, to see a longer file) */
+ .space CK_LEN + 4
+ls_cnm:                           /* the curves file's name (ls_cvp) */
  .space 12
 ls_pbuf:
  .space 32
@@ -872,6 +1000,8 @@ ls_rok:
 ls_wp:
  .byte 0
 ls_res:
+ .byte 0
+ls_cst:                           /* the last pick's curves file, as ck_st */
  .byte 0
  .balign 4
 
