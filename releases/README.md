@@ -57,7 +57,7 @@ Always copy the version's own `GUIDES.BIN` (from v0.20 it carries code made for 
 
 **Going back to stock:** flash `SD card files/restore/E1479999.BIN`, the official firmware the patcher saved.
 
-Each version is also published on the repo's **Releases** page (tag `v0.16` … `v0.27.1`) with the whole project as
+Each version is also published on the repo's **Releases** page (one tag per version, for example `v0.40.3`) with the whole project as
 it was at that version: a GitHub Action (`.github/workflows/releases.yml`) publishes every folder here once, so a
 new version only needs its folder. Optional extras in a folder (`DEBUG.TXT`, `*.zip`, from v0.27) are attached too (`CURVES.BIN`, from v0.30, by hand);
 the launchers never copy them to the card.

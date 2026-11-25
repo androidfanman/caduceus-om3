@@ -73,8 +73,8 @@ From v0.27 a JPEG taken on a FILM carries the film too: whoever has the photo ca
 
 ### Does grain slow the camera down?
 
-No. Film Grain is added by the camera's own image processor while it develops the photo, in colour, with no extra
-wait.
+Hardly. From v0.40 the grain is Caduceus's own, and v0.40.2 made it faster, so long bursts with Film Grain keep up.
+On Low ISO Processing: Drive Priority, long grain bursts may slow a little sooner.
 
 ## Updating
 
@@ -104,18 +104,21 @@ Your films were in `PROFILES.BIN`: rename it to `LOOKS.BIN`.
 
 ### Do custom modes (C1–C5) keep my films?
 
-Yes, and from v0.29.5 everything else too. When you Assign a custom mode (Shooting menu 1 › Custom Mode › Cn › Assign ›
-Set), it keeps its own copy of the films you're using, every change you made to them and the camera's picture settings.
-Turning to it brings that copy back, and nothing you do in another mode (an edit, a film reset, a film pick) changes it.
-P / A / S / M share one set of their own. Changes made inside a custom mode follow its Save Settings: Reset (the
-default) forgets them when you leave the mode or switch off, Hold keeps them. Assign › Reset puts a custom mode back to
-the films as built. Assign your custom modes once after updating to v0.29.5.
+Yes, with one thing to know: all modes share **one set of 20 films** (the films from your `LOOKS.BIN`), and each
+custom mode keeps **its own settings for them**.
 
-The camera holds one set of 20 films for all modes, so a custom mode keeps which films it uses, not a set of its own.
-A new `LOOKS.BIN` replaces the films in every mode, custom modes included: each mode stays on the same film numbers,
-picture mode and Save Settings, a film the new set changed comes in as built, and your changes to the films that stayed
-the same are kept. To give custom modes different films, put them all in one set of 20 (LookLab) and assign each
-custom mode the ones it uses.
+- **What a custom mode keeps (from v0.29.5):** when you Assign it (Shooting menu 1 › Custom Mode › Cn › Assign › Set),
+  it keeps which films its COLORs are on, every change you made to those films, and the camera's picture settings.
+  Turning to it brings all of that back, and nothing you do in another mode (an edit, a film reset, a film pick)
+  changes it. P / A / S / M share one copy of their own. Assign your custom modes once after updating to v0.29.5.
+- **Changes made inside a custom mode** follow its Save Settings: Reset (the default) forgets them when you leave the
+  mode or switch off, Hold keeps them. Assign › Reset puts a custom mode back to the films as built.
+- **What is shared:** the 20 films themselves. A new `LOOKS.BIN` replaces them in every mode, custom modes included.
+  Each mode stays on the same film numbers, picture mode and Save Settings; a film the new set changed comes in as
+  built, and your changes to the films that stayed the same are kept.
+
+So to give custom modes different films, put them all in one set of 20 (LookLab) and assign each custom mode the ones
+it uses.
 
 ### Do I still need to half-press after switching on?
 
@@ -129,7 +132,7 @@ camera's memory, not the card.
 
 ### There are no films in the Picture Mode list.
 
-Half-press the shutter once after switching on: that's when the films load. (With no card in the camera, v0.29 never
+Half-press the shutter once. The camera reads new card files then. (With no card in the camera, v0.29 never
 loaded them: update to v0.29.1.) The first time with v0.29 (or after a
 Reset in the camera's menu), check that `OM3MOD/LOOKS.BIN` is on the card (step 3 of the [install guide](INSTALL.md#step-3-copy-the-files-to-the-sd-card))
 and is exactly 1,632 bytes; if not, download it again, or save it again from LookLab. Then check the update
@@ -143,7 +146,7 @@ Before v0.29: the card's `GUIDES.BIN` must come from the same version as the fir
 
 ### The camera froze or switched off after a photo.
 
-Take the battery out for a few seconds. Check that the firmware and `OM3MOD/GUIDES.BIN` come from the same version
+Take the battery out for a few seconds. Check that you made the latest version
 (`VERSION.txt` in `SD card files` says which one you made). If it happens again, turn Film Grain off on that film and
 [tell us](https://github.com/androidfanman/caduceus-om3/issues), with your `OM3MOD` files if you can. Reports being
 looked into are listed under Bugs on the [roadmap](https://androidfanman.github.io/caduceus-om3/pages/roadmap/).

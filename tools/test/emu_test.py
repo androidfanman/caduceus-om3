@@ -137,9 +137,49 @@ PASS_FILE = 'emu-test-pass.json'
 EMU_PIN = REPO / 'tools/emulator/om-emu.pin'   # the om-emu commit the tests expect (research/TESTING.md)
 EMU_PIN_LINE = re.compile(r'([0-9a-f]{40}) (\d{4}-\d{2}-\d{2})')
 EMU_MAX_AGE_DAYS = 7                           # as tools/emulator/om_emu.sh
-# Each session peaks at about 1.3 GB. 4 side by side ran clean on a 32 GB Mac. Runs killed with exit 137 had
-# screenshots in them (research/TESTING.md).
-DEFAULT_JOBS = 4
+# Each session peaks at about 1.3 GB, up to 2.3 GB for long tests. Runs killed with exit 137 had screenshots in
+# them (research/TESTING.md). The default --jobs scales with the machine: one core and JOB_GB each, with
+# RESERVE_GB and SPARE_CORES left for everything else. FALLBACK_JOBS when memory cannot be read.
+JOB_GB = 2.5
+RESERVE_GB = 6
+SPARE_CORES = 2
+FALLBACK_JOBS = 4
+GB = 1 << 30
+
+
+def available_bytes():
+    """Memory free for new work now (Linux MemAvailable, macOS free + inactive + purgeable pages), or None."""
+    try:
+        with open('/proc/meminfo') as f:
+            for line in f:
+                if line.startswith('MemAvailable:'):
+                    return int(line.split()[1]) * 1024
+    except OSError:
+        pass
+    try:
+        out = subprocess.run(['vm_stat'], capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    page = int(re.search(r'page size of (\d+) bytes', out).group(1))
+    pages = {k: int(v) for k, v in re.findall(r'Pages (free|inactive|speculative|purgeable):\s+(\d+)', out)}
+    return sum(pages.values()) * page if pages else None
+
+
+def jobs_for(cores, total, available):
+    """Sessions side by side for this many cores and bytes of memory (total, free now)."""
+    by_mem = min(total - RESERVE_GB * GB, available) / (JOB_GB * GB)
+    return max(1, min(cores - SPARE_CORES, int(by_mem)))
+
+
+def default_jobs():
+    try:
+        total = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+    except (ValueError, OSError):
+        return FALLBACK_JOBS
+    available = available_bytes()
+    if available is None:
+        return FALLBACK_JOBS
+    return jobs_for(os.cpu_count() or 1, total, available)
 # Switch positions the driver sets before each boot (session_ed1.mjs PSET0, MODE0).
 PHOTO_SWITCH_PHOTO = 2
 MODE_DIAL_P = 2
@@ -2700,7 +2740,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('build', type=pathlib.Path)
     ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, SETTLE, *DIRECT, *STATIC]))
-    ap.add_argument('--jobs', type=lambda v: max(1, int(v)), default=DEFAULT_JOBS)
+    ap.add_argument('--jobs', type=lambda v: max(1, int(v)), help='sessions side by side (default: from cores and free memory)')
     ap.add_argument('--out', type=pathlib.Path)
     ap.add_argument('--looks', type=pathlib.Path)
     ap.add_argument('--repeat', type=lambda v: max(1, int(v)), default=1, help='runs per test, each in its own subfolder')
@@ -2725,7 +2765,11 @@ def main():
     names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, SETTLE, *DIRECT, *STATIC])
     stock = static_check.find_stock(a.stock) if any(n in STATIC for n in names) else None
     runs = [(n, k) for n in names for k in range(1, a.repeat + 1)]
-    print(f'{len(names)} tests{f" x {a.repeat}" if a.repeat > 1 else ""} on {build}, results in {out}')
+    auto = a.jobs is None
+    if auto:
+        a.jobs = default_jobs()
+    print(f'{len(names)} tests{f" x {a.repeat}" if a.repeat > 1 else ""} on {build}, results in {out}, '
+          f'{a.jobs} side by side{" (from this machine)" if auto else ""}')
     def run_dir(k):
         return out / f'run{k}' if a.repeat > 1 else out
     # A first boot that two or more tests share runs once per run folder, and each of those tests starts from its result.

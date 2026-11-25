@@ -31,8 +31,9 @@ Use host paths for `OM3_EMU` and the build folder. A workspace made inside Docke
 The runner makes an emulator card from the build's `GUIDES.BIN` and `LABELS.BIN`, the newest release's `LOOKS.BIN`,
 and `debug-log/DEBUG.TXT`. Each test then boots the build one or more times on a blank camera, carrying the card and
 the camera's settings from boot to boot. It checks the debug log the firmware writes at each half-press. A first
-boot that two or more tests share runs once, and each of those tests starts from its card and settings. Four tests
-run side by side (`--jobs`), and the whole suite takes about a minute and a half: 85 s on a 32 GB Mac, against 153 s with
+boot that two or more tests share runs once, and each of those tests starts from its card and settings. Tests
+run side by side (`--jobs`). By default the count comes from the machine: one core and 2.5 GB of free memory
+for each test, with 2 cores and 6 GB left for other work. The first line of the run shows the count. The whole suite takes about a minute and a half: 85 s on a 32 GB Mac, against 153 s with
 two jobs and no shared boots. It prints `pass`, `known`, or `FAIL` per test, with the
 reason, and exits 1 on any `FAIL`. Each test's boots, logs, and cards stay in the `--out` folder.
 
