@@ -169,6 +169,10 @@ Keep more than one set of films on the card and switch between them from the men
 - The COLOR that was on FILM 3 shows the new set's FILM 3, in every shooting mode, with no `*`.
 - Your changes stay with the films they were made on: switch back and they're there again, unless you changed the
   same film number in the other set in between.
+- **A set's own RGB curves and colour mix:** save LookLab's `CURVES.BIN` for that set as **`NAME.CRV`** beside its
+  `NAME.BIN` (for example `PORTRA.BIN` and `PORTRA.CRV`). It loads with the set. A set without one has no built-in
+  curves or mix. For `LOOKS.BIN` they come from `CURVES.BIN` as before: keep it on the card, so they come back when you
+  pick LOOKS.BIN again.
 - A file that isn't a valid set is skipped: the films stay as they were and the row goes back to the set in use.
 - The set in use stays after switching off. While a set from `LOOKS` is in use, a new `OM3MOD/LOOKS.BIN` isn't taken by
   itself: pick **LOOKS.BIN** in the list to load it.

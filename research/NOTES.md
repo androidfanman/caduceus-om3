@@ -9907,3 +9907,21 @@ Built on probe w1 (above). Code `firmware/src/looksets.s`, menu tables in `build
 - **Renamed (buburun, 2026-11-23): the row "Film Set", the log line "Film sets:"** (the maintainer's word: "a new film
   set", #86). h3 = h2 + the name (`try/v0.40.2-h265-ls1`, VERSION "v0.40.2-h3"); film-set and video tests pass on it;
   om-emu screen: "Film Set" with LOOKS.BIN and two sets.
+
+## Film sets: each set its own curves, and on v0.40.3 (2026-11-25; emulator only, camera test pending; branch feature/look-sets, test build h4)
+Request (buburun): each film set its own curves, in the same PR (#102), rebased on v0.40.3.
+- **Bug found first (PR #102 as opened, h3; emulator):** `ck_bi` (each film's built-in curves and mix) was made only at
+  the films' load and at the first half-press, so after a pick the new set's film j kept the last set's film j's built-in
+  until power-off, and LOOKS.BIN's films had none after going back. Test `look-set-without-curves-has-none`: `--without`
+  the v0.40.2-h3 build caught (boots 2 and 3). Not looked for on the camera.
+- **Now:** `ls_pick`, after a set was taken (or the same films under another name), calls `ck_set`: the curves file of the
+  set in use (`ls_cvp`: CURVES.BIN with LOOKS.BIN, else LOOKS\NAME.CRV; the folder's list takes only .BIN), checked as
+  CURVES.BIN, then `ck_mk` and `ck_fixall`. `ls_cap` still runs before the swap, with the old `ck_bi`. `ck_card` (first
+  half-press) does the same, so with a set from the folder in use CURVES.BIN does not replace its curves.
+- One image in M as before (+0x3BE20), the set's: no new record, no format change. With no .CRV the image stays; its
+  entries are tied to their films by CRC, so another set's films get none. Limit: LOOKS.BIN's curves come back from the
+  card's CURVES.BIN; without that file they are gone once a set's .CRV replaced them.
+- The card's file is read into `ck_rb`: `ck_buf` can hold a write that waits for the camera's own save (`ck_img`).
+- **v0.40.3:** ext13 is full (81,280 of 81,920), so looksets.s is in `.ext15` (section 6 too, the same start-up gates);
+  `fw_wr` is gone there, `ls_sv` is its copy. Records in M do not overlap ('OM3W' of beta2 / beta3 was at +0x3FE80).
+- No new hook or patch site; nothing more at start-up. Debug log: the "Film set curves:" line.

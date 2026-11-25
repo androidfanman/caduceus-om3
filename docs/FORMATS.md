@@ -80,6 +80,10 @@ The set in use is kept in a record of its own in store M, at image offset 0x3B04
 it): `OM3L` | u16 version 1 | u16 length 32 | CRC-32 of bytes 12..31 | 11-character 8.3 name, space-padded, as in the
 folder entry (all zero: `LOOKS.BIN`) | zero to the end. The menu row is the camera's setting 1290 (an accessory key's
 movie function the OM-3 does not have); its value names a list entry (9, 6, 3341, 425, 3409, 88, 3200, 1001..1009).
+A set's built-in curves and mix: `C:\OM3MOD\LOOKS\NAME.CRV`, the `CURVES.BIN` v1 format below, made for `NAME.BIN`'s
+records. Read when the set is picked, and at the first half-press while it is in use (then `CURVES.BIN` is not read);
+kept in the camera in the one `CURVES.BIN` image (0x3BE20). With no file, or one that fails the check, the image stays and
+gives values only to films whose record CRC-32 it has.
 
 ## The RGB curves record (feature/rgb-curves, not released)
 
