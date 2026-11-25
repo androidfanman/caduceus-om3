@@ -201,9 +201,6 @@ Built on **[Caduceus](https://github.com/cakelesscoder/caduceus-ep7)** by cakele
 for the Olympus PEN E-P7. From it came the on-camera editor design, the bundle-table layout, the LookLab this tool
 started from, its tone model, and the starter film looks.
 
-**[fernandezk26](https://github.com/fernandezk26/camera-stuff)**'s fork gave the fix for bad bytes in `EDITS.BIN` and
-Halation Radius. It also gave the film load at power-on of v0.26.2–v0.27.
-
 Sample photos are public domain (CC0), except the sunset by Joonas Lyytinen (CC BY 2.0). See
 [webapp/public/samples/CREDITS.md](webapp/public/samples/CREDITS.md). Camera emulation by
 [om-emu](https://github.com/flatpanda/om-emu).
