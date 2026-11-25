@@ -39,8 +39,8 @@ and `debug-log/DEBUG.TXT`. Each test then boots the build one or more times on a
 the camera's settings from boot to boot. It checks the debug log the firmware writes at each half-press. A first
 boot that two or more tests share runs once, and each of those tests starts from its card and settings. Tests
 run side by side (`--jobs`). By default the count comes from the machine: one core and 2.5 GB of free memory
-for each test, with 2 cores and 6 GB left for other work. The first line of the run shows the count. With 129 tests
-the whole suite takes about 17 minutes on a 12-core, 32 GB Mac at 4 jobs (1010 s, measured 2026-11-24). The emulator
+for each test, with 2 cores and 6 GB left for other work. The first line of the run shows the count. With 130 tests
+the whole suite takes about 15 minutes on a 12-core, 32 GB Mac at 4 jobs (851–973 s, measured 2026-11-25). The emulator
 is CPU-bound: about one core and 1–2.3 GB per test, more for longer tests. Each camera boot costs about 6.5 s and each
 menu step about 0.8 s. It prints `pass`, `known`, or `FAIL` per test, with the
 reason, and exits 1 on any `FAIL`. Each test's boots, logs, and cards stay in the `--out` folder.
