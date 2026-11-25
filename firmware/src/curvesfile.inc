@@ -7,7 +7,8 @@
  *   afterwards. cv_load (the films' load: the early load or the first half-press, no card) -> ck_load: the copy in M,
  *   when valid, gives ck_bi. lg_pr -> ck_card at the first half-press with a card: C:\OM3MOD\CURVES.BIN, taken when
  *   valid and not the copy in M (ck_wr, as ub_wr: only while the camera is not saving M; else ck_pend, retried at the
- *   next shutter event); then ck_bi again (el_card may have brought new films).
+ *   next shutter event); then ck_bi again (el_card may have brought new films). Film sets: with a set from the LOOKS
+ *   folder in use its own file LOOKS\NAME.CRV instead, and the same at every set pick (ck_set from ls_pick).
  * - ck_bi[j] = the entry's values when its check equals film j's LOOKS record's CRC-32, else zero.
  * - A slot (cv_ram: 18 curve values, 6 mix, its byte 24 the flags, 25 zero) follows its film's built-in for each part
  *   whose flag is set: bit 0 the curves, bit 1 the mix, bit 7 the flags are set (a slot from test 8 or older has none:
@@ -555,8 +556,9 @@ ck_load:
  ret [d2,d3,a2,a3],20
 
 /* ck_card: `call ck_card,[d2,d3,a2,a3],24` from lg_pr (every shutter event, HLS task): a held-back write; once, at
- * the first shutter event with the films in and a card: C:\OM3MOD\CURVES.BIN, taken when valid and new (ck_st 1),
- * the same as the copy (2), not valid (3), none (0); then ck_bi from what the camera has now. */
+ * the first shutter event with the films in and a card: the curves file of the set in use (ls_cvp: C:\OM3MOD\CURVES.BIN,
+ * or C:\OM3MOD\LOOKS\NAME.CRV with a set from the folder, so CURVES.BIN does not replace that set's), then ck_bi from
+ * what the camera has now (el_card may have brought new films): ck_set (looksets.s). */
 ck_card:
  movbu (ck_pend),d0
  cmp 0,d0
@@ -575,54 +577,8 @@ ck_card:
  bne 9f                           /* no card yet: the next shutter event tries again */
  clr d0
  movbu d0,(ck_cd)
- mov ck_path,a0
- mov gd_mode,a1
- call fopen,[],4
- cmp 0,a0
- beq 6f
- mov a0,a3
- mov ck_buf,a0
- mov 1,d0
- mov CK_LEN + 1,d1
- mov a3,a1
- call fread,[d2,d3,a2,a3],24
- mov d0,d2
- mov a3,a0
- call fclose,[d2,a2,a3],16
- mov 3,d0
- movbu d0,(ck_st)
- cmp CK_LEN,d2
- bne 6f
- mov ck_buf,a0
- call ck_valid,[d2,d3,a2,a3],20
- cmp 0,d0
- beq 6f
- mov 2,d0
- movbu d0,(ck_st)
- movbu (ck_have),d0
- cmp 0,d0
- beq 2f
- mov ck_buf,a0
- mov CK_C,a1
- mov CK_LEN,d1
- call ck_cmp,[d2],8
- cmp 0,d0
- beq 6f
-2:
- mov 1,d0
- movbu d0,(ck_st)
- movbu d0,(ck_have)
- call ck_wr,[d2,d3,a2,a3],20
- mov ck_buf,a0
- bra 7f
-6:
- movbu (ck_have),d0               /* the copy in M again: el_card may have brought new films */
- cmp 0,d0
- beq 9f
- mov CK_C,a0
-7:
- call ck_mk,[d2,d3,a2,a3],24
- call ck_fixall,[d2,d3,a2,a3],20
+ call ls_init,[d2,d3,a2,a3],20    /* the set in use (ls_go comes after this) */
+ call ck_set,[d2,d3,a2,a3],24
 9:
  ret [d2,d3,a2,a3],24
 
@@ -669,7 +625,7 @@ ck_bi:                            /* each film's built-in: 18 curve values (as a
  .space 20 * CK_BSZ
 ck_zero:
  .space CK_BSZ
-ck_buf:                           /* the card's file (one byte more is asked for, to see a longer file) */
+ck_buf:                           /* the file taken this power-on (ck_wr: to M) */
  .space CK_LEN + 4
 ck_have:                          /* 1: a valid file in M (or taken this power-on) */
  .byte 0
@@ -677,7 +633,7 @@ ck_cd:                            /* 1: the card pass is due */
  .byte 0
 ck_pend:                          /* 1: a write to M waits for the camera's own save */
  .byte 0
-ck_st:                            /* this power-on's card: 0 none, 1 taken, 2 the same, 3 not valid */
+ck_st:                            /* this power-on's last curves file: 0 none, 1 taken, 2 the same, 3 not valid */
  .byte 0
 ck_map:                           /* curve value n (5 channel + point) -> its byte in a slot */
  .byte 0, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 14, 15, 16, 17

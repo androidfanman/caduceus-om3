@@ -305,6 +305,7 @@ LATE_RELEASED = {
     **{f'patch site {a}': {'ar_list'} for a in ('0x6061a33c', '0x6061a378', '0x6061a454', '0x6061a468')},
     **{f'patch site {a}': {'dm_list'} for a in ('0x6061a350', '0x6061a364', '0x6061a38c', '0x6061a580')},
     **{f'patch site {a}': {'dm_plist'} for a in ('0x6061a51c', '0x6061a530', '0x6061a544', '0x6061a56c')},
+    'patch site 0x6061a6ac': {'lsm_keys'},                    # look sets: 1290's value list (data the store reads, as dm_list)
 }
 _STOP = {'ret', 'retf', 'rets', 'rti', 'rtm', 'trap'}
 _BCC = {'beq', 'bne', 'bgt', 'bge', 'ble', 'blt', 'bhi', 'bcc', 'bls', 'bcs', 'bvc', 'bvs', 'bnc', 'bns'}

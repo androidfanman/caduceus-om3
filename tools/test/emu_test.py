@@ -382,6 +382,20 @@ def fv_not_run(hits):
     return [f'fv_add ran {len(hits)} times with no menu opened'] if hits else []
 
 
+# Look sets (looksets.s): the "Film Set" row, last on the wrench tab's Card/Folder/File page, where a fresh camera's
+# menu opens, and again after each power-off (4 downs). OK opens the dropdown with the cursor on the
+# set in use; a pick ends with OK and the menu closes; the set loads at the next half-press. Setting 1290's values per
+# entry: 9 (LOOKS.BIN), 6, 3341, ... (looksets.s lsm_keys). Sets on the card: LOOKS/NAME.BIN.
+LS_OPEN_FRESH = 'menu wait down wait down wait down wait down wait ok wait'
+LS_SCREEN = 'ok wait menu wait wait'   # a screen change after a load: #86 makes the COLORs at the next screen event
+LS_DONE = 'ok wait menu wait wait'
+LS_SETS = {'LOOKS/PORTRA.BIN': 'LOOKS_P', 'LOOKS/VELVIA.BIN': 'LOOKS_ONE', 'LOOKS/NOTES.TXT': 'LOOKS_P'}
+LS_LINE = lambda use, rest='': rf'^Film sets: in use {use}, {rest}'
+LS_PICKED = lambda name, n, res: rf'^Film sets: .*picks loaded {n}, last pick {name} result {res}$'
+NEW_SET_20 = r'^New film sets taken this power-on: 1, films changed in the last 20 of 20, '
+NO_NEW_SET = r'^New film sets taken this power-on: 0, '
+LS_PICK_PORTRA = f'wait wait s1 wait wait {LS_OPEN_FRESH} down wait {LS_DONE} s1 wait wait'
+
 @dataclass
 class Boot:
     tokens: str
@@ -461,6 +475,15 @@ FIXTURES = {
     'LOOKS_ONE': lambda looks, names: other_set(looks, names, [*range(18), 19, 18]),
     'LOOKS_WB': lambda looks, names: film_wb_set(looks, FILMS_WB),
     'LOOKS_WB_NEW': lambda looks, names: film_wb_set(looks, FILMS_WB_NEW),
+    'LOOKS_P': lambda looks, names: other_set(looks, names, range(19, -1, -1), 'P '),    # look sets: a set of its own
+    # set curves: PORTRA's own curves file (the CURVES.BIN format, for LOOKS_P's films: its film 2), and a damaged one
+    'CURVES_P': lambda looks, names: (lambda p: mkcurves.build(p, {
+        ('P ' + names[18])[:15]: {'b': [0, 0, -3, 0, 2], 'mix': [0, 0, 2, 1, 0, 0]}}))(FIXTURES['LOOKS_P'](looks, names)),
+    'CURVES_P2': lambda looks, names: (lambda p: mkcurves.build(p, {
+        ('P ' + names[18])[:15]: {'r': [2, 0, 0, 0, 0]}}))(FIXTURES['LOOKS_P'](looks, names)),
+    'CURVES_P_BAD': lambda looks, names: (lambda b: b[:40] + bytes([b[40] ^ 1]) + b[41:])(FIXTURES['CURVES_P'](looks, names)),
+    'LOOKS_BAD': lambda looks, names: (lambda b: b[:100] + bytes([b[100] ^ 1]) + b[101:])(
+        other_set(looks, names, range(19, -1, -1), 'X ')),                              # look sets: CRC wrong
 }
 # #88: from COLOR 1 on the shooting screen, FILM 1 (the list runs COLOR 1-4, then the films); then the next film. Both
 # leave the super control panel's cursor on its Picture Mode cell.
@@ -800,6 +823,19 @@ def ck_line(mem, card, matches, on_builtin, with_values):
     return [rf"^CURVES\.BIN \(each film's built-in curves and mix\): in camera memory: {mem}; this power-on's card: {card}; "
             rf"films it matches: {matches}$",
             '^Curves / mix on COLOR 1-4: ' + re.escape(', '.join(words)) + '$']
+
+
+def ck_now(on_builtin, with_values):
+    """ck_line's second line alone: NOW's word per COLOR."""
+    return ck_line('', '', 0, on_builtin, with_values)[1:]
+
+
+# set curves: COLOR 1's values in the log on FILM 2 of LOOKS.BIN (CURVES_A) and of PORTRA (CURVES_P / P2); a pick's line
+CV_LINE = lambda r, g, b, mix: re.escape(f'COLOR 1 curves R {r}, G {g}, B {b}; mix {mix}; following its film\'s built-in: curves yes, mix yes')
+CV_FILM_2_A = '^' + CV_LINE('1 0 0 0 -1', '0 0 0 0 0', '0 0 0 0 0', '1 2 0 0 0 0')
+CV_FILM_2_P = '^' + CV_LINE('0 0 0 0 0', '0 0 0 0 0', '0 0 -3 0 2', '0 0 2 1 0 0')
+CV_FILM_2_P2 = '^' + CV_LINE('2 0 0 0 0', '0 0 0 0 0', '0 0 0 0 0', '0 0 0 0 0 0')
+CV_PICK = lambda name, word, n: rf"^Film set curves: last pick {name}: {word}; films with built-in curves or mix in use: {n}$"
 
 
 TESTS = {
@@ -1328,6 +1364,113 @@ TESTS = {
     # ... and fv_add never runs while the camera starts, idles or powers off (the start-up rule)
     'firmware-version-line-not-at-start-up': [
         Boot('wait poweroff', watch=('fv_add',), hits=fv_not_run),
+    ],
+    # Film sets: the row lists LOOKS.BIN, then the folder's .BIN sets by name (NOTES.TXT left out).
+    'look-set-row-lists-the-folder': [
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} {LS_DONE} s1 wait poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN', r'list 3 \(files 2, walk 0, \d+ us\): LOOKS\.BIN \| PORTRA \| VELVIA \| picks loaded 0, ')],
+             card=LS_SETS),
+    ],
+    # ... a pick loads at the next half-press, made fresh (#86); it stays after a power-off, and while it is in use a
+    # new OM3MOD/LOOKS.BIN is not taken by itself.
+    'look-set-pick-loads-at-the-half-press-and-stays': [
+        Boot(f'{LS_PICK_PORTRA} expect:val:1290=6 poweroff',
+             expect=[LS_LINE('PORTRA'), LS_PICKED('PORTRA', 1, 1), NEW_SET_20], card=LS_SETS),
+        Boot('wait wait s1 wait wait expect:val:1290=6 poweroff',
+             expect=[LS_LINE('PORTRA', r'list 3 '), LS_PICKED('none', 0, 0), NO_NEW_SET], card={'LOOKS.BIN': 'LOOKS_ONE'}),
+    ],
+    # ... FILM 3 on COLOR 1: the new set's FILM 3, no '*'.
+    'look-set-film-3-made-from-the-new-set': [
+        Boot(FILM_SWITCH_WRITES, expect=[FILM_3_LINE], card=LS_SETS),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff', expect=[FILM_3_LINE, NO_STAR_LINE, NEW_SET_LINE(20),
+                                                              LS_LINE('PORTRA')]),
+    ],
+    # ... a file that fails the check: the films stay, the row back on the set in use.
+    'look-set-not-valid-keeps-the-films': [
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} down wait {LS_DONE} s1 wait wait expect:val:1290=9 poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), LS_PICKED('BROKEN', 0, 4), NO_NEW_SET],
+             card={**LS_SETS, 'LOOKS/BROKEN.BIN': 'LOOKS_BAD'}),
+    ],
+    # ... back to LOOKS.BIN: loaded again although the camera had it (the seen ring is not asked).
+    'look-set-back-to-looks-bin': [
+        Boot(f'{LS_PICK_PORTRA} poweroff', expect=[LS_LINE('PORTRA')], card=LS_SETS),
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait expect:val:1290=9 poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), LS_PICKED(r'LOOKS\.BIN', 1, 1), NEW_SET_20]),
+    ],
+    # ... a pick before the first half-press (the list is the set in use and LOOKS.BIN until then).
+    'look-set-pick-before-the-first-half-press': [
+        Boot(f'{LS_PICK_PORTRA} poweroff', expect=[LS_LINE('PORTRA')], card=LS_SETS),
+        Boot(f'wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), LS_PICKED(r'LOOKS\.BIN', 1, 1)]),
+    ],
+    # ... a film's changes belong to its set: gone under PORTRA (another FILM 2), back with LOOKS.BIN.
+    'look-set-changes-come-back-with-their-set': [
+        Boot(CONTRAST_ON_FILM_2, expect=[FILM_2_LINE], card=LS_SETS),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff', expect=[FILM_2_LINE, NO_FILM_CHANGES, LS_LINE('PORTRA')]),
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait {LS_SCREEN} s1 wait wait poweroff',
+             expect=[FILM_2_LINE, FILM_2_CHANGED, LS_LINE(r'LOOKS\.BIN')]),
+    ],
+    # ... no LOOKS folder: only LOOKS.BIN, nothing else changes.
+    'look-set-no-folder': [
+        Boot('wait wait s1 wait wait poweroff', expect=[LS_LINE(r'LOOKS\.BIN', r'list 1 \(files 0, ')]),
+    ],
+    # ... built-in curves belong to their set: without a curves file of its own a set has none, at once (its films kept
+    # the last set's curves until power-off), and LOOKS.BIN's are back with it.
+    'look-set-without-curves-has-none': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff', card={**LS_SETS, 'CURVES.BIN': 'CURVES_A'},
+             expect=[FILM_2_LINE, *ck_line('yes', 'taken', 20, 15, 1)]),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff',
+             expect=[LS_LINE('PORTRA'), FILM_2_LINE, *ck_now(15, 0)]),
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait {LS_SCREEN} s1 wait wait poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), FILM_2_LINE, *ck_now(15, 1), CV_FILM_2_A]),
+    ],
+    # ... LOOKS/NAME.CRV: the set's own curves, taken with the pick; kept over a power-off, with CURVES.BIN on the card
+    # left alone while the set is in use; LOOKS.BIN's come back from CURVES.BIN.
+    'look-set-own-curves': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff',
+             card={**LS_SETS, 'CURVES.BIN': 'CURVES_A', 'LOOKS/PORTRA.CRV': 'CURVES_P'},
+             expect=[FILM_2_LINE, *ck_line('yes', 'taken', 20, 15, 1), CV_FILM_2_A,
+                     LS_LINE(r'LOOKS\.BIN', r'list 3 \(files 2, ')]),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff',
+             expect=[LS_LINE('PORTRA'), FILM_2_LINE, NO_STAR_LINE, *ck_line('yes', 'taken', 20, 15, 1), CV_FILM_2_P,
+                     CV_PICK('PORTRA', 'taken', 20)]),
+        Boot('wait wait s1 wait wait poweroff',
+             expect=[LS_LINE('PORTRA'), FILM_2_LINE, *ck_line('yes', 'the same', 20, 15, 1), CV_FILM_2_P]),
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait {LS_SCREEN} s1 wait wait poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), FILM_2_LINE, NO_STAR_LINE, *ck_line('yes', 'taken', 20, 15, 1), CV_FILM_2_A]),
+    ],
+    # ... the set's curves stay without its .CRV on the card (kept in the camera), and a changed .CRV is taken.
+    'look-set-own-curves-kept-in-camera': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff',
+             card={**LS_SETS, 'CURVES.BIN': 'CURVES_A', 'LOOKS/PORTRA.CRV': 'CURVES_P'}),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff', expect=[CV_FILM_2_P]),
+        Boot('wait wait s1 wait wait poweroff', card={'LOOKS/PORTRA.CRV': None},
+             expect=[FILM_2_LINE, *ck_line('yes', 'none', 20, 15, 1), CV_FILM_2_P]),
+        Boot('wait wait s1 wait wait poweroff', card={'LOOKS/PORTRA.CRV': 'CURVES_P2'},
+             expect=[FILM_2_LINE, *ck_line('yes', 'taken', 20, 15, 1), CV_FILM_2_P2]),
+    ],
+    # ... a .CRV that fails the check: the set loads, without built-in curves.
+    'look-set-own-curves-not-valid': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff',
+             card={**LS_SETS, 'CURVES.BIN': 'CURVES_A', 'LOOKS/PORTRA.CRV': 'CURVES_P_BAD'}),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff',
+             expect=[LS_LINE('PORTRA'), LS_PICKED('PORTRA', 1, 1), FILM_2_LINE, *ck_line('yes', 'not valid', 0, 15, 0)]),
+    ],
+    # ... curves set on the camera on a film of the set stay the user's, and the file's come back with another film.
+    'look-set-own-curves-edits-stay': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poweroff',
+             card={**LS_SETS, 'CURVES.BIN': 'CURVES_A', 'LOOKS/PORTRA.CRV': 'CURVES_P'}),
+        Boot(f'{LS_PICK_PORTRA} {LS_SCREEN} s1 wait wait poweroff', expect=[CV_FILM_2_P]),
+        Boot(f'wait wait s1 wait wait {EDIT_RGB} s1 wait wait poweroff', expect=[*ck_now(14, 1)]),
+        Boot(f'wait wait s1 wait wait {LS_OPEN_FRESH} up wait {LS_DONE} s1 wait wait {LS_SCREEN} s1 wait wait poweroff',
+             expect=[LS_LINE(r'LOOKS\.BIN'), *ck_now(15, 1), CV_FILM_2_A]),
+    ],
+    # ... the set in use stays listed when its file is gone from the card (it is in the camera).
+    'look-set-in-use-listed-without-its-file': [
+        Boot(f'{LS_PICK_PORTRA} poweroff', expect=[LS_LINE('PORTRA')], card=LS_SETS),
+        Boot('wait wait s1 wait wait expect:val:1290=3341 poweroff',
+             expect=[LS_LINE('PORTRA', r'list 3 \(files 1, .*LOOKS\.BIN \| VELVIA \| PORTRA ')],
+             card={'LOOKS/PORTRA.BIN': None}),
     ],
 }
 

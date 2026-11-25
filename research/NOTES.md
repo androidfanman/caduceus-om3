@@ -9805,3 +9805,123 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
   code it moves differ from beta4). Feedback on beta4 before release: crombach on #99, "does seem to work as you
   outlined"; the WB menu's stars on a film with a shift are cosmetic.
 
+## Look sets: switch film sets from the camera menu (2026-11-22; research + probe w1, emulator only; branch experiment/look-sets-walk)
+Request (buburun): film sets as files in a LOOKS folder, `OM3MOD/LOOKS.BIN` the default; a "Looks set" row in the
+wrench tab's Card/Folder/File page lists the folder's files; picking one loads it.
+- **Listing a folder (found, emulator):** the camera has no directory request among fileif's (FILECLBK codes 0x10001..
+  0x1000d: 1 fopen, 2 fclose, 3 fwrite, 5 fread, 7 ftell, 8 fseek, 9 rename (two strings), 0x0a remove, 0x0c mkdir,
+  0x0d rmdir?; wrappers 0x608d4d22..0x608d529x). The file debug shell (strings 0x60a2f2xx "ls", "cd", "pwd" ..;
+  handler table from 0x608d002b) has `ls` (0x608d0f72 -> 0x608d1013), which builds a 128-byte request and runs the
+  walk 0x608c864b (`call ..,[d2,d3,a2,a3],32`, a0 = request): +0 user word, +4 u16 1, +6 u16 drive ((0x60365ba8)),
+  +8 start directory (-1: the drive's), +12 path in FAT form (0x608d25a4 makes it from "/A/B": each name 11
+  characters, upper case, space-padded, joined by '/', the last '/' a 0; 0 = the start directory), +16 the
+  11-character pattern (ls: "???????????"), +20 0, +52 the callback (`calls`, a0 = request, a1 = entry, d0 0 = go
+  on). Entry: (4,entry) the 11-character name; attribute byte 0x608c05ea (`call ..,[],0`, a0 = entry; FAT +11, exFAT
+  through (16,entry)+4). Mode dispatch on +4's low bits (1..10) through 0x60a2ed20. The walk takes a file-system lock
+  of its own (0x608e4b4d / 0x60023c05); the shell runs it from its own task, not FILECLBK's.
+- **Probe w1** (`firmware/src/looksets.s`, ext13; `ls_walk` / `ls_attr` in editor.ld): `ls_scan` from `lg_pr` after
+  `ck_card`, once per power-on at the first shutter event with a medium (`hl_ok`, HLS_EVENT task), path
+  "OM3MOD     /LOOKS      ", pattern "????????BIN", up to 16 names; CADLOG "Look sets: scanned 1, walk result R,
+  files N ...". (First try called the walk through a `.set` constant: the call's displacement came out wrong and the
+  emulator jumped to 0xc1886f13. Call targets go in editor.ld, as every other firmware function.)
+- **om-emu (out-lsw1):** FAT32 8 GiB: "walk result 0, files 3: PORTRA BIN | VELVIA BIN | SETB BIN"; README.TXT left
+  out (pattern), the folder OLD.BIN left out (attribute 0x10). exFAT 64 GiB (card.mjs --size 64): PORTRA, VELVIA
+  listed; "Long Name Set.BIN" not listed (no 8.3 name on exFAT, so the pattern never matches). So set names are 8.3:
+  up to 8 letters / digits + `.BIN`. On FAT32 a long name shows as its alias (LONGNA~1). Camera test pending (h1).
+- **How a switch can work (code reading, nothing built yet):** `el_card` already takes a new set after start-up:
+  `ub_rd` (read + `pf_check`), `ub_kn` (the 16-identity ring: skip a set the camera had), `nf_take` (#86: one store of
+  LPTR, the COLORs on changed films made again in every mode at the next GUI event through `nf_pend` / `rc_pend`),
+  `ub_put` (block into M). A menu switch = `el_card` with the picked path and without `ub_kn` (the ring is why "Set A
+  again is ignored" in #86: a pick must always load).
+- **Design decisions for the feature (analysis; to confirm with the owner and on the camera):**
+  1. Files: `OM3MOD/LOOKS/NAME.BIN` (8.3), same format as LOOKS.BIN (1632 B, checked by `pf_check`). The first list
+     entry is always "LOOKS.BIN" = `OM3MOD/LOOKS.BIN`, the default; up to 15 sets after it, sorted by name.
+  2. When it loads: the pick only notes the name (GUI task, no card access: the start-up rule and `el_nc`); the load
+     runs at the next shutter event, where every card read already happens (`lg_pr`, after `ed_trig`). A half-press
+     also closes the menu, so in practice "pick, half-press". Picked and closed with MENU: the films change at the
+     next half-press.
+  3. Unsaved edits: `ed_trig` saves them (into M, with each film's check) before the switch in the same `lg_pr`, so
+     nothing made before the pick is lost. Edits follow the #86 rule: they belong to the exact film record they were
+     made on (EDITS check = CRC-32 of the record). Back to an earlier set, its edits return for every film slot not
+     edited in between (one EDITS image for all sets; a per-set stash would need about 1.6 KB of M per set).
+  4. The COLOR on FILM 3 shows the new set's FILM 3 (position, not name), in every mode, made again without a '*'
+     (#86 owner decision C). Same file as now, or a file with the same records: nothing changes (identity compare).
+  5. A file that fails the check, has gone, or no card at the load: the films stay as they are; the row goes back to
+     the set in use; CADLOG says why.
+  6. Video / S&Q: the films swap; the COLORs are made at the next photo look (#68 / VF2, as
+     `new-film-set-taken-in-video-made-again-in-photo`).
+  7. A set picked from LOOKS/ stays in use over power-offs (its name kept in a small record in M, planned at
+     M + 0x3B040: free between 'OM3C' (+0x3B000, 48 B) and 'OM3R' (+0x3B100)). While one is in use, a new
+     `OM3MOD/LOOKS.BIN` is not taken automatically; picking "LOOKS.BIN" loads it (always, ring or not).
+  8. The list is read once per power-on at the first half-press with a card (probe w1's place); cards changed while
+     on show the new list after a restart. Before that half-press the row shows only the set in use.
+  9. CURVES.BIN (built-in curves and mix) is matched per film record CRC, so one file serves one set; a set's own
+     curves (`LOOKS/NAME.CRV`, CURVES.BIN format) would be a later step.
+  10. The menu row: page 235 "Card/Folder/File" (record 0x61587e70; rows Card Formatting 5344, Card Slot Settings 5097
+      / 1167, Assign Save Folder 1436, File Name 21, Edit Filename 3282), built as PR #51's Bitrate row (labels /
+      helps / value lists copied in ext13, type-5 literal texts, the dropdown row {14, sid, 0, 1}, the row order).
+      Setting: 1290, the twin of 1288 (descriptor 0x6061a6a8, the same 7-value stock list; probably the movie
+      function of another accessory key; to be checked as 1288 was). Its value list becomes ours (entry k -> name k).
+
+## Look sets ls1: the menu row, the switch, the edge cases (2026-11-22; emulator only; branch feature/look-sets)
+Built on probe w1 (above). Code `firmware/src/looksets.s`, menu tables in `build.py`, hooks into `lg_pr` (ls_go),
+`ub_rd` (ls_auto), `el_go` (ls_init), `rc_go` (the nf_pend case below). Camera test pending (h2).
+- **Menu (om-emu screens):** a fresh camera's menu opens on the wrench tab's "1. Card/Folder/File" (rows Card
+  Formatting, Assign Save Folder, File Name, Edit Filename; the two Card Slot rows are hidden on the one-slot OM-3);
+  "Looks Set" is the fifth row, value "LOOKS.BIN". OK opens a dropdown of the list (LOOKS.BIN | BROKEN | PORTRA |
+  VELVIA in the test card), the cursor on the set in use; the dropdown's length follows the descriptor's byte count
+  (1290 at 0x6061a6a8 +12) and the value list's count, both set at run time (ls_cnt). After a pick the row reads the
+  set's name. The menu keeps its cursor within a power-on, not over a power-off (om-emu).
+- Page 235 structures: record 0x61587e70 {6, labels 0x61587934, helps 0x61586fa4, 4, values 0x61586728, 4, same};
+  definition 0x61510000 (= page 221's 0x6150fe08 + 0x24 x 14), dropdown rows 0x6150b4cc (2: 1167, 21); row order
+  cursor kind 239 sub 0 (5344, 1436, 21, 3282). Setting 1290's stock list (3341, 6, 9, 425, 3409, 88, 3200); a fresh
+  camera reads 3409 in om-emu (not in our list before ls_init: entry -1 -> treated as entry 0).
+- **Mode code 0 after a power-on blocked the COLORs (found here, fixed):** `rc_go` treats `cm_code` >= 0xC0 (the mode's
+  code still 0, so the dial position decided) after the first look as a live dial turn and waits. The mode code stays
+  0 until a dial turn (om-emu; the camera read 0 at least at the first look, k4), so a set taken after the first look
+  (any menu pick) left `rc_pend` set and the COLORs were never made (#86's own swap is before the first look). Fix:
+  with `nf_pend` and the dial position's group = the films' group (CM_LAST), no turn happened: go on.
+- **Changes on a film not yet captured:** a film's changes are captured when it is left (fl_sw); a switch leaves
+  every film at once. `ls_cap` captures each COLOR on a film that shows changes (`fl_live`), against the film it is on,
+  before the swap. Capturing every COLOR (first try) overwrote another set's saved record for the same film slot (one
+  EDITS record per slot j for all sets), so going back lost the change: only changed films are captured.
+- **Debug log `*` cache:** `lg_lv` / `lg_lr` answer per COLOR by film number; after a swap FILM 2 is another film, so the
+  log showed the old '*' (the camera's own fl_live was clean). Cleared at a swap.
+- **om-emu runs:** all nine look-set tests pass; 12 switches in one power-on all loaded (no allocation failure; each
+  keeps a ~3 KB film buffer until power-off, as el_card). exFAT and long names: probe w1.
+- **Not done / open:** per-set CURVES (a set's built-in curves and mix: `CURVES.BIN` matches by record CRC, so one
+  file serves one set); NAMES.BIN per set; the list is read once per power-on; the video menu (a pick in video loads
+  the same way, the COLORs at the next photo look, untested here); whether the camera's mode code stays 0 after a
+  power-on without a dial turn (the rc_go fix assumes nothing either way); whether 1290 is used by any OM-3 screen
+  (analysis as 1288: an accessory key's movie function).
+- **Suites (om-emu 0819080):** feature/look-sets (out-ls1): 128 of 128 (after hooks.json took the pointer word at
+  0x6154a8dc whole: its low byte now differs from stock, the same site). Test build **h2** = `try/v0.40.2-h265-ls1`
+  (this branch + feature/v0.40.2-h265): 133 of 133; E1479999.BIN 142d4236…, GUIDES.BIN 94f4a4f5…; package
+  kept privately (sets REVERSE / SAME / BROKEN made from the release films, as in the tests). Camera test pending.
+- **Camera (buburun, 2026-11-22/23, h2 = E1479999.BIN 142d4236…, a day of use): all eight steps passed.** Start-ups in
+  photo and video, H.265 + Bitrate (remaining time right; CADLOG "Video: codec 1, bitrate choice 3200 … recorded as
+  33333333"), the list in order, FILM 3 made from REVERSE with no '*', BROKEN refused, a Contrast change back with
+  LOOKS.BIN, the set kept over power-offs (a set of buburun's own in use all day). CADLOG: 128 GB exFAT card, "walk 0, 9187 us" (the folder
+  listed in 9 ms at the first half-press), "picks loaded 4, last pick LOOKS.BIN result 1", "New film sets taken this
+  power-on: 4 … COLORs made from the new films 4", "Films with changes: 3" (the step-6 change).
+- **Renamed (buburun, 2026-11-23): the row "Film Set", the log line "Film sets:"** (the maintainer's word: "a new film
+  set", #86). h3 = h2 + the name (`try/v0.40.2-h265-ls1`, VERSION "v0.40.2-h3"); film-set and video tests pass on it;
+  om-emu screen: "Film Set" with LOOKS.BIN and two sets.
+
+## Film sets: each set its own curves, and on v0.40.3 (2026-11-25; emulator only, camera test pending; branch feature/look-sets, test build h4)
+Request (buburun): each film set its own curves, in the same PR (#102), rebased on v0.40.3.
+- **Bug found first (PR #102 as opened, h3; emulator):** `ck_bi` (each film's built-in curves and mix) was made only at
+  the films' load and at the first half-press, so after a pick the new set's film j kept the last set's film j's built-in
+  until power-off, and LOOKS.BIN's films had none after going back. Test `look-set-without-curves-has-none`: `--without`
+  the v0.40.2-h3 build caught (boots 2 and 3). Not looked for on the camera.
+- **Now:** `ls_pick`, after a set was taken (or the same films under another name), calls `ck_set`: the curves file of the
+  set in use (`ls_cvp`: CURVES.BIN with LOOKS.BIN, else LOOKS\NAME.CRV; the folder's list takes only .BIN), checked as
+  CURVES.BIN, then `ck_mk` and `ck_fixall`. `ls_cap` still runs before the swap, with the old `ck_bi`. `ck_card` (first
+  half-press) does the same, so with a set from the folder in use CURVES.BIN does not replace its curves.
+- One image in M as before (+0x3BE20), the set's: no new record, no format change. With no .CRV the image stays; its
+  entries are tied to their films by CRC, so another set's films get none. Limit: LOOKS.BIN's curves come back from the
+  card's CURVES.BIN; without that file they are gone once a set's .CRV replaced them.
+- The card's file is read into `ck_rb`: `ck_buf` can hold a write that waits for the camera's own save (`ck_img`).
+- **v0.40.3:** ext13 is full (81,280 of 81,920), so looksets.s is in `.ext15` (section 6 too, the same start-up gates);
+  `fw_wr` is gone there, `ls_sv` is its copy. Records in M do not overlap ('OM3W' of beta2 / beta3 was at +0x3FE80).
+- No new hook or patch site; nothing more at start-up. Debug log: the "Film set curves:" line.

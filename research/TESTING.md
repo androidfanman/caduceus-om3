@@ -125,6 +125,20 @@ The gate and the digest have unit tests that need no firmware:
 | `halation-dial-steps-as-contrast` | The same for the Halation row, after Contrast: rear +1 up, front +1 down (experiment/perf-040, 2026-11-18) |
 | `tone-balance-dial-steps-as-contrast` | The same for the Split Tone Balance row, after Contrast: rear +1 up, front +1 down (experiment/perf-040, 2026-11-18) |
 | `grain-dial-steps-as-contrast` | The same for the Film Grain row, after Contrast: rear +1 up, front +1 down, and the debug log names the strength it ends on (experiment/perf-040, 2026-11-18) |
+| `look-set-row-lists-the-folder` | Film sets: the Film Set row lists LOOKS.BIN, then `OM3MOD/LOOKS/*.BIN` by name (a .TXT left out) |
+| `look-set-pick-loads-at-the-half-press-and-stays` | A pick loads at the next half-press (#86's new-set path) and stays after a power-off; a new `OM3MOD/LOOKS.BIN` is then not taken by itself |
+| `look-set-film-3-made-from-the-new-set` | COLOR 1 on FILM 3: after a switch it shows the new set's FILM 3, no '*' |
+| `look-set-not-valid-keeps-the-films` | A file that fails the check: the films stay, the row goes back to the set in use (1290 = 9) |
+| `look-set-back-to-looks-bin` | Picking LOOKS.BIN loads it again although the camera had it |
+| `look-set-pick-before-the-first-half-press` | A pick in the menu before any half-press (the list before the scan) loads at the first one |
+| `look-set-changes-come-back-with-their-set` | A Contrast change on FILM 2 is gone under another set (no '*') and back with its own set |
+| `look-set-no-folder` | No LOOKS folder: only LOOKS.BIN, nothing else changes |
+| `look-set-in-use-listed-without-its-file` | The set in use stays listed (and picked) when its file is gone from the card |
+| `look-set-without-curves-has-none` | A set without a .CRV has no built-in curves or mix at once after the pick (not the last set's); LOOKS.BIN's are back with it |
+| `look-set-own-curves` | `LOOKS/NAME.CRV` is taken with the pick and kept over a power-off, with CURVES.BIN left alone; LOOKS.BIN's come back from CURVES.BIN |
+| `look-set-own-curves-kept-in-camera` | The set's curves stay without its .CRV on the card; a changed .CRV is taken at the first half-press |
+| `look-set-own-curves-not-valid` | A .CRV that fails the check: the set loads, with no built-in curves |
+| `look-set-own-curves-edits-stay` | Curves set on the camera on a film of the set do not follow; LOOKS.BIN's film shows its own after going back |
 | `look-tables-match-the-model` | `st_run`'s R, G and B tables on a fake COLOR job match the Python models for split toning, curves and both together, and `sd_crc` matches zlib's CRC-32 |
 | `live-view-gates-wait-for-section-6` | The three live-view hook sites (hook_mx, hook_tone, hook_lv), called directly with the camera's ready word at 0x1f, reach the stock code (lv_skip with d0 = 11), and at 0x3f our code (fix/section-gates, 2026-11-17) |
 | `patch-audit` | om-emu's audit finds no patched byte the camera does not load, and no task started at power-on |
