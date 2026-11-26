@@ -21808,12 +21808,15 @@ cm_force:
  .byte 0
 
 /* cm_gnow (k5): `call cm_gnow,[],0` -> d0 = the group now: C1..C5 0..4, P / A / S / M / B 5. The mode's code (the
- * settings object's byte +24: 1..5 P A S M B, 53..57 C1..C5) when it is one of those; else the mode dial's position
+ * settings object's byte +24: 1..5 P A S M B, 53..56 C1..C4, 63 C5) when it is one of those; else the mode dial's position
  * (UI_IN's index at 0xa32d9d0c, om-emu E147: 0 S, 1 A, 2 P, 3..7 C5..C1, 8 B, 9 M), since on the camera the code
  * read 0 at the first look after a power-on (k4's CADLOG: "code 0", so P's films went onto a custom mode). Notes the
  * code in cm_code, or 0xc0 | the position when the position decided. Uses d0, d1, a0. */
  .set MC_B, 62                    /* #54: B's code in om-emu. On the camera B's code reads 0 (DS4 CADLOG, dial 8) */
  .set DIAL_B, 8
+ .set MC_C5, 63                   /* #116: C5's code is 63, not 57 (om-emu runs the camera's own code: C1..C4 53..56,
+                                   * C5 63, its screen showing C5). Read as no mode, a live turn to C5 waited for a
+                                   * code that never came (#54's DS1), so C5 kept the films of the mode before it. */
 cm_gnow:
  mov (rc_in),a0
  cmp 0,a0
@@ -21834,7 +21837,11 @@ cm_gnow:
  cmp 53,d0
  bcs 1f
  cmp 58,d0
- bcc 2f
+ bcs 6f
+ cmp MC_C5,d0                     /* #116: C5 */
+ bne 2f
+ mov 57,d0
+6:
  add -53,d0
  ret [],0
 1:
@@ -22074,7 +22081,7 @@ ss_wr:
 9:
  ret [d2,d3,a2,a3],20
 
-/* ss_photo: `call ss_photo,[],0` -> d0 1 when the mode now is a photo mode: the mode's code 1..5 / 53..57, or, while
+/* ss_photo: `call ss_photo,[],0` -> d0 1 when the mode now is a photo mode: the mode's code 1..5 / 53..56 / 63, or, while
  * the code is still 0 after a power-on, the photo / movie / S&Q switch (UI_IN index 0xa32d9d0d, beside the mode
  * dial's 0xa32d9d0c: 2 photo, 1 movie, 0 S&Q; om-emu). Video / S&Q read 10. Notes ss_ph. Uses d0, d1, a0. */
 ss_photo:
@@ -22092,7 +22099,9 @@ ss_photo:
  cmp 53,d0
  bcs 8f
  cmp 58,d0
- bcc 8f
+ bcs 1f
+ cmp MC_C5,d0                     /* #116: C5 */
+ bne 8f
 1:
  mov 1,d0
  ret [],0

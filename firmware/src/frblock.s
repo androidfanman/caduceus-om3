@@ -679,7 +679,7 @@ rl_wf:
  ret [d2,d3,a2,a3],20
 
 /* rl_pho: `call rl_pho,[],0` -> d3 1 in a photo mode or a mode not known yet, else 0 (video). Uses d3, a3. The mode's
- * code (cm_gnow): P A S M B 1..5, C1..C5 53..57 */
+ * code (cm_gnow): P A S M B 1..5, C1..C4 53..56, C5 63 (#116) */
 rl_pho:
  mov (rc_in),a3
  cmp 0,a3
@@ -693,6 +693,8 @@ rl_pho:
  bcs 7f
  cmp 58,d3
  bcs 8f
+ cmp 63,d3                        /* #116: C5's code */
+ beq 8f
 7:
  clr d3
  ret [],0
@@ -807,7 +809,9 @@ rl_shot:
  cmp 53,d1
  bcs 9f
  cmp 58,d1
- bcc 9f
+ bcs 1f
+ cmp 63,d1                        /* #116: C5's code */
+ bne 9f
 1:
  cmp 0,d0
  bne 3f

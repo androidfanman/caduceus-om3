@@ -169,7 +169,7 @@ mx_go:
  jmp MX_BACK
 
 /* mx_photo: `call mx_photo,[],0` -> d0 1 in a photo mode (owner, mix test 1's clip: the mix and the curves are for
- * photos only): the mode's code 1..5 / 53..57, or, while it is 0 (power-on, or the movie / S&Q position in om-emu),
+ * photos only): the mode's code 1..5 / 53..56 / 63 (C5, #116), or, while it is 0 (power-on, or the movie / S&Q position in om-emu),
  * the photo / movie / S&Q switch 0xa32d9d0d = 2. ss_photo's test (camera-tested, custom modes) without its diagnostic
  * write, so the image task only reads. Uses d0, a0. */
 mx_photo:
@@ -184,7 +184,9 @@ mx_photo:
  cmp 53,d0
  bcs 8f
  cmp 58,d0
- bcc 8f
+ bcs 1f
+ cmp 63,d0                        /* #116: C5's code (MC_C5) */
+ bne 8f
 1:
  mov 1,d0
  ret [],0

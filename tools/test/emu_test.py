@@ -149,6 +149,8 @@ MODE_DIAL_P = 2
 MODE_DIAL_C1 = 7
 MODE_DIAL_M = 9
 MODE_DIAL_B = 8
+MODE_DIAL_C5 = 3
+MODE_DIAL_C4 = 4
 UI_MODE_DIAL = 0xa32d9d0c    # the mode dial's position (cm_gnow)
 # The movie position, set explicitly: om-emu 0819080 (2026-11-14) reads an unset switch as photo, so a test that left it
 # unset ran in photo (v0.30 test 8, emulator).
@@ -191,6 +193,23 @@ LIVE_TURN_M_TO_C1_AND_BACK = f'{LIVE_TURN_START} {live_turn(MODE_DIAL_C1)} {live
 # clear once the mode is real (#54). om-emu's camera draws no label at a turn, so the byte stands for the picture.
 LIVE_TURN_HOLDS_THE_LABEL = (f'{LIVE_TURN_START} {live_turn(MODE_DIAL_C1, True)} {live_turn(MODE_DIAL_M, True)} '
                              'poweroff')
+# #116: in P, FILM 5 picked and assigned to C5, FILM 4 picked and assigned to C4 (Assign > Set), then FILM 6 picked in
+# P. The menu opens on Custom Mode after the first Assign, its list on C1.
+_R = lambda n: 'right wait ' * n
+_D = lambda n: 'down wait ' * n
+_PICK = lambda keys: f'ok wait ok wait {keys}ok wait menu wait wait '
+_SET = 'down wait ok wait ok wait menu wait menu wait menu wait wait '
+BOOT1_ASSIGN_C5_C4 = (f's1 wait wait {_PICK(_R(8))}s1 wait wait menu wait {_R(7)}ok wait {_D(4)}ok wait {_SET}'
+                      f's1 wait wait {_PICK("left wait ")}s1 wait wait menu wait ok wait {_D(3)}ok wait {_SET}'
+                      f's1 wait wait {_PICK(_R(2))}s1 wait wait poweroff')
+# Live turns C5 -> C4 -> C5 (the reporter's steps) and C5 -> C4, each with a half-press. C5's mode code is 63 (C1..C4
+# 53..56): read as no mode, the turn back to C5 waited for a code that never came and C5 kept C4's film.
+C5_TO_C4_TO_C5 = ('wait wait wait s1 wait wait mode:4 wait wait wait s1 wait wait mode:3 wait wait wait s1 wait wait '
+                  'poweroff')
+C5_TO_C4 = 'wait wait wait s1 wait wait mode:4 wait wait wait s1 wait wait poweroff'
+C5_FILM_LINE = r'^Picture mode: COLOR 1, FILM 5\b.*\(setting 111 = 54\)'
+C4_FILM_LINE = r'^Picture mode: COLOR 1, FILM 4\b.*\(setting 111 = 54\)'
+GROUP_C5_LINE = r'^Now: group C5 \(last look: mode code 63\)'
 # #86: a new film set (LOOKS.BIN the camera never had) replaces the films in every mode. Each COLOR on a film the set
 # changed is made from the new film (its rows and the camera's 18 settings), so no film shows a '*' (before: the new
 # film's name over the old film's rows and settings, with a '*'). A custom mode on Reset is made again at each entry.
@@ -1189,6 +1208,12 @@ TESTS = {
         Boot(BOOT1_ASSIGN_C1),
         Boot(LIVE_TURN_C1_TO_B, expect=[P_FILM_LINE], mode_dial=MODE_DIAL_C1),
     ],
+    # #116: C5 brings back its own film after a live turn to C4 and back (and C4 its own after a turn from C5).
+    'c5-keeps-its-film-after-a-turn-to-c4': [
+        Boot(BOOT1_ASSIGN_C5_C4),
+        Boot(C5_TO_C4_TO_C5, expect=[GROUP_C5_LINE, C5_FILM_LINE], mode_dial=MODE_DIAL_C5),
+        Boot(C5_TO_C4, expect=[C4_FILM_LINE], mode_dial=MODE_DIAL_C5),
+    ],
     'live-dial-turn-holds-the-label': [
         Boot(BOOT1_ASSIGN_C1),
         Boot(LIVE_TURN_HOLDS_THE_LABEL, expect=[P_FILM_LINE], mode_dial=MODE_DIAL_M),
@@ -1546,6 +1571,13 @@ TESTS = {
                                                         r'variable writes [1-9]']),   # the GUI variable setter too (.hook_rv)
         Boot(f'wait wait s1 wait wait {OPEN_ROLL}{REWIND(5)} menu wait wait s1 wait wait {PICK_FILM_2} s1 wait wait poweroff',
              expect=[ROLL_LINE(0, 0, 0, 0, 0), ROLL_COUNTS(0, 1), FILM_2_LINE]),   # test 33: the strip does not move
+    ],
+    # #116: C5's mode code is 63 (C1..C4 53..56). Read as video, a roll was not active in C5: a film pick there was not
+    # refused (and frames there would not count: camera only, om-emu takes no photo).
+    'film-roll-locks-the-film-in-c5': [
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait {PICK_FILM_2} s1 wait wait poweroff', card=FR_CARD,
+             mode_dial=MODE_DIAL_C5, expect=[ROLL_LINE(1, 54, 1792, 5, 0), ROLL_COUNTS('[1-9]', 0)],
+             reject=[FILM_2_LINE]),
     ],
     # the crank (owner, 2026-11-25: "Crank, 3 clicks"; "make it based on the photos you took"; "hide that durning the
     # winding"; "it only displays none and 24"): with frames shot each click on the Film Roll row, either way, winds one
