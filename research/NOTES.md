@@ -12044,3 +12044,56 @@ window's place: the picture-mode label (15706..15713).
   DEBUG.TXT and the photo code kit as v0.41-beta. `static:hook-list` (the two Film Rolls hooks) and
   `static:changed-bytes` stay open for the full release, as with fr9.
 - **Suite** (`--stock`, om-emu-new) on the release build: **199 of 201 pass**; the 2 FAILs are those two static checks.
+
+## #116: C5's mode code is 63; C5 kept the films of the mode before it (2026-11-26; emulator + analysis, camera test pending; branch fix/116-custom-mode-film)
+Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 showed FILM 4 on C5.
+- **Cause (om-emu 0819080, runs the camera's own code):** the camera's mode code (settings object +24) is 53..56 for
+  C1..C4 but **63 for C5** (dial position 3; the camera's own screen shows "C5"). The custom-mode code took C1..C5 as
+  53..57 (an assumption since k2, 2026-11-14; only C1 / C2 were ever camera-tested). With 63 unknown, `cm_gnow` fell
+  back to the dial (0xc0 | position, which still said C5), and since **v0.30 (#54's DS1)** `rc_go` does no film work
+  while it falls back: it waits for a real code (rc_pend), which never came at C5. So a live turn into C5 switched
+  nothing and C5 showed the previous mode's films; a power-on on C5 (the first look takes the fallback) was right.
+  `ss_photo` also read 63 as video. Not the #99 WB-shift work (the suspect in the issue notes).
+- **Same blind spot, C5 only (analysis + code):** `mx_photo` (Colour Mix and the RGB curves are photo-only) read C5 as
+  video, so C5 photos had no mix / curves; Film Rolls' `rl_pho` / `rl_shot` the same (no roll active in C5: no lock,
+  frames not counted). The debug log's Save Settings line for the mode (`cmp 58` at the NOW block) still skips C5;
+  left as it is (log only; the CUSTOM MODES table shows C5's).
+- **Emulator, the reporter's steps (Assign > Set both, Save Settings Reset; P on another film):**
+  | Build | C5 -> C4 -> C5 | C4 -> C5 |
+  |---|---|---|
+  | v0.29.5 (`8104C303`: switch at the dial fallback) | FILM 5 | FILM 5 |
+  | v0.30, v0.40.3, v0.41-beta2 | FILM 4 | FILM 4 |
+  | fix116-1 | FILM 5 | FILM 5 |
+  A film picked while on C5 (Reset), then C4 and back: v0.41-beta2 FILM 4 (C4's); fix116-1 and v0.29.5 C5's Assign
+  film (Reset forgets changes made inside a custom mode, as documented).
+- **Fix (fix116-1):** code 63 counts as C5 in `cm_gnow` (`MC_C5`, group 4), `ss_photo`, `mx_photo` and Film Rolls'
+  `rl_pho` / `rl_shot` (frblock.s, so FILMROLL.BIN changes; it changes with every firmware build anyway). 57 is still
+  taken as C5 too (never seen, harmless). No new hook or patch site; `.ext12` +16 B (0x3ffb0 of 0x40000). VERSION
+  "v0.41-c5 (beta 2 + #116: C5 keeps its own films)".
+- **Tests:** `c5-keeps-its-film-after-a-turn-to-c4` (C5 -> C4 -> C5: group C5 at code 63, FILM 5; C5 -> C4: FILM 4),
+  `film-roll-locks-the-film-in-c5` (a roll in C5 refuses a film pick). Both pass; `--without` v0.41-beta2: both
+  `caught`. Driver: mode dial positions C5 3, C4 4 (MODE_DIAL_C5 / _C4).
+- **C5's Save Settings is setting 2176, not 1884 (om-emu, fix116-1):** a scan of settings 1..4500 around the menu's
+  OK: Custom Mode > C5 > Save Settings > Hold writes **2176** (0 -> 1), C4's writes 1883; 1884 stays 0. `cm_hold` read
+  1880 + n, so C5 on Hold always acted as Reset (every version since k6 / v0.29.2). Emulator: Assign C5 and C4 (FILM
+  1), C5 on Hold, FILM 5 picked on C5, C4 (FILM 4 picked) and back: with the code-63 fix alone C5 came back on FILM 1,
+  with this one on FILM 5. `cm_hold` reads 2176 for C5 (.ext12 +16 B more: 0x3ffc0), and lg_cid's cached list (the
+  debug log's Save Settings column) 2176 in 1884's place. Test `c5-hold-keeps-a-film-picked-there` (`--without` the
+  code-63-only build 06bcdcf: `caught`). **Behaviour change from v0.41-beta2: Hold on C5 is followed** (owner's call).
+- **#117 (same reporter, v0.40.3-beta3):** (1) "C5 keeps FILM 4 when the dial turns one way, not the other": the
+  code-63 cause above makes every live turn into C5 keep the previous mode's films whatever the direction; om-emu sets
+  the dial position at once (no in-between positions), so the direction part is not reproduced (a power-on on C5 was
+  always right; camera test). (2) "the front dial's film does not match the rendering in C1..C5": om-emu, build of
+  74504fa, real v0.41-beta2 CURVES.BIN, front dial on the Super Control Panel's picture-mode cell (single steps and
+  bursts of 3..5, both ways) in C1, P and C5, and in the Picture Mode list in C1: the label, COLOR k's film, the
+  camera's 18 values (no '*') and the slot's curves / mix (following the film's built-in) all agree. In C5 the slot is
+  right too, but before fix116-1 the image task's `mx_photo` read C5 as video, so C5 photos had no mix / curves: the
+  regraded films' look was missing there. Nothing found for C1..C4 (live view timing and the real dial's speed are
+  camera-only); a CADLOG from right after a mismatch, with the mode and film, is what is needed.
+- **Suite** (build of 74504fa = the package, om-emu 0819080, `--stock`): **202 pass**, 2 FAIL; the 2 FAILs
+  (static:changed-bytes, static:hook-list: the Film Rolls hooks) are identical on the unchanged v0.41-beta2 build
+  (static_check.py on both builds: the same 16 lines). Never `--write-hooks`.
+  Package `test-builds/2026-11-26-fix116-1` (private folder): E1479999.BIN `e98d32e3…10f0`, GUIDES.BIN `62528a47…dd75`,
+  FILMROLL.BIN `61486fe3…dc9e` (built twice, identical); go-back v0.41-beta2.
+- **Camera-only:** that the real camera also reports 63 at C5 and keeps C5's Hold in 2176 (CADLOG "Shooting mode: C5 (mode code 63"); the live
+  turn's timing; C5 photos with mix / curves; Film Rolls frames counted in C5.
