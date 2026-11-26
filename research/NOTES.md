@@ -12095,5 +12095,10 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   (static_check.py on both builds: the same 16 lines). Never `--write-hooks`.
   Package `test-builds/2026-11-26-fix116-1` (private folder): E1479999.BIN `e98d32e3…10f0`, GUIDES.BIN `62528a47…dd75`,
   FILMROLL.BIN `61486fe3…dc9e` (built twice, identical); go-back v0.41-beta2.
-- **Camera-only:** that the real camera also reports 63 at C5 and keeps C5's Hold in 2176 (CADLOG "Shooting mode: C5 (mode code 63"); the live
+- **Camera log (owner's OM-3, fix116-1 e98d32e3…, 2026-11-26; copy kept privately): the camera reports C5 as mode
+  code 63** ("? (code 63) -> C5, films switched 1, picture mode set"; the log's mode-change list names 63 "?", cosmetic).
+  44 shutter events, 20 mode changes, "nothing unusual", no restart in the log. Events #32 C4 (its film) -> #33 C5 at a
+  live turn: C5's own film at once. C4 and C5 assigned (Assigns 2), both Reset. The log keeps only the last 13 events
+  (#32..#44), so the earlier steps are not in it. Owner's verdict: pending.
+- **Camera-only:** that the real camera keeps C5's Hold in 2176 (CADLOG "Shooting mode: C5 (mode code 63"); the live
   turn's timing; C5 photos with mix / curves; Film Rolls frames counted in C5.
