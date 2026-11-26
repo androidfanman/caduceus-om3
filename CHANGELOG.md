@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.41-beta3](#v041-beta3-test-version) | 2026-11-26 (test version) | C5 brings back its own films at a dial turn (#116, #117), follows Save Settings: Hold, and gets Color Mix, the RGB curves and Film Rolls |
 | [v0.41-beta2](#v041-beta2-test-version) | 2026-11-26 (test version) | Film Rolls: load a roll of 24, 36 or 72 exposures, shoot it, wind it back (its `FILMROLL` folder turns it on); XPan kept after a half-press at start-up (#105); Remaining Movie Time as its own screen-info row |
 | [v0.41-beta](#v041-beta-test-version) | 2026-11-24 (test version) | v0.41-alpha cleaned up (INFO hints on the colour wheel and Split toning bars, only the bar on Split toning's Balance, one INFO guide style) and a new photo code, om3.2, that also carries the RGB curves, Color Mix, Film Grain strength and Grain Size |
 | [v0.41-alpha](#v041-alpha-test-version) | 2026-11-23 (test version) | New Picture Mode pages: the H / S / L bar on the colour wheel, a five-point tone curve (Blacks and Whites in Highlight & Shadow), Split toning on its own row with Balance |
@@ -56,6 +57,18 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.41-beta3 (test version)
+A test version (a GitHub pre-release; v0.40.3 stays the current version). v0.41-beta2 plus the C5 fixes,
+camera-tested 2026-11-26 (test build fix116-1, the build before its release name).
+- **C5 keeps its own films (#116, #117, reported by zhaochanghaotw-boop):** the camera numbers C5 differently from
+  C1-C4, and since v0.30 a dial turn into C5 with the camera on left the previous mode's films in place. C5 now brings
+  back its own films at every turn, like C1-C4.
+- **Save Settings: Hold on C5** is followed (before, C5 always acted as Reset): a film picked on C5 stays there.
+- **Color Mix, the RGB curves and Film Rolls in C5:** C5 photos now get the film's mix and curves, and a roll counts
+  frames in C5.
+- Film Rolls needs this version's `FILMROLL.BIN` (made for this firmware only).
+- The Firmware Version screen shows "0.41-b3".
 
 ## v0.41-beta2 (test version)
 A test version (a GitHub pre-release; v0.40.3 stays the current version). v0.41-beta plus Film Rolls, the #105 fix

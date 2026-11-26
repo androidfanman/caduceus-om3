@@ -12103,3 +12103,14 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   its own film).**
 - **Camera-only:** that the real camera keeps C5's Hold in 2176 (CADLOG "Shooting mode: C5 (mode code 63"); the live
   turn's timing; C5 photos with mix / curves; Film Rolls frames counted in C5.
+
+## v0.41-beta3 (2026-11-26): the #116 C5 fixes as a test version
+- **Owner (2026-11-26):** "lets update the github with these fixes as .41.1 beta2"; name chosen: **v0.41-beta3**.
+  `try/v0.41-beta3` = `fix/116-custom-mode-film` 38ed4b7 (fix116-1, camera-tested) with VERSION `v0.41-b3 (beta 3:
+  beta 2 + #116, C5 films fixed)`, the same length as fix116-1's name: the decoded image differs only in the name, the
+  Firmware Version page's "0.41-b3" and the tags / CRCs that follow (49 bytes of E1479999.BIN; FILMROLL.BIN 3, its
+  tag).
+- **Build:** E1479999.BIN `82c0a6c4…fdef`, two clean builds match; `firmware/patch.py --release v0.41-beta3` makes the
+  same file. FILMROLL.BIN `ee842eca…62f2` (13892 B, this firmware's); ROLLART / SCREENS / WINDOW, CURVES.BIN,
+  LOOKS.BIN, DEBUG.TXT and the photo code kit as v0.41-beta2.
+- **Suite:** on fix116-1's build (74504fa) 202 pass, 2 FAIL (static:changed-bytes, static:hook-list, as v0.41-beta2's).

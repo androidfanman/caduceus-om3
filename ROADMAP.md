@@ -27,6 +27,7 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 
 | Bug | What happens | Status |
 |---|---|---|
+| **C5 shows another mode's film** ([#116](https://github.com/androidfanman/caduceus-om3/issues/116), [#117](https://github.com/androidfanman/caduceus-om3/issues/117)) | Turning the dial into C5 kept the previous mode's film; Hold, Color Mix, the curves and Film Rolls didn't work in C5. | Fixed in the v0.41-beta3 test version |
 | **Quick single shots held up** ([#85](https://github.com/androidfanman/caduceus-om3/issues/85)) | With `DEBUG.TXT` on (or Halation on), a quick second press in Single waited for the card. | Fixed in v0.40 (reporter to confirm) |
 | **Custom modes and a new film set** ([#86](https://github.com/androidfanman/caduceus-om3/issues/86)) | A new `LOOKS.BIN` showed the new names with a "*" over the old films' colours. | Fixed in v0.40 |
 | **Video crash** ([#74](https://github.com/androidfanman/caduceus-om3/issues/74)) | Video crashed once on the video dial; no debug log. | Closed (2026-11-18), fixed in v0.40 |
