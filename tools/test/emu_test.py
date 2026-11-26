@@ -46,6 +46,8 @@ SHADING_CHECK = REPO / 'research/shading/emu_check.py'
 # Picture Mode) it reads -3 through the getter key 0xf7c9, clears the capture's copy (+37722) and notes the level for
 # xb_gs; with Shading 0 it leaves everything as it is. On a fake capture (om-emu takes no photos).
 SHTAKE = 'shading-taken-over-at-a-still'
+FRVS = 'film-roll-number-only-on-the-shooting-screen'
+FRLOG = 'film-roll-log-line-at-the-rewind'
 ENGINE = 'look-tables-match-the-model'
 DIAL = 'rgb-page-counts-every-click'
 # #68: our looks are for photos only. A video pass after a photo pass, the same look (split toning and curves), must
@@ -705,7 +707,12 @@ FILMS_WB_NEW = {**FILMS_WB, 0: ('cwb', 5000, -3, 1)}
 
 # v0.30 test 9: CURVES.BIN (each film's built-in curves and mix, docs/FORMATS.md), made from the newest release's
 # LOOKS.BIN. Film 1 (COLOR 1, look 2: PICK_FILM_2) gets values; B changes them; BAD has a wrong CRC.
+ROLL_BODY = bytes.fromhex('013605000007000000000000')   # Film Rolls B1: a 24 roll on COLOR 1, 5 shot, ISO 400 (as ROLL_POKE)
+ROLL_REC = lambda body: b'OM3F' + struct.pack('<HHI', 2, 24, zlib.crc32(body) & 0xffffffff) + body   # D2: version 2, 24 B
 FIXTURES = {
+    'DEBUG_ON': lambda looks, names: DEBUG_TXT.read_bytes(),         # the debug log switched on again
+    'ROLL_GOOD': lambda looks, names: ROLL_REC(ROLL_BODY),            # OM3MOD/FILMROLL/ROLL.BIN as rl_idle writes it
+    'ROLL_BAD': lambda looks, names: (lambda r: r[:8] + bytes([r[8] ^ 1]) + r[9:])(ROLL_REC(ROLL_BODY)),   # a wrong CRC
     'CURVES_A': lambda looks, names: mkcurves.build(looks, {names[1]: {'r': [1, 0, 0, 0, -1], 'mix': [1, 2, 0, 0, 0, 0]}}),
     'CURVES_B': lambda looks, names: mkcurves.build(looks, {names[1]: {'g': [0, 2, 0, 0, 0], 'mix': [0, 0, 0, 0, -1, 3]}}),
     'CURVES_BAD': lambda looks, names: (lambda b: b[:40] + bytes([b[40] ^ 1]) + b[41:])(FIXTURES['CURVES_A'](looks, names)),
@@ -773,6 +780,15 @@ SI_HIDE_METER = ('menu wait left wait left wait down wait ok wait down wait righ
                  ' ok wait menu wait menu wait menu wait')
 SI_METER_ON, SI_METER_OFF = 'expect:pxdiff:522,575,300,450', 'expect:pxsame:522,575,300,450'
 SI_EV_ON = 'expect:pxdiff:623,566,300,450'
+# rt1 (owner, 2026-11-25): Remaining Files split in two rows. Information 1's 20th row (Remaining Files, bit 12) now
+# hides only the shots left, "803" ((247, 7) on its 8); the 21st (Remaining Movie Time, bit 17) only the movie time
+# left beside it, "[10:45]" ((350, 18) on its bracket).
+SI_INFO1 = 'menu wait left wait left wait down wait ok wait down wait right wait'
+SI_OUT = ' ok wait menu wait menu wait menu wait'
+SI_HIDE_FILES = SI_INFO1 + ' down wait' * 19 + SI_OUT
+SI_HIDE_MOVIE_TIME = SI_INFO1 + ' down wait' * 20 + SI_OUT
+SI_SHOTS_ON, SI_SHOTS_OFF = 'expect:pxdiff:247,7,300,450', 'expect:pxsame:247,7,300,450'
+SI_TIME_ON, SI_TIME_OFF = 'expect:pxdiff:350,18,300,450', 'expect:pxsame:350,18,300,450'
 BORDER_TO_0 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
 BORDER_TO_M3 = f'{OPEN_BORDER}' + ' left wait' * 3 + ' expect:p:82=fd menu wait wait s1 wait wait'   # black -3
 BORDER_FROM_M3 = f'{OPEN_BORDER}' + ' right wait' * 3 + ' expect:p:82=00 menu wait wait s1 wait wait'
@@ -815,6 +831,51 @@ GRAIN_2_COARSE = '^Film Grain on COLOR 1-4: 2 Coarse, Off, Off, Off$'
 # Halation Radius: its row, the 15th (under Halation, Film Grain under it); kept in the curves record's spare byte G
 # with the grain (the debug log's NOW lines)
 OPEN_RADIUS = 'ok wait ok wait' + ' down wait' * 14   # p4: one row less
+# Film Rolls on the card (frcard.s / frblock.s): the Film Roll row is the last of Picture Mode (the 19th) and only there
+# while OM3MOD/FILMROLL/FILMROLL.BIN is loaded; without it 18 rows: the 18th step down wraps to the top (item 111)
+OPEN_ROLL = 'ok wait ok wait' + ' down wait' * 18
+OPEN_END = 'ok wait wait wait wait'                     # a roll at its end: OK opens Picture Mode on the film selection row
+DIAL_BACK = lambda n: ' sub-1 wait wait' * n               # the rear dial there (test 27): 2 frames wound back a click (test 34)
+# a full 24 roll's last frame wound back on the film row: 23 put as wound already (om-emu's own message log overflows
+# its stack after about 24 clicks' posts: "Maximum call stack size exceeded"), then one click
+LAST_BACK = lambda body: (f'{OPEN_END} poke:{{rl_rbody}}={body[:12]}17{body[14:]} poke:{{rl_cur}}=00 poke:{{rl_dw}}=01'
+                           f'{DIAL_BACK(1)}')   # (the crank's cursor with it: a click is a change from it)
+ROLL_ROW_IS = lambda item: f'expect:mem:{{hb_item}}={U16(item)}'
+FR_CARD = {'FILMROLL/FILMROLL.BIN': 'FILMROLL_BIN'}
+FR_CARD_ART = {**FR_CARD, 'FILMROLL/ROLLART.BIN': 'ROLLART_BIN'}   # E1: each film's roll drawing (firmware/mkrollpath.py)
+FR_CARD_SCR = {**FR_CARD_ART, 'FILMROLL/SCREENS.BIN': 'SCREENS_BIN'}   # E2
+WINDOW_LINE = lambda key, loads, shown: rf'^Film Roll renderers .*; film window hook 1, window {key} \(loads {loads}, shown {shown}\)'   # C4
+SLIP_LINE = lambda n, box: rf'^Film Roll renderers .*; end slip {n} \(box widened {box}\)'   # the end-of-roll slip
+OK_END = lambda pm: rf'^Film Roll renderers .*; OK: hook 1, PM {pm};'                                # OK at the end
+DIAL_LINE = lambda steps, redrawn=None: rf'^Film Roll renderers .*; dial: hook 1, steps {steps}, redrawn {steps if redrawn is None else redrawn};'   # rear dial
+BURST_LINE = r'^Film Roll renderers .*; burst: hook 1, limit set 0, last 0, at frame 0, capped 0\)'   # fb_tmx: in, never run in om-emu
+ART_LINE = lambda key, ln, loads: rf'^Film Roll renderers .*, roll drawing {key} \({ln} B, loads {loads}\);'
+CARD_LINE = lambda st: rf'^Film Roll card file \(1 = loaded\) {st}'   # fc_st: 0 not looked, 1 loaded, 2 none, 3 size, 4 memory, 5 read, 6 other firmware
+ROLL_LINE = lambda n, ch, iso, shot, steps: (rf'^Film Roll: on 1; roll \(0 none, 1 = 24, 2 = 36, 3 = 72\) {n}, film {ch}, '
+                                             rf'ISO setting {iso}, frames shot {shot}, rewind steps {steps},')
+ROLL_COUNTS = lambda locks, out: rf'^Film Roll this power-on: .*lock rewrites {locks}, .*rolls out {out},'
+# a roll of 24 on COLOR 1 at ISO 400 with 5 frames shot (as the first photo and four more leave it; om-emu takes no
+# photo), poked into the card file's RAM after the first half-press (the record is read then) and written to M at the
+# next one. {rl_rbody} / {rl_dw} name the loaded block's fields (run_boot: fc_tab's pointer + the offset)
+ROLL_POKE = 'poke:{rl_rbody}=0136050000070000 poke:{rl_dw}=01'
+ROLL_FULL = 'poke:{rl_rbody}=0136180000070000 poke:{rl_dw}=01'   # r3: a 24 roll with all 24 shot
+REFUSED = lambda n: rf'^Film Roll screen and shutter: .*shutter refused at the end {n},'
+PB_REFUSED = lambda n: rf'^Film Roll screen and shutter: .*playback refused {n},'   # D1
+# D2: Image Review (setting 19; its screen in the shooting menu, tab 1, row 5: Off 0, 0.3 s 3, ...) set to 0.3 s
+SET_IMAGE_REVIEW_03 = 'menu' + ' right' * 7 + ' down down down down wait ok wait right wait ok wait wait menu wait wait'
+IR_LINE = lambda off, back: rf'^Film Roll renderers .*image review off {off}, back {back};'
+ISO_BACK = lambda n: rf'^Film Roll this power-on: .*ISO from before the roll back {n},'   # rl_ibk (2026-11-26)
+ISO_PICKED = lambda le: f'expect:mem:636fda50={le}'   # setting 1701 (the ISO as picked, 0 Auto), u16 little-endian
+KEY_HOOK_IN = r'^Film Roll screen and shutter: .*key hook \(1 in\) 1,'   # the card file's own hook (fb_htab), no flash
+KEY_SITE_STOCK = 'expect:mem:610beb1a=dd0eb2fcffa010'      # the key handler's call as stock: no card file, nothing written
+KEY_SITE_HOOKED = 'expect:mem:610beb1a+5=a010'             # with it: a jump (5 B) and the stock call's last 2 bytes
+CC_SITE_STOCK = 'expect:mem:610507ba=92fcdd680a2e61'      # E1: the Color Creator renderer's entry as stock
+R13_SITE_HOOKED = 'expect:mem:61050b52=dc'                # with the card file, the canister's renderer hook (fb_tr13; om-emu runs no renderer)
+RENDERER_HOOKS_IN = r'^Film Roll screen and shutter: .*drawing hook 1\r?$'   # E1: the canister's renderer hook in (om-emu runs none)
+REWIND = lambda shot: ' sub-1 wait wait' * ((shot + 1) // 2)   # test 28: the rear dial on the film row; test 34: 2 frames a click
+LEN_UP, LEN_DOWN = 'sub-1 wait wait', 'sub+1 wait wait'  # the rear dial on the film row: the length one up / down
+#         # the crank (owner, 2026-11-25): with frames shot the row is two
+                                                  # "Rewind" cells, one click a frame
 RADIUS_LINE = lambda r: f'^Halation Radius on COLOR 1-4: {r}, Bloom, Bloom, Bloom$'
 GRAIN_2_MEDIUM = '^Film Grain on COLOR 1-4: 2 Medium, Off, Off, Off$'
 EDIT_RGB = f'{OPEN_RGB} main+1 wait menu wait wait'
@@ -930,6 +991,21 @@ CARD_FILE_READS = ('fopen',)
 # The driver's own watch (tools/emulator/session_ed1.mjs): WBOOT arms it before the session's lab exists. A hit there
 # with WTID read memory through readers not yet declared (ReferenceError, driver exit 1). The getter runs at start-up.
 WATCH_FROM_START_UP = ('getter',)
+
+
+def film_roll_waits_for_the_first_look(hits):
+    """Film Rolls on the card: from switch-on nothing of it before the first look (cm_go): the card file is opened
+    (fc_open) and checked (fc_tagref) only after it."""
+    names = [h[0] for h in hits]
+    first = names.index('cm_go') if 'cm_go' in names else len(names)
+    early = sorted({n for n in names[:first] if n != 'cm_go'})
+    errors = [f'Film Rolls code ran before the first look: {early}'] if early else []
+    if 'cm_go' not in names:
+        errors.append('no first look (cm_go)')
+    for n in ('fc_open', 'fc_tagref'):
+        if n not in names[first:]:
+            errors.append(f'{n} did not run after the first look')
+    return errors
 
 
 def watch_hit_seen(hits):
@@ -1282,6 +1358,16 @@ TESTS = {
         Boot(f's1 wait wait {SI_METER_ON} {SI_EV_ON} {SI_HIDE_METER} expect:mem:6295c70c=00800000 s1 wait wait '
              f'{SI_METER_OFF} {SI_EV_ON} poweroff'),
     ],
+    # screen info rt1: Remaining Movie Time unticked hides the movie time left, and the shots left stay.
+    'screen-info-movie-time-row-keeps-shots-left': [
+        Boot(f's1 wait wait {SI_SHOTS_ON} {SI_TIME_ON} {SI_HIDE_MOVIE_TIME} expect:mem:6295c70c=00000200 s1 wait wait '
+             f'{SI_TIME_OFF} {SI_SHOTS_ON} poweroff'),
+    ],
+    # screen info rt1: Remaining Files unticked hides the shots left, and the movie time left stays.
+    'screen-info-remaining-files-keeps-movie-time': [
+        Boot(f's1 wait wait {SI_SHOTS_ON} {SI_TIME_ON} {SI_HIDE_FILES} expect:mem:6295c70c=00100000 s1 wait wait '
+             f'{SI_SHOTS_OFF} {SI_TIME_ON} poweroff'),
+    ],
     # screen info: video keeps its screen as it is (the movie mode icon stays with Shooting Mode unticked).
     'screen-info-not-in-video': [
         Boot(f's1 wait wait {SI_HIDE_MODE} {SI_MASK1} s1 wait wait poweroff'),
@@ -1314,6 +1400,23 @@ TESTS = {
         Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait poweroff', expect=[CROP_NOW(6)]),
         Boot(f'wait wait {CROP_ASPECT_IS(6)} {CROP_BASE_BACK} wait wait wait {CROP_ASPECT_IS(6)} s1 wait wait '
              f'{CROP_ASPECT_IS(6)} poweroff', expect=[CROP_SET_AGAIN(1)]),
+    ],
+    # #105 (jirimachovec; the owner's camera, v0.40.3): a half-press while the camera still starts ended the start-up
+    # watch (cr_hp cleared cr_rch), so the camera's own start-up putting 16:9 back afterwards left 16:9 for the whole
+    # power-on. Now a shutter event checks once more and the watch goes on: XPan is set again after the half-press.
+    'crop-kept-after-a-half-press-at-start-up': [
+        Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait poweroff', expect=[CROP_NOW(6)]),
+        Boot(f's1 wait wait {CROP_ASPECT_IS(6)} {CROP_BASE_BACK} wait wait wait {CROP_ASPECT_IS(6)} s1 wait wait '
+             f'{CROP_ASPECT_IS(6)} poweroff', expect=[CROP_SET_AGAIN(1)]),
+    ],
+    # #105: the watch after the start-up restore now outlasts the first half-press, so it ends at a mode dial turn: C1
+    # assigned with 16:9 (XPan's base), XPan picked in P; after the next start-up and a half-press, a live turn to C1
+    # keeps C1's own 16:9 (a watch still on would take it for the camera's revert and set XPan in C1).
+    'crop-custom-mode-ratio-kept-after-start-up': [
+        Boot(f's1 wait wait {PICK_ASPECT(1)} s1 wait wait {CROP_ASPECT_IS(3)} {ASSIGN_C1} {SCP_ASPECT(5)} '
+             f'{CROP_ASPECT_IS(6)} s1 wait wait poweroff'),
+        Boot(f's1 wait wait {CROP_ASPECT_IS(6)} {live_turn(MODE_DIAL_C1)} {CROP_ASPECT_IS(3)} wait wait wait wait wait '
+             f'{CROP_ASPECT_IS(3)} s1 wait wait {CROP_ASPECT_IS(3)} poweroff'),
     ],
     # crop83-2: a ratio the user picks after the start-up restore stays, even the crop's base (16:9 from XPan).
     'crop-user-pick-after-start-up-kept': [
@@ -1414,6 +1517,274 @@ TESTS = {
     # Halation Radius: the row steps Bloom -> Tight -> Medium (a choice row: it wraps, Wide -> Bloom, as the others); a
     # Film Grain strength set after it keeps the radius (gs_wr / rz_gk), and the radius set back to Bloom keeps the
     # grain (rz_wr); all kept over a power-off.
+    # Film Rolls on the card (FILM-ROLLS-ROADMAP.md A1-A4). Without OM3MOD/FILMROLL/FILMROLL.BIN: no Film Roll row
+    # (Picture Mode's 18 rows wrap back to the top), nothing locks, and the log says no card file (2)
+    'film-roll-off-without-its-card-file': [
+        Boot(f's1 wait wait {OPEN_ROLL} {ROLL_ROW_IS(111)} menu wait wait s1 wait wait {PICK_FILM_2} s1 wait wait '
+             f'{KEY_SITE_STOCK} {CC_SITE_STOCK} poweroff', expect=[CARD_LINE(2), FILM_2_LINE], reject=[r'^Film Roll: on']),
+    ],
+    # a card file built for another firmware (its tag changed) is refused (6): no row, nothing of it runs
+    'film-roll-card-file-of-another-firmware-refused': [
+        Boot(f's1 wait wait {OPEN_ROLL} {ROLL_ROW_IS(111)} menu wait wait s1 wait wait poweroff',
+             card={'FILMROLL/FILMROLL.BIN': 'FILMROLL_OTHER'}, expect=[CARD_LINE(6)], reject=[r'^Film Roll: on']),
+    ],
+    # with the card file the length is picked on the film row by the rear dial (None / 24 / 36 / 72; test 28: the Film
+    # Roll row left out, so the 18 downs wrap back to the film row), and nothing locks until the first photo: the film
+    # stays free, the half-press notes it (armed) and ISO Auto becomes the roll's ISO 400 (setting 6 = 1792)
+    'film-roll-length-free-until-the-first-photo': [
+        Boot(f's1 wait wait {OPEN_ROLL} {ROLL_ROW_IS(111)} {LEN_UP} {LEN_UP} menu wait wait s1 wait wait {PICK_FILM_2} '
+             's1 wait wait poweroff', card=FR_CARD_ART,   # FILM 2 Portra 160: 200 (ROLLART.BIN's ISO table)
+             expect=[CARD_LINE(1), ROLL_LINE(2, 0, 0, 0, 0), FILM_2_LINE, r'^Now: .*ISO 200,'])
+    ],
+    # with frames shot the film is the roll's: a film pick is refused (sx_set -> fc_lk -> rl_lk), kept over a
+    # power-off; picking None on the row takes the roll out and the film is free again
+    'film-roll-locks-the-film-and-rewinds': [
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait {PICK_FILM_2} s1 wait wait poweroff', card=FR_CARD,
+             expect=[ROLL_LINE(1, 54, 1792, 5, 0), ROLL_COUNTS('[1-9]', 0), r'^Picture mode: COLOR 1 \(setting'],
+             reject=[FILM_2_LINE]),
+        Boot('wait wait s1 wait wait poweroff', expect=[ROLL_LINE(1, 54, 1792, 5, 0), r'screen writes [1-9]',
+                                                        r'variable writes [1-9]']),   # the GUI variable setter too (.hook_rv)
+        Boot(f'wait wait s1 wait wait {OPEN_ROLL}{REWIND(5)} menu wait wait s1 wait wait {PICK_FILM_2} s1 wait wait poweroff',
+             expect=[ROLL_LINE(0, 0, 0, 0, 0), ROLL_COUNTS(0, 1), FILM_2_LINE]),   # test 33: the strip does not move
+    ],
+    # the crank (owner, 2026-11-25: "Crank, 3 clicks"; "make it based on the photos you took"; "hide that durning the
+    # winding"; "it only displays none and 24"): with frames shot each click on the Film Roll row, either way, winds one
+    # frame back (rewind steps 1, 2, ..; the roll still in); after the last frame the roll is rewound (steps = shot,
+    # still in) and the next pick takes it out and loads that value (here 72: rolls out 1, a new 72 roll). A shutter
+    # event in the middle ends the crank (steps 0, the roll as it was); a rewound roll comes out at one (REWIND's
+    # tests). The cells' looks and the rewind panel: om-emu screenshots / camera
+    # (test 19's hidden bottom bar on the Film Roll row went with the row at test 28)
+    # test 31..33 (owner: "when rewinding the film, if you do it quickly, it changes the film and rewinds the film";
+    # test 32: "the rewind function still moves through the film sims"): a FILM roll wound back with the rear dial and
+    # taken out keeps its film, and no film is asked for on the way (lock rewrites 0: the strip never moves); each
+    # click refreshes the rows (redrawn) and marks the film row for the canister (fb_tcs). om-emu does not show the
+    # quick turn or the strip itself; the lock count is what shows the strip stayed put.
+    'film-roll-rewind-keeps-the-film': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait poke:{{rl_rbody}}=0165020000060000 poke:{{rl_dw}}=01 s1 wait wait '
+             f'{OPEN_ROLL} sub-1 wait wait sub-1 wait wait sub-1 wait wait menu wait wait s1 wait wait poweroff',
+             card=FR_CARD_ART, expect=[ROLL_COUNTS(0, 1), FILM_2_LINE, DIAL_LINE(3), r'^Film Roll renderers .*marked (?:[3-9]|[1-9]\d+),']),
+    ],
+    # ... and since the click no longer reaches the strip, Picture Mode's idle timer (id 500, our 30 s) is armed again
+    # by the card file: Picture Mode stays open 18 steps after a click that came 30 steps after its last key (om-emu
+    # closes it 24 steps after the last event it saw)
+    'film-roll-rear-dial-keeps-picture-mode-open': [
+        Boot(f's1 wait wait {OPEN_ROLL}' + ' wait' * 10 + f' {LEN_UP}' + ' wait' * 16 + ' expect:mem:{LG_GUI}=0418 '
+             'menu wait wait s1 wait wait poweroff', card=FR_CARD_ART, expect=[DIAL_LINE(1)]),
+    ],
+    # owner (test 33): "can we have every click be worth 2 rewinds. so 24 would require 12 clicks": 5 shot -> 2, 4, 5
+    # (the last click 1), the next click takes the roll out and loads the cursor's value (72)
+    'film-roll-rewind-crank-3-clicks': [
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait {OPEN_ROLL} sub+1 wait wait expect:mem:{{rl_rbody_m}}+6=02 '
+             'expect:mem:{rl_rbody_m}=01 sub-1 wait wait expect:mem:{rl_rbody_m}+6=04 sub+1 wait wait '
+             'expect:mem:{rl_rbody_m}+6=05 expect:mem:{rl_rbody_m}=01 '
+             'sub+1 wait wait expect:mem:{rl_rbody_m}=03 expect:mem:{rl_rbody_m}+2=0000 menu wait wait s1 wait wait poweroff',
+             card=FR_CARD, expect=[ROLL_LINE(3, 0, 0, 0, 0), ROLL_COUNTS(0, 1)]),
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait {OPEN_ROLL} sub+1 wait wait expect:mem:{{rl_rbody_m}}+6=02 menu wait wait '
+             's1 wait wait s1 wait wait poweroff', card=FR_CARD, expect=[ROLL_LINE(1, 54, 1792, 5, 0), ROLL_COUNTS(0, 0)]),
+    ],
+    # r3 (owner: "Yes, stop it"): at a roll's end a still's release is refused (ctrlRelease -> fc_rel -> rl_rel answers
+    # "not ready"; om-emu reaches it on s2, twice on a held press); the rewind frees it; a movie press is not a key
+    # release (key_1st 0): never refused. om-emu takes no photo, so the shot itself is camera-only
+    'film-roll-shutter-stops-at-the-end-until-the-rewind': [
+        Boot(f's1 wait wait {ROLL_FULL} s1 wait wait s2 wait wait hold:s2 wait wait s1 wait wait poweroff',
+             card=FR_CARD, expect=[ROLL_LINE(1, 54, 1792, 24, 0), REFUSED('[1-9]')]),
+        Boot(f'wait wait s1 wait wait {LAST_BACK("0136180000070000")} menu wait wait s1 wait wait s2 wait wait hold:s2 wait wait '
+             's1 wait wait poweroff', expect=[ROLL_LINE(0, 0, 0, 0, 0), REFUSED(0)]),
+        Boot(f'wait wait s1 wait wait {ROLL_FULL} s1 wait wait pset:1 wait wait s1 wait wait s2 wait wait s1 wait wait '
+             'poweroff', expect=[ROLL_LINE(1, 54, 1792, 24, 0), REFUSED(0)]),
+    ],
+    # D1 ("you can't peek at film"; owner, 2026-11-24, after E2's "Not developed" screen froze the camera on leaving
+    # it: "im ok with playback doing nothing"): with a roll in and frames shot, the Playback button does nothing (the
+    # camera's key handler drops the event: the card file's hook, rl_key), even with a photo on the card; after the
+    # rewind Playback shows the photo. The look on a camera: camera-only
+    'film-roll-no-playback-during-a-roll': [
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait play wait wait expect:gui:ID_ST_CA_REQ_DISP s1 wait wait '
+             f'expect:mem:610beb1a=dc {KEY_SITE_HOOKED} {R13_SITE_HOOKED} {CC_SITE_STOCK} poweroff',   # the Color Creator's stays stock
+             card={**FR_CARD, '/DCIM/100OLYMP/PB240001.JPG': 'PHOTO_JPG'},
+             expect=[ROLL_LINE(1, 54, 1792, 5, 0), PB_REFUSED('[1-9]'), KEY_HOOK_IN, RENDERER_HOOKS_IN]),
+        Boot(f'wait wait s1 wait wait {OPEN_ROLL}{REWIND(5)} menu wait wait s1 wait wait play wait wait '
+             'expect:gui:ID_ST_DISP_SIMPLE s1 wait wait poweroff', expect=[ROLL_LINE(0, 0, 0, 0, 0), PB_REFUSED(0)]),
+    ],
+    # B1 (owner: "the roll belongs to the card", nothing on the camera): the roll is written to OM3MOD/FILMROLL/ROLL.BIN
+    # and ROLL2.BIN by the log writer task at a quiet moment (rl_idle), read back at the next power-on; the same camera
+    # with a card that has no roll files has no roll
+    'film-roll-kept-on-the-card-not-in-the-camera': [
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait s1 wait wait poweroff', card=FR_CARD,
+             expect=[ROLL_LINE(1, 54, 1792, 5, 0), r'record writes [1-9]']),
+        Boot('wait wait s1 wait wait poweroff', expect=[ROLL_LINE(1, 54, 1792, 5, 0)]),
+        Boot('wait wait s1 wait wait poweroff', card={'FILMROLL/ROLL.BIN': None, 'FILMROLL/ROLL2.BIN': None},
+             expect=[ROLL_LINE(0, 0, 0, 0, 0)]),
+    ],
+    # a torn ROLL.BIN (a wrong CRC, as a battery pull mid-write could leave it): the copy ROLL2.BIN is used
+    'film-roll-torn-record-uses-its-copy': [
+        Boot('s1 wait wait s1 wait wait poweroff',
+             card={**FR_CARD, 'FILMROLL/ROLL.BIN': 'ROLL_BAD', 'FILMROLL/ROLL2.BIN': 'ROLL_GOOD'},
+             expect=[ROLL_LINE(1, 54, 1792, 5, 0)]),
+    ],
+    # without DEBUG.TXT (no debug log, so no log writer from lg_write) Film Rolls makes the writer itself and the roll
+    # still reaches the card: seen at the next power-on with the log back on
+    'film-roll-written-without-the-debug-log': [
+        Boot(f's1 wait wait s1 wait wait {ROLL_POKE} s1 wait wait s1 wait wait poweroff',
+             card={**FR_CARD, 'DEBUG.TXT': None}, no_log=True),
+        Boot('wait wait s1 wait wait poweroff', card={'DEBUG.TXT': 'DEBUG_ON'}, expect=[ROLL_LINE(1, 54, 1792, 5, 0)]),
+    ],
+    # OK at a roll's end on the shooting screen (owner, test 21: "click ok and it opens to the film rewind roll
+    # setting"; D3's rewind by OK was taken out at test 20; test 27: the length and the rewind on the film selection
+    # row): Picture Mode on its first row, the film selection row (item 111; the camera application's request for its
+    # control panel turned into Picture Mode's), where the rear dial winds 2 frames back (the record's wound count 2);
+    # the roll stays in and the shutter stays locked. Before the end OK opens the control panel as stock
+    'film-roll-ok-opens-the-film-row-at-the-end': [
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait ok wait wait expect:gui:ID_ST_MENU_DTL_SCP menu wait wait s1 wait wait '
+             'poweroff', card=FR_CARD, expect=[ROLL_LINE(1, 54, 1792, 5, 0), OK_END(0)]),
+        Boot(f'wait wait s1 wait wait {ROLL_FULL} s1 wait wait ok wait wait wait wait '
+             'expect:gui:ID_ST_DIRECT_PICTUREMODE_ART expect:mem:{hb_item}=6f00 sub-1 wait wait '
+             'expect:mem:{rl_rbody_m}=0136180000070200 expect:mem:{hb_item}=6f00 menu wait wait s1 wait wait s2 wait wait '
+             's1 wait wait poweroff', expect=[ROLL_LINE(1, 54, 1792, 24, 0), REFUSED('[1-9]'), OK_END(1), DIAL_LINE(1)]),
+    ],
+    # the length on the film selection row (owner, test 26: "combine it with the film selection row. so I could pick
+    # film 4, 36 shots on the same row"; the mock-up's rear dial): the rear dial steps the Film Roll row's value (None /
+    # 24 / 36 / 72) and the cursor stays on the row (left and come back to: Picture Mode redraws it); the canister
+    # follows (COLOR 1: 24 -> 60, 36 -> 61, none -> 92); Right still steps the film (COLOR 2: 93). How the bounce looks:
+    # camera-only
+    'film-roll-rear-dial-picks-the-length': [
+        Boot('s1 wait wait ok wait ok wait wait wait up wait wait expect:mem:{hb_item}=0515 down wait wait '   # test 28:
+             'sub-1 wait wait wait expect:mem:{rl_rbody_m}=01 '   # Up wraps to Border (5381): the Film Roll row left out
+             'expect:mem:{hb_item}=6f00 expect:mem:{fb_akey_m}=3c000000 sub-1 wait wait wait expect:mem:{rl_rbody_m}=02 '
+             'expect:mem:{fb_akey_m}=3d000000 sub+1 wait wait wait sub+1 wait wait wait expect:mem:{rl_rbody_m}=00 '
+             'expect:mem:{fb_akey_m}=5c000000 right wait wait wait expect:mem:{fb_akey_m}=5d000000 '
+             'expect:mem:{hb_item}=6f00 menu wait wait s1 wait wait poweroff', card=FR_CARD_ART, expect=[DIAL_LINE(4), BURST_LINE]),
+    ],
+    # D2 (owner, Q3: "turn image review off"): with a roll loaded the half-press sets Image Review Off and keeps the
+    # value in the roll's record (on the card); after the rewind the next half-press puts it back. Without a roll nothing
+    # changes. (om-emu shows no review picture: the setting's writes are what is checked.)
+    'film-roll-image-review-off-during-a-roll': [
+        Boot(f's1 wait wait {SET_IMAGE_REVIEW_03} s1 wait wait {ROLL_POKE} s1 wait wait s1 wait wait poweroff',
+             card=FR_CARD, expect=[ROLL_LINE(1, 54, 1792, 5, 0), IR_LINE(1, 0)]),
+        Boot(f'wait wait s1 wait wait {OPEN_ROLL}{REWIND(5)} menu wait wait s1 wait wait s1 wait wait poweroff',
+             expect=[ROLL_LINE(0, 0, 0, 0, 0), IR_LINE(0, 1)]),
+        Boot('wait wait s1 wait wait s1 wait wait poweroff', expect=[IR_LINE(0, 0)]),
+    ],
+    # E1 (owner: "Yes, per-film rolls"): the roll's drawing comes from OM3MOD/FILMROLL/ROLLART.BIN, the entry of its
+    # film and length (3 x film + length): a 24 roll on COLOR 1 -> entry 60, read once; another roll (FILM 10, 72) ->
+    # entry 29, read once. Without the file: nothing loaded (the shared parts only). The drawing itself is camera-only.
+    'film-roll-drawing-of-the-loaded-film': [
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait s1 wait wait poweroff', card=FR_CARD_ART,
+             expect=[ART_LINE(60, 5748, 1)]),   # sizes with test 28's label
+        Boot('wait wait s1 wait wait poke:{rl_rbody}=036d050000070000 s1 wait wait s1 wait wait poweroff',
+             expect=[ART_LINE(29, 5912, 2)]),
+        Boot(f's1 wait wait {ROLL_POKE} s1 wait wait poweroff', card={'FILMROLL/ROLLART.BIN': None},
+             expect=[ART_LINE(60, 0, 0)]),
+    ],
+    # E2 (owner, 2026-11-24: the approved screens): the screens are put together from OM3MOD/FILMROLL/SCREENS.BIN's
+    # pieces (firmware/mkscreens.py; the log's key is SCREENS.BIN's first entry + 1000): a 24 roll all shot -> the slip
+    # (entry 0); rewinding (the crank's first click) -> the rewind panel (entry 3, 4 pieces; checked in memory: a
+    # shutter event ends a crank); a roll with frames left: its roll drawing (60). Drawing: camera-only. (Until the
+    # release tidy-up DRAW.TXT switched test drawings and "Not developed" on; both are gone.)
+    'film-roll-screens-from-the-card': [
+        Boot(f's1 wait wait {ROLL_FULL} s1 wait wait s1 wait wait poweroff', card=FR_CARD_SCR,
+             expect=[ART_LINE(1000, r'\d+', r'\d+')]),
+        Boot(f'wait wait s1 wait wait poke:{{rl_rbody}}=01360c0000070000 poke:{{rl_dw}}=01 s1 wait wait {OPEN_ROLL} {LEN_DOWN} '
+             'wait wait expect:mem:{fb_akey_m}=eb030000 menu wait wait poweroff', card=FR_CARD_SCR),
+        Boot(f'wait wait s1 wait wait {ROLL_POKE} s1 wait wait s1 wait wait poweroff', card=FR_CARD_SCR,
+             expect=[ART_LINE(60, 5748, r'\d+')]),
+    ],
+    # the picture-mode label during a roll is the camera's own, as v0.41-beta (owner, test 21: the film window "its pretty
+    # useless. I think you should just keep it as it works for standard .41b"; until then C4 showed the roll's box end
+    # there): a 36 roll with frames left loads and shows nothing (window -1: the log prints it unsigned); no roll:
+    # nothing; a full 36 roll without OM3MOD/FILMROLL/WINDOW.BIN: its slip (entry 1) tried, nothing loaded or shown
+    'film-roll-no-film-window-during-a-roll': [
+        Boot(f's1 wait wait poke:{{rl_rbody}}=0236050000070000 poke:{{rl_dw}}=01 s1 wait wait s1 wait wait poweroff',
+             card={**FR_CARD, 'FILMROLL/WINDOW.BIN': 'WINDOW_BIN'}, expect=[WINDOW_LINE(4294967295, 0, 0)]),
+        Boot('wait wait s1 wait wait s1 wait wait poweroff', card={'FILMROLL/ROLL.BIN': None, 'FILMROLL/ROLL2.BIN': None},
+             expect=[WINDOW_LINE(4294967295, 0, 0)]),
+        Boot(f'wait wait s1 wait wait poke:{{rl_rbody}}=0236240000070000 poke:{{rl_dw}}=01 s1 wait wait s1 wait wait '
+             'poweroff', card={'FILMROLL/WINDOW.BIN': None}, expect=[WINDOW_LINE(1, 0, 0), SLIP_LINE(0, 0)]),
+    ],
+    # the canister on Picture Mode's film selection row (owner, test 23: "add to the right hand side of the screen the
+    # film canister in the film selection row"): the row (item 111) gets the drawing view as the Film Roll row, and
+    # fb_art chooses the film picked on its strip now (cm_val), at the roll's length; no roll: the roll without one
+    # (owner, test 24: "shouldnt that be blank?"; ROLLART.BIN 72 + film): COLOR 1 -> entry 92, one step right (COLOR 2)
+    # -> 93; the next row down: none (-1). The drawing itself (at the surface's right since test 25): camera-only
+    # (om-emu has no drawing side)
+    'film-roll-canister-on-the-film-selection-row': [
+        Boot('s1 wait wait ok wait ok wait wait wait expect:mem:{fb_akey_m}=5c000000 right wait wait wait '
+             'expect:mem:{fb_akey_m}=5d000000 down wait wait wait expect:mem:{fb_akey_m}=ffffffff menu wait wait s1 '
+             'wait wait poweroff', card=FR_CARD_ART),
+    ],
+    # the end-of-roll slip (owner, 2026-11-25: "Build the end slip"; the mock-up's screen 3): at the roll's end the slip
+    # of the roll's length (WINDOW.BIN entry N - 1) is given only to the shooting screen's picture-mode label, whose box
+    # the card file widens to the slip's size (the same right edge and middle). One frame before the end: nothing loaded,
+    # no slip, the box left alone (the camera's own label); wound back on the Film Roll row: none again. The look: om-emu screenshots (rear screen and viewfinder) / camera
+    'film-roll-end-slip': [
+        Boot('s1 wait wait poke:{rl_rbody}=0136170000070000 poke:{rl_dw}=01 s1 wait wait s1 wait wait poweroff',
+             card={**FR_CARD, 'FILMROLL/WINDOW.BIN': 'WINDOW_BIN'},
+             expect=[WINDOW_LINE(4294967295, 0, 0), SLIP_LINE(0, 0)]),
+        Boot(f'wait wait s1 wait wait {ROLL_FULL} s1 wait wait s1 wait wait poweroff',
+             expect=[WINDOW_LINE(0, 1, '[1-9][0-9]*'), SLIP_LINE('[1-9][0-9]*', '[1-9]')]),
+        Boot(f'wait wait s1 wait wait {ROLL_FULL} s1 wait wait {LAST_BACK("0136180000070000")} menu wait wait s1 wait wait s1 wait wait '
+             'poweroff', expect=[ROLL_LINE(0, 0, 0, 0, 0), WINDOW_LINE(4294967295, 1, '[1-9][0-9]*')]),
+    ],
+    # owner (2026-11-24): a roll's ISO is fixed at the half-press after loading: a film's box speed, never below 200
+    # (FILM 2 Portra 160 -> 200, FILM 3 Portra 800 -> 800); COLOR 1-4 -> 400. Each from a fresh camera (the film strip
+    # steps from COLOR 1: COLOR 2..4, FILM 1, FILM 2, ...). Since 2026-11-25 a FILM's ISO comes from ROLLART.BIN's ISO
+    # table (firmware/mkrollpath.py isotab; LookLab writes its own films' ISO there)
+    'film-roll-iso-is-the-film-box-speed': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait {OPEN_ROLL} {LEN_UP} menu wait wait s1 wait wait s1 wait wait '
+             'poweroff', card=FR_CARD_ART, expect=[r'^Now: .*ISO 200,']),
+    ],
+    'film-roll-iso-box-speed-800': [
+        Boot('s1 wait wait ok wait ok wait' + ' right wait' * 6 + f' ok wait menu wait wait s1 wait wait {OPEN_ROLL} {LEN_UP} '
+             'menu wait wait s1 wait wait s1 wait wait poweroff', card=FR_CARD_ART, expect=[r'^Now: .*ISO 800,']),
+    ],
+    # owner (2026-11-25, the LookLab design: "Looks good, go on"): a film's ISO from the card's ROLLART.BIN, so a film
+    # made in LookLab carries its own: FILM 2 written as ISO 3200 -> the roll at 3200
+    'film-roll-iso-from-the-drawings-file': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait {OPEN_ROLL} {LEN_UP} menu wait wait s1 wait wait s1 wait wait '
+             'poweroff', card={**FR_CARD, 'FILMROLL/ROLLART.BIN': 'ROLLART_3200'}, expect=[r'^Now: .*ISO 3200,']),
+    ],
+    # ... and a ROLLART.BIN without the table (an older one): the roll at 400, as a COLOR
+    'film-roll-iso-400-without-the-table': [
+        Boot(f's1 wait wait {PICK_FILM_2} s1 wait wait {OPEN_ROLL} {LEN_UP} menu wait wait s1 wait wait s1 wait wait '
+             'poweroff', card={**FR_CARD, 'FILMROLL/ROLLART.BIN': 'ROLLART_NOTAB'}, expect=[r'^Now: .*ISO 400,']),
+    ],
+    'film-roll-iso-color-400': [
+        Boot(f's1 wait wait {OPEN_ROLL} {LEN_UP} menu wait wait s1 wait wait s1 wait wait poweroff', card=FR_CARD,
+             expect=[r'^Now: .*ISO 400,', r'^Picture mode: COLOR 1 ']),
+    ],
+    # owner (test 8, camera): "it does lock the iso at 400 but in the super control panel it displays auto 1792". The
+    # camera keeps ISO twice: setting 6 (in use) and 1701 (as picked, 0 = Auto; its own ISO screen sets both, om-emu).
+    # A roll's ISO goes into both: from ISO Auto, loading a roll on COLOR 1 writes 1701 once (the log's "(1701: 1)").
+    # How the panel looks: om-emu screenshot (ISO 400, was an empty cell); the camera's panel: camera-only
+    'film-roll-iso-shown-as-set-in-the-panel': [
+        Boot(f's1 wait wait {OPEN_ROLL} {LEN_UP} menu wait wait s1 wait wait s1 wait wait poweroff', card=FR_CARD,
+             expect=[r'^Film Roll this power-on: .*ISO put back 1 \(1701: 1\),']),
+    ],
+    # owner (2026-11-26, test 38): "when the roll finishes it should go back to the previous iso (in this example auto
+    # iso)". The half-press that gives a roll its ISO keeps the one before it (here ISO Auto: setting 6 = 0, 1701 = 0)
+    # in the roll's record on the card (version 3; kept over a power-off); with the roll rewound and out, that
+    # half-press puts it back, in both (1701 the panel's, read in memory as test 8's notes found it), once. During the
+    # roll the ISO stays the roll's (the tests above)
+    'film-roll-iso-from-before-the-roll-comes-back': [
+        Boot(f's1 wait wait {OPEN_ROLL} {LEN_UP} menu wait wait s1 wait wait {ROLL_POKE} s1 wait wait s1 wait wait '
+             f'{ISO_PICKED("0007")} poweroff', card=FR_CARD,
+             expect=[ROLL_LINE(1, 54, 1792, 5, 0), r'^Now: .*ISO 400,', ISO_BACK(0)]),
+        Boot(f'wait wait s1 wait wait {OPEN_ROLL}{REWIND(5)} menu wait wait s1 wait wait s1 wait wait '
+             f'{ISO_PICKED("0000")} poweroff',
+             expect=[ROLL_LINE(0, 0, 0, 0, 0), ROLL_COUNTS(0, 1), r'^Now: .*ISO Auto,', ISO_BACK(1)]),
+    ],
+    # ... and a roll loaded, then the length set back to No roll before its first photo: the next half-press puts the
+    # ISO back the same way
+    'film-roll-iso-back-after-no-roll': [
+        Boot(f's1 wait wait {OPEN_ROLL} {LEN_UP} menu wait wait s1 wait wait {ISO_PICKED("0007")} {OPEN_ROLL} {LEN_DOWN} '
+             f'menu wait wait s1 wait wait s1 wait wait {ISO_PICKED("0000")} poweroff', card=FR_CARD,
+             expect=[ROLL_LINE(0, 0, 0, 0, 0), r'^Now: .*ISO Auto,', ISO_BACK(1)]),
+    ],
+    # nothing of Film Rolls while the camera starts (the start-up rule): the card file is opened and checked only after
+    # the first look
+    'film-roll-waits-for-the-first-look': [
+        Boot('wait wait s1 wait wait s1 wait wait poweroff', card=FR_CARD,
+             watch=('cm_go', 'fc_open', 'fc_tagref'), hits=film_roll_waits_for_the_first_look),
+    ],
     'halation-radius-row-kept-with-grain': [
         Boot(f's1 wait wait {OPEN_RADIUS}' + ' right wait' * 2 + ' down wait right wait right wait'
              ' menu wait wait s1 wait wait poweroff', expect=[RADIUS_LINE('Medium'), GRAIN_2_MEDIUM]),
@@ -1783,9 +2154,13 @@ def put_card_files(emu, card, files, fixtures, dest):
     """A copy of the card with each file put (from fixtures) or removed."""
     shutil.copy(card, dest)
     for fname, key in files.items():
-        node(f'{emu}/bin/card.mjs', 'rm', dest, f'OM3MOD/{fname}')      # absent is fine
+        path = fname[1:] if fname.startswith('/') else f'OM3MOD/{fname}'   # '/...': from the card's root (a photo)
+        node(f'{emu}/bin/card.mjs', 'rm', dest, path)                  # absent is fine
         if key is not None:
-            card_tool(emu, 'put', dest, fixtures[key], f'OM3MOD/{fname}')
+            parts = path.split('/')[:-1]                               # Film Rolls: OM3MOD/FILMROLL/; DCIM/100OLYMP/
+            for k in range(1, len(parts) + 1):
+                node(f'{emu}/bin/card.mjs', 'mkdir', dest, '/'.join(parts[:k]))   # (may exist)
+            card_tool(emu, 'put', dest, fixtures[key], path)
     return dest
 
 
@@ -1841,6 +2216,12 @@ def run_boot(emu, build, d, i, boot, card, syms, fixtures=None):
     if '{' in tokens or boot.watch:
         if not syms:
             syms.update({k: f'{v:x}' for k, v in elf_symbols(build / 'p.elf').items()})
+            fj = build / 'frblock.json'                                   # Film Rolls on the card: the loaded block's
+            if fj.exists():                                               # fields, through fc_tab's pointer (poke:'s form)
+                for k, v in json.loads(fj.read_text())['entries'].items():
+                    syms.setdefault(k, f"{syms['fc_tab']}+{int(v, 16):x}*")
+                    syms.setdefault(f'{k}_m', f"{syms['fc_tab']}+0*+{int(v, 16):x}")   # expect:mem's form (it reads the
+                                                                  # word at BASE + OFF for OFF*: the block, then the field)
         tokens = tokens.format_map(syms)
     env = {**os.environ, 'OM_EMU_MODEL': MODEL, 'NV_FILE': str(d / 'nv.bin'), 'MODE0': str(boot.mode_dial),
            'PSET0': str(boot.photo_switch)}
@@ -2059,6 +2440,84 @@ def run_ncall(emu, build, d, card0, tokens, spec):
     if r.returncode or not (d / 'out.json').exists():
         return f'driver exit {r.returncode}, no ncall result (boot.log)'
     return {o['name']: o for o in json.loads((d / 'out.json').read_text())['out']}
+
+
+def run_frvs(emu, build, out, card0, fixtures):
+    """Film Rolls on the card (r2b: r2 froze the owner's camera when Playback was pressed with a roll in): the GUI
+    variable setter's var 34 path, called at the flashed rl_vg (.hook_rv) with FILMROLL.BIN loaded (it goes on to the
+    block's rl_vs; om-emu's playback shows no photo, so it never sets var 34 there), with a 24 roll (1 shot) in the
+    block's RAM: on the shooting screen (GUI state 0x0801) the shots-left field (+8) becomes the frames left (23); with
+    a playback state (0x0805) it stays the camera's (803)."""
+    sym = elf_symbols(build / 'p.elf')
+    fj = build / 'frblock.json'
+    if 'rl_vg' not in sym or not fj.exists():
+        return FRVS, ['no Film Rolls card file in this build']
+    ent = {k: int(v, 16) for k, v in json.loads(fj.read_text())['entries'].items()}
+    blk = lambda k: f"W({sym['fc_tab']:#x})+{ent[k]:#x}"
+    gui = 0x62ce5864
+    def case(name, state):
+        return {'name': name, 'pc': f"{sym['rl_vg']:#x}", 'stop': ['0x610cd5cb'], 'max': 5000,
+                'mem': [[blk('rl_rbody'), '0136010000070000'], [f'{gui:#x}', state],
+                        ['B+0x100', '00' * 8 + '2303' + '0000' + '01000000' + '00' * 16]],
+                'regs': {'d0': '34', 'a0': 'B+0x100'}, 'read': [['B+0x108', 2]],
+                'restore': [[f'{gui:#x}', '0108']]}
+    d = out / FRVS
+    d.mkdir(parents=True, exist_ok=True)
+    card = put_card_files(emu, card0, {'FILMROLL/FILMROLL.BIN': 'FILMROLL_BIN'}, fixtures, d / 'card0.omsd')
+    res = run_ncall(emu, build, d, card, 's1 wait wait s1 wait wait ncall', [case('shooting', '0108'), case('playback', '0508')])
+    if isinstance(res, str):
+        return FRVS, [res]
+    errors = []
+    for name, want in (('shooting', 23), ('playback', 803)):
+        r = res[name]
+        if r['steps'] >= 5000:
+            errors.append(f'{name}: rl_vs did not reach the setter (out.json)')
+            continue
+        got = int.from_bytes(bytes.fromhex(r['mem'][0]), 'little')
+        if got != want:
+            errors.append(f'{name}: var 34 +8 is {got}, not {want}')
+    return FRVS, errors
+
+
+def run_frlog(emu, build, out, card0, fixtures):
+    """Film Rolls B3 (owner, Q6: the photos stay where the camera puts them, a roll log instead): a full 24 roll
+    (poked: om-emu takes no photo) wound back on the Film Roll row; the log writer task then writes OM3MOD/FILMROLL/ROLLS.TXT
+    with the roll's line. Two rolls: two lines, the newest last; the first names its photos (owner, 2026-11-24: the
+    camera's file counter, read before the roll's first photo)."""
+    sym = elf_symbols(build / 'p.elf')
+    fj = build / 'frblock.json'
+    if not fj.exists():
+        return FRLOG, ['no Film Rolls card file in this build']
+    ent = {k: int(v, 16) for k, v in json.loads(fj.read_text())['entries'].items()}
+    blk = lambda k: f"{sym['fc_tab']:x}+{ent[k]:x}*"
+    d = out / FRLOG
+    d.mkdir(parents=True, exist_ok=True)
+    card = put_card_files(emu, card0, {'FILMROLL/FILMROLL.BIN': 'FILMROLL_BIN'}, fixtures, d / 'card0.omsd')
+    # the record's last byte is the roll's number (a real roll's first photo counts it up; poked here: 1, then 2)
+    roll = lambda n: f'poke:{blk("rl_rbody")}=01361800000700{n:02x} poke:{blk("rl_dw")}=01'
+    # roll 1 also carries the camera's file counter before its first photo (record +22: 5178), so its line names its
+    # photos (24 from 5178) and the folder (om-emu's counter folder: 100); roll 2 has none (0): no photo numbers
+    f1 = f"poke:{sym['fc_tab']:x}+{ent['rl_rbody'] + 10:x}*=3a14"
+    # wound back on the film row: the last frame by the rear dial (LAST_BACK's way, with this driver's own addresses)
+    back = lambda n: (f'ok wait wait wait wait poke:{blk("rl_rbody")}=01361800000717{n:02x} poke:{blk("rl_cur")}=00 '
+                      f'poke:{blk("rl_dw")}=01 sub-1 wait wait')
+    tokens = (f's1 wait wait {roll(1)} {f1} s1 wait wait {back(1)} menu wait wait wait wait wait s1 wait wait '
+              f'wait wait wait {roll(2)} s1 wait wait {back(2)} menu wait wait wait wait wait s1 wait wait wait '
+              'wait wait poweroff')
+    env = {**os.environ, 'OM_EMU_MODEL': MODEL, **writer_env(build)}
+    r = node(DRIVER, emu, build / 'main.bin', card, d / 'boot.json', d / 'card1.omsd', tokens, env=env)
+    (d / 'boot.log').write_text(r.stdout + r.stderr)
+    if r.returncode:
+        return FRLOG, [f'driver exit {r.returncode} (boot.log)']
+    g = node(f'{emu}/bin/card.mjs', 'get', d / 'card1.omsd', 'OM3MOD/FILMROLL/ROLLS.TXT', d / 'ROLLS.TXT')
+    if g.returncode or not (d / 'ROLLS.TXT').exists():
+        return FRLOG, ['no OM3MOD/FILMROLL/ROLLS.TXT on the card']
+    lines = [l for l in (d / 'ROLLS.TXT').read_bytes().decode('latin1').split('\r\n') if l.strip()]
+    want = [r'^Roll 001, COLOR 1, ISO 400, 24 exp, 24 shot, photos 5178 to 5201, folder 100$',
+            r'^Roll 002, COLOR 1, ISO 400, 24 exp, 24 shot$']
+    if len(lines) != 2 or not all(re.match(w, l) for w, l in zip(want, lines)):
+        return FRLOG, [f'ROLLS.TXT: {lines}']
+    return FRLOG, []
 
 
 def run_photocode(emu, build, out, card0):
@@ -2622,6 +3081,9 @@ CROPEL_CASES = [
     ('half-press fallback', 'cr_hp', None, 2, True, 0x3ff, 0, 0, True, 2),
     ('half-press, already put back at start-up', 'cr_hp', None, 2, True, 0x3ff, 1, 0, False, 0),
     ('half-press load inside the early load', 'cr_hp', None, 2, True, 0x3ff, 0, 1, False, 0),
+    # #105: a shutter event before the GUI's first state change (cr_gtid still 0): nothing, cr_el restores there and
+    # starts the watch (last: its cr_gtid 0 is not put back)
+    ('half-press while the camera still starts', 'cr_hp', None, 2, True, 0x3ff, 0, 0, False, 0),
 ]
 # crop83-2: cr_chk (the shooting screen's updates after a start-up restore, and the first shutter event) with the crop
 # XPan: name, Image Aspect (M + 0x2c2), cr_usr, cr_nre, the code at +24 (None: P) -> sets it again (reaches ar_setv),
@@ -2633,6 +3095,7 @@ CROPCHK_CASES = [
     ('keep: 16:9 back, in video', 3, 0, 0, MC_VIDEO, False, 1),
     ('keep: a ratio picked since', 3, 1, 0, None, False, 0),
     ('keep: 3:2 now', 2, 0, 0, None, False, 0),
+    ('keep: 16:9 back, the mode dial turned since', 3, 0, 0, None, False, 0),    # #105: a custom mode's own ratio
 ]
 
 
@@ -2642,7 +3105,7 @@ def run_cropel(emu, build, out, card0):
     d.mkdir(parents=True, exist_ok=True)
     sym = elf_symbols(build / 'p.elf')
     missing = [n for n in ('cr_el', 'cr_hp', 'cr_rst', 'cr_on', 'cr_dwh', 'rc_in', 'el_nc', 'cr_chk', 'cr_rch', 'cr_crp',
-                           'cr_usr', 'cr_nre') if n not in sym]
+                           'cr_usr', 'cr_nre', 'cr_gtid') if n not in sym]
     if missing:
         return CROPEL, [f'not in this build: {", ".join(missing)}']
     word = lambda v: v.to_bytes(4, 'little').hex()
@@ -2659,6 +3122,8 @@ def run_cropel(emu, build, out, card0):
             mem.append([f'{UI_PSW:#x}', f'{psw:02x}'])
         if no_handle:
             mem.append([at('rc_in'), word(0)])
+        if name == 'half-press while the camera still starts':
+            mem.append([at('cr_gtid'), half(0)])
         spec.append({'name': name, 'pc': 'B', 'stop': ['B+7'], 'max': 20000, 'mem': mem, 'count': [at('cr_rst')],
                      'read': [[at('cr_on'), 1], [at('cr_dwh'), 1]],
                      'restore': [[f'{SECBITS:#x}', half(0x3ff)], [at('el_nc'), '00']]})
@@ -2668,6 +3133,9 @@ def run_cropel(emu, build, out, card0):
         mem = [['B', 'dd'], ['B+1', f"={sym['cr_chk']:#x}-B"], ['B+5', 'f018'],   # waits for the settings task)
                [at('cr_rch'), '01'], [at('cr_crp'), '06'], [at('cr_usr'), f'{usr:02x}'], [at('cr_nre'), word(nre)],
                ['0x629209c2', f'{aspect:02x}'], [f"W({at('rc_in')})+24", f'{code if code is not None else 1:02x}']]
+        if 'cr_rmd' in sym:                            # #105: the mode dial (P) and switch (photo) when the watch began
+            turned = name == 'keep: 16:9 back, the mode dial turned since'
+            mem += [[f'{UI_PSW - 1:#x}', '0202'], [at('cr_rmd'), '0702' if turned else '0202']]
         chk.append({'name': name, 'pc': 'B', 'stop': ['B+7', f'{setv:#x}'], 'max': 20000, 'mem': mem,
                      'read': [[at('cr_rch'), 1]], 'restore': [['0x629209c2', '03'], [at('cr_rch'), '00'], [at('cr_self'), '00']]})
     res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', chk + spec)    # cr_chk's first: the cr_el cases zero rc_in
@@ -3025,6 +3493,50 @@ FDDRIVE_CASES = [   # name, site, sequence type (capture+38216), Low ISO Process
     ('single-no-grain', 1, 0, 0, 0, 1), ('drive-grain-site-2', 2, 1, 0, 1, 1), ('drive-no-grain-site-2', 2, 1, 0, 0, 0)]
 
 
+# test 35 (owner, test 33: "if i put it on fast burst it will take more than 24 photos. I was able to take 55 photos after
+# selecting 24 shots"): fb_tmx, at the shooting sequence's burst limit (0x60ceb800; om-emu takes no stills, so it is
+# called directly, a2 = a sequence with its limit at +160): with a roll in, the limit becomes the frames left when that
+# is less (36 roll, 15 shot, limit 4979 -> 21); else left alone (no roll, the limit already lower, being wound back, at
+# the end). d1 and a0 come back as they went in.
+FRBURST = 'film-roll-burst-stops-at-the-roll-end'
+FRBURST_CASES = [('15-of-36', '02360f0000070000', 4979, 21), ('no-roll', '0000000000000000', 4979, 4979),
+                 ('limit-lower', '02360f0000070000', 6, 6), ('being-wound-back', '02360f0000070300', 4979, 4979),
+                 ('at-the-end', '0236240000070000', 4979, 4979), ('first-frame', '0136000000070000', 4979, 24)]
+
+
+def run_frburst(emu, build, out, card0):
+    sym = elf_symbols(build / 'p.elf')
+    fj = build / 'frblock.json'
+    ent = json.loads(fj.read_text())['entries'] if fj.exists() else {}
+    if 'fb_tmx' not in ent or 'mx_ret' not in sym:
+        return FRBURST, ['no burst limit hook (fb_tmx) in this build']
+    ent = {k: int(v, 16) for k, v in ent.items()}
+    blk = lambda k: f"W({sym['fc_tab']:#x})+{ent[k]:#x}"
+    spec = [{'name': name, 'pc': blk('fb_tmx'), 'stop': [f"{sym['mx_ret']:#x}"], 'max': 2000,
+             'mem': [[blk('rl_rbody'), body], ['B+0x1a0', limit.to_bytes(2, 'little').hex()]],
+             'regs': {'a2': 'B+0x100', 'd1': '0x12345678', 'a0': '0x2468ace0'}, 'read': [['B+0x1a0', 2]],
+             'restore': [[blk('rl_rbody'), '00' * 8]]} for name, body, limit, _ in FRBURST_CASES]
+    d = out / FRBURST
+    d.mkdir(parents=True, exist_ok=True)
+    card = put_card_files(emu, card0, {'FILMROLL/FILMROLL.BIN': 'FILMROLL_BIN'},
+                          {'FILMROLL_BIN': build / 'FILMROLL' / 'FILMROLL.BIN'}, d / 'card0.omsd')
+    res = run_ncall(emu, build, d, card, 's1 wait wait s1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return FRBURST, [res]
+    errors = []
+    for name, _, limit, want in FRBURST_CASES:
+        r = res[name]
+        if r['steps'] >= 2000:
+            errors.append(f'{name}: fb_tmx did not reach 0x60ceb806 (out.json)')
+            continue
+        got = int.from_bytes(bytes.fromhex(r['mem'][0]), 'little')
+        if got != want:
+            errors.append(f'{name}: the burst limit {limit} became {got}, not {want}')
+        if (r['regs']['d1'], r['regs']['a0'], r['regs']['d0']) != ('12345678', '2468ace0', '60ecfa71'):
+            errors.append(f"{name}: d1 {r['regs']['d1']}, a0 {r['regs']['a0']}, d0 {r['regs']['d0']}: not as at the site")
+    return FRBURST, errors
+
+
 def run_fddrive(emu, build, out, card0):
     """The hook sites of the camera's Detail / Drive Priority choice on FDDRIVE_CASES: the choice in d0, the caller's
     d2 / d3 / a2 / a3 and sp back, fd_n / fd_k counted once per changed / kept choice; last, section 6 not ready (the
@@ -3082,13 +3594,13 @@ def run_fddrive(emu, build, out, card0):
 
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
-          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive}
+          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive, FRBURST: run_frburst}
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('build', type=pathlib.Path)
-    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, PHOTOCODE, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC]))
+    ap.add_argument('--only', nargs='+', choices=sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, FRVS, FRLOG, ENGINE, DIAL, VIDEO, GRAINMIX, PHOTOCODE, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC]))
     ap.add_argument('--jobs', type=lambda v: max(1, int(v)), default=DEFAULT_JOBS)
     ap.add_argument('--out', type=pathlib.Path)
     ap.add_argument('--looks', type=pathlib.Path)
@@ -3111,7 +3623,24 @@ def main():
     looks = (a.looks or newest_looks()).resolve()
     make_card(emu, build, looks, card0)
     fixtures = make_fixtures(out, looks)
-    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, ENGINE, DIAL, VIDEO, GRAINMIX, PHOTOCODE, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC])
+    fb = build / 'FILMROLL' / 'FILMROLL.BIN'                          # Film Rolls on the card: the build's card file,
+    if fb.exists():                                                   # and one with another firmware's tag
+        fixtures['FILMROLL_BIN'] = fb
+        fixtures['ROLLART_BIN'] = build / 'FILMROLL' / 'ROLLART.BIN'
+        fixtures['SCREENS_BIN'] = build / 'FILMROLL' / 'SCREENS.BIN'
+        fixtures['WINDOW_BIN'] = build / 'FILMROLL' / 'WINDOW.BIN'     # C4: the film window
+        from PIL import Image                                         # E2: a photo for Playback (generated, no one's
+        fixtures['PHOTO_JPG'] = out / 'fixtures' / 'PHOTO.JPG'         # picture)
+        Image.new('RGB', (640, 480), (120, 140, 160)).save(fixtures['PHOTO_JPG'], 'JPEG', quality=80)
+        art = fixtures['ROLLART_BIN'].read_bytes(); t = 8 + 8 * int.from_bytes(art[6:8], 'little')
+        for k, at, v in (('ROLLART_3200', t + 6, (2560).to_bytes(2, 'little')),   # FILM 2 at ISO 3200 (LookLab's own)
+                         ('ROLLART_NOTAB', t, b'XXXX')):                         # no ISO table (its tag broken)
+            fixtures[k] = out / 'fixtures' / f'{k}.BIN'
+            fixtures[k].write_bytes(art[:at] + v + art[at + len(v):])
+        b = bytearray(fb.read_bytes()); b[-16] ^= 1
+        fixtures['FILMROLL_OTHER'] = out / 'fixtures' / 'FILMROLL_OTHER.BIN'
+        fixtures['FILMROLL_OTHER'].write_bytes(bytes(b))
+    names = a.only or sorted([*TESTS, AUDIT, STACKING, HALATION, BORDER, SHADING, SHTAKE, FRVS, FRLOG, ENGINE, DIAL, VIDEO, GRAINMIX, PHOTOCODE, CROPHIST, CROPPL, CROPQ, GATES, GRAINTILE, *DIRECT, *STATIC])
     stock = static_check.find_stock(a.stock) if any(n in STATIC for n in names) else None
     runs = [(n, k) for n in names for k in range(1, a.repeat + 1)]
     print(f'{len(names)} tests{f" x {a.repeat}" if a.repeat > 1 else ""} on {build}, results in {out}')
@@ -3142,6 +3671,10 @@ def main():
                 return run_shading(emu, build, d, card0)
             if n == SHTAKE:
                 return run_shtake(emu, build, d, card0)
+            if n == FRVS:
+                return run_frvs(emu, build, d, card0, fixtures)
+            if n == FRLOG:
+                return run_frlog(emu, build, d, card0, fixtures)
             if n == ENGINE:
                 return run_engine(emu, build, d, card0)
             if n == DIAL:

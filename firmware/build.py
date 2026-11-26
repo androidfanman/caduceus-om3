@@ -67,6 +67,8 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_rda': (0x611d16b4, bytes.fromhex('fac8f303' 'c82e' 'fac81515' 'c828' 'ca2e')),  # v0.23: their readouts
          '.hook_rdb': (0x611d1725, bytes.fromhex('fac8f303' 'c82e' 'fac81515' 'c828' 'ca2e')),
          '.hook_si': (0x6123043d, bytes.fromhex('fcdc54ebce62')),   # screen info: the shooting screen's updater before its change check (mov 0x62ceeb54,a0)
+         '.hook_rv': (0x610cd5c4, bytes.fromhex('92fca0e4f63660')),   # Film Rolls (frcard.s, as r2): the GUI variable setter's start (mov a0,a2; mov (0x6036f6e4),a0): var 34's frames left
+         '.hook_rel': (0x60b0cdad, bytes.fromhex('dda6defdff000c')),   # Film Rolls (frcard.s, as r3): ctrlRelease's call of isCtrlReleaseEnable (call 0x60aeac53,[],12): no release at a roll's end
          '.hook_pg': (0x611d07a4, bytes.fromhex('aa05c316f8bc68a005c00a5a5480052afbca08008a05ca03')),  # v0.23: 3+ pages of rows
          '.hook_pg2': (0x611c3709, bytes.fromhex('af04c3052bfb8c')),
          '.hook_arw': (0x611d0be0, bytes.fromhex('5c148001fa507503')),
@@ -908,15 +910,17 @@ def build(defaults, testfile, out):
         put(*bufs[2], b''.join(recs_))
         struct.pack_into('<II', m, o(hdr) + 4, sy[bufs[2][0]], ni + 1)
     # Screen info (screeninfo.s, research/NOTES.md "Screen info"): the photo Information 1 / 2 / 3 pages of Camera Info
-    #   Settings (rear screen) get 17 tick rows after the stock four, setting ids SIB + 32 * page + k. Each page = an
+    #   Settings (rear screen) get 18 tick rows after the stock four (rt1: 17 before), setting ids SIB + 32 * page + k. Each page = an
     #   item list (28 B records {u32 sid, u16 4, u16 label, u32 0x6156b26c, 16 B 0}; menu table entry {id, rows, n})
     #   and a row list (u16 sids; row table entry {mode, rows, n}); both move to copies with our rows added.
     SIB, SIK = sy['SIB'], sy['SI_K']
-    SI_LABELS = (4546, 4549, 2806, 4196, 2070, 968, 203, 147, 51, 4404, 4413, 3016, 3382, 3490, 4390, 4195, 70)   # the camera's texts:
+    SI_LABELS = (4546, 4549, 2806, 4196, 2070, 968, 203, 147, 51, 4404, 4413, 3016, 3382, 3490, 4390, 4195, 70,
+                 sy['ST_RMT'])   # the camera's texts:
     #   Shooting Mode, Shutter Speed, Aperture Value, Exposure Comp., ISO, WB, Picture Mode, Image Stabilizer, AF Mode,
     #   Drive Mode, Metering, Record Mode, Remaining Files, Touch screen (WB / Picture Mode / IS / AF Mode as the movie pages),
-    #   s3: Subject Detection, Exposure Level Meter, Image Aspect (bits k stay; the rows go in SI_ROWS order)
-    SI_ROWS = (0, 1, 2, 3, 15, 4, 5, 6, 7, 8, 14, 9, 10, 16, 11, 12, 13)
+    #   s3: Subject Detection, Exposure Level Meter, Image Aspect (bits k stay; the rows go in SI_ROWS order);
+    #   rt1: our own "Remaining Movie Time" (st_get; the camera has no text for it), split from Remaining Files
+    SI_ROWS = (0, 1, 2, 3, 15, 4, 5, 6, 7, 8, 14, 9, 10, 16, 11, 12, 17, 13)
     assert sorted(SI_ROWS) == list(range(SIK))
     assert len(SI_LABELS) == SIK
     TICK = 0x6156b26c
@@ -961,6 +965,16 @@ def build(defaults, testfile, out):
     xtag = 0x58000000 | int.from_bytes(hashlib.sha256(bytes(m)).digest()[:3], 'little')
     struct.pack_into('<I', m, o(tr) + 2, xtag)
     xblock = make_xblock(out, sy, xtag)
+    # Film Rolls on the card: FILMROLL.BIN's tag = 'F' + 3 bytes of the image's SHA-256 (frcard.s fc_tagref), then the file
+    fr = sy['fc_tagref']
+    assert m[o(fr):o(fr) + 2] == b'\xfc\xc8' and struct.unpack_from('<I', m, o(fr) + 2)[0] == 0x46000000
+    frtag = 0x46000000 | int.from_bytes(hashlib.sha256(bytes(m)).digest()[:3], 'little')
+    struct.pack_into('<I', m, o(fr) + 2, frtag)
+    frb = make_frblock(out, sy, frtag)
+    assert len(frb) <= 16448, ('FILMROLL.BIN', len(frb))   # one malloc block (fr_load checks it too)
+    (out / 'FILMROLL').mkdir(exist_ok=True)
+    (out / 'FILMROLL' / 'FILMROLL.BIN').write_bytes(frb)
+    print('FILMROLL.BIN %d bytes, tag %#x' % (len(frb), frtag))
     g = bytearray((out / 'pictures.bin').read_bytes()); assert g[:4] == b'OM3G' and len(g) % 4 == 0
     g += xblock
     struct.pack_into('<I', g, 4, len(g)); struct.pack_into('<I', g, 8, zlib.crc32(bytes(g[12:])) & 0xffffffff)
@@ -1079,6 +1093,66 @@ def make_xblock(out, sy, xtag):
     blk += struct.pack('<IIII', xtag, len(blk) + 16, len(code), len(rel))
     (out / 'xblock.json').write_text(json.dumps(dict(tag=hex(xtag), code=len(code), relocs=len(rel), link=hex(XB_L1),
                                                     entries={k: hex(v) for k, v in xs.items() if k.startswith('xb_')}), indent=1))
+    return blk
+
+
+FB_SRC = HERE / 'src' / 'frblock.s'
+FB_L1, FB_L2 = 0x10000000, 0x12345670          # Film Rolls' card file, linked at both, as the code block
+
+
+def make_frblock(out, sy, frtag):
+    """Film Rolls on the card: assemble frblock.s, link it at two bases with the firmware's symbols (from p.elf),
+    list the 32-bit fields that move, check the relocation, pack [code | relocations | {tag, end - code, code, n}]."""
+    # constants the block adds together (gas needs their values, not symbols), from the firmware's own link
+    (out / 'frsyms.inc').write_text(''.join(f'.set {k}, {sy[k]:#x}\n' for k in ('FV0', 'NF')))
+    (out / 'FILMROLL').mkdir(exist_ok=True)
+    subprocess.run([sys.executable, HERE / 'mkrollpath.py', out / 'frpaths.inc', '--art', out / 'FILMROLL' / 'ROLLART.BIN'],
+                   check=True)   # E1: the rolls' shared parts (in the card file) and each film's (a card file of its own)
+    subprocess.run([sys.executable, HERE / 'mkscreens.py', '--file', out / 'FILMROLL' / 'SCREENS.BIN', '--inc',
+                    out / 'frscreens.inc'], check=True)   # E2: the approved screens' pieces (owner, 2026-11-24)
+    subprocess.run([sys.executable, HERE / 'mkwindow.py', out / 'FILMROLL' / 'WINDOW.BIN'], check=True)   # C4
+    subprocess.run([P.AS, '-I', out, '-o', out / 'fb.o', FB_SRC], check=True)
+    und = subprocess.run([P.TC / 'binutils/nm-new', '-u', out / 'fb.o'], capture_output=True, text=True).stdout.split()
+    und = [u for u in und if u != 'U']
+    missing = [u for u in und if u not in sy and u != 'FB_LINK']
+    assert not missing, ('frblock.s: not in the firmware', missing)
+    imgs, xs = [], None
+    for L in (FB_L1, FB_L2):
+        d = {**{u: sy[u] for u in und if u != 'FB_LINK'}, 'FB_LINK': L}
+        subprocess.run([P.LD, '-Ttext', hex(L), '-e', '_start', *[f'--defsym={k}={v:#x}' for k, v in d.items()],
+                        '-o', out / f'fb{L:x}.elf', out / 'fb.o'], check=True)
+        subprocess.run([P.OBJCOPY, '-O', 'binary', '-j', '.text', out / f'fb{L:x}.elf', out / f'fb{L:x}.bin'], check=True)
+        imgs.append((out / f'fb{L:x}.bin').read_bytes())
+        if xs is None:
+            nm = subprocess.run([P.TC / 'binutils/nm-new', out / f'fb{L:x}.elf'], capture_output=True, text=True).stdout
+            xs = {l.split()[2]: int(l.split()[0], 16) - L for l in nm.splitlines() if len(l.split()) == 3 and int(l.split()[0], 16) >= L}
+    a, b = imgs; assert len(a) == len(b)
+    delta = (FB_L2 - FB_L1) & 0xffffffff
+    rel, i = [], 0
+    while i < len(a):
+        if a[i] == b[i]:
+            i += 1; continue
+        for p in range(max(0, i - 3), i + 1):
+            if p + 4 > len(a): continue
+            va, vb = struct.unpack_from('<I', a, p)[0], struct.unpack_from('<I', b, p)[0]
+            dd = (vb - va) & 0xffffffff
+            if dd == delta: rel.append(p | 0x80000000); break
+            if dd == (-delta) & 0xffffffff: rel.append(p); break
+        else:
+            raise SystemExit(f'FILMROLL.BIN: unexplained difference at +{i:#x}')
+        i = p + 4
+    chk = bytearray(a)
+    for e in rel:
+        p, d = e & 0x7fffffff, delta if e >> 31 else -delta
+        struct.pack_into('<I', chk, p, (struct.unpack_from('<I', chk, p)[0] + d) & 0xffffffff)
+    assert bytes(chk) == b, 'FILMROLL.BIN relocation check'
+    n = xs['fb_end']; assert n % 4 == 0 and len(a) >= n and not any(a[n:]) and all((e & 0x7fffffff) + 4 <= n for e in rel)
+    code = bytearray(a[:n])
+    struct.pack_into('<I', code, xs['fb_nrel'], len(rel))
+    blk = bytes(code) + b''.join(struct.pack('<I', e) for e in rel)
+    blk += struct.pack('<IIII', frtag, len(blk) + 16, len(code), len(rel))
+    (out / 'frblock.json').write_text(json.dumps(dict(tag=hex(frtag), size=len(blk), code=len(code), relocs=len(rel), link=hex(FB_L1),
+                                                     entries={k: hex(v) for k, v in xs.items() if k.startswith(('fb_', 'rl_'))}), indent=1))
     return blk
 
 

@@ -440,6 +440,8 @@ emulator test as proposed here would have failed. "Maybe" means it depends on a 
 | v0.24 | Film Grain High photo rebooted the camera | No | None, stills |
 | lk6, lk7 | Reboot at every half-press, 1 s hang on COLOR switch | No | None, cache |
 | #11, #12 | Video with a new film crashed, grain with glow crashed | No | None, video and stills |
+| Film Rolls test 33 | A burst ran past the roll's end (24 picked, 55 taken) | Partly | `film-roll-burst-stops-at-the-roll-end` checks the limit fb_tmx gives; that the camera stops there is stills, camera-only |
+| Film Rolls test 31 | A quick rear-dial rewind on the film row changed the film (FILM 1 to COLOR 1) | No | None, the camera's timing (om-emu brings the strip back on every click). Since test 33 the click never reaches the strip: `film-roll-rewind-keeps-the-film` checks no film is asked for (lock rewrites 0) |
 
 Of these 20, 8 are catchable, 4 maybe, and 8 not. The owner's camera or a user found every one of them first.
 

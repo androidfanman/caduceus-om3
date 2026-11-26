@@ -174,13 +174,51 @@ Image Aspect has three more choices, on the super control panel and in the Image
 ## Choosing what the shooting screen shows (v0.40-beta)
 
 Custom menu → **4. Information** → **Camera Info Settings** → **Information 1**, **2** or **3** (press ▶): after the
-camera's own four rows come 17 tick rows (Shooting Mode, Shutter Speed, Aperture Value, Exposure Comp., Exposure Level
+camera's own four rows come 18 tick rows (Shooting Mode, Shutter Speed, Aperture Value, Exposure Comp., Exposure Level
 Meter, ISO, WB, Picture Mode, Image Stabilizer, AF Mode, Subject Detection, Drive Mode, Metering, Image Aspect, Record
-Mode, Remaining Files, Touch screen; Exposure Level Meter, Subject Detection and Image Aspect from v0.40-beta2). Untick
-a row and that item leaves that display; INFO steps through your displays as before. Rear screen only, from the first
+Mode, Remaining Files, Remaining Movie Time, Touch screen; Exposure Level Meter, Subject Detection and Image Aspect from
+v0.40-beta2). Remaining Files is the number of photos left; Remaining Movie Time is the video time left beside it, such
+as [10:45] (its own row from test build rt1; before, Remaining Files hid both). Untick a row and that item leaves that
+display; INFO steps through your displays as before. Rear screen only, from the first
 half-press after switch-on; the viewfinder, video and playback are unchanged.
 
 The camera's **Firmware Version** page (wrench tab, page 6) shows Caduceus's version under OM's.
+
+## Film Rolls
+
+Shoot like a roll of film: pick a film and a length (24, 36 or 72 exposures). The roll keeps that film and its ISO
+until you've shot it and wound it back, and you only see the photos after the rewind.
+
+**Turning it on:** copy the release's `FILMROLL` folder into `OM3MOD` on the card (`FILMROLL.BIN`, `ROLLART.BIN`,
+`SCREENS.BIN`, `WINDOW.BIN`). The camera reads it at the first half-press. A card without it is a normal camera.
+
+**Loading a roll**
+
+1. Press **OK**, then **OK** again: Picture Mode opens on the film selection row.
+2. Pick the film with **Left / Right** or the **front dial**.
+3. Turn the **rear dial** for the length: *No roll*, 24, 36 or 72 exposures. The canister on the right shows the film,
+   its ISO and the length.
+4. Leave Picture Mode and shoot. The first photo starts the roll.
+
+**During a roll**
+
+- The film and the ISO stay the roll's: the film's box speed, never below 200 (COLOR 1–4: ISO 400). Picking another
+  film is refused until the roll is out. The ISO you had before (ISO Auto, say) comes back when the roll is out.
+- The shooting screen's shots-remaining number counts the frames left on the roll.
+- Playback and Image Review are off, as with film: no looking until the roll is developed. Image Review comes back
+  as you had it after the rewind.
+- A burst stops at the roll's last frame.
+- Photos only: video is not counted and works as always.
+
+**At the end of the roll**
+
+- The shutter locks and a slip says so. Press **OK**: Picture Mode opens on the film selection row.
+- Turn the **rear dial** to wind the roll back, two frames a click, with the rewind panel counting down. When it's
+  wound back, the next click takes it out and picks the next length.
+- You can wind a roll back before its end the same way.
+
+**The roll log:** `OM3MOD/FILMROLL/ROLLS.TXT` lists every roll: its film, ISO, length, frames shot and the numbers of
+its photos. The roll you're shooting is kept on the card (`ROLL.BIN`), so it survives switching off.
 
 ## Questions
 
@@ -196,6 +234,7 @@ labels and guides are part of the firmware. The card only brings films in, in th
 | `LOOKS.BIN` | Films FILM 1–20, with their names: the camera takes them once, if it never had that set | The release or LookLab |
 | `EDITS.BIN`, `BUNDLES.BIN` | Your changes and Extras from versions before v0.29: copied into the camera at the first start | Written by the camera before v0.29 |
 | `GUIDES.BIN`, `LABELS.BIN`, `TONES.BIN` | Code, labels and guides of versions before v0.29 (ignored from v0.29) | The release, before v0.29 |
+| `FILMROLL/` | Film Rolls: its code and drawings (`FILMROLL.BIN`, `ROLLART.BIN`, `SCREENS.BIN`, `WINDOW.BIN`); the camera adds the roll (`ROLL.BIN`, `ROLL2.BIN`) and the roll log (`ROLLS.TXT`) | The release |
 
 [`DEBUG.TXT`](https://github.com/androidfanman/caduceus-om3/releases/latest/download/DEBUG.TXT) (optional) turns on a debug log: the camera then writes `CADLOG.TXT`. Only
 add it if you're asked for a log, and delete it afterwards. Older versions also used `NAMES.BIN`; it's harmless. Technical details: [FORMATS.md](FORMATS.md).

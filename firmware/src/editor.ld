@@ -62,6 +62,8 @@ SECTIONS {
   .hook_rda     0x611d16b4 : { *(.hook_rda) }
   .hook_rdb     0x611d1725 : { *(.hook_rdb) }
   .hook_si      0x6123043d : { *(.hook_si) }
+  .hook_rv      0x610cd5c4 : { *(.hook_rv) }
+  .hook_rel     0x60b0cdad : { *(.hook_rel) }
   .hook_bga     0x6123825e : { *(.hook_bga) }   /* border preview: the grid builders' grid read -> bl_gv */
   .hook_bgb     0x611cb433 : { *(.hook_bgb) }
   .hook_bgc     0x611e44d7 : { *(.hook_bgc) }
@@ -247,6 +249,7 @@ lv_x          = 0x6046b8ee;
 lv_skip       = 0x6046b94f;
 wt_back       = 0x605048c7;
 XTAG          = 0x58000000;
+FRTAG         = 0x46000000;         /* Film Rolls on the card: FILMROLL.BIN's tag (build.py writes this firmware's) */
 SEL           = 0x6052cf39;
 TMR_ARM       = 0x612970e8;   /* #75: start a timer (d0 id, d1 ms) */
 sdl_hls_loop     = 0x60af0fff;
@@ -274,6 +277,35 @@ dl_fn         = 0x610a2407;         /* #37: live view's AF-ON press handler (run
 dl_walk       = 0x610b9fe0;         /* #37: the state block walk's loop start (clr d3) */
 dl_hit        = 0x610ba01a;         /* #37: the walk's end after .hook_dl's 5 bytes, an entry with a handler */
 dl_none       = 0x610ba054;         /* #37: the walk's return (d0 = found) */
+rlv_back      = 0x610cd5cb;         /* Film Rolls: after .hook_rv's 7 bytes */
+pk_gate       = 0x61089d28;         /* Film Rolls D1: the camera application's check before its key-removal predicate */
+gp_build      = 0x610f48c3;         /* Film Rolls: the GUI event message's builder (d0 the event, d1 its parameter, a0, a1) */
+gp_ret        = 0x6119a072;         /* Film Rolls: after the table post's call of gp_build (0x6119a06b, 7 B) */
+gui_disp      = 0x610f5f8d;         /* Film Rolls: the GUI state machine's dispatcher (a0 the machine, d0 the event, d1, a1) */
+gd_ret        = 0x610fd0fc;         /* Film Rolls: after the GUI task's call of it (0x610fd0f7, 5 B) */
+mx_ret        = 0x60ceb806;         /* Film Rolls (test 34 probe): after the burst limit's log format (0x60ceb800, 6 B) */
+pk_ret        = 0x610beb21;         /* Film Rolls D1: after that call (the card file's hook at 0x610beb1a comes back here) */
+rel_ok        = 0x60aeac53;
+/* Film Rolls E1 (the card file's graphics probe; OpenVG 1.1 of the firmware, the C3D renderers on CPU 1). The direct
+ * entries past each `calls` prologue, with the frames of the firmware's own call sites (research/NOTES.md, E1) */
+cc_swap       = 0x610502fc;         /* the renderers' eglSwapBuffers of their surface (call ..,[],16) */
+cc_w          = 0x62f490cc;         /* the Color Creator surface's width / height (the renderer's vgClear) */
+cc_h          = 0x62f490d0;
+vg_seti       = 0x617b4293;         /* [d2,d3],12 */
+vg_trans      = 0x617b4211;         /* vgTranslate past its prologue: [d2,d3],12, d0 / d1 the floats tx / ty */
+cs_choice     = 0x611d0c7f;         /* Picture Mode column update: the choice rows' bar setup ([d2,d3,a2,a3],88; test 12) */
+cs_after      = 0x611d04ec;         /* ... and where their case goes on (0x611d04b6's bra) */
+vg_setfv      = 0x617b42af;         /* [d2,d3,a2],20 */
+vg_ident      = 0x617b41b3;         /* [],4 */
+vg_clear      = 0x617b4923;         /* [d2,d3,a2,a3],28 */
+vg_cpath      = 0x617b495d;         /* [d2,d3,a2,a3],40 */
+vg_append     = 0x617b4a2e;         /* [d2,d3,a2,a3],28 */
+vg_dpath      = 0x617b4b5f;         /* [d2,d3,a2,a3],28 */
+vg_draw       = 0x617b4b85;         /* [d2,d3,a2],20 */
+vg_cpaint     = 0x617b4bbb;         /* [d2],8 */
+vg_dpaint     = 0x617b4bd6;         /* [d2],8 */
+vg_setpaint   = 0x617b4bf0;         /* [d2,d3],12 */
+vg_setcolor   = 0x617b4c29;         /* [d2,d3],12 */         /* Film Rolls: isCtrlReleaseEnable (stock) */
 ex_back       = 0x60457580;         /* v0.27 EXIF: after the hook's 8 bytes */
 ds_get        = 0x610cd5ac;         /* #54: the camera's data store, read: a0 buffer, d0 item, d1 length (call [],4) */
 ds_put        = 0x610cd5c4;         /* #54: and write, marking the item changed: a1 0 as the camera's (call [d2,a2],16) */
@@ -302,3 +334,4 @@ cr_za1_back   = 0x60c15488;         /* #97: getZoomArea after its getAspectRatio
 cr_za2_back   = 0x60c13f9c;         /* #97: adjustZoomFrameLimitPos after the same call */
 cr_szt        = 0x61577278;         /* #97: the Image Aspect screen's size records (5 x 266 B: 4:3, 16:9, 3:2, 1:1, 3:4) */
 cr_szb        = 0x611f9660;         /* #97: its record loop after `add cr_szt,a1` (movhu (a1),d0: the record's ratio) */
+cr13_back     = 0x61050b59;

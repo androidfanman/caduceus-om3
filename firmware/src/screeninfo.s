@@ -94,7 +94,7 @@ si_upd:
  mov (4,sp),d0
  cmp 1,d0
  beq 8f
- mov si_tab,a3                    /* {u8 item, u8 buffer slot, u16 offset}, item 0xff ends */
+ mov si_tab,a3                    /* {u8 item, u8 buffer slot, u16 offset}, item 0xff ends (.ext11) */
 3:
  movbu (a3),d0
  cmp 0xff,d0
@@ -120,51 +120,7 @@ si_upd:
  add 16,sp
  movm (sp),[d2,d3,a2,a3]
 9:
- mov 0x62ceeb54,a0
- jmp si_back
-
-/* Item fields (om-emu, stock 1.1, rear screen; each byte as Image Only leaves it: 0). Slots: var 38 (4,sp),
- * var 33 (88,sp), var 32 (80,sp), var 34 (8,sp), var 31 (72,sp). */
- .macro SIF k, slot, off
- .byte \k, \slot
- .hword \off
- .endm
- .balign 4                        /* the walk reads the offsets as halfwords: never odd (s2: an odd si_tab faulted) */
-si_tab:
- SIF 0, 4, 0                      /* 0 Shooting Mode: the mode icon (u16) */
- SIF 0, 4, 1
- SIF 1, 88, 0                     /* 1 Shutter Speed */
- SIF 1, 88, 4
- SIF 1, 88, 7
- SIF 2, 88, 24                    /* 2 Aperture Value */
- SIF 2, 88, 28
- SIF 3, 80, 5                     /* 3 Exposure Comp.: the value, its marker */
- SIF 3, 80, 6
- SIF 3, 80, 80
- SIF 15, 80, 84                   /* 15 Exposure Level Meter: the bar (s3; was under 3) */
- SIF 15, 80, 88
- SIF 4, 4, 2                      /* 4 ISO */
- SIF 5, 4, 39                     /* 5 WB: icon, block, Kelvin (u16) */
- SIF 5, 4, 401
- SIF 5, 4, 404
- SIF 5, 4, 405
- SIF 6, 4, 60                     /* 6 Picture Mode (and our FILM label; u16 picture id) */
- SIF 6, 4, 61
- SIF 7, 4, 38                     /* 7 Image Stabilizer */
- SIF 8, 4, 36                     /* 8 AF Mode */
- SIF 14, 4, 3                     /* 14 Subject Detection: face / eye / subject icon (s3; was under 8) */
- SIF 9, 4, 40                     /* 9 Drive Mode */
- SIF 10, 4, 35                    /* 10 Metering */
- SIF 16, 4, 48                    /* 16 Image Aspect (s3; was under 11) */
- SIF 11, 4, 49                    /* 11 Record Mode: still quality, movie quality */
- SIF 11, 4, 50
- SIF 12, 8, 8                     /* 12 Remaining Files: shots left (u16, its shown flag), movie time left */
- SIF 12, 8, 9
- SIF 12, 8, 12
- SIF 12, 8, 16
- SIF 13, 72, 75                   /* 13 Touch screen: the touch-shutter icon */
- .byte 0xff, 0, 0, 0
- .balign 4
+ jmp fc_upd                       /* Film Rolls: the frames left (frcard.s -> the card file; else the 6 bytes and si_back) */
 
 /* si_ld: `call si_ld,[d2,d3,a2,a3],20`: the record from M into si_ram, once per power-on (no record or a bad one:
  * zeros = nothing hidden). Reads only. */
@@ -417,4 +373,68 @@ si_ord1:
 si_ord2:
  .space 2 * (4 + SI_K)
 si_end:
+ .balign 4
+
+.section .ext13,"ax"               /* rt1: .ext12 is full (with Film Rolls .ext4 too): si_str beside fwver.s fv_chk, which
+                                   * jumps to it (both section 6) */
+
+/* si_str <- jmp from fwver.s fv_chk (st_get's chain; the string getter's frame, ret [d2],8; d0 the id): rt1's row
+ * name, else on to crop.s cr_str as before */
+si_str:
+ cmp ST_RMT,d0
+ bne 1f
+ mov si_rmt,a0
+ ret [d2],8
+1:
+ jmp cr_str
+
+.section .ext11,"ax"               /* rt1 (with Film Rolls): si_tab beside the row lists; si_upd reads it by its address */
+
+/* Item fields (om-emu, stock 1.1, rear screen; each byte as Image Only leaves it: 0). Slots: var 38 (4,sp),
+ * var 33 (88,sp), var 32 (80,sp), var 34 (8,sp), var 31 (72,sp). */
+ .macro SIF k, slot, off
+ .byte \k, \slot
+ .hword \off
+ .endm
+ .balign 4                        /* the walk reads the offsets as halfwords: never odd (s2: an odd si_tab faulted) */
+si_tab:
+ SIF 0, 4, 0                      /* 0 Shooting Mode: the mode icon (u16) */
+ SIF 0, 4, 1
+ SIF 1, 88, 0                     /* 1 Shutter Speed */
+ SIF 1, 88, 4
+ SIF 1, 88, 7
+ SIF 2, 88, 24                    /* 2 Aperture Value */
+ SIF 2, 88, 28
+ SIF 3, 80, 5                     /* 3 Exposure Comp.: the value, its marker */
+ SIF 3, 80, 6
+ SIF 3, 80, 80
+ SIF 15, 80, 84                   /* 15 Exposure Level Meter: the bar (s3; was under 3) */
+ SIF 15, 80, 88
+ SIF 4, 4, 2                      /* 4 ISO */
+ SIF 5, 4, 39                     /* 5 WB: icon, block, Kelvin (u16) */
+ SIF 5, 4, 401
+ SIF 5, 4, 404
+ SIF 5, 4, 405
+ SIF 6, 4, 60                     /* 6 Picture Mode (and our FILM label; u16 picture id) */
+ SIF 6, 4, 61
+ SIF 7, 4, 38                     /* 7 Image Stabilizer */
+ SIF 8, 4, 36                     /* 8 AF Mode */
+ SIF 14, 4, 3                     /* 14 Subject Detection: face / eye / subject icon (s3; was under 8) */
+ SIF 9, 4, 40                     /* 9 Drive Mode */
+ SIF 10, 4, 35                    /* 10 Metering */
+ SIF 16, 4, 48                    /* 16 Image Aspect (s3; was under 11) */
+ SIF 11, 4, 49                    /* 11 Record Mode: still quality, movie quality */
+ SIF 11, 4, 50
+ SIF 12, 8, 8                     /* 12 Remaining Files: shots left (u16, its shown flag); rt1: the movie time left moved
+                                   * to item 17 (owner, 2026-11-25: two separate choices) */
+ SIF 12, 8, 9
+ SIF 12, 8, 12
+ SIF 17, 8, 16                    /* 17 Remaining Movie Time (rt1): the "[10:45]" beside the shots left, its shown flag */
+ SIF 13, 72, 75                   /* 13 Touch screen: the touch-shutter icon */
+ .byte 0xff, 0, 0, 0
+ .balign 4
+.section .ext13,"ax"
+ .balign 2
+si_rmt:                           /* rt1: "Remaining Movie Time", UTF-16 (beside the camera's own "Remaining Files") */
+ .short 82, 101, 109, 97, 105, 110, 105, 110, 103, 32, 77, 111, 118, 105, 101, 32, 84, 105, 109, 101, 0
  .balign 4

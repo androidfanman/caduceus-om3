@@ -59,7 +59,7 @@ cr_on:                            /* 1 once cr_rst has run this power-on (at sta
  .byte 0
 cr_dwh:                           /* #83: where cr_rst ran (the log): 1 at start-up (cr_el), 2 at a shutter event */
  .byte 0
-cr_rch:                           /* crop83-2: 1 while cr_chk keeps the crop set at start-up (until the first shutter event) */
+cr_rch:                           /* crop83-2: 1 while cr_chk keeps the crop set after its restore (#105: shutter events no longer end it) */
  .byte 0
 cr_crp:                           /* crop83-2: the crop cr_rst set (5 / 6 / 7) */
  .byte 0
@@ -68,6 +68,8 @@ cr_usr:                           /* crop83-2: 1 once Image Aspect was set from 
 cr_self:                          /* crop83-2: 1 around our own ar_setv(269), so cr_sv does not count it */
  .byte 0
  .balign 2
+cr_rmd:                           /* #105: the mode dial and photo / movie switch (UI_DIAL, 2 B) when cr_chk's watch began */
+ .hword 0
 
 /* Live view / preview boxes in CapThr_ThroughImage: six switches on the aspect id pick a box in the 640 class (7:6
  * 560 x 480, 6:5 576 x 480 in stock). Their jump-table entries for ids 6 / 7 come here: 640 x 240 (65:24) and 640 x 272
@@ -461,18 +463,23 @@ cr_sbuf:                          /* jmp from 0x6006120e (0x60061183's frame; a3
 /* cr_hp: `call cr_hp,[d2,d3,a2,a3],20` from nm_ex (sd_load's last call) and from lg_pr (every later shutter event),
  * both in the HLS_EVENT task: once per power-on, at the first shutter event, cr_rst, unless cr_el already ran it at
  * start-up. sd_load also runs in the early load (el_go, GUI task, during start-up, el_nc 1): nothing then (cr_el
- * follows el_go in gx_map). */
+ * follows el_go in gx_map).
+ * #105 (2026-11-25): a shutter event no longer ends cr_chk's watch (it checks once more and the watch goes on), and
+ * before the GUI's first state change (cr_gtid still 0: the camera is still starting) it restores nothing: cr_el does
+ * it at that state change and starts the watch, so the camera's own start-up cannot put the base back after us
+ * unwatched. */
 cr_hp:
  movbu (el_nc),d0
  cmp 0,d0
  bne 9f
- movbu (cr_rch),d0                /* crop83-2: the first shutter event checks the start-up crop once more, then stops */
+ movbu (cr_rch),d0                /* crop83-2: a shutter event checks the start-up crop once more (#105: not the end) */
  cmp 0,d0
  beq 1f
  call cr_chk,[d2,d3,a2,a3],24
- clr d0
- movbu d0,(cr_rch)
 1:
+ movhu (cr_gtid),d0               /* #105: still starting (no GUI state change yet): cr_el restores at the first one */
+ cmp 0,d0
+ beq 9f
  movbu (cr_on),d0
  cmp 0,d0
  bne 9f
@@ -492,12 +499,12 @@ cr_el:
  movbu (cr_on),d0
  cmp 0,d0
  bne 9f
+ mov cr_gtid,a0                   /* crop83-2: the GUI task, for cr_sv; #105: also "start-up over" for cr_hp */
+ call get_tid,[a2],4
  mov (SECBITS),d0
  and 0x3ff,d0
  cmp 0x3ff,d0
  bne 9f
- mov cr_gtid,a0                   /* crop83-2: the GUI task, for cr_sv */
- call get_tid,[a2],4
  call cr_pho,[],0
  cmp 0,d0
  beq 9f
@@ -526,9 +533,10 @@ cr_pho:
  * Aspect read 3 again, with no half-press needed for it: something in the camera's own start-up put the base back
  * after us (om-emu does not show it: its start-up is over before the GUI's first state change, and it runs no live
  * view). cr_chk keeps the crop for the rest of the start-up: from si_upd (each pass of the shooting screen's updater,
- * GUI task, as cr_el) while cr_rch is 1, and once more from cr_hp at the first shutter event, which closes it; so does
- * the next GUI state change (gx_map: a screen the user opens; a ratio picked on the control panel does not reach
- * sx_set, om-emu, and the updater does not run while the panel is open). If
+ * GUI task, as cr_el) while cr_rch is 1, and from cr_hp at each shutter event (#105: they no longer close it: a
+ * half-press while the camera still starts had ended it too soon). It stops at the next GUI state change (gx_map: a screen the user opens; a ratio picked on the control panel does not reach
+ * sx_set, om-emu, and the updater does not run while the panel is open), and (#105) a turn of the mode dial or the
+ * photo / movie switch (a custom mode brings its own ratio, which may be the crop's base). If
  * Image Aspect is back at the crop's base and nobody picked a ratio from the GUI since (cr_usr), it sets the crop
  * again (ar_setv, as cr_rst), at most CR_NRE times; a ratio that is neither the crop nor its base closes it. Notes
  * for the log: the passes checked, the pass and the tag in memory when the base was first seen back (the tag is
@@ -541,6 +549,10 @@ cr_chk:                           /* `call cr_chk,[d2,d3,a2,a3],24` */
  movbu (cr_usr),d0
  cmp 0,d0
  bne 8f                           /* a ratio picked since: it stays */
+ movhu (UI_DIAL),d0               /* #105: the mode dial turned (a custom mode brings its own ratio) or the switch */
+ movhu (cr_rmd),d1                /* moved since: it stays */
+ cmp d1,d0
+ bne 8f
  mov (cr_npa),d0
  inc d0
  mov d0,(cr_npa)
@@ -685,11 +697,10 @@ cr_rst:
  call ar_setv,[d2,a2],20          /* d1 = the crop */
  clr d0
  movbu d0,(cr_self)
- movbu (cr_dwh),d0                /* crop83-2: set at start-up: cr_chk keeps it until the first shutter event */
- cmp 1,d0
- bne 3f
- movbu d0,(cr_rch)
-3:
+ movhu (UI_DIAL),d0               /* #105: the mode dial and switch now: a turn ends the watch */
+ movhu d0,(cr_rmd)
+ mov 1,d0                         /* crop83-2: cr_chk keeps it (#105: after a shutter-event restore too, and */
+ movbu d0,(cr_rch)                /* until a screen opens, a ratio is picked, the mode dial turns, or CR_NRE times) */
  mov 269,d0
  mov (SEC_READY),d3
  and 0x40,d3

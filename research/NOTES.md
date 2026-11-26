@@ -10856,3 +10856,1179 @@ Branch `feature/photo-code-3` on v0.41-a6 (634d3b6) with `main` merged in for Lo
   version name and the code it shifts.
 - `static:changed-bytes` still lists the Picture Mode pages' patch sites: `tools/test/hooks.json` is not updated yet
   (it waits for a review of each site and the owner's OK).
+
+## Film Rolls v2, round 1: load, lock, count and rewind a roll (2026-11-21; emulator only, camera test pending; branch feature/film-rolls-2)
+Owner (2026-11-21, reopened after r1..r3 on v0.29.x, `feature/film-rolls`): a roll you load, shoot and rewind, as strict
+as a real roll ("you can't peek at film"); it lives with the SD card ("our main cad doesn't get affected by this if you
+switch to a new sd card"); frames left where the camera shows its shots left (mock-up 2a); rewind by turning a dial,
+"easy and not cumbersome". Playback locked until the rewind: round 2. Ideas from OMKit (necrostaz/omkit, OM-5 II,
+Apache-2.0 / CC BY 4.0; read only, nothing taken): its film cassette pictures, for a later round.
+- **Built on v0.40.3-beta3** (5a74a60; this checkout rebuilt it byte for byte, 8614c121). VERSION "v0.40.3-r1".
+- **Card switch:** only a card with `OM3MOD/FILMROLL.TXT` (any content) has Film Rolls: `rl_hp` opens it once per
+  power-on at the first shutter event with the films in, behind the debug log's card gate (`hl_ok`), as DEBUG.TXT.
+  Without it the row reads "off", nothing loads, nothing locks. Card swap within a power-on: not looked at again.
+- **The row** "Film Roll", last in Picture Mode on COLOR 1-4: item `RL_IT` 5375 (it_tab 33 entries), class 18, bars
+  `RLB` 0x7eb8 + k (row 11, after FRB), strings 0x7fa0.. (`rl_str`, per-id buffers; the camera asks several before it
+  draws). Before the first photo its values are None / 24 / 36 / 72 (the length; free to change); with frames shot
+  they are the rewind's 13 steps (0 "Roll", 1..11, 12 out), forward only. The row's count is dynamic (`rl_rcnt`).
+  om-emu: the title for value 0 shows the row's own title ("Film Roll"), not our value text, so the film / ISO of a
+  roll is not on screen yet (the debug log has it).
+- **Starting:** each half-press with a roll loaded and nothing shot notes the film and ISO now (`rl_arms`; ISO Auto is
+  set to ISO 400 = setting 6 value 1792 through the manager); the first photo (`ex_hook` -> `rl_shot`) starts the roll
+  with them. **Lock** (photo modes, after the first photo): `sx_set` 901 / 6 -> `rl_lk` rewrites to the roll's film /
+  ISO; `rc_go` -> `rl_fix` (ISO, family 897 = 901, film via cm_load, after cm_go); a half-press that finds another film
+  asks rc_go (rc_pend). Video is free (no count: rc_in +24 is 0 here in every mode, so the count's video test is that
+  code; the screen uses the updater's movie flag, (2116, this) as Screen Info).
+- **Counter on the screen:** `screeninfo.s` si_upd's end jumps to `rl_upd`: var 34 +8 = frames left when the field is
+  shown (+12), on a photo screen, after the films load. om-emu: 36 after loading 36, 33 after three (rl_shot called),
+  none in video.
+- **Record** 'OM3F' at M + 0x3C800 (20 B: roll, film, frames shot, ISO, rewind steps; after Screen Info's 'OM3I' at
+  +0x3C000, 40 B), written as cm_wr writes at the row and at half-presses. Older firmware ignores it.
+- **Room:** ext11 / ext12 / ext14 were full: `st_get` (290 B) moved from .ext11, `ex_hook` from .ext12, `lg_rzn` from
+  .ext14, all to .ext15 (all section 6, loaded together before the camera application runs); one `bne st_stk` became a
+  long jump. ext15 ~8 KB used of 136 KB.
+- **om-emu (out-rl3/rl4):** row and strings; loading, ISO Auto -> 400; three photos (rl_shot via ncall) -> 33 on the
+  screen; film strip pick refused 5 times with frames shot; kept over a power-off; rewind 12 steps -> roll out, film
+  free again; no card file -> off; video: no number, no count; back in photo 22 (24 - 2).
+- **Tests:** film-roll-off-without-its-card-file, film-roll-length-free-until-the-first-photo,
+  film-roll-locks-the-film-and-rewinds (a roll poked into RAM: om-emu takes no photo), film-roll-waits-for-the-first-look
+  (watch: none of rl_hp / rl_ld / rl_wr / rl_iset / rl_arms / rl_fix / rl_row / rl_shot before cm_go).
+- **Camera only:** real photos, bursts and RAW+JPEG counting once each (ex_hook per frame?), the ISO lock against the
+  camera's ISO controls (om-emu: not driven), the Creative Dial and custom modes with a roll, the viewfinder, the
+  number on the camera's own screen, start-ups.
+- **cad's review (2026-11-21): cleared.** Its rebuild of f61103b matches. Its suite run: 140 pass, the one FAIL is
+  `static:changed-bytes` (entry 25 of the row-switch tables, as RZ's row; hooks.json waits for the owner's OK). Its
+  emu-coverage checks pass, but they ran on a card without FILMROLL.TXT, so no roll was loaded. Camera risk to watch:
+  with a roll in, `rl_fix` makes manager writes (ISO, 897, cm_load) inside rc_go, which also runs from sx_set's 1440
+  (the camera's own mode change): the timing class of #99's restarts (fix99-1/2). If the camera restarts at a C mode /
+  mode-dial change with a roll in, move the put-back to the half-press (as fix99-5).
+
+## Film Rolls v2, round 2: the viewfinder's count, a simpler rewind; playback lock not found yet (2026-11-21; emulator only, camera test pending)
+- **r1 on the camera (owner, via cad):** "its a good first test. it shows it is working"; no count in the viewfinder;
+  "The rewind was clunky and didnt really work"; does the camera keep shooting at 0? Log: 25 photos (RAW+JPEG, a
+  burst), 24 counted, 12 mode changes (C1, C2, B, S, A), no restart, 12 ISO put back, 1 roll out. So the count is once
+  per photo with RAW+JPEG and bursts, and the camera kept shooting past 0 (as r1 was built). Camera-tested.
+- **Viewfinder (om-emu, `DEVICE=evf`):** the default viewfinder style shows our number (19 with 5 of 24 shot), Styles 1
+  and 2 (Custom menu, 4. Information, EVF Style) showed the card's 803 in their bottom bar. A memory search found 803
+  only in GUI variable 34 +8, yet our write there was not seen: in Styles 1 / 2 another part sets var 34 (si_upd's
+  updater did not run in the viewfinder boot). **Fix:** `.hook_rv` at the GUI variable setter 0x610cd5c4 (its first 7
+  bytes `mov a0,a2; mov (0x6036f6e4),a0`, replayed, back at 0x610cd5cb = `rlv_back`) -> `rl_vs`: for var 34 with a
+  roll in (rl_on 1, STATE, a number at +8) the frames left go into the value being set. om-emu: Style 1's bar shows 19.
+  rl_upd (rear) now writes when +8 holds a number, not by +12 (Styles 1 / 2 draw it with +12 at 0).
+  **New hook site for review:** 0x610cd5c4, 7 bytes; the setter runs for every GUI variable from the camera's start on;
+  rl_vs only compares d0 with 34 and reads our RAM until the first half-press (rl_on 0).
+- **Rewind (owner's pick, of: one Rewind choice / a 3-click crank / picking a new length):** the row is always None /
+  24 / 36 / 72. With frames shot, picking another value takes the roll out; None leaves no roll, a length loads a new
+  one (nothing locked until its first photo). The title names it: "Rewind: the roll comes out" / "Rewind and load 36
+  exp"; on the roll's own value "FILM 15 - ISO 400 - 14 left". The 12-step rewind is gone (RL_NV unused).
+- **Playback lock: not done.** The Playback press is event 0x01000022 (release 0x23) in the GUI's state block walk
+  (dl_look, om-emu WATCH). Walking it as its release in both state machines (a test build, not kept) did not stop
+  playback: the camera application switches to playback on the key by itself, and the GUI follows with event
+  0x06000001. Blocking it needs the camera application's key path (UI_IN code 0x0087): research, next round.
+- **Not done yet:** the shutter at 0 (cad asks the owner), the cassette picture.
+
+## Film Rolls v2, round 3 research: where the camera application lets the shutter fire and starts playback (2026-11-21; analysis + om-emu, nothing built)
+cad: round 3 is research only (the owner's "Yes, stop it" for the shutter at 0; "you can't peek at film"); a hook gets
+built only after the owner's OK.
+
+### The shutter at 0: a concrete site (analysis + om-emu)
+- Strings: `isCtrlReleaseEnable UNRESPONSIVE(Seq=%d)` (0x60de652b, used at 0x60aeac67), `execReleaseCheck TRIG_PRESS2`
+  (0x60ed1b6b, at 0x60cf73d6), `isCtrlReleaseEnable API_ERROR_UNRESPONSIVE` (0x60e0d834).
+- **`isCtrlReleaseEnable` = 0x60aeac53** (entered `call ..,[],12`, `ret [],12`): d0 = 1 when the camera's sequence state
+  (0x60aea838) is 100 or 101, else it logs "UNRESPONSIVE" and returns 0. Three callers: 0x60b0cdad, 0x60b19b45,
+  0x60cd959d.
+- **om-emu (WATCH): a full press (`s2`, `hold:s2`) reaches the caller at 0x60b0cdad (twice per press), the others not.**
+  There a 0 takes the stock refusal: it logs "isCtrlReleaseEnable API_ERROR_UNRESPONSIVE" and returns 0xF0000058 from
+  its function (frame 168) without releasing. (om-emu's own sequence state is not 100 / 101: that is why it never takes
+  a photo.)
+- **Proposed hook (not built):** the call at **0x60b0cdad**, 7 B `dd a6 de fd ff 00 0c` (`call 0x60aeac53,[],12`) ->
+  `call rl_rel,[],12` (same length and form). `rl_rel` (section 6, as the call site; release requests come only after
+  the camera has started): when Film Rolls is on, a roll is in and its frames are all shot (S >= length), with the films
+  in (cm_init) -> `clr d0; ret [],12` (the camera's own "not ready" answer; a counter for the log); else `jmp 0x60aeac53`
+  (a tail call in the same frame: the stock answer). Only this caller changes; the other two keep the stock function.
+  The way out: the row's rewind (None or a new length) at once; without FILMROLL.TXT from the next power-on.
+- **Testable in om-emu:** `s2` reaches the site, so a suite test can show refusals at 0 (log counter) and none after a
+  rewind; the shot itself stays camera-only.
+- **Camera-only / open:** what the user sees on a refused press (probably nothing: no stock warning on this path;
+  "say why" would need our own sign, e.g. the 0 in the top row, or a message we find later), held S2 and bursts
+  (retries?), Pro Capture / bracketing / remote release (do they use this caller?), movie recording (expected: its own
+  check, isCtrlMovie..., not this caller).
+
+### Playback: traced part of the way (om-emu + analysis); no safe site yet
+- The Playback key: event 0x01000022 (press) / 23 / 24 / 25, key code 26 (0x1a) / 27 (key table 0x612f3100 rows
+  34..37). Our GUI walk sees it (dl_look), but the camera application acts on the key itself: walking it as its
+  release there (r2 test, not kept) did not stop playback; the GUI then gets 0x06000001.
+- The play sub-app starts in `startPlaySubAppStatePlay` (0x6109bc5a.., log "INSIDE startPlaySubAppStatePlay 1"),
+  which asks `canStartPlayService` (a virtual call, (152, obj)) and goes to "change state 2" or "3": both enter the
+  play sub-app, so a "no" there is too late for a clean refusal.
+- Call stack (om-emu, WSTACK at 0x6109bc83): `0x61087081` (the sub-app change) <- `0x61087965..` (writes setting 15334
+  through the facade, then calls 0x61087081). The values there are the same for MENU and Playback presses (om-emu
+  WATCH: d0 4, d2 1 / 0, d3 0), so this is the general sub-app change; the target comes from a request made earlier.
+- **Next step (not done):** find where key code 26 becomes that request (the camera application's key control,
+  "SubAppMdlKeyCtrl": it already has an event-removal predicate, `isRemoveEventToDispOutputOffMenuOrPlaySubAppMdlKeyCtrl`,
+  name at 0x612f4ae9, name table entry 0x61085474). A "remove this key event" answer there for code 26 while a roll
+  is in would be the clean refusal, if it exists for that key. Probe: WATCH the key control with code 26 in d0 / d1,
+  or WSTACK at 0x61087965 with a deeper stack.
+
+## Film Rolls v2, round 3: the shutter stops at a roll's end (2026-11-21; emulator only, camera test pending)
+- Owner: "Yes, stop it", then "Yes, build it" (via cad). VERSION "v0.40.3-r3", commit 5747b42, on r2 (ee39179).
+- **New hook `.hook_rel` at 0x60b0cdad** (section 6), 7 B, stock `dd a6 de fd ff 00 0c` = `call 0x60aeac53,[],12`
+  (isCtrlReleaseEnable) inside OlyHfwOpeShoot::ctrlRelease (its log: "ctrlRelease start releaseGo=%d takePicture=%d
+  takeMovie=%d key_1st=%d key_2nd=%d"); now `call rl_rel,[],12` (`dd 89 11 51 00 00 0c` in this build).
+- **ctrlRelease's calls (om-emu WATCH):** a photo full press calls it twice, first with key_1st / key_2nd (d2 / d3)
+  0 / 0, then 2 / 3; a held press the same; a movie full press 0 / 0 twice; the photo / movie switch (pset) 0 / 0 once.
+  So `rl_rel` refuses only a key release (d2 != 0) with Film Rolls on, the films in (cm_init) and the roll's frames
+  all shot (S >= length): `clr d0; ret [],12`, the camera's own "not ready" path (log "isCtrlReleaseEnable
+  API_ERROR_UNRESPONSIVE", ctrlRelease returns 0xF0000058, nothing released). Anything else: `jmp 0x60aeac53`, the
+  stock function as a tail call in the same frame. It keeps d0, d2, d3; uses d1, a0. Cost: a call that is not a key
+  release, +3 instructions (cmp, beq, jmp); a key release with no roll at its end, about +12.
+- **Start-up:** the camera calls ctrlRelease while it starts (key_1st 0), so rl_rel's entry runs then as that
+  pass-through; it is in section 6 as its caller. The refusal (`rl_rel0`) never runs before the first look (test).
+- **om-emu:** a 24 roll with 24 shot: s2 and a held s2 refused (2); the shooting screen's top number is the camera's own
+  orange 0 (its warning colour for no shots left); after the rewind (None): 0 refused; in movie mode with a full roll: 0
+  refused. The photo itself stays camera-only (om-emu takes none).
+- Test `film-roll-shutter-stops-at-the-end-until-the-rewind`; `film-roll-waits-for-the-first-look` watches rl_rel0.
+- **Camera-only:** a single press, a held press and a burst at 0 (does a burst stop at the frame that reaches 0?), Pro
+  Capture / bracketing / remote release, what the camera shows on a refused press, movie recording at 0.
+
+## Film Rolls v2: ON HOLD by the owner (2026-11-21)
+Owner: "I'm putting this on hold. It isn't what I need to be focused on at the moment."
+- **r2 froze the camera** when Playback was pressed with a roll in (battery pull; log in the private test-builds folder,
+  r2's camera-results). Likely cause (analysis; om-emu's playback shows no photo, so not reproduced): rl_vs wrote the
+  frames left into GUI var 34 +8 on every screen. **Fix, built but not camera-tested:** rl_vs and rl_upd only with the
+  GUI state at 0x0801 (the shooting screen), commit 17e77aa here; test film-roll-number-only-on-the-shooting-screen
+  (pass; caught on r2). **r2b** = r2 + that fix on branch `try/film-rolls-r2b` (worktree caduceus-rolls2b, dcac800,
+  E1479999 ba03fa07…66f7, GUIDES 7e615a67…99b5): cad's staged start-up check passed; its full suite was stopped by the
+  hold; no package made, nothing on the card.
+- **r3** (the shutter stop at a roll's end, 5747b42) sits on this branch under the fix; its package
+  (2026-11-21-film-rolls-v2-r3) was made before the freeze and has **not** got the fix: do not use it.
+- Not checked: whether anything else of ours runs in playback with a roll in (rl_lk, row strings); the playback lock.
+- On resume: package r2b (or rebuild r3 on the fix), run the full suite, send to cad.
+
+## Film Rolls on the SD card, A1-A4 and D1 (2026-11-24; emulator only, camera test pending; branch feature/film-rolls-card, uncommitted)
+Owner (2026-11-24, while travelling): build Film Rolls so it lives on the SD card, from the newest build (v0.41-beta),
+following `FILM-ROLLS-ROADMAP.md` (repo root of this branch); no commits, nothing on a camera or card by Claude.
+- **Why the card is the only way now:** v0.41-beta's flashed tails are nearly full (.ext15 296 B free, .ext4 468) and
+  GUIDES.BIN's code block is at its 16448 B malloc cap. r2b + r3's Film Rolls is ~8 KB.
+- **The card file** `OM3MOD/FILMROLL/FILMROLL.BIN` (frblock.s, built by build.py `make_frblock`): r2b + r3's
+  filmroll.s as a relocatable block, made as GUIDES.BIN's code block is (linked at two bases, every moving 32-bit field
+  listed; its firmware symbols from p.elf's nm via --defsym; constants it adds together from `frsyms.inc`). Tag
+  'F' + 3 bytes of the image's SHA-256 at `fc_tagref`: a file built for another firmware is refused (fc_st 6). 8,564 B.
+- **The flashed part** (frcard.s): `fc_load` at the first shutter event that may read the card (lg_pr -> fc_hp,
+  hl_ok's gates as the debug log): fopen / fseek / ftell / malloc / fread, the tag, `calls` entry 0 (relocate, fb_init:
+  rl_on 1 and the row's option lists into its it_tab entry `fc_it`), then `fc_tab` = the block. Each stub (FRJ): fc_tab
+  0 -> as stock. `fc_tab`, `fc_rcnt` / `fc_rval` (the row's count and value), `fc_lock` in .ext4 (section 4).
+- **The row:** RL_IT **5374** (r2's 5375 is Split toning's now), bars RLB 0x7eb8 + k, strings 0x7fa0..0x7fc7, class 18;
+  last in pm_list, counted by pm_color only while fc_tab is set. Two stock 32-entry row switches (0x61536b2c,
+  0x61536c2c) had one slot left after the Split toning row: the Tone Balance row's cases (TB_IT, out of Picture Mode
+  since p4) are no longer added, and RL_IT takes the slot. Its left column and switch cases (rl_lc, CHC rl_a..rl_f,
+  lc_rl) stay flashed (.ext15), rl_tab / rl_title / the file name / the log string in .ext8.
+- **Hooks:** as r2 / r3: .hook_rv 0x610cd5c4 (-> rl_vg in .ext4; var 34 -> the block's rl_vs), .hook_rel 0x60b0cdad
+  (-> fc_rel -> rl_rel), plus D1's .hook_pk below. Call sites as r2b (lg_pr, rc_go, ex_hook, sx_set, gr_lc, st_get,
+  sl_slot, SL_VAL, sl_gb, sl_cnt, sl_set0b, fl_isdef, lg_now, si_upd's end).
+- **D1, no Playback during a roll (om-emu):** the Playback key reaches the camera application's key handler
+  **0x610beb04** (on every key; om-emu WATCH: s1, play, menu, ok), which asks **0x61089d28** at 0x610beb1a and, when
+  that says 1, its removal predicate **0x6108546c** ("isRemoveEventToDispOutputOffMenuOrPlaySubAppMdlKeyCtrl",
+  `[d2,d3,a2,a3],40`, 1 = remove: the caller zeroes the event's code and its copy at (16,sp)). On the shooting screen
+  0x61089d28 says 0, so the predicate never runs for Playback. **Hook .hook_pk at 0x610beb1a** (7 B `dd 0e b2 fc ff a0
+  10`, `call 0x61089d28,[d2,a2],16`) -> `fc_pk` (.ext4): with `fc_lock` set (the block: a roll in with frames shot) a
+  Playback event (0x01000022..25) is removed as the predicate's path does ((a0) and the caller's (16,sp) = (32,sp) here
+  set to 0, d0 0); else a tail call to 0x61089d28. om-emu: `play` leaves the GUI on SS_COMMON/ID_ST_CA_REQ_DISP and the
+  camera goes on (s1, menu); after the rewind `play` opens playback. The handler runs while the camera starts (S-CAMAPP
+  start), so fc_pk must be in an early section: a first try in .ext15 crashed om-emu at start-up.
+- **Pitfall found:** `jmp 0x61089d28` (a number) assembles as a PC displacement of that size, not a jump to it (an
+  om-emu crash at 0xc1b194f5 in a throwaway experiment): name every stock target in editor.ld (`pk_gate`).
+- **Tests (om-emu, all pass on fr2):** film-roll-off-without-its-card-file, film-roll-card-file-of-another-firmware-
+  refused, film-roll-length-free-until-the-first-photo, film-roll-locks-the-film-and-rewinds, film-roll-shutter-stops-
+  at-the-end-until-the-rewind, film-roll-waits-for-the-first-look (fc_open / fc_tagref after cm_go),
+  film-roll-number-only-on-the-shooting-screen (direct calls at rl_vg), film-roll-no-playback-during-a-roll.
+  emu_test: card files in sub-folders; the block's fields by name through fc_tab's pointer (frblock.json).
+- **Camera-only:** everything a photo, a burst, the EVF, start-up lag or the real card's file system decides; Playback
+  on a camera with photos. Package (private): `test-builds/2026-11-24-film-rolls-card-2` (v0.41-fr2).
+- **B1 (owner, 2026-11-24: "the roll belongs to the card", "very little to nothing on the camera"):** the roll is no
+  longer in M (r2's 'OM3F' record at M + 0x3C800 is not read or written: an old one from r1 / r2 on a camera is simply
+  ignored). It is OM3MOD/FILMROLL/ROLL.BIN and its copy ROLL2.BIN, the same 20 B record (magic, version, length, CRC-32
+  of 12..19, the roll), read once at the first shutter event (rl_ld -> rl_rd: ROLL.BIN, else ROLL2.BIN, else no roll).
+  Written only by the debug log's writer task (lg_wk, #85's rule: a poll with the shutter button up and no shutter
+  event since the last one): a call `fc_idle` there -> the block's rl_idle, when rl_dw is set: rl_dw cleared, a copy of
+  rl_ram taken under LOCK, header and CRC, then both files (fopen "w", 20 B, fclose; fixed size, as the camera's "w"
+  does not shorten a file). Without DEBUG.TXT there is no writer (lg_on 2): rl_hp makes it with lg_write's own lg_mkw
+  from the second shutter event (lg_on known by then; never two). A shot marks rl_dw from the capture (RAM only).
+  om-emu tests: film-roll-kept-on-the-card-not-in-the-camera (kept over a power-off; the same camera with a card that
+  has no roll files: no roll), film-roll-torn-record-uses-its-copy, film-roll-written-without-the-debug-log.
+  Camera-only: the write's time on a slow card, a power-off right after a shot (the last frame may not be written if
+  the camera goes off within the writer's 100 ms poll).
+- **D3 (owner, Q4: rewind "like our mockup"), version 1:** the key check moved into the card file (`fc_pk` in .ext4 is
+  now only FRJ -> the block's `rl_key`, else `jmp pk_gate`). `fc_lock`: 0 no roll / nothing shot, 1 frames shot, 2 the
+  roll's end (rl_sync, and rl_shot from the capture). rl_key: Playback (0x01000022..25) removed at 1 or 2; at 2 on the
+  shooting screen (GUI 0x0801) OK (0x0100001a press / 1b release, om-emu) removed too, its press rewinds (rl_clr, as
+  None on the row). Key codes seen at the hook (om-emu, WATCH after `mov (a0),d2`): OK 1a / 1b, MENU 1e / 1f, INFO
+  2e / 2f, left 12 / 13, Playback 22 / 23 (Playback is removed in the menus too). Test film-roll-ok-rewinds-at-the-end
+  (before the end OK opens the control panel, ID_ST_MENU_DTL_SCP; at the end it rewinds and the shutter is free).
+- **D2 research (Image Review off during a roll, owner Q3):** the setting is not found yet. No "Rec View" text in the
+  firmware image (the UI's strings are elsewhere); the firmware's own names: Shooting::getRecViewState / cancelRecview,
+  OlyHfwOpeShoot::*RecView*, rec_view_exec; at a full press om-emu reads ~110 getter keys not read at the half-press.
+- **Pitfalls met:** `movm` saves only d2 / d3 / a2 / a3 (not d0, d1, a0, a1); a call right after `movm [..],(sp)`
+  overwrites the saved registers ((0,sp) is the call's); `movbu` / `movhu` into an address register is not allowed.
+- **B3 (owner, Q6: "Yes, use a roll log"):** OM3MOD/FILMROLL/ROLLS.TXT, a line per finished roll ("Roll 001, FILM 15,
+  ISO 400, 24 exp, 24 shot", CR LF). rl_clr notes a roll with frames shot (rl_ls: length, film, shot, ISO, number;
+  rl_lw); the log writer task's rl_idle -> rl_log formats it (rl_aa / rl_dd, ASCII, its own buffers: rl_str runs in
+  the GUI task), reads the file (to RL_LB 3072 B), drops the oldest lines while the new one would not fit, appends,
+  pads with spaces to the old length (the camera's "w" does not shorten a file) and writes it back. The roll's number
+  is the record's +19, counted up at each roll's first photo (rl_shot), kept over rewinds. Test
+  film-roll-log-line-at-the-rewind (two rolls, two lines; the card file read back with card.mjs). Only the card file
+  changed: the same flashed firmware as fr4. Not in it: the photos' file numbers (not traced).
+
+## Film Rolls: hooks from the card, "flash once" (2026-11-24; emulator only, camera test pending; branch feature/film-rolls-card)
+Owner: flash once; Film Rolls changed, updated or removed on the SD card only. Design: the flash keeps the loader and
+the sockets (FRJ stubs) it already has; any new hook is put in by the card file itself when it loads (OMKit's method,
+camera-verified on the OM-5 II, their docs/platform/om5m2/fw1100/system.md and src/platform/om5m2/fw1100/drv.c).
+- **OM-3 cache control (analysis):** CHCTR is the halfword at (0x8070): bit 0 I-cache on, bit 1 D-cache on, bit 4
+  I-cache invalidate, bit 5 D-cache invalidate (the start-up code at 0x60029bae writes 0x30, then 3). FLUSH 0x60070e69
+  cleans and invalidates the D-cache only (and 0x98100000 + 0x400 x cpu, bit 4); no run-time I-cache invalidation in
+  the firmware was found, as OMKit found on the OM-5 II. Not needed: a CPU holding the site's line runs the old
+  instruction whole until it reloads the line, if the new 5 bytes stay in one 16-byte line.
+- **fb_hooks / fb_hook (frblock.s):** for each fb_htab record {site, target, 5 stock bytes, result}: refuse a site whose
+  5 bytes cross a 16-byte line (3); under LOCK (0x60075f73) compare the stock bytes through the uncached view (site +
+  0x40000000) and refuse a difference (2); write the displacement bytes 1..4, then 0xdc (`jmp (d32,pc)`) last (1).
+  Called from fb_init, at the load: the first shutter event, never at start-up.
+- **Moved:** .hook_pk (0x610beb1a) left the flash; the card file's fb_tpk is `call rl_key,[d2,a2],16; jmp pk_ret`
+  (0x610beb21), the same frame as before (rl_key's (32,sp) is still the handler's (16,sp)). Tests: no card file ->
+  0x610beb1a keeps `dd 0e b2 fc ff a0 10`; with it -> `dc ..` and the Playback lock / OK rewind as before; the log's
+  "key hook (1 in) 1".
+- **Camera-only risks (in the fr6 test steps):** a CPU's stale line until it reloads (the first press may act as stock);
+  Film Rolls code runs from the uncached heap (slow fetches, as GUIDES.BIN's block before v0.29: lk7 / lk9 lesson: keep
+  hot paths short); rl_shot runs from the card file during a capture (lk6 rebooted with code from the block on the
+  S1 / AE path; this is the EXIF fill, called once per photo).
+- **D2 (owner, Q3: "turn image review off"): Image Review is setting 19** (om-emu: its screen, shooting menu tab 1,
+  "1. Basic Settings/Image Quality", the row under Image Aspect; manager writes at OK: Off 0, 0.3 s 3, 1 s 10, in tenths
+  of a second, Auto 255). Card file only: rl_irv at each shutter event (rl_hp, after rl_sync): a roll loaded and 19 not
+  0 -> the first value + 1 kept in the record's new u16 RL_IR (+20; record version 2, 24 B) and 19 = 0 through the
+  manager (as rl_arms' ISO); no roll and RL_IR set -> 19 put back, RL_IR 0. The roll's record is on the card, so the
+  value to put back is too. Test film-roll-image-review-off-during-a-roll (0.3 s set in the menu; Off with a roll;
+  back after the rewind). The firmware did not change (fr6 = fr7 byte for byte): only FILMROLL.BIN.
+
+## Film Rolls E1: the OM-3's graphics engine (C3D, OpenVG), as OMKit draws on the OM-5 II (2026-11-24; analysis only)
+Owner: the roll pictures in Picture Mode cells looked bad (three drafts: 62 px cells, the left column's few pure
+colours); "Yes, start it" for smooth, full-colour drawing as OMKit's (docs/platform/om5m2/ui.md section 4,
+fw1100/imaging.md "Drawing (C3D, OpenVG)", src/platform/om5m2/fw1100/thunks.s drv_tramp_c3d).
+- **The same engine is here:** OpenVG 1.1 and EGL (names 0x617dfef3.. / 0x617e0efc..), C3D (C3D_MAIN, C3D_CMD_START /
+  UPDATE / END, C3D_CP_COLOR_INFO_ST g_stColorInfo). Name / address table {name, address} around 0x603a2480..0x603a26d0:
+  vgDrawPath 0x617b4b80, vgSetColor 0x617b4c24, vgClear 0x617b491e, vgCreatePath 0x617b4958, vgAppendPathData
+  0x617b4a29, vgCreatePaint 0x617b4bb6, vgSetPaint 0x617b4beb, eglSwapBuffers 0x617997b3. These are `calls` entries
+  (movm + add); the firmware's own `call`s go past that prologue (vgDrawPath 0x617b4b85, vgCreatePath 0x617b495d,
+  vgCreatePaint 0x617b4bbb, eglSwapBuffers 0x617997b8).
+- **vgDrawPath has four callers, all at 0x61050xxx (the C3D renderers).** The one at 0x610507ba..0x61050a05 ends `ret
+  [d2,d3,a2,a3],212`, as OMKit's Color Creator renderer (OM-5 II 0x60ccf4f7) and begins as it does: `mov a0,a2` (92),
+  `mov 0x612e0a68,a1` (fc dd 68 0a 2e 61), 7 bytes, back at 0x610507c1; one caller, 0x6104fded (`call ..,[d2,d3,a2,a3],212`).
+  A 5-byte jump at 0x610507ba stays in one 16-byte line (0x610507b0..bf): OMKit's method fits.
+  eglSwapBuffers' one caller: 0x61050308 (`call ..,[d2,d3,a2,a3],80`).
+- **om-emu does not run the camera side (CPU 1's renderer), as OMKit's emulator does not:** drawings are camera-only.
+- **Next (not built):** a camera probe from the card file: hook 0x610507ba (fb_htab), and in the Color Creator
+  (Creative Dial on CRT) draw one smooth roll with the firmware's OpenVG in place of the ring; then the GUI side:
+  Picture Mode's Film Roll row ordering a Color Creator "background" (OMKit: the item's background block), which om-emu
+  can show.
+- **The E1 probe (card file only; fr6's firmware unchanged):** fb_htab's second record hooks 0x610507ba (stock 92 fc dd
+  68 0a) -> fb_tcc. A roll loaded: counts the renderer's runs and notes the surface (cc_w / cc_h: 0x62f490cc / d0,
+  as the renderer's own vgClear); with OM3MOD/FILMROLL/DRAW.TXT (read at the load) fb_draw: vgSeti(MATRIX_MODE,
+  PATH_USER_TO_SURFACE), vgLoadIdentity, vgSetfv(CLEAR_COLOR, 4 zeros), vgClear(0, 0, w, h), then per colour group
+  (firmware/mkrollpath.py -> frpaths.inc: the v12 mock-up's roll, polygons in a 256 x 256 box, VG_PATH_DATATYPE_F,
+  scale 1, as the firmware's own vgCreatePath calls) vgCreatePath / vgAppendPathData / vgCreatePaint / vgSetColor /
+  vgSetPaint(FILL) / vgDrawPath(FILL) / destroy both; then the renderers' swap (0x610502fc) and `ret [d2,d3,a2,a3],212`.
+  Frames from the firmware's own call sites (a frame = the saved registers + the prologue's add; vgSetColor has no
+  direct callers: [d2,d3],12 from its prologue). Results in the log's "drawing hook / renderer runs / draw on / drawings /
+  surface" fields. om-emu: the hook goes in (0x610507ba = dc ..; stock without the card file); a direct call of fb_draw
+  stops in the library's list walk at 0x617b7030 (CPU 1's state, which om-emu does not set up): camera-only.
+- **The card file's buffers moved to the heap** (rl_str's 40 x 64 B, ROLLS.TXT's 3152 B: malloc at fb_init; a 64 B
+  fallback for the strings, no log line without its buffer): FILMROLL.BIN 16,164 -> 10,612 B (the cap is 16,448).
+- **Which renderer draws what (not settled; the camera will tell):** the dispatcher picks by its message's command code
+  (0x6104fb05..: 3 -> 0x610506a6, 4 -> 0x610507ba, 12 -> 0x61050a08, 13 -> 0x61050b52 (choosing 0x61050bc3 / 0x61051129
+  by its order's byte +13)). The kind names (0x6036e580): COLOR_CREATOR, COLOR_CREATOR2 (the OM-3's Picture Mode wheel,
+  our 2026-11-22 notes), MONOCHROME_CREATOR, SHADING_CONTROL, ART_FILTER, .. PROFILE_SELECT. om-emu: no START / UPDATE
+  logged (0x6104e6c4 / 0x6104e738 / 0x6104e8d5) on the wheel row: the interface side runs outside om-emu too. So the
+  card file now hooks all four entries (each `mov a0,a2|a3; mov 0x612e0a..,a1`, 7 bytes, one 16-byte line): command 4
+  counts and draws (stage 2), 3 / 12 / 13 count only and replay their 7 bytes (fb_tr3 / 12 / 13). The log's new line
+  "Film Roll renderers (commands 3, 4, 12, 13): a b c d; hooks 1 1 1; ..." after opening the Picture Mode wheel, Color
+  Creator, MONO and ART on the camera says which is which. om-emu: all four hooks in, counts 0.
+- **Lettering (owner: "go ahead with the lettering and show me the results"):** firmware/mkrollpath.py reads the
+  outlines of DejaVu Sans Condensed Bold itself (a small TrueType reader: cmap 4, hmtx, simple glyphs' quadratic
+  contours flattened, 4 steps a curve; no new Python package) and lays out the name, the ISO (in the body's colour
+  inside the dark badge) and "36 exp" as polygons; OpenVG's default even-odd fill keeps the letters' holes. Data now
+  VG_PATH_DATATYPE_S_16 in quarter pixels (scale 0.25, as OMKit's): the lettered Portra 400 roll fits the card file
+  (FILMROLL.BIN 14,764 B of 16,448). The preview sheet (private film-rolls-poll/drawn-roll-1) is drawn from the same
+  path data, filled in the same order, as the renderer would. Per-film rolls on the camera need the glyphs in a file
+  of their own (one roll's text is ~3.6 KB): next, after the probe's camera result.
+- **Per-film rolls (owner: "Yes, per-film rolls"):** OM3MOD/FILMROLL/ROLLART.BIN (firmware/mkrollpath.py --art;
+  269 KB): 72 records = 24 films (FILM 1..20 the default shelf's short names, box speeds and our colours; COLOR 1..4 grey
+  with the profile's number) x 24 / 36 / 72; each record {u32 groups, groups {segments, their offset, the coordinates'
+  offset, RGBA}, data} (the largest 5,576 B). The card file keeps only the shared parts (frpaths.inc: leader, holes,
+  caps) and loads the roll's record at a shutter event (fb_art, rl_hp after rl_arms, the HLS_EVENT task): entry 3 x i +
+  length - 1 for the roll's film (RL_CH once started, else the film noted at the half-press, rl_ach), only when it
+  changes, into the heap buffer not being shown (two of RA_MAX 6144 B), then published (fb_artp; the renderer reads it
+  per frame). fb_draw = the shared parts, then the record's groups (fb_one: a path and a paint each). The user's own
+  names and colours: a LookLab roll designer could write this file (later). Test film-roll-drawing-of-the-loaded-film
+  (entry 60 then 29, each read once; without the file nothing loaded). The drawing itself stays camera-only.
+- **The roll's ISO (owner, 2026-11-24: "lets use box speed unless its lower than 200. if lower than 200, make the box
+  speed 200", then "lets give color 1-4 400"):** rl_arms (the half-press with a roll loaded, nothing shot) sets ISO
+  (setting 6, through the manager) to fb_box[film] = max(box speed, 200) for FILM 1..20 (frpaths.inc, generated from
+  mkrollpath.py's FILMS: 200 = 1536, 400 = 1792, 800 = 2048, 1600 = 2304) and to 400 (1792) for COLOR 1..4, whatever
+  was set (manual or Auto); the first photo locks it (rl_aiso -> RL_ISO) as before. The drawn roll still shows the
+  film's own speed (Velvia's 50). Tests film-roll-iso-is-the-film-box-speed (FILM 2 -> 200), film-roll-iso-box-speed-800
+  (FILM 3 -> 800), film-roll-iso-color-400; film-roll-length-free-until-the-first-photo now expects 200 (FILM 2).
+
+## Film Rolls E2: the approved screens from the card (2026-11-24; emulator: loading only, the drawing camera-only)
+
+- **Owner approved** the three screens of `firmware/mkscreens.py` draft 1 (the end-of-roll slip, the rewind panel,
+  "Not developed").
+- **Size:** whole screens as one record were 9-15 KB (small lettering, quadratics flattened in 4 steps). Points within
+  0.15 px of the outline are dropped (Douglas-Peucker on each closed contour; the S_16 grid is 0.25 px), ~45 % smaller,
+  no visible change in the previews.
+- **Pieces, not one record per state:** a screen's numbers, gold frames and bar change with the roll, so
+  `OM3MOD/FILMROLL/SCREENS.BIN` (same 'OM3R' index as ROLLART.BIN; 443 pieces, 368 KB; entry numbers in the build's
+  `frscreens.inc`) holds: slip per length, Not developed's base per length, its gold frames per (length, shot), the two
+  counts ("17" right-aligned before "exposed ·", "19 to go" after it) per number 0..72, the rewind panel, its roll per
+  film and length (the roll at 0.48), the big count per number, the bar per step 0..12.
+- **frblock.s fb_art** chooses up to 4 entries and reads them into a page (SC_PAGE 10240 B, two heap buffers, the one
+  not shown; +0 count, +4 1 = the roll's shared parts first, +8.. offsets, records from +24), publishes it, and fb_draw
+  (CPU 1) draws the page. With DRAW.TXT: row step 1..11 → rewind (frames to wind back = shot - shot x step / 12, as
+  x 5462 >> 16, exact to 792); fc_lock 2 → the slip; DRAW.TXT's first byte `N` and frames shot → Not developed (test
+  only). Else the roll (ROLLART.BIN). fb_art now also runs from rl_idle (CADLOG, quiet polls) so a rewind step shows
+  without a half-press; fb_abz (set under LOCK) keeps the two tasks apart.
+- **Fixed on the way:** fb_art's frame was 32 with locals at (16) and (20), the saved registers' slots (the frame rule:
+  locals 4..N-17); now 64.
+- **Flash unchanged:** E1479999.BIN is fr6's (94730fcb…): only the card files change ("flash once").
+- Test `film-roll-screens-from-the-card` (the choice and loading, through the log's "roll drawing K"). Whether the
+  renderer draws them, and where on the screen: camera.
+
+## Film Rolls E2: "Not developed" in Playback, from the card (2026-11-24; om-emu, camera test pending)
+
+- **Owner:** Q10 "is it possible for playback to display a screen like in our mockup?", Q9 nothing may happen on it;
+  then "Playback research".
+- **How Playback picks its first screen (om-emu, two cards: empty / one JPEG in DCIM/100OLYMP):** the GUI goes
+  0x0501 PREPARE -> 0x0502 DRAWING -> 0x0508 DISP_SIMPLE with a photo, and to **0x0505 SS_PLAY_SINGLE/ID_ST_NO_PICTURE**
+  without (state ids: the table at 0x615f5d18, parent << 8 | child; state log site 0x61293070, a0 the new state, from
+  om-emu's STATE_LOG). The choice is in the play app at **0x61110574..0x611105e6**: `calls (64,vtbl)` of 0x60b36f7f's
+  object (d0 2 or 8, d1 32767, the count at (20,sp)); 0 -> event 9 (or 56) through 0x610fdabe, the empty-card screen.
+  That screen's entry 0x6126ee21 counts again (the same call, (16,sp) at 0x6126ee8f; 0 -> event 9, else elsewhere).
+  Its text is string 190 "No Picture " (requested through our st_get, WATCH: only at Play). checkNoImage
+  (0x60d29435) and startPlaySubAppStatePlay's canStartPlayService are not on this path (no hits).
+- **Built (card file only; E1479999.BIN unchanged, fr6's 94730fcb…):** three runtime hooks in fb_htab:
+  0x61110589 (`mov 0x61364622,d0`, 6 B, line 0x..80-8f) -> fb_tnp: count := 0; 0x6126ee84 (`mov (16,sp),d0; mov
+  d0,(8,sp)` + the log call, line ..80-8f) -> fb_tnp2: count := 0, then the replaced instructions and the call
+  (pb_log), back at 0x6126ee8f; our st_get (0x60f49f72, `cmp 0x7fa0,d0; bcs st_rlx`, line ..70-7f) -> fb_tst: string
+  190 -> "Not developed: N exposed, M to go" (UTF-16, own buffer; the font has no middle dot: om-emu drew blanks).
+  All only while fc_lock is 1 / 2 and all three hooks are in (fb_ndq); rl_key then lets the Playback key through
+  (D1's removal stays the fallback when a hook is not in). editor.ld: np1_back, np2_back, pb_log (symbols only).
+- **om-emu:** a roll of 24 with 17 shot and a photo on the card: Playback -> ID_ST_NO_PICTURE with the line (screenshot);
+  half-press back to shooting; after the rewind Playback -> DISP_SIMPLE (the photo). A generated 640 x 480 JPEG plays
+  in om-emu like a camera photo (the test's fixture: nobody's picture). Test `film-roll-playback-not-developed`
+  (replaces film-roll-no-playback-during-a-roll).
+- **Camera-only / open:** the real screen's look; other ways into Playback during a roll (the playback of the Image
+  Review after a shot is off; the Fn / touch shortcuts, Wi-Fi / OI.Share, a card reader: not covered); the shooting
+  screen's slip (still only in the renderer test of E1 / Part E).
+- **Camera, fr6 + FILMROLL.BIN 5e236ab7 (owner, 2026-11-24): FAIL.** Playback during a roll showed the line ("how
+  many photos are exposed and how many are remaining"), but leaving it with a half-press or a full press **froze the
+  camera (battery pull)**. The log on the card (card-backups/2026-11-24-film-rolls-fr6-test1, a later power-on): roll
+  24, 5 shot, all six hooks in, "not developed 1 text 1". om-emu does not reproduce it: s1 leaves 0x0505 for shooting
+  (state 0x9000 at 0x61293070), and neither count hook runs on the way out. So the freeze is in what om-emu does not
+  model (likely the real play pipeline: a card with photos whose count was reported as 0). Card back to v0.41-beta
+  (the owner is shooting). Next: not this way as built; D1 (Playback refused) is the fallback until found.
+- **Owner (2026-11-24): "im ok with playback doing nothing."** E2's Playback hooks (0x61110589, 0x6126ee84, st_get)
+  and their log fields are taken out of frblock.s again; D1 (the Playback key removed during a roll) is the behaviour.
+  The card file is again 11,960 B, byte for byte E2's screens build (fr13). Test film-roll-no-playback-during-a-roll is
+  back, now with a photo on the card (refused during the roll, the photo after the rewind).
+
+## Film Rolls: photo numbers in the roll log, the film window (2026-11-24/25; camera-tested 2026-11-25)
+Owner (2026-11-24): "Do the photo numbers then the film window overnight". Card file only: E1479999.BIN is still
+fr6's 94730fcb….
+- **The camera's file counter (analysis):** its own debug print at 0x608d7170.. names them: PRM_DCFNUM_FOLDER =
+  setting 41282, PRM_DCFNUM_FILE = setting 41298, read through the getter 0x60063380 (`d0` id, `d1` 0, `a0` 0; our
+  nf_get). om-emu: 41298 reads 1, 41282 reads 100 on a new camera, with or without a photo on its card (om-emu does
+  not count the card's files): read as "the next photo's number" (FC_OFF 0). **To check on a camera** against the
+  file names (PBddNNNN.JPG = NNNN): if off by one, FC_OFF in frblock.s.
+- **Built:** rl_fcr (from rl_hp, every shutter event with Film Rolls on) reads both into rl_fcn / rl_fdn. Not in the
+  capture: ex_hook's call (`call fc_shot,[],0`) leaves rl_shot no stack of its own, and a call there would overwrite
+  its own return address. rl_shot keeps rl_fcn as the roll's first photo's in the record (+22 RL_F1, u16, in the CRC;
+  0 = not known: an older record). rl_clr copies it and the folder into rl_ls (now 12 B); rl_log adds ", photos 5178
+  to 5201, folder 100" (first = F1 + FC_OFF, last = first + shot - 1: no gaps during a roll, RAW + JPEG share a
+  number). The line buffer is 96 B now (the longest line 81). The debug log's NOW line: ", file counter N (before
+  the roll's first photo F), folder D".
+- **The film window (C4):** with a roll in, the shooting screen's picture-mode name (15706..15713) is the roll's box
+  end ("Portra 400" / "36 exp", 96 x 44, OSD label style, firmware/mkwindow.py -> OM3MOD/FILMROLL/WINDOW.BIN, 72
+  type-11 pictures, entries as ROLLART.BIN; names that carry their speed once: "E100", "C200", "Pro 400H"). fw_load
+  (in fb_art, under its busy guard: rl_hp and rl_idle) reads the entry into the buffer not shown, fills its format-14
+  descriptor (payload uncached) and publishes it (fw_slot). fb_tic: a hook the card file puts in at our ic_get
+  (0x60f4b434, `mov d0,d1; exthu d1; cmp 0,d1; bne`, 5 B in the line ..30-3f): ids 15706..15713 with a roll in and not
+  in Playback (GUI classes 5..7: its labels name a photo's own film) -> fw_slot; MDR untouched (ic_get returns with
+  retf). om-emu screenshot: "COLOR 1 / 36 exp" in the name's place, the shots-left 31 above. Design approved by
+  the owner (2026-11-25: "Window design looks good"); camera test pending. Test film-roll-film-window.
+- **Camera (2026-11-25, test 7, fr6 firmware + fr7 card files): PASS** (owner: "everything worked"). A 24 roll
+  loaded, shot to the end, Playback did nothing during it, OK rewound it, Playback normal after. ROLLS.TXT: "Roll 001,
+  FILM 1, ISO 400, 24 exp, 24 shot, photos 5145 to 5168, folder 100", the same numbers as the roll's files: FC_OFF 0
+  is right (the counter holds the next photo's number; the log's NOW line read 5169 after the roll). The log: film
+  window hook 1, loaded once, given 19 times; no freeze or restart. The renderer counters (commands 3, 4, 12, 13)
+  read 0 0 0 0: Color Creator and the wheel were not opened, so the drawing (E1 / E2) is still untested on a camera.
+
+## Film Rolls E1: the drawing test on the camera, then command 13 (2026-11-25; camera, then emulator only)
+- **Camera (test 7's card + DRAW.TXT, fr6 firmware): nothing drawn** (owner: "I didnt see anything"). The log:
+  "Film Roll renderers (commands 3, 4, 12, 13): 0 0 0 3; ... with a roll, command 4 0, draw on 1, drawings 0". DRAW.TXT
+  was read (draw on 1) and the roll's drawing loaded (3572 B), but command 4 (0x610507ba, where stage 2 draws) never
+  ran; command 13 (0x61050b52) ran 3 times, with Picture Mode opened twice (events #33, #43). No freeze, no garbling.
+  Reading: the Picture Mode colour wheel is drawn by command 13 (it draws on open, not per dial step: 3 runs);
+  whether Color Creator (CRT) was opened is not known from the log.
+- **Command 13 (0x61050b52..0x61050bc2):** vgSetfv(CLEAR_COLOR), vgClear(0, 0, cc_w, cc_h), MATRIX_MODE; then by the
+  order's byte +13: 1 -> 0x61050bc3 (`[d2,d3,a2,a3],16`), 2 -> 0x61051129 (`..,156`); 0x61051970 (notes the kind in
+  0x62f49170 if <= 5); the swap 0x610502fc; `ret [a2,a3],28` (its caller 0x6104fe2f: `call ..,[a2,a3],28`).
+- **Built (fr18, card file only; E1479999.BIN and GUIDES.BIN unchanged):** fb_tr13 counts the kind (fb_k1 / fb_k2;
+  the log's "; command 13 kinds a b" at the end of the renderers line) and, with a roll and DRAW.TXT, draws as fb_tcc
+  (fb_draw, which ends with the swap) and returns `ret [a2,a3],28`. 20 Film Rolls tests pass. NEEDS CAMERA TEST
+  (test-builds 2026-11-25 card 8, private).
+- **Camera (test 8, card file fr18 + DRAW.TXT): FAIL.** Owner: no roll in the colour wheel, none in Color Creator ("no
+  and no"), and **the camera restarted while scrolling through the colour profiles** (Picture Mode); after the restart
+  the Film Roll row was missing (by design until the first half-press: the row is in Picture Mode only while the card
+  file is loaded). The log was written after the restart (renderers 0 0 0 0, kinds 0 0): the moment itself is not in
+  it. Reading (analysis): command 13 ran our fb_draw for the first time on a camera (command 4 never ran, so fb_draw
+  had never run before), in the screen where the restart came; fb_artp also points at the cached heap address that
+  CPU 1 reads, and a quick change of film can reload a buffer CPU 1 may still be drawing from. om-emu (scroll1: a
+  roll in, 14 profiles right and back, ROLLART / SCREENS / WINDOW on the card): no fault, the windows and drawings
+  reloaded (the GUI side is fine there; CPU 1's drawing is not run). DRAW.TXT taken off the card (without it fb_draw
+  never runs: the card is test 7's behaviour, which passed).
+- **ISO in the super control panel (owner, test 8): "it does lock the iso at 400 but in the super control panel it
+  displays auto 1792".** om-emu shows it too: after rl_arms' manager write (setting 6 = 1792) the panel's ISO cell is
+  empty (before: "ISO Auto 200"); a manual pick in the panel (Auto -> 800) makes no manager call for 6 (only 261 /
+  293 / 820) and shows normally. So the panel reads a second value the camera's own ISO pick sets and the manager
+  write of 6 leaves at Auto. Not found yet; photos are taken at the roll's ISO (the log's exposure line).
+- **fr19 (2026-11-25, owner: "Keep trying drawing"; card file only, emulator: 20 Film Rolls tests pass):** the pages
+  CPU 1 draws are malloc'ed then used only through their uncached view (fb_unc: + 0x40000000 below 0xa0000000, as
+  fw_load's pictures, which show on the camera); fb_draw sets fb_dbz while it draws and fb_art does nothing while it
+  is set (counted: "loads put off"); fb_draw checks the page (at most 4 records, offsets inside SC_PAGE, 1..16 groups,
+  at most 4096 segments, data offsets inside the page); DRAW.TXT "R" clears the whole surface amber and draws nothing
+  else (does a drawing in that renderer show at all?); after drawing, vgGetError (0x617b4141, `[d2],8`; 0x1007 = no
+  context) and the context (0x617b410c) go in the log. Test 9 (private test-builds).
+- **Camera (test 9, fr19 + DRAW.TXT "R"): nothing drawn, both rings normal, no restart.** The log (truncated at
+  9216 B: events #12..#28): the roll was taken out between Playback (#17, ISO 400) and #18 (ISO Auto), before the
+  colour wheel (#21..#22); command 13 ran once (kind 1) without a roll, so nothing drew ("drawn 0", context 0). In
+  Color Creator (#12..#14, picture 898, the roll still in) none of the four renderers ran (command 4: 0). So the four
+  hooked renderers run rarely or never for these screens.
+- **fr21 (test 10):** DRAW.TXT "R" draws with or without a roll; fb_tdsp hooks C3D_MAIN's dispatcher at 0x6104fb05
+  (stock a0 01 c8 28 a0: `cmp 1,d0; beq 0x6104fb2f; cmp 2,d0`; a 5-byte jump in its 16-byte line; the chain 1 / 2 / 3
+  / 4 / 12 / 13 / else replayed with targets from editor.ld dsp_c*), counts each job by code (0..15, others) and keeps
+  the last 16 {code, the data's bytes +0 and +13 (RAM pointers only), GUI state (uncached)}. The log's line "Film Roll
+  drawing jobs". om-emu runs no C3D jobs (hook 1, jobs 0). 20 Film Rolls tests pass.
+- **Camera (test 10, fr21 + DRAW.TXT "R"): DRAWING SHOWS.** Owner: "on the crt mode the dial was an amber square. on
+  the color mode, the whole screen was amber". The log's jobs (oldest first, code.+0.+13@GUI): 1.11.3, 13.5.1, 2.0.0,
+  1.11.3, 2.0.0, 1.2.1, 4.0.5, 2.0.0, all @6148 (0x1804: Picture Mode). So: job 1 starts a view (its data's first
+  byte the kind: 11 = the Picture Mode colour wheel, 2 = Color Creator's ring in Picture Mode on CRT), job 13 draws the
+  wheel once (its renderer's kind byte +13 = 1: 0x61050bc3), the surface the whole screen; job 4 draws Color
+  Creator's ring (the ring's square); job 2 ends the view. Context 1661179484 (0x6303ad5c), VG error 0. Jobs seen: 8
+  (by code: 1 x 3, 2 x 3, 4 x 1, 13 x 1).
+- **Test 8's restart, found (analysis):** fb_one was `call fb_one,[d2,d3,a2,a3],48` with locals (32) / (36) = the
+  slots of the saved a3 / a2 (frame rule: locals 4..N-17), so fb_draw came back from its first shape with a2 / a3 the
+  paint and path handles and walked them as records. The amber test (no shapes) did not reach it. fb_one now 56. A
+  scan of frblock.s / frcard.s for the frame rule: also rl_lk (fc_lk's frame 32, its (16) local = a saved register's
+  slot, d1 the value; harmless today: sx_set goes on into the manager, whose first instructions write d2, d3, a2 and
+  a3; camera-tested; frame fixed in the flashed fc_lk, so left as is); rl_key reads its caller's frame on purpose.
+- **fr22 (test 11):** fb_one 56; fb_draw puts the 256 x 256 drawing in the surface's middle (vgTranslate 0x617b4211
+  `[d2,d3],12`, floats by fb_i2f) except for "R", and notes cc_w / cc_h each time (the log's "surface"). DRAW.TXT
+  "draw". 20 Film Rolls tests pass.
+- **Camera (test 11, first try): standard colour wheel.** The log: no roll was loaded (roll 0, length picks 0), so
+  fb_art had no page and job 13 (run twice, 13.5.1) drew the stock wheel. Not a result for the drawing; the steps
+  now say how to reach the Film Roll row (OK, OK, Up once: the last row; om-emu screenshot) and the test is repeated
+  with the same card files.
+- **Camera (test 11, second try, fr22 + DRAW.TXT "draw", a 24 roll loaded): PASS, the roll is drawn.** Owner: "both
+  crt and the color wheel now show the drawn film canister!" No restart. The first smooth, full-colour drawing of our
+  own on the OM-3: the loaded film's roll from ROLLART.BIN in the colour wheel's place (job 13, the whole screen's
+  surface, centred) and in Color Creator's ring (job 4, the ring's square), card file only. The log on the card is
+  from a later power-on (jobs 0), so the surface sizes were not kept.
+- **Next (not built):** the drawing in its own places: Picture Mode's Film Roll row (the camera starts a view, job 1
+  kind 11 + job 13, only for the wheel row: find the GUI side's post and make it for our row), then the slip and the
+  rewind panel (SCREENS.BIN, already loaded by fb_art) where they belong.
+
+## Film Rolls: how the camera starts its drawing view (2026-11-25; static analysis + om-emu; for the Film Roll row)
+Owner: "Yes, the Film Roll row" (the canister on that row).
+- **The interface (CPU 1, task reading queue (0x600432a6), switch at 0x61051c40 on its request (60,sp)):** 0 START: the
+  view kind byte (a2)+0: 0 -> C3D kind 1 256 x 256, 1 -> kind 2 320 x 320 (Color Creator's ring), 9 -> kind 10 800 x
+  600, 10 -> kind 11 928 x 600 (the Picture Mode wheel) through 0x6105216e (d0 kind, d1 x, a0 y, a1 w, (4,sp) h;
+  DISP_SET_LAYER_CUSTOM), then job 1 to C3D_MAIN through 0x61052108 (d0 the job code, a0 its data; a 16 B message
+  {0, 0, code, data} at 0xa320e7d4 sent with 0x6004d171 to queue (0x60043532), C3D_MAIN's). 1 UPDATE 0x61051d55, 2 END
+  0x61051eb5. C3D_MAIN sends a reply only when the message's +0 word (a queue id) is not 0 (0x6104fe52).
+- **The GUI side's requests (CPU 0):** START 0x60432ecb `[d2,d3,a2,a3],116` (from 0x60b1c91e), UPDATE 0x604331b9 (160,
+  from 0x60b1d5a1 in 0x60b1ced8's request builder, itself from 0x60b1bdd6), END 0x6043376c (88, from 0x60b1ce30); each
+  sends to (0x600432a6) through 0x60416fac. 0x6104e6c4 / 0x6104e738 / 0x6104e8d5 are c3d_debug.c's shell commands.
+- **om-emu (Picture Mode, the interface itself does not run there):** START at the OK that opens Picture Mode (d0 13,
+  d1 1), UPDATE on reaching the row above the wheel and the wheel row (and back up to it), not on the rows below; END
+  at MENU. With test 10's jobs: START -> job 1 kind 11 (the 928 x 600 surface), the wheel row's UPDATE -> job 13, END
+  -> job 2. So the view (and its surface) lives while Picture Mode is open.
+- **Open question (camera):** is that surface still shown on the other rows (the Film Roll row)? If so, our code can
+  post job 13 itself ({0, 0, 13, data}, no reply asked) when the Film Roll row is reached or changed, and fb_tr13 draws
+  the roll then; if the GUI hides it off the wheel row, the row needs the GUI's own request (0x60b1ced8's path).
+- **Owner's camera check (test 11's card): the canister "stays on the row below (split tone) but not on the color
+  curves row or the film shot selection row".** So Picture Mode hides the view off the wheel rows.
+- **What decides it (om-emu):** 0x60b1ced8 (the GUI's C3D request builder) runs on every row change with d0 0 (ask for
+  the view: UPDATE -> job 13) on the wheel and Split toning rows, 1 (hide) elsewhere. Giving the Film Roll row the
+  wheel's target in one switch at a time (pokes at the RL_IT slot, key 5368): only 0x615510cc (the column update)
+  turns it to 0. The wheel's case there (0x611d1308) starts by marking the screen: + 16 + 277 = 1 (byte), + 268 = 1
+  (word). The choice rows' case 0x611d04af (`mov a3,a0; mov a0,a1; call 0x611d0c7f,[d2,d3,a2,a3],88; bra
+  0x611d04ec`); at it d0 = d1 = the switch's key (item - 6: 5368 on the Film Roll row); hb_item is set only after the
+  update (a first try keyed on it lagged one row).
+- **fr25 (test 12, card file only):** fb_tcs, a hook at 0x611d04b1 (the case's call, cd ce 07 f0 58; installed at the
+  card file's load, the first half-press): the call, then on key 5368 the wheel's two marks. om-emu: d0 0 on arriving
+  at the Film Roll row and on each value change, 1 on the rows between, 0 on the wheel; "marked 3". fb_tr13 draws on
+  the Film Roll row (hb_item, uncached) without DRAW.TXT: the page fb_art published (the roll at its length; None:
+  cleared). A value set on the row (rl_row) counts fb_req; fb_art notes the request it serves (fb_reqc -> fb_done at
+  its end); fb_tr13 waits on CPU 1 for fb_done = fb_req (at most 3,000,000 polls, ~0.5 s; "waits given up" in the log),
+  since fb_art loads the new length's page only at CADLOG's next poll (100 ms) after the job was sent. No message is
+  posted across the CPUs. 20 Film Rolls tests pass; FILMROLL.BIN 15,948 B (cap 16,448).
+- **Camera (test 12, fr25): the canister shows on the Film Roll row** (owner photo, private: Portra 400, "24 exp", in
+  the middle over the live view), **but "the buttons and text overlap weird"**: the wheel's dial label ("Tint") and its
+  guide picture ("Selecti..." clipped under the title) over the row's own lines. The log on the card is a later
+  power-on's.
+- **The two marks apart (om-emu, variant builds v277 / v268, 0x60b1ced8's d0 and screenshots):** + 277 alone -> d0 1
+  (no view) and the wheel's layout on the Film Roll row ("⌄ Vivid" and the guide's "Color Sel[INFO]" in om-emu); + 268
+  alone -> d0 0 (the view asked for) and no wheel layout, but om-emu then never redraws the row (it keeps showing the
+  previous page; keys and MENU still work). Guess: with the view on and the wheel's layout off, the GUI's redraw waits
+  for the drawing side's answer, which om-emu does not give. Camera-only.
+- **fr26 (test 13):** fb_tcs sets + 268 only (= the v268 variant, FILMROLL.BIN byte for byte). 20 Film Rolls tests pass.
+- **Camera (test 13, fr26): PASS.** Owner: "yes it does and that looks wonderful": on the Film Roll row the canister
+  shows with the row's own text clean, and it follows None / 24 / 36 / 72. So with + 268 alone the camera redraws the
+  row (om-emu does not: its missing drawing side). Card file only; E1479999.BIN fr6's 94730fcb… unchanged.
+  The log (this time the test's own power-on): "Film Roll row view: hook 1, marked 49, waits given up 0"; drawing
+  jobs 53; no wait for a new length ran out. A 24 roll left loaded with 4 frames shot.
+
+## Film Rolls: the roll's ISO in the super control panel (2026-11-25; om-emu, camera test pending)
+Owner (test 8): "it does lock the iso at 400 but in the super control panel it displays auto 1792"; "Fix ISO display".
+- **om-emu:** with a roll the panel's ISO cell was empty (before: "ISO Auto 200"). The panel's own ISO screen (OK on the
+  ISO cell, main dial) makes no manager call for 6: each step is facade SetValue(1701, mode 1) -> 0x60bb5473 ->
+  0x60aea03c -> the settings core's 0x603f038b(1701, ..). Memory dumps (a scratch copy of the driver with an `mdump:`
+  token): picked ISO 500 = 1877 in two neighbouring u16 (0x636fda4e / 0x636fda50, mirrored at 0x6373da4e / ..50 and
+  0x63730d38 / 0x63770d38); a roll's manager write of 6 fills only the first. sget: picked ISO 400 -> 6 = 1792 and
+  1701 = 1792; a roll -> 6 = 1792, 1701 = 0. So **1701 is the ISO as picked (0 = Auto)**, the panel's source.
+- **Fix (fr27, card file only):** rl_i17 writes 1701 through the manager when it differs (rl_arms after its write of 6,
+  rl_iset after its check); the log's "ISO put back N (1701: M)". om-emu: the panel shows "ISO 400" with a roll. New test
+  film-roll-iso-shown-as-set-in-the-panel (pass on fr27, caught on fr26). 21 Film Rolls tests pass. FILMROLL.BIN
+  16,120 B. Camera test 14 pending. Note: after the roll the ISO stays the roll's (as before), now in both.
+- **Camera (test 14, fr27): PASS.** Owner: "iso shows 400 now" (the super control panel, a 24 roll in). The log:
+  "ISO put back 1 (1701: 1)", "Now: A, .. ISO 400". Card file only.
+
+## Film Rolls: the rewind panel and the slip on the Film Roll row (2026-11-25; emulator, camera test pending)
+Owner: "Yes, start them" (the end-of-roll slip and the rewind screen).
+- **fr28 (card file only):** fb_art chooses the approved screens (SCREENS.BIN) without DRAW.TXT: rewinding (RL_P
+  1..11) -> the rewind panel, the roll's end (fc_lock 2) -> the slip; Not developed stays DRAW.TXT "N". The Film Roll
+  row draws whatever fb_art published (fb_tr13), so both show there; nowhere else draws them. Test
+  film-roll-screens-from-the-card: without DRAW.TXT a full roll -> the slip (1000), a roll with frames left -> its roll
+  (60). 21 Film Rolls tests pass. FILMROLL.BIN 16,100 B. Test 15 (private test-builds).
+- **Still to do:** the slip on the shooting screen (the mock-up's place): the shooting screen has no drawing view of
+  its own (Picture Mode starts one); options: the film window's place showing an end-of-roll picture (OSD, as C4), or
+  starting a view there (research).
+- **Camera (test 15, fr28): no rewind panel** (owner: "no rewind panel displayed"). Not a fault: since the owner's
+  rewind pick (2026-11-24, above: "picking another value takes the roll out", the 12-step rewind gone, RL_NV unused) a
+  rewind is instant, so RL_P is never 1..11 and fb_art never chooses the panel. The test steps assumed the old steps
+  (my mistake). The log: two rolls rewound from the row (Roll 003, 4 shot; Roll 004, 3 shot), drawings 12 on command 13,
+  surface 928 x 600 (the Picture Mode view), no restart. The slip (the roll's end) was not reached.
+- **Showing the rewind panel needs a choice (the owner's):** a short rewind after picking None (the panel counting the
+  frames back for a few seconds, as the mock-up's "A few seconds, then your photos open up": the drawing side would have
+  to redraw without a GUI event, not done yet), or a crank (each Right a step, the panel per step: redraws work today),
+  or keep it instant.
+- **The crank (owner: "Crank, 3 clicks"; fr32, card file only):** a refused value on the row still moves the
+  camera's cursor (om-emu, fc_row: one Left gave value 0, the next 3: the strip wraps), so the crank is the row's values
+  themselves: with frames shot the strip reads Out / 2/3 / 1/3 / the roll's length (rl_str), fc_rval = 3 - RL_P / 4
+  (rl_sync); rl_row: one step either way (a jump, the wrap from the roll to Out, refused), 2 / 1 -> RL_P 4 / 8 (the
+  rewind panel; the drawing waits for fb_art as for a length), 0 -> rl_clr and the row None (the cursor on None too:
+  the crank runs leftward so Out is the strip's first value; a rightward first try left the cursor on "72"). rl_hp
+  ends an unfinished crank (RL_P 0) at a shutter event. Titles "Rewinding: 2 to go" / "1 to go" / "Rewind: the roll
+  comes out". The old "Rewind and load N exp" (a length straight from a shot roll) is gone. Test
+  film-roll-rewind-crank-3-clicks (3 boots); REWIND in the tests is three Lefts; film-roll-screens-from-the-card checks
+  the panel's choice in memory (fb_akey 1284) as a shutter event ends a crank; tools/test adds `NAME_m` symbols
+  (expect:mem's form for the card file's fields). The test-only C3D dispatcher hook (fb_tdsp, test 10) removed:
+  FILMROLL.BIN 15,352 B. 22 Film Rolls tests pass. Camera test 16 pending.
+- **Camera (test 16, fr32): "it looks good"** (the Out / 2/3 / 1/3 strip). Owner then: "make it based on the photos you
+  took (24 times for 24 shots, etc.). And then just also display the rewind image". The log (Rolls 005 / 006 rewound,
+  3 drawings) does not tell whether the panel showed.
+- **fr35 (test 17): the crank one click a frame.** A strip of a roll's length is not possible (13 string ids per
+  group, flashed), so with frames shot the row is two cells "Wind" (fc_rcnt 2) and every change is a click: RL_P
+  counts the frames wound back (rl_row; the value (shot - wound) & 1 so the last click lands on 0 = None), the last
+  one -> rl_clr. rl_ld accepts RL_P up to 72; rl_hp ends any crank. Strings: the title "Rewinding: N to go", the left
+  cell N, the strip "Wind" ("Rewind" was clipped to "Rewinc" in om-emu). fb_art's panel: the number shot - wound,
+  the bar SC_BAR + 12 x wound / shot. Tests: REWIND(shot) clicks; film-roll-rewind-crank-3-clicks (one a frame,
+  either way; a half-press ends it). A first build had a comment left open over three instructions (the crank read no
+  counts); static:comment-swallow does not scan frblock.s (a scan of my own after the fix: none left). FILMROLL.BIN
+  15,288 B. 22 Film Rolls tests pass. Camera test 17 pending.
+- **Camera (test 17, fr35):** the crank works (Rolls 007 / 008: 5 and 16 shot; the log: 34 drawings, 24 rewind panels
+  loaded). Owner: "the wind wind looks silly. perhaps we can hide that durning the winding?"; "when it is finished
+  winding. it only displays none and 24. no 36 or 72" (the strip's count of 2 is kept until the row is entered again).
+- **fr37 (test 18):** the count stays 4. With frames shot every change winds a frame (RL_P), the value is the cursor's
+  (rl_cur, rl_sync), the cells blank while winding (rl_str), the title / left cell the frames to go. The last frame
+  leaves the roll rewound (RL_P = shot): the cells None / 24 / 36 / 72, the title "Rewound: pick a roll or None", the
+  left cell 0; the next change -> rl_clr and that value loaded (path 3); a shutter event takes a rewound roll out
+  (rl_hp), an unfinished crank ends (RL_P 0). Test film-roll-rewind-crank-3-clicks: 5 clicks -> rewound, the roll still
+  in; a pick (72) -> rolls out 1 and a new 72 roll. 22 Film Rolls tests pass. FILMROLL.BIN 15,428 B.
+- **Camera (test 18, fr37):** the crank and rewound state work (Roll 009, 7 shot). Owner: "it is loading none, 24, 36, 72
+  first then the winding start. If you are in a roll it shouldnt display that at all"; "it still displays the grey bar
+  at the bottom but it is black. I want that invisible, and maybe text above the bar saying something like scroll to
+  rewind film"; then "can you just change the grey to transparent instead?". Card back on v0.41-beta at the owner's word.
+- **fr43 (test 19, card file only):** a shot roll not wound yet: the cells blank too and the row's title (ST_RLT)
+  "Scroll to rewind film" (the roll's own title removed). The bar: the Film Roll row's pictures (om-emu, ic_get's ids on
+  arriving: 665, 10321, 10941 x 3, 10942, 10953, 10957, 12736, 13393, 14563; a click: 10939 / 10944 x 3, 10953, 10957,
+  14563; the picture table *(0x60379740) + 4 id dumped and decoded): 10957 = the bottom bar, 900 x 90, one colour (52);
+  10939 / 10941 = a strip cell's highlight, 116 x 90 (colours 37 / 68 and 71); 10942 / 10944 the left column's (110 x
+  74, left alone); 10953 the left column, 110 x 510. fb_tic answers 10957 / 10939 / 10941 with a clear 16 x 1 picture
+  (fb_clr_s, a slot word -> fb_clr_d {14, 16, 1, 8, 0, 0; size 12, the stream uncached (fb_init)}) when GUI 6148
+  (Picture Mode), hb_item 5374 and 0 < shot, wound < shot. (First tries: answering the descriptor itself instead of a
+  slot word, and size / stream swapped: both faulted in om-emu.) Fewer strip counts (0 / 1) were tried: 0 draws a row
+  of stale cells, 1 one box: not used. The log's "bar hidden N"; test film-roll-crank-hides-the-bar. Left / Right and
+  the dials reach the camera's key handler 0x610beb04 in Picture Mode (om-emu), noted for later. 23 Film Rolls tests
+  pass. FILMROLL.BIN 15,484 B.
+- **Camera (test 19, fr43): "that looks good"** (the bar invisible during the crank, "Scroll to rewind film", the
+  lengths back after "Rewound"). The card had been formatted in the camera before the test (empty apart from ALBM), so
+  the whole set went back on it. The log: Roll 001 (24 exp, 3 shot) rewound and a 72 roll picked from the row (Roll
+  002), 30 shot, wound back frame by frame and taken out (ROLLS.TXT; ROLL.BIN now holds no roll); bar hidden 30, row
+  marks 18, drawings 15 on command 13, waits given up 0, ISO put back 1 (1701: 1), no restart. Open: the VG error after
+  a drawing is 0x1001 (VG_BAD_HANDLE_ERROR; 12 of 15 drawings, test 18 15 of 15, test 17 25 but the last 0). Nothing
+  wrong shows on the screen. vgGetError may report an error the camera's own drawing left; not traced.
+
+## Film Rolls: the end-of-roll slip on the shooting screen (2026-11-25; om-emu, camera test pending)
+Owner: "Build the end slip" (the poll mock-up's screen 3). Card file only: the flashed firmware stays fr6's 94730fcb…
+and GUIDES.BIN 85555fb7….
+
+**Where it can go.** The shooting screen has no drawing view, so the slip is an OSD picture handed out in the film
+window's place: the picture-mode label (15706..15713).
+- The label's box clips a bigger picture. om-emu, a 300 x 60 test picture: drawn right-aligned and centred
+  vertically, clipped to the box (794, 365, 102, 44).
+- **The box:** the layout record at 0x614786a4 points at the rectangle pair 0x61478148 / 0x61478150, (694 | 794, 365,
+  102, 44); the screen's build copies it into the widget.
+- **The widget:** a picture widget, vtable 0x6135993c, id 0x01908003, box at +8 {x, y, w, h}. Rear screen x 794,
+  viewfinder 694 (om-emu DEVICE=evf).
+- **Patching the record** takes effect only when the screen is rebuilt (after a menu). **Patching the widget's box**
+  takes effect at its next draw.
+- **The GUI's set-picture** (0x6128ac0a: a2 = the widget, d1 the id) calls the getter (our ic_get, MDR 0x6128ac22)
+  and draws after it returns. So a box changed inside ic_get is used for that same draw.
+- **Shrinking the box back** (om-emu): the next draw cleared the wide area but did not draw the small one until a
+  rebuild. So the box is never shrunk. It is widened leftward with the same right edge and middle (y 355, h 64): a
+  44-high picture (the film window, the camera's own label) still lands where it always does. A rebuild (menu,
+  Picture Mode, Playback) puts the stock box back.
+
+**Built (fr44):**
+- **The slip picture** (firmware/mkwindow.py, WINDOW.BIN entries 72..74 for a 24 / 36 / 72 roll, 352 x 64, about
+  6.2 KB each):
+  - the camera's orange (34) line on top and the length in big orange figures;
+  - "End of the roll" (bold) and "Shutter locked · press OK to rewind";
+  - on palette 62 (dark grey, 80 %), with opaque greys and darker oranges (102 / 17 / 18) for the soft edges.
+  - The 72 film windows are byte for byte the same.
+- **The loader:** FW_MAX is 6400. fw_load takes the picture's size from its stream's header (no longer fixed at 96 x 44).
+  At the roll's end (shot >= length) its key is 72 + N - 1.
+- **fb_tic hands out the slip only when all of these hold:**
+  - the caller is the set-picture (MDR 0x6128ac22);
+  - a2 is the label widget (vtable and id);
+  - its box is the stock one (102 x 44 at y 365, widened then: x + 102 - 352, 355, 352, 64) or already widened.
+  - Anything else asking for the label's ids at the roll's end gets the camera's own picture.
+- **The log:** "; end slip N (box widened M)" at the end of the renderers line.
+
+**om-emu results:**
+- One frame before the end: the film window as before.
+- At 0 (the camera's orange 0): the slip, whole at its first draw (rear screen 544..896 x 355..419; viewfinder too).
+- A refused press keeps it.
+- After OK rewinds, the slip stays until the next half-press, then "COLOR 1" is back in its usual place. The film
+  window did the same before.
+- Test film-roll-end-slip.
+- FILMROLL.BIN 15,872 B (of 16,448).
+
+**Camera-only:**
+- the look on the real screen and in the viewfinder;
+- whether the widened box clears anything next to it;
+- the other display modes (their label boxes, if different, get the camera's own label).
+- **Camera (test 20, fr44): the slip shows** (owner: "the banner shows up"). The log: Roll 003 (24 exp, 24 shot);
+  end slip 2, box widened 1; shutter refused at the end 1; rewound by OK 1; VG error 0; no restart.
+- **Owner then:** "i dont like the ok to rewind. I want to have to go the the roll and phyiscally rewind the roll".
+  - D3 is taken out (fr45): rl_key keeps only D1 (no Playback during a roll), so at the roll's end OK opens the
+    control panel as always. The log's "rewound by OK" is gone with it.
+  - The slip's second line is "Shutter locked · rewind on the Film Roll row" (the slip is now 388 x 64, about 7 KB;
+    FW_MAX 7168).
+  - Tests:
+    - film-roll-ok-rewinds-at-the-end is now film-roll-ok-opens-the-panel-at-the-end: OK at the end opens the panel
+      and the roll stays in.
+    - film-roll-end-slip and the roll log test (film-roll-log-line-at-the-rewind) wind back on the row
+      (OPEN_ROLL + REWIND(24)).
+  - FILMROLL.BIN 15,680 B.
+- **Camera (test 21, fr45): "that worked!"** (OK no longer rewinds; the slip's new wording; rewound on the row).
+- **Owner's tweaks after test 21:**
+  - On the film window: "its pretty useless. I think you should just keep it as it works for standard .41b".
+  - "when the film roll is finished, is there a way that we could click ok and it opens to the film rewind roll
+    setting in color profiles?"
+- **fr46 (test 22, card files only): the film window (C4) is taken out.**
+  - During a roll the picture-mode label is the camera's own again ("COLOR 1", "FILM 3").
+  - fw_load loads only the slip, at the roll's end. WINDOW.BIN holds just the three slips (entries 0..2 = 24 / 36 /
+    72; 20,864 B, was 186,896); firmware/mkwindow.py makes only those.
+  - Test film-roll-film-window is now film-roll-no-film-window-during-a-roll; film-roll-end-slip follows (entry 0
+    for a 24 roll).
+  - FILMROLL.BIN 15,604 B.
+- **OK at the roll's end opens Picture Mode on the Film Roll row (fr47, test 22; om-emu, camera test pending).** Owner:
+  "Yes, keep digging".
+  - **The GUI's state machine:** object 0x62ce5864 (LG_GUI). Byte 0 is the super-state (1 SS_COMMON, 4
+    SS_MENU_LV...), byte 1 the state; the shooting screen is 1 / 8, Picture Mode 4 / 24 (0x1804 read as a halfword).
+    - Groups: 0x614f2d60, 12 descriptors {+0 states, +6 events, +8 map, +12 handlers, +16 event list of {event, index}}.
+    - The dispatcher 0x610f5f88 (a0 the machine, d0 the event, d1, a1) calls the handler for (state, event); it returns
+      (super-state << 8) | state.
+    - The GUI task's loop (0x610fd0f7) feeds it from its messages.
+  - **The shooting screen's "open screen" event 0x9715:** its handler 0x6124cf5d reads its parameter (the message's
+    +12 arrives as a1): 0 the control panel (OK); 3 / 12 / 13 state 23; **4 or 14 Picture Mode, 0x0418**
+    (0x6129af6c(2 / 3) notes where it came from at 0x6037ea9c; the control panel's way gives 1).
+  - **Who sends it:** the camera application's table post 0x61199f.. (event from the table 0x6150088c, d1 the
+    parameter), via gp_build 0x610f48c3 at 0x6119a06b and gp_send 0x610f48ef at 0x6119a080. OK sends 0x9715 / 0 at its
+    release. Any GUI event can be sent with 0x61296ccb (d0 the event, d1 the parameter; 171 callers).
+  - **First tries (om-emu):**
+    - The OK turned into the CP button's press: nothing.
+    - The key swallowed and 0x9715 / 4 sent from rl_key: Picture Mode opens, but the camera application stays in
+      its shooting mode. Up does nothing there, and MENU goes to SS_COMMON / ID_ST_BLACK_SCREEN, then the main menu.
+      0x6037ea9c set to 1 does not help.
+  - **Built (card file only, two more card-file hooks):**
+    - rl_key: an OK press on the shooting screen at the roll's end sets rl_wpm 1 (any other OK press: 0). The key goes
+      on as always.
+    - fb_tpost (hook at 0x6119a06b, stock `dd 58 a8 f5 ff`): with rl_wpm 1, the request 0x9715 / 0 gets parameter
+      4, rl_wpm 4. The camera application goes into its menu as for the panel, so its keys reach Picture Mode.
+    - fb_tsend (hook at 0x6119a080, stock `dd 6f a8 f5 ff`): after that request is sent, one Up (0x9004 / 0x9005
+      through 0x61296ccb). Picture Mode opens on its first row (item 111), and Up takes it to the last, the Film Roll
+      row (5374), as the owner's "OK, OK, Up".
+    - The log: "; OK at the end: hooks 1 1, Picture Mode N, Ups N".
+  - **om-emu results:**
+    - OK at the end: GUI ID_ST_DIRECT_PICTUREMODE_ART, hb_item 5374.
+    - Left winds a frame back (wound count 0 -> 1 -> 2).
+    - MENU and a half-press: as from the panel's way (om-emu's MENU goes to the main menu there too).
+    - Before the end OK opens the control panel.
+    - om-emu does not redraw Picture Mode after that first Up (nor after a real first Up), so its screenshot still
+      shows the first row. How it looks on a camera: the camera test.
+  - **Test:** film-roll-ok-opens-the-panel-at-the-end is now film-roll-ok-opens-the-film-roll-row-at-the-end.
+  - FILMROLL.BIN 16,140 B (of 16,448).
+- **Camera (test 22, fr47): "it works!!"**
+  - The camera's own label showed during a roll.
+  - OK at the end opened Picture Mode on the Film Roll row. The log: "OK at the end: hooks 1 1, Picture Mode 1, Ups
+    1"; Rolls 005 (24 of 24) and 006 (72 of 72); no restart.
+  - Owner: "not the text for the rewind slip needs to be changed".
+- **fr48 (test 23):** the slip's second line is the mock-up's again, "Shutter locked · press OK to rewind"
+  (352 x 64; FW_SW 352, FW_MAX 6400; WINDOW.BIN 18,712 B).
+- **Camera (test 23, fr48): "looks good"** (the slip's "press OK to rewind").
+- **The canister on Picture Mode's film selection row (fr49, test 24; om-emu, camera test pending).** Owner (test 23):
+  "are we able to add to the right hand side of the screen the film canister in the film selection row?"
+  - That row (item 111) goes through the same case of the column update switch 0x615510cc as the Film Roll row
+    (0x611d04af, key 105 = 111 - 6; the switch's table: {key, target} pairs). So fb_tcs sets the + 268 mark for key
+    105 too, and on both rows bumps fb_req, so fb_tr13 waits for fb_art's page of the new value.
+  - fb_tr13 draws on hb_item 111 as on 5374.
+  - fb_art: fb_sel (GUI 6148 and hb_item 111) -> the film picked on the strip now (cm_val, as rl_hp; once a roll
+    started, its film), at the roll's length (no roll: 36); the canister only (no panel or slip there).
+  - om-emu (no drawing side, so the key only): COLOR 1 -> entry 61, Right -> 64 (COLOR 2), -> 67, five more Rights
+    (FILM 4) -> 10; the next row down -> -1. cm_val follows the strip live.
+  - Test film-roll-canister-on-the-film-selection-row. FILMROLL.BIN 16,324 B (of 16,448: 124 left).
+  - Camera-only: the drawing itself, and how it sits with the strip at the bottom.
+- **Camera (test 24, fr49): "that looks pretty good".** Owner:
+  1. "can they be on the right side of the screen?"
+  2. "every film roll lists its expousre count as 36. since this hasnt been set yet, shouldnt that be blank?"
+- **fr50 (test 25, card files only):**
+  - fb_draw puts the 256 x 256 drawing at the surface's right edge, 16 px in (x = w - 272; the middle in height, as
+    before). This is for every drawing: the canister on both rows, the rewind panel. The roll then sits about where
+    the colour wheel is (om-emu: the wheel's box at about x 542..848 of 900).
+  - ROLLART.BIN gets 24 more entries, 72 + film: the same rolls without "N exp" (mkrollpath film(exp=None);
+    entries 0..71 byte for byte the same; 327,160 B).
+  - fb_art: the film selection row with no roll -> the roll without a length; with a roll, its length as before.
+  - Test film-roll-canister-on-the-film-selection-row: COLOR 1 -> 92, COLOR 2 -> 93.
+- **Camera (test 25, fr50): "almost there".** The canister sits on the right, but "the reset hold ok text over laps the
+  film canister so it needs to be moved up a little bit". Calibrated from the owner's test 12 photo: the 928 x 600
+  surface shows about 1:1 on the screen, and the centred roll sat at y 202..395 from the top.
+- **fr51 (test 26):** fb_draw puts the drawing 80 px above the middle ((h - 256) / 2 + 80 in OpenVG's y-up), so the
+  roll is at about y 122..315. FILMROLL.BIN only (ROLLART.BIN and WINDOW.BIN as test 25's).
+- **Camera (test 26, fr51): "that looks great!"** (the roll clear of the Reset text).
+- **The length on the film selection row: the rear dial (fr52, test 27; om-emu, camera test pending).** Owner: "can we
+  improve the film shot selection row? ... It looks tacked on, boring and ugly. also, if possible, it would be nice to
+  combine it with the film selction row. so I could pick film 4, 36 shots on the same row"; then "Combine, rear dial"
+  (the poll mock-up's screen 1: front dial the film, rear dial the length).
+  - **The dials in Picture Mode (om-emu):** both step the film strip on that row. The camera application sees
+    0x01010002 (its event +4: 2 front, 3 rear). The GUI gets 0x9032 (front) / 0x9031 (rear), a1 -1 / +1, from the
+    table post at 0x61199b78 (built there, sent at 0x6119a080). The arrows are 0x9004 Up, 0x9006 Down, 0x9008 Left,
+    0x900a Right (+1 each release). Picture Mode's state 4 / 24 sends all of them to one handler, 0x6125becc ->
+    0x6124f6c7 (its screen object).
+  - **Dead ends:**
+    - The rear dial with a1 0: the strip still moves (the step is read elsewhere), but the row update and
+      0x60b1ced8 still run.
+    - INFO on that row: no update at all.
+    - Up, Left/Right, Down posted after the dial (through the Film Roll row and back): the posted Down press never
+      reaches the dispatcher (its release does; the send 0x610f48ef's masked list at 0x62b8f2a0 is empty: not found
+      why). Without the releases, the keys count as held and repeat.
+  - **Built (card files):**
+    - fb_tgui, a hook at the GUI task's dispatch (0x610fd0f7, `call 0x610f5f8d,[d2,d3,a2,a3],48`, stock `cd 96 8e f0
+      30`). On GUI 6148 and hb_item 111, the rear dial calls rl_row with the Film Roll row's value (fc_rval) + a1,
+      wrapping in 0..3. That is the length, or a frame wound back during a roll, or, once rewound, the roll out and
+      the new length.
+    - The event then becomes Down's press, with Down's release and Up's press and release posted after it. The row
+      is left and come back to, so Picture Mode redraws it and fb_tcs asks for the new page.
+    - The front dial and Left/Right still step the film.
+  - **OK at the roll's end:** the extra Up (fb_tsend) is taken out, so Picture Mode opens on the film selection row
+    and the rear dial winds back there. fb_art draws on that row as on the Film Roll row (the rewind panel while
+    winding, the slip at the end). The drawn slip reads "Shutter locked · rear dial to rewind" (mkscreens.py).
+  - **The log:** "; OK: hook 1, PM N; dial: hook 1, steps N"; five labels shortened to fit.
+  - **om-emu results:**
+    - No roll: None -> 24 -> 36 -> 24 -> None; the canister follows (60, 61, 60, 92); the cursor stays on item 111;
+      Right steps the film (COLOR 2: 93).
+    - A full 24 roll: OK -> the film row; each rear-dial click winds a frame (wound count 1, 2), with the panel
+      drawn.
+    - A 24 roll with 3 shot: 3 clicks wind it back; the next takes it out (a new 24 roll, none shot).
+  - **Tests:**
+    - film-roll-rear-dial-picks-the-length is new.
+    - film-roll-ok-opens-the-film-roll-row-at-the-end is now film-roll-ok-opens-the-film-row-at-the-end.
+    - Full rolls are wound back with DIAL_BACK(n) after OPEN_END.
+  - FILMROLL.BIN 16,364 B (of 16,448).
+  - **Camera-only:** how the Down / Up bounce looks (a flicker?), and the dial's direction on the camera. The old Film
+    Roll row stays in Picture Mode's list until a reflash takes it out.
+- **Camera (test 27, fr52): "that is looking good".** Owner:
+  1. "the shot selection row is still at the very bottom";
+  2. "when I go to adjust the shot count on the film selection row, if the film isnt in the center of the screen it
+     jumps that film to the center position. this is jarring";
+  3. "we need to clarify/add some sort text to signify what changing that shit selection count".
+- **fr53 (test 28, card files only):**
+  1. **The Film Roll row left out:** fb_tpm, a card-file hook at our flashed pm_color (5 B `fc df 88 9a f4`, `mov
+     pm_list,a3`): the count 18 instead of 19, so Picture Mode lists no Film Roll row (om-emu: Up from the film row
+     wraps to Border, 5381). The length and the rewind stay on the film row (fb_tgui; rl_row with fc_rval, which
+     rl_sync still keeps). Test 19's clear bottom bar on that row (fb_tic's 10957 / 10939 / 10941, fb_clr_*) is taken
+     out with it: FILMROLL.BIN 16,144 B.
+  2. **The label:** ROLLART.BIN's rolls get two lines above the roll, "Rear dial" (grey) and "36 exposures" ("No roll"
+     without a length). The letters are flattened coarser (steps 2) so the largest record stays under SC_PAGE: 8,896 B.
+     Those rolls are the only ones with the label (mkrollpath film(labelled=True)); the rewind panel's is without.
+  3. **The strip's jump (not fixed):** it comes from fb_tgui's Down / Up redraw. Picture Mode puts the selected film
+     in the middle when the row is entered again.
+     - Tried: the screen object *(0x6037dfa0) (0x624677b0 in om-emu) holds no scroll field that changes. om-emu no
+       longer redraws the film row since its view mark (+ 268, test 24), so the scroll is never recalculated there.
+     - The other way, the canister's own redraw without the GUI, is the GUI side's UPDATE request 0x604331b9 (d0 13,
+       d1 1, a0 a 52-B request built on the GUI task's stack by 0x60b1ced8, with pointers into that stack). It goes
+       to the C3D interface on CPU 1 through the IPC layer 0x60416fac. om-emu does not run that side, so it is
+       camera-only either way.
+- **Tests:**
+  - Those that picked a length on the Film Roll row use the rear dial (LEN_UP / LEN_DOWN, REWIND = the dial).
+  - film-roll-length-free-until-the-first-photo checks the film row (111).
+  - film-roll-crank-hides-the-bar is taken out.
+  - film-roll-rear-dial-picks-the-length also checks the row is gone.
+- **Camera (test 28, fr53): "looking good! This is working well".** The Film Roll row is gone and the label shows.
+  Still open: the strip's jump to the middle on each rear-dial click (fb_tgui's Down / Up).
+- **The strip's jump (fr54, test 29; om-emu, camera test pending).** Owner: "lets work on fixing the strip jump".
+  - **Where the dial's turn lives:**
+    - The screen task's pre-dispatch filter (0x612949d2 -> 0x61295218..) gets the raw turn from a callback.
+    - It keeps it at 0x6037ea90 (0x6129964b sets it, 0x61299654 reads it) and writes its sign into the message's +12
+      (0x6129526d; the GUI loop's (408,sp), passed as a1).
+  - **A "turn of 0" does not exist:**
+    - With a1, (408,sp) and 0x6037ea90 all 0, the strip still steps back one (om-emu, cm_val's film 23 -> 22 ...).
+    - The row is updated each time, though.
+  - **Built (fb_tgui):**
+    - rl_row (the length, or a frame wound back) as before.
+    - Then the camera's own dial event goes on (the strip a step, forward when its turn > 0; the row updates).
+    - The arrow the other way (0x9008 Left / 0x900a Right, press and release) is posted after it, so the film comes
+      back.
+    - No row is entered again, so the strip is not centred.
+  - **om-emu results:**
+    - No roll, COLOR 4: the film stays 23 through 24 / 36 / 24; two row updates a click; the row stays 111.
+    - A roll with 3 shot: a frame wound back a click, with the panel.
+  - **Camera-only:**
+    - The picture mode is set twice a click (the next film and back), so the live view may flash.
+    - The strip itself (om-emu no longer draws the film row).
+  - FILMROLL.BIN 16,172 B.
+  - A comment left open over `bgt` in the first build: caught by the comment scan before any test.
+  - **During a roll** the dial's step asks sx_set for the next film. rl_lk gives the roll's film instead, so the
+    picture mode never changes, and the arrow back meets the same value: one "lock rewrite" a crank click (om-emu: 5
+    clicks, 5). Tests film-roll-locks-the-film-and-rewinds and film-roll-rewind-crank-3-clicks accept any lock count
+    now. All 25 Film Rolls tests pass on fr54.
+- **Camera (test 29, fr54): "it works, but there is a weird flicker on the screen when switching exposures".** Each
+  click set the next film and then the film back.
+- **fr55 (test 30):** while a click's step and its arrow back go through, film sets are held:
+  - fb_tgui sets fb_gfz before the dial event goes on and clears it at its arrow's release.
+  - rl_lk (sx_set's 901 through fc_lk) answers the film choice as it is, so the camera never switches.
+    - First build: it answered sget(901), the raw setting. For a FILM that is its base COLOR (FILM 2: 54 = COLOR 1),
+      so a click after picking a FILM turned it into COLOR 1 (ISO 400): film-roll-iso-is-the-film-box-speed and
+      film-roll-iso-box-speed-800 failed.
+    - Fixed: it answers cm_val (PVAL, the choice the row shows: FV0+j for a FILM), as the roll's lock does; if cm_val
+      gives 0 the set goes through as usual.
+  - The log's "held N".
+  - om-emu: 2 clicks, held 4, the film unchanged (COLOR 4 through 24 / 36); a Right afterwards steps the film as
+    usual. FILM 2 then a click: FILM 2 kept, ISO 200.
+  - The strip's own highlight may still step and come back (the GUI's), camera-only.
+  - om-emu's WATCH does not stop on the card file's code (heap): counters are the way to see it run.
+  - FILMROLL.BIN 16,384 B (cap 16,448).
+- **Camera (test 30, fr55): "that looks great!"** No flicker, the strip stays put. Camera-tested.
+- **fr56: the roll's ISO from ROLLART.BIN** (2026-11-25; the LookLab session's design, owner: "Looks good, go on": a
+  film made in LookLab carries its own ISO onto a roll). Emulator only.
+  - ROLLART.BIN gains an ISO table between the index and the records, at 8 + 8 x 96 = 776: 'OM3I', then 24 u16, the
+    camera's ISO setting (Sv x 256: 200 1536, 400 1792, 800 2048, 1600 2304, 3200 2560, 6400 2816) of FILM 1..20, then
+    COLOR 1..4 (1792). The index's offsets point past it, so fb_art (index only) is unchanged.
+  - firmware/mkrollpath.py isotab() writes our films' box speeds there (never below 200, as before); fb_box (the same
+    numbers inside FILMROLL.BIN) is gone.
+  - rl_arms (the roll's first half-press): for FILM j it reads the 44 bytes at 776 (fopen / fseek / fread / fclose,
+    as rl_rd; on its stack at (8..51)) and takes FILM j's value if the tag is 'OM3I', the read was whole and the value
+    is 1536..2816. Otherwise 400 (no ROLLART.BIN, an older one without the table, or a value out of 200..6400).
+    COLOR 1-4: 400 as before.
+  - Behaviour change: a card without ROLLART.BIN (or an older one) now gives a FILM roll ISO 400, not its box speed.
+    The card set always carries ROLLART.BIN.
+  - FILMROLL.BIN 16,444 B (cap 16,448: 4 B left). Two log words shortened for room, no test reads them ("command 13
+    kinds" -> "c13 kinds", "waits given up" -> "gave up").
+  - Tests: film-roll-iso-from-the-drawings-file (FILM 2 written as 2560 -> ISO 3200) and
+    film-roll-iso-400-without-the-table (the tag broken -> ISO 400); the two box-speed tests now run with ROLLART.BIN
+    on the card.
+- **Camera (test 31, fr56; the LookLab session's ROLLART.BIN on the card: FILM 1 at 3200, FILM 2 at 800):**
+  - **The ISO from the drawings file works:** ROLLS.TXT "Roll 010, FILM 1, ISO 3200, 36 exp". Camera-tested.
+  - **Owner: "when rewinding the film, if you do it quickly, it changes the film and rewinds the film".** The photos'
+    ImageDescription: FILM 1 up to the end of Roll 010, COLOR 1 from the first photo after its rewind (Roll 011).
+    The log: dial steps 75, held 150 (exactly 2 a step), lock rewrites 4, rolls out 2.
+  - om-emu does not reproduce it: quick clicks (`sub-1 sub-1 sub-1`) and the strip's last value (a probe build that
+    logged rl_lk's incoming value) come back to the film every time.
+  - **Reading (analysis, not proven):** on the camera the strip can miss a step (a dial step or our arrow while it is
+    still moving), so its position drifts from the film kept: COLOR 1 is FILM 1 four steps to the left (the strip:
+    COLOR 1..4, FILM 1..20, wrapping). The film itself is held through each click, but the strip's own position is
+    what the camera keeps once nothing holds it.
+- **fr57 (test 32): one strip step at a time, the arrow back only when the strip moved, checked after.** Emulator
+  only.
+  - rl_lk's hold notes the strip's value (fb_gin, the value asked) and the film kept (fb_gkp, cm_val).
+  - fb_tgui, a rear-dial click on the film row:
+    - always rl_row (a frame wound back, or the length);
+    - if a step is still out (fb_gfz), that is all ("waited"): the drawing follows the last value anyway (fb_tr13
+      waits for fb_req);
+    - else the dial event goes to the camera with the hold on; when it is back (gui_disp is synchronous: the strip's
+      set comes inside it, om-emu: held 2 a click), the arrow back is posted only if the strip asked for another film;
+      if not, the hold ends there.
+    - At our arrow's release (fb_gout arrows out, the last one): the strip on the film kept? Then the hold ends; else
+      the arrow again, 3 times at most ("again").
+    - Out of Picture Mode (GUI not 6148): nothing held or out.
+    - The event is dispatched with the loop's own registers ((396 / 408 / 412,sp), (0x603713a4)), as 0x610fd0e5..f7
+      loads them; the loop loads d0 and a0 again after the call.
+  - Log: "dial: hook 1, steps N, held N, again N, waited N".
+  - Room: FILMROLL.BIN 16,316 B. Ten diagnostic fields left the renderers line (no test read them): "VG error / with
+    one / context", "roll: command 4 / draw on / drawings / surface W x H", "loads put off", "DRAW.TXT"; "image
+    review off" now opens with "; ". Their counters stay in memory.
+  - Tests: film-roll-rewind-keeps-the-film (a FILM 2 roll wound back and out: FILM 2 after) and
+    film-roll-one-strip-step-at-a-time (a step out: the click winds / picks, the strip left alone; catches fr56).
+- **The end slip on the film row (owner, test 31: "the end of roll screen you have to rewind on: the text is tiny"):**
+  SCREENS.BIN's slip (mkscreens.py slip) uses the whole 256 box now: the count at 54 px, "End of the roll" 24 px,
+  "Shutter locked" / "Rear dial to rewind" 17 px on two lines (was one strip: 34 / 17 / 9 px). Largest piece 6,700 B
+  (page 10,240). Camera-only (om-emu doesn't draw the row).
+- **Camera (test 32, fr57): "the slip is easier to read. however the rewind function still moves through the film
+  sims".** The film kept: Roll 013 FILM 1 (ISO 3200) rewound and taken out, the log after it "FILM 1"; dial: steps 28,
+  held 48, again 0, waited 4. What the owner sees is the strip's step and its step back on every click.
+- **fr58 (test 33): the click never reaches the strip.** Emulator only.
+  - How the camera redraws a row after a step (om-emu, a WATCH on one rear-dial click, stock path): the GUI loop ->
+    0x6125becc (the machine, the event) -> 0x6124f6c7 (a0 the screen object *(0x6037dfa0)). It gives the event to
+    the screen's first widget, *(screen + 0) (the strip, 0x62460730 in om-emu). When that one took it (d0 1), it
+    calls the second widget's first method, *(screen + 4) (0x6246e4c0, vtable 0x615513cc ->
+    0x611d02a9, a `movm` prologue: entered with `calls`, a0 = the widget). That method rebuilds the page's rows, and
+    for the film row it gives the column update (key 105 -> 0x611d04af -> 0x611d0c7f, fb_tcs's mark).
+  - fb_tgui now: rl_row; then the screen's row widget's method called directly (only when *(screen + 4)'s vtable is
+    0x615513cc); and the click goes no further: no step on the strip, no arrow, no film asked for. rl_lk's hold
+    (tests 30..32) and its variables are gone.
+  - **Picture Mode's idle timer:** without the click the screen saw no event and closed 30 s after the last one (om-emu:
+    24 steps). The strip's key handler arms timer 500 on every key (0x611c28ac etc., our PM_IDLE_SITES: 30000 ms):
+    fb_tgui arms it the same way (TMR_ARM 0x612970e8, d0 500, d1 30000). Tried first: an Up release (0x9005) passed on
+    in the click's place: does not arm it.
+  - Log: "dial: hook 1, steps N, redrawn N".
+  - FILMROLL.BIN 15,688 B.
+  - om-emu: the crank's "lock rewrites" are 0 again (no film asked for on the way, as before test 29). Tests back to 0:
+    film-roll-locks-the-film-and-rewinds, film-roll-rewind-crank-3-clicks; film-roll-rewind-keeps-the-film (a FILM 2
+    roll: lock rewrites 0, FILM 2 after, redrawn 3, the film row marked); film-roll-rear-dial-keeps-picture-mode-open
+    (Picture Mode open 18 steps after a click that came 30 steps after its last key; catches a build without the
+    timer). film-roll-one-strip-step-at-a-time is gone with the hold.
+  - The canister's redraw is camera-only (om-emu doesn't draw the row). film-roll-rear-dial-picks-the-length's
+    drawing keys (24 -> 60, 36 -> 61, none -> 92, Right -> 93) still follow.
+- **Camera (test 33, fr58): "ok that works well".** The strip stays put; the canister follows. Camera-tested. Two
+  new points from the owner:
+  1. "if i pick a number fo shots for the roll, like 24, if i put it on fast burst it will take more than 24 photos. I
+     was able to take 55 photos after selecting 24 shots." ROLLS.TXT: Roll 015 photos 8743..8766 (24 counted), then
+     8767..8797 (31 more) before Roll 016. Test 31 showed the same (Roll 010: 14 past its 36), test 32 (Roll 013: 3).
+  2. "can we have every click be worth 2 rewinds. so 24 would require 12 clicks".
+- **fr59 (test 34): 2 frames a click.** rl_row's crank adds 2 to RL_P, at most RL_S (an odd count's last click winds
+  1). Tests: REWIND(shot) is (shot + 1) // 2 clicks; film-roll-rewind-crank-3-clicks (5 shot: 2, 4, 5, then out)
+  catches fr58. Emulator only.
+- **Why a burst runs past the roll's end (analysis, not proven; om-emu runs no capture):**
+  - The lock (rl_rel at .hook_rel 0x60b0cdad, ctrlRelease's isCtrlReleaseEnable) is asked per press, and frames are
+    counted in ex_hook (rl_shot), once per photo as it is processed, so well after its exposure. A burst that started
+    with frames left goes on while the button is held; the frames after the end are neither stopped nor counted.
+  - The camera's own limit for a burst: a virtual method 0x60ceb717 (in 9 vtables, 0x60eca72c..0x60eeba48: the
+    shooting sequences) sets **_continueMaxShootCount**, u16 at (160, the sequence), 65535 or from setting 857 / 1495
+    (0x60cad99b), and logs "[%s][%d] _continueMaxShootCount [%d]" (0x60ceb800). Capping it at the roll's frames left
+    when a burst starts would stop it there. Not reached in om-emu (no capture), so camera-only; when the method runs
+    (each burst, or once per mode change) is not known yet.
+  - Other leads: the exposure engine's "[TakeExp]:conti_stop" byte (+38 of its struct, the dump at 0x605ade45);
+    OlyHfwOpeShoot::getAvailableShootCount ("available %d waitSave %d", 0x60b0e643): the camera stops a burst when
+    the card is full.
+- **fr59's probe (test 34):** a card-file hook at 0x60ceb800 (fb_tmx; stock `fc cc 71 fa ec`, the 6-byte `mov
+  0x60ecfa71,d0` before 0x60ceb717's log) counts the method's runs and keeps the last limit ((160,a2)) and the roll's
+  frames shot then; the replaced instruction, then on at 0x60ceb806 (mx_ret). Nothing changed. The log: "burst: hook
+  H, limit set N, last V, at frame S". om-emu: hook 1, never run. On the camera it tells whether the limit is set at
+  every burst (then capping it at the frames left stops the burst there) or only now and then. FILMROLL.BIN 16,020 B.
+- **Camera (test 34, fr59):** 2 frames a click (Roll 017, 36 exp: 20 dial steps). **The probe: "burst: hook 1, limit
+  set 6, last 4979, at frame 15".** The photos (FAT times): 2 singles (8824, 8825), bursts of 3, 5 and 5
+  (8826..8838), then a long one 8839..8896 (58 photos, frames 16..36 and 37 past the end). So the limit is set at
+  every press (6 presses, 6 runs), the last one at the long burst's start with the roll at 15 frames shot, exactly;
+  the camera's limit was 4979 (about the card's room). Camera-tested.
+- **fr60 (test 35): the burst limit capped at the frames left.** fb_tmx (at 0x60ceb800) now lowers (160,a2) to the
+  roll's length - frames shot when a roll is in, not being wound back, and that is 1 or more and less than the
+  camera's limit; it keeps d1 and a0 (fb_mx1 / fb_mx2) and counts ("capped"). The method then logs the new limit.
+  - Test film-roll-burst-stops-at-the-roll-end (direct call, om-emu takes no stills): 36 roll at 15 -> 21, a fresh 24
+    roll -> 24; no roll, a lower limit, being wound back, at the end: left alone; d1 / a0 / d0 as at the site.
+    Catches fr59.
+  - Camera-only: that the camera stops a burst at this limit (its name says so), and the lag: frames are counted as
+    they are processed, so a burst started while the last one is still being saved may be capped a little high.
+  - FILMROLL.BIN 16,236 B.
+- **Camera (test 35, fr60): bursts stop at the roll's end. Camera-tested.** "burst: hook 1, limit set 5, last 4929, at
+  frame 0, capped 5". Roll 018 (24): 8897 single, 8898..8899, then a burst 8900..8920 that stopped at frame 24; Roll 019
+  (24): one burst from frame 1, 8921..8944, exactly 24. Photos this power-on 48 = 24 + 24, none past either end;
+  shutter refused at the end 2.
+- **Release tidy-up (owner, 2026-11-25: "Tidy for release"); build v0.41-fr7, the release candidate.** Emulator only so
+  far; a reflash.
+  - **Card file (fr61):** out: the E1 probe's hook on the Color Creator renderer (0x610507ba, fb_tcc: it drew our roll
+    over the ring only with DRAW.TXT, counted otherwise) and the counting-only hooks on renderers 3 and 12 (fb_tr3 /
+    fb_tr12); DRAW.TXT (its test drawings, the amber clear, the canister on the colour wheel row) and "Not developed"
+    (fb_art's path; its SCREENS.BIN pieces: 443 -> 162, 372 KB -> 195 KB); the diagnostic counters (kinds, surface,
+    VG error). fb_tr13 now: on the film selection row (item 111) our drawing, anywhere else the stock renderer. The
+    hook table's records are labelled (fh_*), the log reads their results by label. Linker symbols no longer used out
+    (cc_back, cr3_back, cr12_back, gui_post, vg_err, vg_ctx).
+  - **The Film Roll row out of the firmware:** editor.s's Picture Mode code back to v0.41-beta's (pm_color, pm_list,
+    the item entry, gr_lc, st_get, sl_slot / SL_VAL / sl_gb / sl_cnt / sl_set0b, fl_isdef); build.py: no RL_IT switch
+    cases, the item count 33, Tone Balance's slider cases back as v0.41-beta. frcard.s: no fc_row / fc_str stubs, no
+    fc_rcnt, no switch cases or row data; the card file's entry table renumbered with it (rl_txt 40, rl_upd 48, rl_vs
+    56, rl_rel 64, rl_idle 72; the tag ties the card file to its firmware). Card file: no row strings (rl_str and its
+    helpers), option lists, Picture Mode hook (fb_tpm) or the row's key in fb_tcs (key 105 only). What stays flashed:
+    the loader and the stubs at lg_pr, lg_wk, lg_now, sx_set, ex_hook, rc_go, .hook_rv, .hook_rel, screen info.
+  - Sizes: FILMROLL.BIN 13,456 B. Firmware 92e846fb, GUIDES.BIN 677f0ec7 (VERSION "v0.41-fr7 (Film Rolls on the card,
+    release candidate)").
+  - Tests: all 32 Film Rolls tests pass; film-roll-no-playback-during-a-roll checks the Color Creator's site stays
+    stock and the canister's renderer is hooked; film-roll-screens-from-the-card without DRAW.TXT (the rewind panel is
+    SCREENS.BIN entry 3 now).
+  - Docs: docs/USING.md "Film Rolls" and the card files table; ROADMAP.md (Testing); release notes drafted in
+    FILM-ROLLS-ROADMAP.md.
+  - **Full suite on fr7 (`--stock`): 193 pass, 2 FAIL, both static, for the owner's review** (no --write-hooks):
+    static:hook-list, the two flashed Film Rolls hooks: .hook_rel 0x60b0cdad (ctrlRelease's isCtrlReleaseEnable call
+    -> fc_rel: the stock call unless the card file is loaded and a roll's frames are all shot; at start-up key_1st is
+    0, a pass-through) and .hook_rv 0x610cd5c4 (the GUI variable setter -> rl_vg: var 34 only, and only with the card
+    file loaded; else the 7 stock bytes); static:changed-bytes, 21 runs, v0.41-beta's own count (its Picture Mode
+    pages, not recorded yet): Film Rolls adds none now that the row's switch cases are gone. Everything else passes,
+    so nothing outside Film Rolls changed.
+
+## #105: the crop kept after a half-press while the camera starts, fix105-1 (2026-11-25; emulator + analysis, camera test pending; branch fix/105-xpan-early-half-press)
+- **Issue #105 (jirimachovec, v0.40.3):** XPan set, the camera starts in 16:9 for a moment, then XPan; a half-press in
+  that moment (or while the camera starts) leaves 16:9 for the rest of the power-on. The owner reproduced it on the
+  camera 2026-11-25 (no debug log of it). Branch from `try/v0.41-beta` 27f1553 (rebuilt byte for byte first:
+  `af85e312…e98c`).
+- **Cause (analysis of crop.s; not proven on the camera):** two paths. (1) cr_el restored the crop at the GUI's first
+  state change and armed cr_chk's watch (cr_rch), and cr_hp, at the first shutter event, checked once and cleared it:
+  an early half-press ended the watch, and the camera's own later revert to the base (crop83-1's "then 3, set to 6,
+  after 6, now 3") went unwatched. (2) A shutter event before the GUI's first state change ran cr_rst there (d0 = 2),
+  which never armed the watch, and cr_el then saw cr_on 1 and did nothing: a restore made while the camera's start-up
+  still runs, with nothing to catch a revert. Camera logs on hand with a crop (#97's reporter: "checks 13, base back
+  at check 0") show no revert, so how often the camera reverts is not known.
+- **fix105-1 (crop.s only; no new hook or patch site):**
+  - cr_hp: still runs cr_chk at a shutter event while the watch is on, but no longer clears cr_rch. Before the GUI's
+    first state change (cr_gtid still 0) it restores nothing: cr_el does it at that state change and arms the watch.
+    cr_el now notes cr_gtid before its SECBITS gate (so cr_gtid != 0 means "the GUI's first state change came", even
+    when the sections were not all in yet and the restore waits).
+  - cr_rst: arms the watch after every restore (a shutter-event one too: the video-boot fallback, or cr_el held back
+    by SECBITS).
+  - cr_chk: a new stop: the mode dial or photo / movie switch (UI_DIAL halfword, 0xa32d9d0c) differs from the one
+    noted when the watch began (`cr_rmd`). Found in om-emu while testing: with the watch outlasting the half-press, a
+    live turn to C1 assigned with 16:9 had XPan set in C1 (a custom mode's own base ratio taken for the camera's revert).
+    The same gap existed before any half-press in v0.41-beta.
+  - The watch now ends at: a GUI state change (a screen opened), a ratio picked through the facade from the GUI task
+    (cr_usr), a mode dial / switch move, a ratio that is neither the crop nor its base, or CR_NRE (3) re-sets. It does
+    not end by time: it runs on each shooting-screen update (a few loads and compares) for the rest of the power-on
+    if none of those come.
+- **Size:** .ext12 16 B left (40 before: cr_hp and cr_rst shrank, cr_chk and cr_rst grew, +2 B data). Others unchanged.
+- **Tests:** `crop-kept-after-a-half-press-at-start-up` (boot 2: XPan back, half-press, then the base poked back as
+  `crop-kept-when-the-camera-puts-the-base-back` does: XPan set again, "set again 1"; v0.41-beta: caught, "629209c2:
+  03, not 06"). `crop-custom-mode-ratio-kept-after-start-up` (C1 assigned with 16:9, XPan in P; after start-up and a
+  half-press, a live turn to C1 keeps 3; fails on fix105-1 without the dial stop, passes on v0.41-beta). Direct cases in
+  `crop-start-up-restore-photo-only`: "half-press while the camera still starts" (cr_gtid 0: cr_rst not run; v0.41-beta:
+  caught, ran once with cr_dwh 2) and "keep: 16:9 back, the mode dial turned since" (v0.41-beta: caught). om-emu cannot
+  give a shutter event before the GUI's first state change (its commands start after it), hence the direct case.
+- **Camera-only:** whether the camera reverts after the restore at all, and when (the log's "base back at check K,
+  set again R"); a half-press held from switch-on; start-ups in video with a crop saved.
+- **Build** of the commit: E1479999.BIN `21cbb00b…7ed5`, GUIDES.BIN `c8b7bbf1…8b57` (a second clean build matches),
+  VERSION "v0.41-b1 fix105-1 (#105: crop after an early half-press)". Package `test-builds/2026-11-25-fix105-1`
+  (private folder), go-back v0.41-beta. Suite **166 of 167 pass**; the FAIL is `static:changed-bytes` (21 changed runs
+  in 0x61451e40.. and 0x61536af4.. not in tools/test/hooks.json), identical on v0.41-beta's own build: pre-existing,
+  not from this branch, left for whoever records v0.41-beta's patch sites (not `--write-hooks`'d here).
+  `static:hook-list` passes. Camera test pending.
+
+## Film Rolls release candidate 2 (fr8) with #105's crop fix (2026-11-26; emulator only, camera test pending)
+- **Owner (2026-11-26):** "implement the span fix in this as well": fix105-1 (`fix/105-xpan-early-half-press` c1ffb3f:
+  crop.s and its tests; the section above) added to the Film Rolls work, uncommitted, on fr7. rt1 (the Remaining
+  Movie Time row, `try/rt1-fix105`) is not in it.
+- **Space:** Film Rolls (fr7: .ext12 262136 of 262144) and the fix (+24 B) together ran .ext12 16 B over. ftell and
+  fclose (editor.s, self-contained, each ends in `ret`) moved to .ext13 (section 6, as .ext12): .ext12 262096,
+  .ext13 81728 of 81920. `static:section-order` passes; no new changed run.
+- **Build** `v0.41-fr8 (Film Rolls on the card, #105 crop, candidate)`: E1479999.BIN `08d0afb9…63f8`, GUIDES.BIN
+  `91030c54…b94f`, FILMROLL.BIN `1653e467…2785` (new: tied to the firmware), SCREENS.BIN / WINDOW.BIN as fr7. Two clean
+  builds match. Suite **195 of 197 pass**; the 2 FAILs as fr7's (`static:hook-list`: .hook_rel 0x60b0cdad and
+  .hook_rv 0x610cd5c4, for the owner's review; `static:changed-bytes`: v0.41-beta's own 21 runs).
+  `crop-kept-after-a-half-press-at-start-up` caught on fr7's build (`--without`).
+
+
+## Screen info rt1: Remaining Movie Time as its own row (2026-11-25; emulator only, camera test pending)
+- Owner (2026-11-25): "in the options that allow customising the live view, can we seperate the shots left from the
+  amount of video recording time available?" The stock camera has no per-item choice for either in stills (its stills
+  Info Settings pages only have histogram, Highlight&Shadow, level gauge, silent); the one choice was our own screen
+  info row Remaining Files (item 12), which cleared both fields of var 34: shots left +8 / +9 / +12 and the movie time
+  left +16 (s3 left it whole: "no camera string for movie time left alone").
+- The two are separate fields of the same buffer (om-emu, v0.41-beta: "803" and "[10:45]" in the top row), so they
+  split cleanly. Branch `feature/screen-info-rec-time` (from `try/v0.41-beta` 27f1553): item 17 = **Remaining Movie
+  Time** (+16 only), Remaining Files keeps +8 / +9 / +12. Its row comes right after Remaining Files on Camera Info
+  Settings > Information 1 / 2 / 3 (SI_K 18, 22 rows a page). The camera's text table (4848 strings) has nothing for
+  the movie time left alone ("Clip Recording Time" 2455 is a Clip setting; "Pict. Remaining" 949 and "Remaining Files"
+  3382 are the photos), so the row name is our own string ST_RMT 0x7f65 "Remaining Movie Time" through st_get's chain
+  (fwver.s fv_chk -> screeninfo.s si_str -> crop.s cr_str).
+- Space: .ext12 had 40 B free, the rows need 84 B more; si_tab, si_str and the string moved to .ext4 (section 4's
+  tail; read by si_upd in section 6 after the first half-press, and reached only from the string getter's hook in
+  section 7: nothing new runs from an early section). Free after: .ext4 272 B, .ext11 240, .ext12 88.
+- Old masks: bit 17 is 0 (shown) in every saved record, so a camera that had Remaining Files unticked shows the movie
+  time again after this build until Remaining Movie Time is unticked too.
+- Emulator (om-emu-new, P, rear Information 1): Remaining Movie Time unticked -> mask 0x00020000, "[10:45]" gone,
+  "803" stays; Remaining Files unticked -> 0x00001000, "803" gone, "[10:45]" stays in its place; both kept over a
+  power-off. Tests `screen-info-movie-time-row-keeps-shots-left` and `screen-info-remaining-files-keeps-movie-time`:
+  pass, both `caught` on v0.41-beta (it unticks Touch screen on row 21; its Remaining Files hides the time too).
+- Suite on e6e1691 (om-emu-new): 166 pass, 1 FAIL `static:changed-bytes`, the same 14 lines as v0.41-beta's own
+  (its Picture Mode sites, hooks.json not updated yet); no new patch site. Two clean builds: `512d7197…9911`.
+- Package `test-builds/2026-11-25-screen-info-rec-time-1` (private): E1479999.BIN `512d7197…9911`, GUIDES.BIN
+  `0af2db2d…3d18`; go-backs the Film Rolls test (fr6 `94730fcb…`, GUIDES `85555fb7…`) and v0.41-beta.
+- Not shown by om-emu: the viewfinder (screen info stays rear screen only), whether the camera ever draws the movie
+  time in stills with other settings (card nearly full, a movie mode on the dial). Camera test pending.
+
+## Film Rolls release candidate 3 (fr9): + rt1 (2026-11-26; camera-tested, test 38 PASS)
+- **Owner (2026-11-26):** "Add rt1 to this test build as well": rt1 (`feature/screen-info-rec-time` 05ed79e, the
+  section above) added uncommitted to fr8 (Film Rolls + #105). Its si_upd hunk met Film Rolls' `jmp fc_upd` (fr8 ends
+  si_upd there); rt1 only moves si_tab out, so the two sit together as they are.
+- **Space:** rt1 put si_tab, si_str and its string in .ext4, which Film Rolls' frcard.s had filled (56 B free): 140 B
+  over. si_tab now in .ext11 beside the row lists (read by si_upd, section 6), si_str and si_rmt in .ext13 beside
+  fwver.s fv_chk, which jumps to it (both section 6; the string getter's hook is in section 7). Free: .ext4 56 B,
+  .ext11 112, .ext12 96, .ext13 128. `static:section-order` passes.
+- **With Film Rolls:** rl_upd writes the frames left into var 34 +8 only when the camera has a number there, so
+  Remaining Files unticked (si_upd clears +8 / +9 / +12) hides it on a roll too; Remaining Movie Time is +16 only.
+- **Build** `v0.41-fr9 (Film Rolls on the card, #105 crop, rt1 row, RC)`: E1479999.BIN `095df527…7902`, GUIDES.BIN
+  `9843d32d…6594`, FILMROLL.BIN `12a0e47a…5e3b`; SCREENS / WINDOW as fr7. Two clean builds match. Suite **197 of
+  199 pass**; the 2 FAILs as fr7's (`static:hook-list` .hook_rel / .hook_rv for the owner's review,
+  `static:changed-bytes` v0.41-beta's 21 runs). rt1's two tests caught on fr8's build (`--without`).
+- **Camera (test 38, fr9 flashed 2026-11-26): PASS.** Owner: XPan after an early half-press (#105) and the two
+  Information rows (rt1) "Yes, both work"; the log: a 24 roll to its end, the shutter stopped, wound back and out, no
+  restart. One change asked: the ISO from before the roll back after it (the section below, test 39, PASS).
+
+## Film Rolls: the ISO from before the roll comes back (2026-11-26; camera-tested, test 39 PASS)
+- **Test 38 (camera, fr9 flashed):** the log says `v0.41-fr9`, card files match, roll 020 (FILM 2, ISO 800, 24 shot)
+  stopped at its end (shutter refused 1), wound back and out (rolls out 1), no restart. Owner: "when we pick a film roll
+  with a set ISO, when the roll finishes it stays on that ISO ... it should go back to the previous iso (in this example
+  auto iso)". The log agrees: ISO 800 at events #40..#54 after the roll, Auto only from #55 (set by hand).
+- **Change (card file only, FILMROLL.BIN; E1479999.BIN and GUIDES.BIN stay fr9's byte for byte, the tag too):**
+  rl_arms, at the half-press that sets a roll's ISO, keeps the ISO before it once (setting 6 + 1 at record +24, 1701 at
+  +26: RL_I6 / RL_I17); rl_ibk (rl_hp, after rl_irv) puts both back through the manager, each only when it differs, at
+  the shutter event with no roll (rewound and out, or the length back to None), in a photo mode, and forgets it. A roll
+  loaded straight after another keeps the first one's (the ISO from before the rolls comes back), as Image Review's
+  RL_IR. The record is version 3, 28 B; rl_rd still reads version 2 (24 B, the new fields 0), so a roll already on a
+  card is kept. Log: "ISO from before the roll back N" in the "Film Roll this power-on" line.
+- **om-emu:** setting 1701 (the ISO as picked) read at 0x636fda50 (this section's 2026-11-25 notes): 0x0700 (400) with
+  the roll, 0x0000 (Auto) after; "Now: .. ISO Auto". Test `film-roll-iso-from-before-the-roll-comes-back`: pass on the
+  new build (s31), `caught` on fr9's (s29: 1701 still 0x0700 after the roll); `film-roll-iso-back-after-no-roll` (the
+  length set back to No roll before the first photo): pass on s31, `caught` on s29. Two clean builds match: FILMROLL.BIN
+  `b4bf2d78…b6a6` (13884 B).
+- Suite on s31: 198 of 200 pass (the 2 FAILs fr9's static checks, the firmware unchanged); the second test, added
+  during the run, passes on its own.
+- Camera-only: the camera's own ISO display after the put-back (the panel, the shooting screen).
+- **Camera (test 39, card file `b4bf2d78…` on fr9), the log:** no restart, "nothing unusual"; rolls 021..023 (the
+  count went on from the version 2 record); "ISO from before the roll back 2"; roll 023 at ISO 800, then ISO 2000 once
+  it was out (#55..#58). ROLL.BIN now version 3, no roll and no ISO waiting. **Camera: PASS.** Owner ("Yes, all good"): the ISO came back
+  each time, in the control panel too.

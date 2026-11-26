@@ -85,14 +85,14 @@ fv_add:
  jmp fv_back                      /* 0x6120b69e: ret [d2,d3,a2,a3],84 */
 
 /* fv_chk <- st_get's end (editor.s st_stk; the string getter's frame, ret [d2],8; d0 the id): our label's text,
- * else on to crop.s cr_str as before */
+ * else on to screeninfo.s si_str (rt1: the Remaining Movie Time row), then crop.s cr_str as before */
 fv_chk:
  cmp ST_FWV,d0
  bne 1f
  mov fv_str,a0
  ret [d2],8
 1:
- jmp cr_str
+ jmp si_str
 
  .balign 4
 fv_lbl:                           /* a label as the camera's (0x615959d8 "Body": {4, 0x6c3}), our string id */

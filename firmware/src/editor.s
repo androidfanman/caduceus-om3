@@ -12035,6 +12035,7 @@ lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call e
  call ck_card,[d2,d3,a2,a3],24    /* v0.30 test 9: CURVES.BIN, after el_card's films */
  call cr_hp,[d2,d3,a2,a3],20      /* crop modes: the first shutter event after an early load (crop.s) */
  call cm_hp,[d2,d3,a2,a3],24      /* k4: in P / A / S / M, their films and choice now (kept in M) */
+ call fc_hp,[d2,d3,a2,a3],24      /* Film Rolls: FILMROLL.BIN once, then the roll's ISO and film, its record (frcard.s) */
  call lg_write,[d2,d3,a2,a3],40
  call ex_live,[d2,d3,a2,a3],48    /* v0.28 pc1: the film's settings now, for the next photo's code */
  call lg_ptm,[d2,d3],12           /* glow-shots-1: how long the shutter waited for our code at this event */
@@ -12310,6 +12311,7 @@ lg_wk:
  movbu (lg_rel),d0
  cmp 0,d0
  beq 1b                           /* the shutter button held (a half-press) */
+ call fc_idle,[d2,d3,a2,a3],24    /* Film Rolls B1: the roll's card file, written here when it changed (frcard.s) */
  movbu (lg_rdy),d0
  cmp 0,d0
  beq 1b
@@ -12897,6 +12899,7 @@ lg_now:
  call lg_ckn,[d2,d3,a2,a3],24     /* v0.30 test 10: curves / mix */
  call lg_gsn,[d2,d3,a2,a3],24     /* better grain g2: each COLOR's Film Grain strength and Grain Size */
  call lg_rzn,[d2,d3,a2,a3],24     /* Halation Radius: each COLOR's (hrrow.s) */
+ call fc_txt,[d2,d3,a2,a3],24     /* Film Rolls (frcard.s, the card file) */
 9:
  ret [d2,d3,a2,a3],24
 
@@ -16164,6 +16167,15 @@ lg_tbt:
 .section .ext12,"ax"
 sx_set:                           /* from sl_set (entered as the manager: d0 id, d1 value, a0, a1; frame 68) */
  mov a0,(rc_in)                   /* v0.30-dev k1 (#41): the manager's own handle (one per power-on), for rc_put */
+ cmp 901,d0                       /* Film Rolls: while a roll is in, its film (901) and ISO (6) (fc_lk -> the card file) */
+ beq 03f
+ cmp 6,d0
+ bne 04f
+03:
+ call fc_lk,[d2,d3,a2,a3],32
+ mov (68,sp),d3                   /* MDR = the setter's return address again (the call changed it) */
+ mov d3,mdr
+04:
  cmp 1440,d0                      /* k2: 1440 closes every mode-dial change (om-emu: ... 682, [162], 2188, 1440, */
  bne 0f                           /* 2136 / 2137), after the camera swapped COLOR 1..4's settings for the mode's own
                                    * (a photo C mode assigned in P keeps 162 at P's 76: k1's 162 missed it); with the
@@ -16869,6 +16881,7 @@ ex_hook:                          /* jmp from 0x60457578 in the EXIF fill's fram
  mov (44,sp),a0                   /* (8,sp) as it was: 20 + 16 + 8 */
  mov a0,(16,sp)
  call ex_fill,[d2,d3,a2,a3],20
+ call fc_shot,[],0                /* Film Rolls: a frame of a roll (the card file; RAM only) */
  mov (4,sp),d0
  mov d0,mdr
  mov (8,sp),d1
@@ -20808,6 +20821,8 @@ fseek:                            /* `call fseek,[d2,d3,a2,a3],20`: a0 handle, d
  call OS_FSEEK,[d2,d3,a2,a3],20
  ret [d2,d3,a2,a3],20
 
+/* ftell / fclose in .ext13 (section 6, as .ext12, which is full: Film Rolls with #105's crop fix ran it 16 B over). */
+.section .ext13,"ax"
 ftell:                            /* `call ftell,[d2,a2,a3],16`: a0 handle -> d0 position */
  VFCHK a0, 1f
  mov (12,a0),d0
@@ -20824,6 +20839,7 @@ fclose:                           /* `call fclose,[d2,a2,a3],16`: a0 handle */
 1:
  call OS_FCLOSE,[d2,a2,a3],16
  ret [d2,a2,a3],16
+.section .ext12,"ax"
 
  .balign 4
 bf_tab:                           /* {name, address, size} x VF_N; address and size: build.py (0 = not built in) */
@@ -20907,6 +20923,7 @@ rc_go:                            /* `call rc_go,[d2,d3,a2,a3],24` from sx_set's
 01:
  call ss_pre,[d2,d3,a2,a3],24     /* p1: per-mode settings, before the films switch */
  call cm_go,[d2,d3,a2,a3],24      /* k2: the custom mode's films (film saved with Assign), a2 = P */
+ call fc_fix,[d2,d3,a2,a3],24     /* Film Rolls: a roll's ISO, family and film back (frcard.s, the card file) */
  call nf_post,[d2,d3,a2,a3],28    /* p1: ss_post, the set's own rows; ss_mask = the COLORs still put back; #86: and
                                      the COLORs on films a new set changed (newfilms.s) */
  clr d2
@@ -23440,7 +23457,7 @@ bl_v:                             /* the value */
 
  .include "crop.s"                /* custom crop modes (feature/crop-modes) */
 
- .include "screeninfo.s"          /* screen info: hook, handlers, tables (ext12) */
+ .include "screeninfo.s"          /* screen info: hook, handlers, tables (ext12; rt1: si_tab in ext11, si_str in ext13) */
 
  .include "shading.s"             /* gentler Shading s1 (#22): our own vignette on stills (ext13) */
 
@@ -23451,6 +23468,7 @@ bl_v:                             /* the value */
  .include "playfilm.s"            /* #93: playback labels a photo by the film in its own Exif (ext13) */
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
  .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
+ .include "frcard.s"              /* Film Rolls on the card: the loader and the stubs (ext4, ext15) */
  .include "hbar.s"                /* wheel-hsl-view: the H / S / L bar under the colour wheel (ext15) */
  .include "stwheel.s"             /* split-tone strip w1: two small wheels and Balance on the Split toning row (ext15) */
  .include "splitrow.s"            /* the Split toning row: the Shadows / Highlights wheels on their own row (ext15) */
