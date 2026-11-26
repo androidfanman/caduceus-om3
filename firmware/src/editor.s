@@ -15473,7 +15473,7 @@ lg_cid:                           /* dl8: the settings lg_crf reads into lg_cv, 
                                    * right, down, Delete, L-Fn; 31.. the Creative Dial rows CRT, ART, COLOR, MONO; 35..
                                    * video buttons (same order); 46.. dials P, A, S, M x {lever 1 front, rear, lever 2
                                    * front, rear} (research/BUTTONS.md) */
- .short 1880, 1881, 1882, 1883, 1884, 1, 16, 17, 157, 269, 1712, 85, 2236, 1714, 1579, 534, 158, 1699, 1697, 1279
+ .short 1880, 1881, 1882, 1883, 2176, 1, 16, 17, 157, 269, 1712, 85, 2236, 1714, 1579, 534, 158, 1699, 1697, 1279
  .short 47, 48, 1292, 49, 1964, 50, 52, 53, 51, 570, 56
  .short 571, 54, 55, 1966
  .short 1272, 1273, 1278, 1274, 1965, 1280, 1282, 1283, 1281, 1276, 1291
@@ -21369,12 +21369,17 @@ cm_src:
  ret [d2,d3,a2],16
 
 /* cm_hold (k6): `call cm_hold,[d2,d3,a2,a3],20`, d0 = a group -> d0 = 1 when it keeps its changes: P / A / S / M /
- * B always, a custom mode when its Save Settings is Hold (settings 1880..1884 for C1..C5: 0 Reset, 1 Hold; om-emu). */
+ * B always, a custom mode when its Save Settings is Hold (settings 1880..1883 for C1..C4, 2176 for C5 (#116):
+ * 0 Reset, 1 Hold; om-emu). */
 cm_hold:
  cmp 5,d0
  beq 1f
  bcc 8f
  add 1880,d0
+ cmp 1884,d0                      /* #116: C5's Save Settings is 2176, not 1884 (om-emu: the menu's Hold writes 2176) */
+ bne 2f
+ mov 2176,d0
+2:
  call sget,[],4
  cmp 1,d0
  beq 1f

@@ -207,6 +207,14 @@ BOOT1_ASSIGN_C5_C4 = (f's1 wait wait {_PICK(_R(8))}s1 wait wait menu wait {_R(7)
 C5_TO_C4_TO_C5 = ('wait wait wait s1 wait wait mode:4 wait wait wait s1 wait wait mode:3 wait wait wait s1 wait wait '
                   'poweroff')
 C5_TO_C4 = 'wait wait wait s1 wait wait mode:4 wait wait wait s1 wait wait poweroff'
+# #116: C5 and C4 assigned FILM 1, C5's Save Settings set to Hold (the camera's setting 2176, not 1884); then on C5
+# FILM 5 picked, C4 (FILM 4 picked there) and back: C5 keeps FILM 5 (before: read as Reset, C5's Assign film FILM 1).
+BOOT1_C5_HOLD = (f's1 wait wait {_PICK(_R(4))}s1 wait wait menu wait {_R(7)}ok wait {_D(4)}ok wait {_SET}'
+                 f's1 wait wait menu wait ok wait {_D(3)}ok wait {_SET}'
+                 f's1 wait wait menu wait ok wait {_D(4)}ok wait down wait down wait ok wait left wait ok wait '
+                 'menu wait menu wait menu wait wait s1 wait wait poweroff')
+C5_HOLD_PICKS = (f'wait wait wait s1 wait wait {_PICK(_R(4))}s1 wait wait mode:4 wait wait wait s1 wait wait '
+                 f'{_PICK(_R(3))}s1 wait wait mode:3 wait wait wait s1 wait wait poweroff')
 C5_FILM_LINE = r'^Picture mode: COLOR 1, FILM 5\b.*\(setting 111 = 54\)'
 C4_FILM_LINE = r'^Picture mode: COLOR 1, FILM 4\b.*\(setting 111 = 54\)'
 GROUP_C5_LINE = r'^Now: group C5 \(last look: mode code 63\)'
@@ -1213,6 +1221,11 @@ TESTS = {
         Boot(BOOT1_ASSIGN_C5_C4),
         Boot(C5_TO_C4_TO_C5, expect=[GROUP_C5_LINE, C5_FILM_LINE], mode_dial=MODE_DIAL_C5),
         Boot(C5_TO_C4, expect=[C4_FILM_LINE], mode_dial=MODE_DIAL_C5),
+    ],
+    # #116: C5's Save Settings: Hold is followed (setting 2176): a film picked on C5 stays after a turn to C4 and back.
+    'c5-hold-keeps-a-film-picked-there': [
+        Boot(BOOT1_C5_HOLD),   # (the log's Save Settings column fills by the 16th event: not checked here)
+        Boot(C5_HOLD_PICKS, expect=[GROUP_C5_LINE, C5_FILM_LINE], mode_dial=MODE_DIAL_C5),
     ],
     'live-dial-turn-holds-the-label': [
         Boot(BOOT1_ASSIGN_C1),
