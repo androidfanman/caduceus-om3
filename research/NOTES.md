@@ -12045,7 +12045,7 @@ window's place: the picture-mode label (15706..15713).
   `static:changed-bytes` stay open for the full release, as with fr9.
 - **Suite** (`--stock`, om-emu-new) on the release build: **199 of 201 pass**; the 2 FAILs are those two static checks.
 
-## #116: C5's mode code is 63; C5 kept the films of the mode before it (2026-11-26; emulator + analysis, camera test pending; branch fix/116-custom-mode-film)
+## #116: C5's mode code is 63; C5 kept the films of the mode before it (2026-11-26; camera-tested; branch fix/116-custom-mode-film)
 Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 showed FILM 4 on C5.
 - **Cause (om-emu 0819080, runs the camera's own code):** the camera's mode code (settings object +24) is 53..56 for
   C1..C4 but **63 for C5** (dial position 3; the camera's own screen shows "C5"). The custom-mode code took C1..C5 as
@@ -12099,6 +12099,7 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   code 63** ("? (code 63) -> C5, films switched 1, picture mode set"; the log's mode-change list names 63 "?", cosmetic).
   44 shutter events, 20 mode changes, "nothing unusual", no restart in the log. Events #32 C4 (its film) -> #33 C5 at a
   live turn: C5's own film at once. C4 and C5 assigned (Assigns 2), both Reset. The log keeps only the last 13 events
-  (#32..#44), so the earlier steps are not in it. Owner's verdict: pending.
+  (#32..#44), so the earlier steps are not in it. **Owner (2026-11-26): "Yes, it works" (camera-tested: C5 keeps
+  its own film).**
 - **Camera-only:** that the real camera keeps C5's Hold in 2176 (CADLOG "Shooting mode: C5 (mode code 63"); the live
   turn's timing; C5 photos with mix / curves; Film Rolls frames counted in C5.
