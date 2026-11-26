@@ -31,6 +31,25 @@ check(same(decode(ex.films[4].code).splitToning.highlights, { colour: 'Green-cya
 for (const [k, v] of Object.entries(ex.v040border.expect)) check(same(decode(ex.v040border.code)[k], v), `v0.40 black border: ${k}`);
 check(describe(decode(ex.v040border.code)).includes('Border black 3'), 'v0.40 black border: described as black 3');
 check(ex.films.every((f) => decode(f.code).border === 0), 'films without a border read border 0');
+// om3.2: the code alone in the comment; the film's number and name in the photo's ImageDescription.
+for (const f of [ex.om32, ex.om32Built]) {
+  check(findCode(f.comment) === f.code && same(decodeBytes(f.code), f.bytes), `om3.2 bytes: ${f.note.slice(38, 70)}`);
+  for (const [k, v] of Object.entries(f.expect)) check(same(decode(f.code)[k], v), `om3.2 ${k}: ${f.note.slice(38, 70)}`);
+  const old = 'om3.1.' + f.code.slice(6, 49);                              // the same 64 values as an om3.1 code
+  check(same(decodeBytes(old), f.bytes) && decode(old).version === 'om3.1', 'om3.2: its first 64 values are an om3.1 code\'s');
+  const r = readPhoto(f.comment);
+  check(r && r.code === f.code && r.film === null && r.name === null, 'om3.2 comment: the code, no film or name');
+  const jpeg = Buffer.concat([Buffer.from('FILM 2 Portra 160\0'), Buffer.from(fakeJpeg(f.comment))]);
+  const p = readPhoto(new Uint8Array(jpeg));
+  check(p && p.code === f.code && p.film === 2 && p.name === 'Portra 160', 'om3.2 photo: the film and name from ImageDescription');
+  check(readPhoto('FILM 2 Portra 160 ' + f.code).name === 'Portra 160', 'om3.2 text with "FILM n Name" before it');
+  check(same(decode(f.code + 'AAAA').rgbCurves, f.expect.rgbCurves), 'a longer om3.2 code is read for the bytes known');
+}
+check(describe(decode(ex.om32.code)).includes('Film grain 4 of 5, Coarse') && describe(decode(ex.om32.code)).includes('Colour mix blue: hue -5, strength +2')
+  && describe(decode(ex.om32.code)).includes('RGB curve red: +1 -2 +3 -4 +5'), 'om3.2 is described');
+const o1 = decode(ex.films[0].code);
+check(o1.version === 'om3.1' && o1.rgbCurves.red.every((v) => v === 0) && o1.colourMix.green.strength === 0 && o1.grainSize === 'Medium'
+  && o1.filmGrain === [0, 2, 3, 5][o1.bytes[51]] && o1.halationRadius === 'Bloom', 'om3.1: flat curves, no mix, the level\'s grain, Medium');
 for (const bad of ex.invalid) check(findCode(bad) === null, `invalid "${bad}" rejected`);
 check(readPhoto(new Uint8Array(1000)) === null, 'photo without a code -> null');
 // The real camera photo (OM-3, v0.27): FILM 19 Astia 100F, the default recipe.
@@ -38,6 +57,6 @@ const real = readPhoto(readFileSync(new URL('./sample-film19-astia-100f.jpg', im
 const astia = ex.films.find((f) => f.film === 19);
 check(real && real.film === 19 && real.name === 'Astia 100F' && real.code === astia.code, 'sample photo from the camera');
 
-console.log(fails ? `${fails} failed` : `all passed (${ex.films.length + 5} codes)`);
+console.log(fails ? `${fails} failed` : `all passed (${ex.films.length + 7} codes)`);
 console.log('\nExample:', ex.films[8].comment, '\n ' + describe(readPhoto(ex.films[8].comment)).join('\n '));
 process.exit(fails ? 1 : 0);

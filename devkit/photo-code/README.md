@@ -1,5 +1,10 @@
 # OM-3 photo code: developer kit
 
+**Two codes.** Releases up to v0.40.3 write `om3.1.` + 43 characters. From the pre-release v0.41-beta (2026-11-24,
+camera-tested) the camera writes `om3.2.` + 60 characters, alone in the UserComment. It adds the RGB curves, the colour mix, the Film Grain strength and the Grain Size to om3.1's 64
+values. A reader written for om3.1 does not find it; `om3code.js` here reads both, and om3.1 photos keep working.
+See "om3.2" below.
+
 From v0.27, [Caduceus for OM-3](../../README.md) writes the film a JPEG was taken with into the photo's EXIF, with a
 short code holding the film's full recipe (from v0.28: as it was set when the photo was taken, with the changes made
 on the camera and the camera's WB). A website or app can read the code and rebuild the recipe: for example, a
@@ -10,7 +15,7 @@ This folder is everything needed to read it:
 | File | What it is |
 |---|---|
 | `om3code.js` | A reader in plain JavaScript: no dependencies, runs in browsers and Node 18+ (ES module). |
-| `examples.json` | Test codes with the exact values they must decode to: the 20 default films, one written by the firmware, one made up as "future" for v0.27 (byte 57, now Halation), two from v0.28. |
+| `examples.json` | Test codes with the exact values they must decode to: the 20 default films, one written by the firmware, one made up as "future" for v0.27 (byte 57, now Halation), two from v0.28, one from v0.40, and om3.2 codes (`om32`, `om32Built`). |
 | `test.mjs` | `node test.mjs` checks the reader against the examples. |
 | `sample-film19-astia-100f.jpg` | A real photo from an OM-3 on v0.27 (FILM 19 Astia 100F), with the camera's own EXIF. Resized to 1600 × 1200; the owner's name, email and the serial numbers blanked. |
 | `demo.html` | A one-page reader: open a JPEG or paste a comment. Serve the folder over http (ES modules don't load from `file://`). |
@@ -30,11 +35,13 @@ camera's blank fields.
 | EXIF field | Example |
 |---|---|
 | ImageDescription (0x010E) | `FILM 9 Velvia 50` |
-| UserComment (0x9286; character code left blank, 8 zero bytes, then plain ASCII text) | `Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA` |
+| UserComment (0x9286; character code left blank, 8 zero bytes, then plain ASCII text), om3.1 | `Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA` |
+| UserComment, om3.2: the code alone | `om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABPwAAAAAAAQ48UAYKCQAgc_BLKU` |
 
 The name is the one the user gave the film on their card, so two people's "FILM 9" can differ; the code is what counts.
 You don't need an EXIF parser: the code is plain ASCII, so searching the first 128 KB of the file for
-`om3\.1\.([A-Za-z0-9_-]{43})` finds it (that is what `om3code.js` does).
+`om3\.1\.([A-Za-z0-9_-]{43})` finds an om3.1 code (the pattern for both codes is under "om3.2" below; that is what
+`om3code.js` does).
 
 ## Using the reader
 
@@ -53,9 +60,15 @@ if (recipe) {
 }
 ```
 
-`decode(code)` gives the same object from a bare code, and `decodeBytes(code)` the 64 raw values.
+`decode(code)` gives the same object from a bare code, and `decodeBytes(code)` the 64 raw values. With om3.2 the
+object also has `version` ('om3.1' / 'om3.2'), `halationRadius`, `filmGrain` (0 Off, 1..5), `grainSize` ('Fine' /
+'Medium' / 'Coarse'), `rgbCurves` ({ red: [5 points], green, blue }, -7..7) and `colourMix` ({ red: { hue, strength },
+green, blue }); for an om3.1 code these are flat curves, no mix, the level's strength and Medium. For an om3.2 photo
+`film` and `name` come from the ImageDescription; from the comment text alone they are null.
 
 ## The code
+
+### om3.1
 
 `om3.1.` followed by 43 characters:
 
@@ -103,11 +116,25 @@ table marks it unsigned.
 Colour wheel (clockwise from 12 o'clock, as on the camera): 0 Yellow, 1 Orange, 2 Orange-red, 3 Red, 4 Magenta,
 5 Violet, 6 Blue, 7 Blue-cyan, 8 Cyan, 9 Green-cyan, 10 Green, 11 Yellow-green.
 
+### om3.2
+
+`om3.2.` followed by 60 characters = 45 bytes in base64url (no padding). The UserComment holds the code alone; the
+film's number and name are in the ImageDescription (`FILM 9 Velvia 50`).
+
+| Byte | Field | Notes |
+|---|---|---|
+| 0–31 | The 64 values of `om3.1`, unchanged | Every rule of the om3.1 code holds for them: its first 43 characters are an om3.1 code's |
+| 32–43 | 24 more values, coded the same way (4 bits each, the first in the high half), all signed −7…7 | A curves slot as the camera keeps it. Values 0–5 the red RGB curve, 6–11 green, 12–17 blue: a curve's 5 points (0 / 25 / 50 / 75 / 100 %) are its values 0, 2, 3, 4, 5; value 1 is spare (0, not read). Values 18–23 the colour mix: hue R, strength R, hue G, strength G, hue B, strength B |
+| 44 | The grain byte, whole | Bit 7 set = given. Bits 0–2: Film Grain strength 1–5 (0 = the level's). Bits 3–4: Grain Size 0 Fine, 1 Medium, 2 Coarse. Bit 7 clear (a film as built), or value 51 = 0 (grain Off): the level's strength (Low 2, Medium 3, High 5) and Medium |
+
+A later firmware may write a longer code (more groups of 4 characters): read the bytes you know. To find both codes:
+`om3\.(?:1\.([A-Za-z0-9_-]{43})|2\.((?:[A-Za-z0-9_-]{4}){15,}))(?![A-Za-z0-9_-])`.
+
 ### Compatibility
 
 - **Forward:** new settings go into spare bytes, with 0 = off. A reader written for v0.27 keeps working on v0.28
   photos: it reads everything it knows (split toning rounded down by half a step where v0.28 has a half step) and can
-  ignore bytes 57–63. v0.28 used the last spare byte: the next new setting gets `om3.2.`.
+  ignore bytes 57–63. v0.28 used the last spare byte, so the next new settings came with `om3.2.` (above).
 - **Backward:** a newer reader treats an older photo's spare bytes (all 0) as "off".
 - **Breaking changes** get a new version in the prefix (`om3.2.`). A reader should only accept the versions it knows.
 - The camera is in the prefix, so another body can have its own code with the same layout.

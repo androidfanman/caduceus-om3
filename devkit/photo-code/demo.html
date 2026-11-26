@@ -29,7 +29,7 @@
   <p>Open a JPEG taken with Caduceus for OM-3 (v0.27 or later) on a film, or paste its comment. Nothing is uploaded: the
     photo is read in this page.</p>
   <label class="drop" id="drop">Choose or drop a JPEG<input type="file" id="file" accept=".jpg,.jpeg,image/jpeg"></label>
-  <textarea id="text" rows="2" placeholder="…or paste: Caduceus FILM 9 Velvia 50 om3.1.ERAP____ABAAAPD_MO7xMzNVEP4CANDQABAQAAAAAAA"></textarea>
+  <textarea id="text" rows="2" placeholder="…or paste: om3.2.ARAAEQABHxAAIxDwDw_-8A_wAAIAADEQABPwAAAAAAAQ48UAYKCQAgc_BLKU  (or an om3.1 comment)"></textarea>
   <div id="out"></div>
 </main>
 <script type="module">
@@ -37,7 +37,7 @@
   const out = document.getElementById('out'), drop = document.getElementById('drop');
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   function show(r) {
-    if (!r) { out.innerHTML = '<p class="err">No om3.1 code found. Only photos taken on a FILM have one.</p>'; return; }
+    if (!r) { out.innerHTML = '<p class="err">No photo code (om3.1 or om3.2) found. Only photos taken on a FILM have one.</p>'; return; }
     const { bytes, ...settings } = r, lines = describe(r);
     out.innerHTML = `<h2>${r.film ? `FILM ${r.film} ` : ''}${esc(r.name ?? 'Recipe')}</h2>
       <ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('') || '<li>All settings at 0</li>'}</ul>

@@ -15,7 +15,7 @@ commands, and keep replies short.
 | `card/` | Makers for the card files (`GUIDES.BIN`, `LABELS.BIN`, `LOOKS.BIN`). |
 | `webapp/` | LookLab, the web app (Vite / TypeScript; called the Control Panel until 2026-11-13, the name the E-P7 project uses). The live site is `looklab/` on `main` (GitHub Pages). |
 | `debug-log/` | `DEBUG.TXT` and how to send a debug log (users are linked here and to `releases/latest/download/DEBUG.TXT`, so every release folder carries `DEBUG.TXT`). |
-| `devkit/photo-code/` | The om3.1 photo code kit for other developers (reader, examples, demo). |
+| `devkit/photo-code/` | The photo code kit (om3.1 and om3.2) for other developers (reader, examples, demo). |
 | `releases/vX/` | Each release: `patch.json`, card files, `SHA256SUMS`, `NOTES.md`. Pushing a new folder to `main` publishes a GitHub release. |
 | `docs/` | User docs, `DEVELOPER_NOTES.md` (per-release technical summary), `FILM_SIMULATION_ROADMAP.md`, `PHOTO_TO_LOOK.md`. |
 | `research/` | `NOTES.md` = the lab notebook (every address, test and dead end), tools, emulator scripts, archived experiments. See `research/README.md`. |
