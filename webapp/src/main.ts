@@ -27,6 +27,8 @@ import { SPLIT_COLOURS, SPLIT_STEPS, fromSteps, toSteps, type Split } from './sp
 import { CHANNELS, CURVE_MAX, CURVE_STEP, MIX_MAX, curveDelta, flatCurves, flatMix, hasCurves, hasMix, type Channel } from './curves';
 import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type FilmGroup } from './om3films';
 import { parseLook } from './pack';
+import { base as rollBase, drawGroups, film as rollFilm } from './rollart';
+import { ROLL_ISOS, ROLL_NAME_MAX, ROLL_SWATCHES, cleanRollName, defaultRoll, hexRgb, rollOf, rollTooBig, rollartBin, shelfOf, type Roll } from './rollshelf';
 import { cubeApply, fitLook, lightroomExtras, lightroomTransform, looksLikeLog, parseCube, parseLightroom, type RGB, type Transform } from './convert';
 // ---------------------------------------------------------------- state
 const LIBRARY = parsePack(libraryJson);
@@ -1426,6 +1428,105 @@ function renderBank() {
     h('p', { class: 'help' }, 'The camera lists these as FILM 1–20 in Picture Mode, after COLOR 1–4, in this order. Drag a film to another place, or use ↑ ↓. Empty places are left out of the camera\'s list (the films after them move up a number).'));
 }
 
+// ---- Film Rolls (test firmware): the film's roll, its canister on the camera's film selection row and the ISO a roll
+// of it is shot at (owner, 2026-11-25: a custom film sim with its own ISO, loaded as a film roll). Off unless switched
+// on in Export (owner: "Not everyone is going to add this to their SD card"); then a folded section at the bottom of
+// each film. The length is picked on the camera, so the canister here has none. Saving it to the card comes next.
+const ROLLS_KEY = 'caduceus.om3.rolls', ROLLS_OPEN_KEY = 'caduceus.om3.rolls.open';
+const readFlag = (k: string) => { try { return localStorage.getItem(k) === '1'; } catch { return false; } };
+const writeFlag = (k: string, on: boolean) => { try { if (on) localStorage.setItem(k, '1'); else localStorage.removeItem(k); } catch { /* storage blocked */ } };
+const rollsOn = () => readFlag(ROLLS_KEY);
+function setRollsOn(on: boolean) { writeFlag(ROLLS_KEY, on); if (on) writeFlag(ROLLS_OPEN_KEY, true); renderEditor(); }
+const GREY: [number, number, number] = [0x8a, 0x8a, 0x8a];
+/** A canister (no length, no label: as on the camera before a roll is loaded) as a canvas `w` CSS px wide. */
+function rollCanvas(groups: ReturnType<typeof rollFilm>, w: number): HTMLCanvasElement {
+  const X = 66, W = 124, H = 218, DY = 18;   // the canister: surface x 66..190, from just above its top cap
+  const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1)), z = (w / W) * dpr;
+  const c = h('canvas', { class: 'roll-can', width: Math.round(W * z), height: Math.round(H * z), style: `width:${w}px;height:${Math.round((H * w) / W)}px` });
+  const ctx = c.getContext('2d');
+  if (ctx) { ctx.translate(-X * z, -DY * z); drawGroups(ctx, [...rollBase(), ...groups], z, 0); }
+  return c;
+}
+const rollGroups = (r: Roll) => rollFilm(r.name, r.iso, null, hexRgb(r.color));
+
+function rollPanel(l: Look, changed: () => void): HTMLElement {
+  const def = defaultRoll(l);
+  const set = <K extends keyof Roll>(k: K, v: Roll[K]) => {
+    const r = { ...(l.roll ?? {}) } as Partial<Roll>;
+    if (v === def[k]) delete r[k]; else r[k] = v;
+    if (Object.keys(r).length) l.roll = r; else delete l.roll;
+    draw(); changed();
+  };
+  const can = h('div', { class: 'roll-can-wrap' });
+  const sumDot = h('span', { class: 'roll-dot' }), sumText = h('span', {});
+  const nameCount = h('span', { class: 'roll-count' });
+  const tooBig = h('p', { class: 'warn', hidden: true }, h('b', {}, 'Too detailed for the camera: '), 'letters like @ & % 8 take a lot of drawing; the camera would show no canister for this film. Use fewer of them or a shorter name.');
+  const draw = () => {
+    const r = rollOf(l);
+    can.replaceChildren(rollCanvas(rollGroups(r), 92));
+    sumDot.style.background = r.color; sumText.textContent = `${r.name} · ISO ${r.iso}`;
+    nameCount.textContent = `${r.name.length} / ${ROLL_NAME_MAX}`;
+    tooBig.hidden = !rollTooBig(r);
+    colorInp.value = r.color;
+    swatches.querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.c === r.color));
+  };
+  const nameInp = h('input', {
+    type: 'text', value: rollOf(l).name, maxlength: ROLL_NAME_MAX, spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Name on the canister',
+    onchange: checkpoint, onkeydown: enterCommits,
+    oninput: (e: Event) => draft(() => {
+      const t = e.target as HTMLInputElement, v = cleanRollName(t.value);
+      if (v !== t.value) t.value = v;
+      set('name', v || def.name);
+    }),
+  });
+  const isoSel = h('select', { 'aria-label': 'Roll ISO', onchange: (e: Event) => { set('iso', Number((e.target as HTMLSelectElement).value)); checkpoint(); } },
+    ...ROLL_ISOS.map((v) => h('option', { value: String(v), selected: v === rollOf(l).iso }, `ISO ${v}`)));
+  const colorInp = h('input', { type: 'color', value: rollOf(l).color, 'aria-label': 'Canister colour', oninput: (e: Event) => draft(() => set('color', (e.target as HTMLInputElement).value.toLowerCase())), onchange: checkpoint });
+  const swatches = h('div', { class: 'roll-swatches', role: 'group', 'aria-label': 'Colours of the default films' },
+    ...ROLL_SWATCHES.map((c) => h('button', { type: 'button', class: 'roll-sw', 'data-c': c, style: `background:${c}`, title: c, 'aria-label': `Colour ${c}`, onclick: () => { set('color', c); checkpoint(); } })));
+  const hp = helpParts('Film Roll', [
+    'Film Rolls (test firmware, from the card files in OM3MOD/FILMROLL/): load a roll of this film on the camera and the whole roll is shot at this ISO, with this canister on Picture Mode\'s film selection row. The number of exposures is picked on the camera (rear dial).',
+    'Name: the short name on the canister, up to 12 letters (past 7 they get smaller). ISO: 200 to 6400, printed on the canister. Colour: the canister\'s body; the letters turn dark on light colours and light on dark ones. COLOR 1–4 keep a grey canister and ISO 400.',
+    'Not using Film Rolls? Turn it off: the section goes away (Export › Film Rolls turns it back on).',
+    h('p', {}, h('b', {}, 'Test page: '), 'saving the canisters and ISOs to the card comes next.')]);
+  const open = readFlag(ROLLS_OPEN_KEY);
+  const head = h('button', { type: 'button', class: 'roll-head', 'aria-expanded': String(open), onclick: () => { writeFlag(ROLLS_OPEN_KEY, !open); renderEditor(); } },
+    h('span', { class: 'roll-sum' }, sumDot, sumText), h('span', { class: 'roll-chev', 'aria-hidden': 'true' }, open ? '▾' : '▸'));
+  const body = !open ? null : h('div', { class: 'roll-body' },
+    can,
+    h('div', { class: 'roll-fields' },
+      h('label', { class: 'roll-row' }, h('span', { class: 'roll-lbl' }, 'Name'), h('span', { class: 'roll-name' }, nameInp, nameCount)),
+      h('label', { class: 'roll-row' }, h('span', { class: 'roll-lbl' }, 'ISO'), isoSel),
+      h('div', { class: 'roll-row' }, h('span', { class: 'roll-lbl' }, 'Colour'), h('div', { class: 'roll-color' }, colorInp, swatches)),
+      tooBig,
+      h('div', { class: 'roll-links' },
+        h('button', { class: 'link', onclick: rollShelf, title: 'Every film\'s canister, in the camera\'s order' }, 'See the shelf'),
+        l.roll ? h('button', { class: 'link', onclick: () => { delete l.roll; renderEditor(); changed(); checkpoint(); } }, 'Reset') : null,
+        h('button', { class: 'link roll-off', onclick: () => { setRollsOn(false); toast('Film Rolls turned off: Export › Film Rolls turns it back on'); } }, 'Turn off Film Rolls'))));
+  draw();
+  return h('div', { class: `group cam roll-panel${open ? ' open' : ''}` },
+    h('div', { class: 'cam-head' }, h('span', { class: 'lbl' }, 'Film Roll ', h('span', { class: 'tag-test' }, 'test'), hp.q), head),
+    hp.box, body);
+}
+
+/** Every film's canister as the camera's shelf: FILM 1–20 (the numbers the camera gives them: empty places are left
+ *  out), then COLOR 1–4. Click one to open it. */
+function rollShelf() {
+  const tiles: HTMLElement[] = [];
+  let n = 0;
+  O.bank.forEach((row, k) => row.forEach((l, v) => {
+    if (!l) return;
+    n += 1;
+    const r = rollOf(l), sel = k === O.k && v === O.v;
+    tiles.push(h('button', { type: 'button', class: `roll-tile${sel ? ' sel' : ''}${l.roll ? ' own' : ''}`, title: `${l.name}: ISO ${r.iso}`, onclick: () => { O.k = k; O.v = v; dlg.close(); renderAll(); } },
+      rollCanvas(rollGroups(r), 80), h('span', { class: 'roll-tile-n' }, `FILM ${n}`), h('span', { class: 'roll-tile-l' }, `${l.name} · ISO ${r.iso}`)));
+  }));
+  for (let c = 1; c <= 4; c++) tiles.push(h('div', { class: 'roll-tile' }, rollCanvas(rollFilm('COLOR', c, null, GREY), 80), h('span', { class: 'roll-tile-n' }, `COLOR ${c}`), h('span', { class: 'roll-tile-l' }, 'ISO 400')));
+  const dlg = modal('Film Rolls shelf', h('div', {},
+    h('p', { class: 'help' }, 'Each film\'s canister as the camera draws it, in the camera\'s order. Films you changed have a dot. Click one to open it.'),
+    h('div', { class: 'roll-shelf' }, ...tiles)));
+}
+
 /** The editor for a number with no look: make one. */
 function emptySlotPanel(): HTMLElement {
   const k = O.k, v = O.v;
@@ -1767,6 +1868,7 @@ function renderOm3Editor(l: Look) {
           fwLine('Firmware v0.40', 'needed (black from v0.40-beta); older firmware ignores it.')], note)];
       })(),
       grainWarn),
+    ...(rollsOn() ? [rollPanel(l, changed)] : []),
     h('div', { id: 'problems' }));
   refreshProblems();
 }
@@ -2061,7 +2163,10 @@ async function om3ToCard(files: { name: string; data: Uint8Array }[]) {
     let om3 = dir;
     if (dir.name.toUpperCase() !== 'OM3MOD') om3 = await dir.getDirectoryHandle('OM3MOD', { create: true });
     for (const f of files) {
-      const w = await (await om3.getFileHandle(f.name, { create: true })).createWritable();
+      const parts = f.name.split('/');   // Film Rolls: FILMROLL/ROLLART.BIN
+      let d = om3;
+      for (const sub of parts.slice(0, -1)) d = await d.getDirectoryHandle(sub, { create: true });
+      const w = await (await d.getFileHandle(parts[parts.length - 1], { create: true })).createWritable();
       await w.write(f.data as BlobPart); await w.close();
     }
     toast(`Saved ${files.map((f) => f.name).join(', ')} to ${dir.name === om3.name ? dir.name : `${dir.name}/OM3MOD`}. Put the card in the camera and half-press.`);
@@ -2092,10 +2197,13 @@ function om3ExportDialog() {
   };
   wbNote();
   // v0.30: CURVES.BIN (the films' RGB curves and colour mix) goes with LOOKS.BIN, made from the same bytes; older firmware never reads it
+  // Film Rolls (test firmware, when switched on): the canisters and roll ISOs, OM3MOD/FILMROLL/ROLLART.BIN
+  const rollBad = () => shelfOf(O.bank).looks.filter((l) => rollTooBig(rollOf(l))).map((l) => l.name);
+  const rollFiles = () => (rollsOn() && !rollBad().length ? [{ name: 'FILMROLL/ROLLART.BIN', data: rollartBin(O.bank) }] : []);
   const cardFiles = async () => {
     const lb = looksBin();
     return [{ name: 'LOOKS.BIN', data: lb }, { name: 'NAMES.BIN', data: await namesBin(O.bank) as Uint8Array },
-      ...(fw >= 28 ? [{ name: 'CURVES.BIN', data: curvesBin(lb, O.bank) }] : [])];
+      ...(fw >= 28 ? [{ name: 'CURVES.BIN', data: curvesBin(lb, O.bank) }] : []), ...rollFiles()];
   };
   const busy = async (b: HTMLButtonElement, f: () => Promise<void>) => { b.disabled = true; try { await f(); } catch (e) { toast((e as Error).message, 'err'); } finally { b.disabled = probs.length > 0; } };
   const looks = O.bank.flat().filter(Boolean) as Look[];
@@ -2110,6 +2218,12 @@ function om3ExportDialog() {
     }),
   }, 'Download');
   const names: HTMLButtonElement = h('button', { disabled: probs.length > 0, onclick: () => busy(names, async () => download('NAMES.BIN', await namesBin(O.bank) as Uint8Array)) }, 'NAMES.BIN');
+  const bad = rollBad();
+  const rollCard: HTMLButtonElement = h('button', { disabled: bad.length > 0, onclick: () => busy(rollCard, async () => om3ToCard(rollFiles())) }, 'Save to card…');
+  const rollRow = h('div', { class: 'ex-row ex-sub', hidden: !rollsOn() },
+    h('div', {}, h('b', {}, 'Film Rolls canisters (ROLLART.BIN)'), h('p', { class: 'help' }, 'Each film\'s canister and roll ISO, in the camera\'s order. Save to the SD card (below) writes it too while Film Rolls is on; this button writes only it, to OM3MOD/FILMROLL/ROLLART.BIN, and leaves the films on the card alone.'),
+      bad.length ? h('p', { class: 'warn' }, h('b', {}, 'Too detailed for the camera: '), `${bad.join(', ')}. Change the name on the canister first.`) : null),
+    h('div', { class: 'ex-btns' }, rollCard, h('button', { disabled: bad.length > 0, onclick: () => download('ROLLART.BIN', rollartBin(O.bank)) }, 'ROLLART.BIN')));
   modal('Export for the OM-3', h('div', { class: 'export' },
     probs.length
       ? h('div', { class: 'problems-box' }, h('b', {}, `${probs.length} problem(s) to fix first:`), h('ul', { class: 'problems' }, ...probs.slice(0, 12).map((p) => h('li', {}, fmt(p)))))
@@ -2118,6 +2232,18 @@ function om3ExportDialog() {
       h('div', {}, h('b', {}, 'Firmware on the camera'), h('p', { class: 'help' }, 'v0.28 adds Halation, Tone Balance, the film\'s WB mode, split toning in half steps and Blacks / Whites to ±7; v0.26 split toning; v0.22 adds Sharp, v0.21 Grain and the lens vignette correction choice to LOOKS.BIN. Older firmware would reject a file with the newer settings, so they are left out for it: for v0.21 the look\'s sharpness goes to the camera\'s Sharpness setting instead (−2 to +2, softer values as −2); for v0.20 and older there is no grain either and every look keeps the camera\'s correction.')),
       fwSel),
     wbBox,
+    h('div', { class: 'ex-row' },
+      h('div', {}, h('b', {}, 'Film Rolls (test firmware)'), h('p', { class: 'help' }, 'Only for a card with the Film Rolls files (OM3MOD/FILMROLL/). On: each film gets a Film Roll section at the bottom, for the name, ISO and colour of its canister on the camera. Off: LookLab leaves Film Rolls out.')),
+      (() => {
+        const seg = h('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'Film Rolls' });
+        const draw = () => seg.replaceChildren(...([['0', 'Off'], ['1', 'On']] as const).map(([v, t]) => {
+          const on = (v === '1') === rollsOn();
+          return h('button', { role: 'radio', 'aria-checked': String(on), class: on ? 'on' : '', onclick: () => { setRollsOn(v === '1'); draw(); rollRow.hidden = !rollsOn(); } }, t);
+        }));
+        draw();
+        return seg;
+      })()),
+    rollRow,
     h('div', { class: 'ex-row' },
       h('div', {}, h('b', {}, 'Save to the SD card'), h('p', { class: 'help' }, 'Pick the card (or its OM3MOD folder): writes OM3MOD/LOOKS.BIN and NAMES.BIN, and for v0.28 or later CURVES.BIN (from v0.30 the camera reads each film\'s RGB curves and colour mix from it). Up to v0.28 this replaces the looks on the card, including ones made on the camera: Open… the card\'s LOOKS.BIN first to keep those. From v0.29 the camera keeps its own films and changes in its memory and takes this file only if it never had these films. Chrome / Edge.')),
       toCard),

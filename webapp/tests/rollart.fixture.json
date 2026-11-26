@@ -1,0 +1,90 @@
+[
+ {
+  "name": "Portra",
+  "iso": 400,
+  "exp": 36,
+  "body": [
+   217,
+   138,
+   43
+  ],
+  "labelled": true,
+  "sha256": "1228f578c19bd1ae9603d659b2bb9c0a53a4c3f7be0d1a6ba315e1e9c80240ca"
+ },
+ {
+  "name": "Kodachrome",
+  "iso": 64,
+  "exp": 24,
+  "body": [
+   216,
+   176,
+   64
+  ],
+  "labelled": true,
+  "sha256": "b17ff2281f6fbaafa4c886466d8563409d1b40f84a361016c68bb706e2773d49"
+ },
+ {
+  "name": "Natura",
+  "iso": 1600,
+  "exp": 72,
+  "body": [
+   110,
+   106,
+   102
+  ],
+  "labelled": true,
+  "sha256": "c404273b6a4c4e876cef7c4a45e130e69e4dc4c9084ae1820d1aadb85635c792"
+ },
+ {
+  "name": "Velvia",
+  "iso": 50,
+  "exp": null,
+  "body": [
+   79,
+   166,
+   115
+  ],
+  "labelled": true,
+  "sha256": "a6876cf8ca1aef662a602bbc412bc4ee983314ec592b7e60f83b2fe30663edd2"
+ },
+ {
+  "name": "COLOR",
+  "iso": 3,
+  "exp": 36,
+  "body": [
+   138,
+   138,
+   138
+  ],
+  "labelled": true,
+  "sha256": "f447eadddcbaf86e14df42deff626da80d9315e8adc87327a4330054a0ab91e8"
+ },
+ {
+  "name": "Pro 400H",
+  "iso": 400,
+  "exp": 36,
+  "body": [
+   124,
+   192,
+   176
+  ],
+  "labelled": false,
+  "sha256": "38eb21b6959a2bd78813d7580213c82471be285ecb1c2216370fe2c19fcaae63"
+ },
+ {
+  "name": "My Film 9",
+  "iso": 3200,
+  "exp": 36,
+  "body": [
+   18,
+   52,
+   86
+  ],
+  "labelled": true,
+  "sha256": "aef48b09cd67499056078e54c012c7211d63f076e773354126fd6ec876a6826a"
+ },
+ {
+  "base": true,
+  "sha256": "1789790bd5471f9760057bd682edb60f4fc9c625c79d2090a54fefb1e56f8847"
+ }
+]

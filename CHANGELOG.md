@@ -54,6 +54,14 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
 
+## LookLab update (2026-11-26)
+LookLab only; the firmware is unchanged.
+- **Film Rolls (for the coming Film Rolls firmware, off unless you turn it on):** Export › Film Rolls turns on a Film
+  Roll section at the bottom of each film: the name, ISO and colour of its canister on the camera's film selection
+  row. A roll of that film is shot at that ISO. See the shelf shows every film's canister in the camera's order.
+- Save to the SD card writes the canisters and ISOs to `OM3MOD/FILMROLL/ROLLART.BIN` while Film Rolls is on; a button
+  in Export writes only that file. Open… reads it back. With Film Rolls off, nothing changes.
+
 ## LookLab update (2026-11-23)
 LookLab only; the firmware is unchanged.
 - **Save film sim:** a button next to Reset look keeps a copy of the look you are editing in your browser. Saving the

@@ -486,3 +486,37 @@ dialog.modal:has(.replace-grid) { width: min(780px, calc(100vw - 32px)); }
 .group.cam.rows .crow-wrap + .crow-wrap { border-top: 1px solid var(--soft); padding-top: 4px; }
 .crow-wrap .help-box { margin-top: 2px; }
 @media (hover: none) { .own-x { opacity: 1; } }
+
+/* Film Rolls (test firmware): a folded section at the bottom of each film */
+.tag-test { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin-left: 4px; vertical-align: 1px; }
+.roll-head { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; border: 0; background: none; padding: 2px 0; color: var(--muted); font-size: 12.5px; cursor: pointer; min-width: 0; }
+.roll-head:hover { color: var(--ink); }
+.roll-sum { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roll-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; border: 1px solid rgba(0, 0, 0, .25); }
+.roll-chev { font-size: 11px; width: 10px; }
+.roll-body { display: flex; gap: 14px; align-items: flex-start; margin-top: 8px; }
+.roll-can-wrap { background: var(--cs-bg); border-radius: 12px; padding: 8px 10px; line-height: 0; flex: none; }
+.roll-can { display: block; }
+.roll-fields { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+.roll-row { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 8px; margin: 0; }
+.roll-lbl { font-size: 13px; color: var(--muted); }
+.roll-name { position: relative; display: block; min-width: 0; }
+.roll-name input { width: 100%; padding-right: 48px; }
+.roll-count { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--muted); pointer-events: none; font-variant-numeric: tabular-nums; }
+.roll-row select { justify-self: start; width: auto; min-width: 120px; }
+.roll-color { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.roll-color input[type=color] { width: 30px; height: 30px; padding: 2px; border-radius: 7px; cursor: pointer; flex: none; }
+.roll-swatches { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; padding-top: 2px; }
+.roll-sw { width: 16px; height: 16px; padding: 0; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .25); cursor: pointer; flex: none; }
+.roll-sw.on { outline: 2px solid var(--accent); outline-offset: 1px; }
+.roll-links { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; padding-top: 2px; }
+.roll-links .roll-off { color: var(--muted); }
+.roll-shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; background: var(--cs-bg); border-radius: 14px; padding: 12px; }
+.roll-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 8px; border: 1px solid transparent; border-radius: 10px; background: none; color: var(--cs-ink); cursor: pointer; font: inherit; min-width: 0; }
+div.roll-tile { cursor: default; }
+.roll-tile:hover { border-color: var(--cs-line); }
+.roll-tile.sel { border-color: var(--accent); }
+.roll-tile.own::after { content: ''; position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.roll-tile-n { font-size: 12px; font-weight: 600; }
+.roll-tile-l { font-size: 11px; color: var(--cs-dim); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-row > .seg { flex: none; }
