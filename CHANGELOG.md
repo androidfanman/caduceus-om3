@@ -8,6 +8,7 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 | Version | Released | What's new |
 |---|---|---|
+| [v0.41-beta2](#v041-beta2-test-version) | 2026-11-26 (test version) | Film Rolls: load a roll of 24, 36 or 72 exposures, shoot it, wind it back (its `FILMROLL` folder turns it on); XPan kept after a half-press at start-up (#105); Remaining Movie Time as its own screen-info row |
 | [v0.41-beta](#v041-beta-test-version) | 2026-11-24 (test version) | v0.41-alpha cleaned up (INFO hints on the colour wheel and Split toning bars, only the bar on Split toning's Balance, one INFO guide style) and a new photo code, om3.2, that also carries the RGB curves, Color Mix, Film Grain strength and Grain Size |
 | [v0.41-alpha](#v041-alpha-test-version) | 2026-11-23 (test version) | New Picture Mode pages: the H / S / L bar on the colour wheel, a five-point tone curve (Blacks and Whites in Highlight & Shadow), Split toning on its own row with Balance |
 | [v0.40.3](#v0403) | 2026-11-23 | Halation Radius (Bloom / Tight / Medium / Wide, by fernandezk26) and faster Halation; WB compensation kept apart for films and the camera's own picture modes (#99); fixes: Film Grain on Drive Priority (#91), Magnify in the crop modes (#97), each photo's own film in playback (#93), Delete's long press (#101) |
@@ -55,6 +56,23 @@ What changed in each version of Caduceus for OM-3, newest first. To install or u
 
 Versions are named v0.N from v0.18 on. Earlier builds were called "test N" while they were tried on the camera; the
 same number is used here (test 17 = v0.17).
+
+## v0.41-beta2 (test version)
+A test version (a GitHub pre-release; v0.40.3 stays the current version). v0.41-beta plus Film Rolls, the #105 fix
+and a screen-info row, camera-tested 2026-11-26 (test builds fr9 and test 39, the builds before its release name).
+- **Film Rolls** (new; on with the release's `FILMROLL` folder in `OM3MOD`, a normal OM-3 without it): on Picture
+  Mode's film row the rear dial picks a roll of 24, 36 or 72 exposures, with a canister showing the film, its ISO and
+  the length. During a roll the film and the ISO stay the roll's (the film's box speed, at least 200; COLOR 1-4: 400),
+  the shots-remaining number counts the frames left (rear screen and viewfinder), Playback and Image Review wait for
+  the rewind, and a burst stops at the last frame. At the end the shutter locks and a slip says so; OK opens the film
+  row and the rear dial winds the roll back, two frames a click. Then your own ISO comes back and the roll is listed in
+  `OM3MOD/FILMROLL/ROLLS.TXT`. The roll is kept on the card. LookLab's Export › Film Rolls gives your own films a
+  canister and ISO.
+- **XPan kept at start-up (#105, reported by jirimachovec):** a half-press while the camera still starts no longer lets
+  the crop fall back to 16:9; a custom mode's own ratio is kept when you turn the dial to it.
+- **Remaining Movie Time** is its own row in Information 1 / 2 / 3: Remaining Files hides only the photos left. If
+  Remaining Files was unticked, the video time shows again until the new row is unticked.
+- The Firmware Version screen shows "0.41-b2".
 
 ## v0.41-beta (test version)
 A test version (a GitHub pre-release; v0.40.3 stays the current version). v0.41-alpha with its Picture Mode pages

@@ -42,7 +42,9 @@ them gives a normal OM-3.
   - the full suite and the static checks' new hooks for the owner's review;
   - ~~user docs~~ (docs/USING.md "Film Rolls", the card files table; ROADMAP.md) and release notes (draft below);
   - commit (nothing committed yet: the owner's word first);
-  - the release itself, the owner's call; LookLab's Film Rolls export (`feature/looklab-film-rolls`) joins it.
+  - ~~the release itself~~ (owner, 2026-11-26: "push the filmrolls to github as .41 beta2"): **v0.41-beta2**, a test
+    version (GitHub pre-release, `try/v0.41-beta2`); LookLab's Film Rolls export went live on main the same day
+    (6954629). The full release (and `hooks.json` for the two hooks) still to come.
 - **Release notes (draft, for CHANGELOG.md):** *Film Rolls (on the SD card): shoot a roll of 24, 36 or 72 exposures.
   Pick the film and the length on Picture Mode's film selection row (the rear dial picks the length; the canister
   shows the film, its ISO and the length). During a roll the film and ISO stay the roll's (the film's box speed, at

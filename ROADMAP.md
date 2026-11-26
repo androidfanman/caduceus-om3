@@ -21,7 +21,7 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 | **Blacks / Whites grid** | One grid row, −7 to +7 each. | **Done (v0.28)** |
 | **White balance per film** | Each film remembers its own WB. | **Done (v0.28)** |
 | **One control panel for all Caduceus cameras** ([#71](https://github.com/androidfanman/caduceus-om3/issues/71)) | One shared panel with each camera as a profile, proposed by cakelesscoder (Caduceus for the E-P7). | In progress |
-| **Film Rolls** | Shoot a roll: pick a film and 24 / 36 / 72 exposures on the film row; its film and ISO stay until you wind it back with the rear dial; no peeking until then; a roll log on the card. Lives on the SD card. | Testing |
+| **Film Rolls** | Shoot a roll: pick a film and 24 / 36 / 72 exposures on the film row; its film and ISO stay until you wind it back with the rear dial; no peeking until then; a roll log on the card. Lives on the SD card. | In the v0.41-beta2 test version |
 
 ## Bugs being looked at
 

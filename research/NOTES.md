@@ -12032,3 +12032,15 @@ window's place: the picture-mode label (15706..15713).
   count went on from the version 2 record); "ISO from before the roll back 2"; roll 023 at ISO 800, then ISO 2000 once
   it was out (#55..#58). ROLL.BIN now version 3, no roll and no ISO waiting. **Camera: PASS.** Owner ("Yes, all good"): the ISO came back
   each time, in the control panel too.
+
+## v0.41-beta2 (2026-11-26): Film Rolls, #105 and rt1 as a test version
+- **Owner (2026-11-26):** "push the filmrolls to github as .41 beta2". `try/v0.41-beta2` = `feature/film-rolls-card`
+  9e95b35 (fr9 + test 39's card file, camera-tested) with VERSION `v0.41-b2 (beta 2: Film Rolls, #105 crop, movie time
+  row)` (Firmware Version page "0.41-b2"); the build is fr9's but for the name.
+- **Build:** E1479999.BIN `cd95d015…4b3a`, two clean builds match; `firmware/patch.py --release v0.41-beta2` makes the
+  same file. FILMROLL.BIN `0aad4688…e62a` (13884 B, tag 0x4690ecbf: this firmware's; test 39's `b4bf2d78…` was fr9's);
+  ROLLART / SCREENS / WINDOW as test 39. Code space as fr9 (.ext4 56 B free, .ext11 112, .ext12 96, .ext13 128).
+- **Release folder:** patch.json, the FILMROLL folder (also as FILMROLL.zip on the release), CURVES.BIN, LOOKS.BIN,
+  DEBUG.TXT and the photo code kit as v0.41-beta. `static:hook-list` (the two Film Rolls hooks) and
+  `static:changed-bytes` stay open for the full release, as with fr9.
+- **Suite** (`--stock`, om-emu-new) on the release build: **199 of 201 pass**; the 2 FAILs are those two static checks.
