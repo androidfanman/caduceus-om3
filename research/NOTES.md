@@ -12138,3 +12138,7 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   stock setup: COLOR job -> our passes, Soft Focus key and no job -> stock) passes; `--without` the v0.41-beta3 build
   (= the release): **caught** (both took our passes). The restart is camera-only (TESTING.md "Past
   regressions").
+- **Camera result, fix114-1 (owner, 2026-11-27): still restarts** ("card back in. Still rebooted"; FILM 1 Grain 5,
+  A, Drive Single, RAW+JPEG [14]). The log (private `issue-114/owner-fix114-1-2026-11-27/`) is the next power-on's
+  (event 4, 0 photos, grain tiles 0): it cannot say how far the shot got. So the xb_gs job check is not the (whole)
+  cause; xb_gs on Art Filter jobs was a real gap but not what restarts the camera. Open.
