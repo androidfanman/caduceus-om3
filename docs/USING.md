@@ -183,6 +183,22 @@ The camera's **Firmware Version** page (wrench tab, page 6) shows Caduceus's ver
 
 ## Questions
 
+### Experimental video sharpening Off
+
+On this local branch, Custom menu > **4. Information** > **Camera Info Settings** > **Information 1**
+has a final **Video Sharpening Off** checkbox. **Unchecked = Stock**, **checked = Off**. The initial default is
+Stock. This is one global setting, independent of the three information displays, films, and COLOR profiles,
+and is saved with the camera's settings at menu exit or power-off.
+
+Off sets the final YC sharpening gain to zero for the supported live-processing request classes. Video and
+live view share that path, so both are intended to change. Saved-still development and unknown request classes
+remain stock. Returning to Stock restores the camera's own gain computation; the existing photo Sharpness
+slider is not changed.
+
+This is an **experimental, camera-unverified** feature. Emulator tests exercise the checkbox, persistence, and
+native gain/packed-parameter output, not actual recorded image quality or every video format. No camera flashing
+is part of this implementation task.
+
 See the [questions and answers](FAQ.md): no films in the list, settings that don't show in the photo, freezes, lost changes, video and more.
 
 ## The files on the card

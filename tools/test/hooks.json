@@ -260,6 +260,10 @@
    "addr": "0x604cf156",
    "len": 7
   },
+  "hook_vs": {
+   "addr": "0x60513db7",
+   "len": 6
+  },
   "hook_wl": {
    "addr": "0x604b8d91",
    "len": 8

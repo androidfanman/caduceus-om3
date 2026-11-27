@@ -9805,3 +9805,38 @@ Still not checked on the camera: a photo on a film with a shift (live view shows
   code it moves differ from beta4). Feedback on beta4 before release: crombach on #99, "does seem to work as you
   outlined"; the WB menu's stars on a film with a shift are cosmetic.
 
+## Global Video Sharpening Off menu (2026-11-27; emulator only, not camera-tested)
+- Branch `feature/video-sharpening-toggle`, based on `2c563433`. At the initial local-prototype milestone there was
+  no commit, push, pull request, release, camera access or physical card write. This is an experimental
+  implementation, not an installation recommendation.
+- Custom menu > 4. Information > Camera Info Settings > Information 1: the final, 22nd row is
+  **Video Sharpening Off**. Unchecked = Stock (default); checked = Off. It is one global setting, not a film,
+  COLOR-profile or display-page choice. Off may affect both movie and photo live view; preserving live-view
+  sharpening is deliberately not a requirement.
+- Setting `0x7d60` uses bit 0 of the Screen Info record's spare word at +36. The existing 40-byte `OM3I` record,
+  version 1, CRC-32 and native settings-save mechanism are retained; other masks and spare bits are left alone.
+  The gain path loads the record lazily, so a saved Off choice works without opening this menu after power-on.
+  Missing or corrupt records leave Stock. Invalid explicit values or setter modes return `0xf0000016`.
+- `hook_vs` replaces exactly six bytes at `0x60513db7`: the gain helper's final `movhu d1,(4,a0)` and
+  `ret [d2,d3,a2,a3],88`. Stock anchor `f87404dff058`; the next function at `0x60513dbd` is not overwritten.
+  The section-1 trampoline follows the section-6 readiness check before entering `vs_gain` in `.ext15`.
+  After all native gain-table choices, Off writes zero only for request+14 with high nibble 0 and class nibble
+  `0x30` or `0x40`. Tested classes include the observed live-view `0x35`; saved-still `0x1000` / `0x1040` and
+  unknown `0x20` keep their native results. This does not establish coverage of every real recording format.
+- Rebuilt Information-page item-list buffers moved from the full `.ext12` into the existing GX4-proven `.ext15`
+  reserve, aligned after switching sections. No additional loader-end expansion. Build: `.ext1` 1632 / 1744 B,
+  `.ext15` 2408 / 139264 B.
+- **Build and tests:** candidate package hash `08c7d844fba631d1f995678b7703b750daf375c633de8f95727cdd7762f55e4e`.
+  The setup build removed its `E1479999.BIN`; no camera update package was delivered. Final selected batch:
+  **18 pass, exit 0**. Native tests compare Stock against the original unhooked YC output, verify that Off clears
+  only the packed gain bits across normal/alternate tables and Sharpness 0 / -7, preserve the other 256-byte output
+  contents and caller state, and cover saved/unknown classes, section-not-ready, lazy load, corrupt CRC and rejected
+  setter inputs. Four-boot menu testing keeps Off across photo/video starts and keeps Stock after switching back.
+  Screen-info, stock video-colour, boot and films-from-memory regressions pass, as do release rebuild, hook-list,
+  hook-sections, changed-bytes, loader-end, section-order, comment-swallow and patch-audit checks.
+  Python syntax and whitespace checks pass. This was a targeted run, not a full-suite or PR-gate pass.
+- **Menu rendering:** one additional preview test passes. Emulator screenshots show the complete label and the
+  unchecked/checked box; inspected both images. The emulator's screenshot colours are not camera colour evidence.
+- **Still camera-only:** actual recorded-video sharpness, coverage across recording formats, photo-image fidelity,
+  timing and camera safety. Zeroing this parameter is not proof that every sharpening engine is disabled.
+

@@ -38,6 +38,7 @@ SECTIONS {
   .hook_nr1     0x603c8038 : { *(.hook_nr1) }
   .hook_nr2     0x603e7891 : { *(.hook_nr2) }
   .hook_sh      0x603e767f : { *(.hook_sh) }
+  .hook_vs      0x60513db7 : { *(.hook_vs) }
   .hook_cl      0x604955f1 : { *(.hook_cl) }
   .hook_rng     0x611d1041 : { *(.hook_rng) }
   .hook_dot     0x611d10fb : { *(.hook_dot) }

@@ -99,6 +99,7 @@ GRAIN_GAINS = {1: (400, 175), 3: (1024, 448), 5: (1536, 672)}   # strength -> te
 # called directly with the camera's ready word (SEC_READY) at 0x1f (sections 1..5) must reach the stock code; at 0x3f
 # (section 6 too) our code. om-emu runs neither live view's set-up nor the load order, so the test calls the sites.
 GATES = 'live-view-gates-wait-for-section-6'
+VIDEOSHARP = 'video-sharpening-off-keeps-stills-and-stock'
 SEC_READY = 0xa32de58c
 SEC_NOT6, SEC_WITH6, SEC_OMEMU = 0x1f, 0x3f, 0x7f     # SEC_OMEMU: the word as om-emu leaves it (S-BOOTSTAGE)
 MX_SITE, MX_ROW = 0x6051485a, 0x605144ef               # hook_mx; the camera's row scaling it calls
@@ -553,6 +554,10 @@ SI_HIDE_MODE = ('menu wait left wait left wait down wait ok wait down wait right
 SI_MASK1 = 'expect:mem:6295c70c=01000000'
 SI_MODE_ON, SI_MODE_OFF = 'expect:pxdiff:48,575,300,450', 'expect:pxsame:48,575,300,450'
 SI_MODE_ON_VIDEO = 'expect:pxdiff:62,574,300,450'
+VS_MENU = ('menu wait left wait left wait down wait ok wait down wait right wait' + ' down wait' * 21)
+VS_CHECK_OFF = 'expect:mem:6295c724=01000000'
+VS_CHECK_STOCK = 'expect:mem:6295c724=00000000'
+VS_TOGGLE = f'{VS_MENU} ok wait menu wait menu wait menu wait'
 # s3: Exposure Comp. split in two rows. Information 1's ninth row (Exposure Level Meter, bit 15) unticked: the meter's
 # centre tick (522, 575) goes, the +/- value's "0" (623, 566) stays.
 SI_HIDE_METER = ('menu wait left wait left wait down wait ok wait down wait right wait' + ' down wait' * 8 +
@@ -845,6 +850,13 @@ def ck_line(mem, card, matches, on_builtin, with_values):
 
 
 TESTS = {
+    'video-sharpening-menu-kept-globally': [
+        Boot(f's1 wait wait {VS_CHECK_STOCK} {VS_TOGGLE} {VS_CHECK_OFF} poweroff'),
+        Boot(f'wait wait {VS_CHECK_OFF} s1 wait wait {VS_CHECK_OFF} poweroff',
+             photo_switch=PHOTO_SWITCH_VIDEO),
+        Boot(f'wait wait {VS_CHECK_OFF} s1 wait wait {VS_TOGGLE} {VS_CHECK_STOCK} poweroff'),
+        Boot(f'wait wait {VS_CHECK_STOCK} s1 wait wait poweroff'),
+    ],
     'boot-smoke': [
         Boot('s1 wait wait poweroff', expect=[
             r'^Card files: all match this firmware$',
@@ -2116,6 +2128,121 @@ def run_gates(emu, build, out, card0):
     return GATES, errors
 
 
+def run_videosharp(emu, build, out, card0):
+    """The native YC builder: gain zero for live requests, identical Stock and saved-still outputs."""
+    d = out / VIDEOSHARP
+    d.mkdir(parents=True, exist_ok=True)
+    sym = elf_symbols(build / 'p.elf')
+    missing = {'vs_gain', 'vs_gate'} - sym.keys()
+    if missing:
+        return VIDEOSHARP, [f'missing sharpening implementation: {sorted(missing)}']
+    word = lambda value: (value & 0xffffffff).to_bytes(4, 'little').hex()
+    short = lambda value: (value & 0xffff).to_bytes(2, 'little').hex()
+    flags = (0x30, 0x130, 0x35, 0x40, 0x1000, 0x1040, 0x20)
+    main = (build / 'main.bin').read_bytes()
+    hook = main[0x60513db7 - fwbuild.P.BASE:0x60513db7 - fwbuild.P.BASE + 6].hex()
+    stock_hook = fwbuild.HOOKS['.hook_vs'][1].hex()
+    cases = []
+    keep = {'d2': '0x12345678', 'd3': '0x23456789', 'a2': '0x3456789a', 'a3': '0x456789ab'}
+    for flag in flags:
+        for table in range(3):
+            for sharp in (0, -7):
+                for off in (0, 1, 2):
+                    name = f'{flag:x}-table{table}-sharp{sharp}-off{off}'
+                    mem = [
+                        ['B', 'dd'], ['B+1', '=0x60513dbd-B'], ['B+5', 'f020'],
+                        ['B+0x100', '00' * 0x100], ['B+0x300', '00' * 0x100],
+                        ['B+0x600', '00' * 0x2000],
+                        ['B+0x104', '=B+0x600'], ['B+0x10c', '=B+0x300'],
+                        ['B+0x130', word(11)], ['B+0x13c', 'ffffffff'],
+                        ['B+0x60a', short(11)], ['B+0x60e', short(flag)],
+                        ['B+0x600+1660', short(640) + short(480) + short(640) + short(480)],
+                        ['B+0x600+1702', short(1280)], ['B+0x600+1724', f'{sharp & 255:02x}'],
+                        ['B+0x600+1924', f'{int(table == 1):02x}{int(table == 2):02x}'],
+                        ['B+0x3fc', 'a5a5a5a5'],
+                        [hex(sym['si_ok']), '01'], [hex(sym['si_ram'] + 36), word(off)],
+                        [hex(SEC_READY), word(SEC_WITH6)],
+                    ]
+                    if off == 2:
+                        mem.append(['0x60513db7', stock_hook])
+                    cases.append({'name': name, 'pc': 'B', 'stop': ['B+7'], 'max': 30000,
+                                  'mem': mem, 'regs': {'a0': 'B+0x100', **keep},
+                                  'read': [['B+0x300', 256]],
+                                  'restore': [[hex(sym['si_ram'] + 36), word(0)], [hex(SEC_READY), word(SEC_OMEMU)],
+                                              ['0x60513db7', hook]]})
+    gate = dict(cases[1], name='section-not-ready')
+    gate['mem'] = [[a, word(SEC_NOT6) if a == hex(SEC_READY) else v] for a, v in gate['mem']]
+    cases.append(gate)
+    template = next(case for case in cases if case['name'] == '30-table1-sharp-7-off0')
+    for corrupt in (False, True):
+        record = bytearray(40)
+        struct.pack_into('<IHH', record, 0, 0x49334d4f, 1, 40)
+        struct.pack_into('<I', record, 36, 1)
+        struct.pack_into('<I', record, 8, zlib.crc32(record[12:]))
+        if corrupt:
+            record[36] ^= 2
+        case = dict(template, name='bad-record' if corrupt else 'load-at-gain')
+        case['mem'] = [[a, '00' if a == hex(sym['si_ok']) else v] for a, v in template['mem']]
+        case['mem'].append([hex(sym['SI_C']), record.hex()])
+        case['restore'] = [*template['restore'], [hex(sym['SI_C']), '00' * 40], [hex(sym['si_ok']), '00']]
+        cases.append(case)
+    for name, mode, value in (('bad-value', 0, 2), ('bad-mode', 4, 0)):
+        cases.append({'name': name, 'pc': hex(sym['vs_sv']), 'stop': ['B+7'], 'max': 200,
+                      'regs': {'d0': str(sym['VSB']), 'd1': str(mode), 'a1': str(value), 'mdr': 'B+7', **keep},
+                      'mem': [[hex(sym['si_ram']), 'a5' * 40]],
+                      'read': [[hex(sym['si_ram']), 40]],
+                      'restore': [[hex(sym['si_ram']), '00' * 40], [hex(sym['si_ok']), '00']]})
+    results = run_ncall(emu, build, d, card0, 's1 wait wait ncall', cases)
+    if isinstance(results, str):
+        return VIDEOSHARP, [results]
+    errors, nonzero = [], 0
+    for case in cases:
+        result = results[case['name']]
+        if result['steps'] >= case['max'] or int(result['regs']['pc'], 16) != int(results[cases[0]['name']]['regs']['pc'], 16):
+            errors.append(f"{case['name']}: native YC builder did not return")
+        for reg, value in keep.items():
+            if int(result['regs'][reg], 16) != int(value, 16):
+                errors.append(f"{case['name']}: caller's {reg} changed")
+        if result['regs']['sp'] != results[cases[0]['name']]['regs']['sp']:
+            errors.append(f"{case['name']}: caller's stack pointer changed")
+        if case['name'].startswith('bad-') and case['name'] != 'bad-record':
+            if int(result['regs']['d0'], 16) != 0xf0000016 or result['mem'] != ['a5' * 40]:
+                errors.append(f"{case['name']}: invalid setting was not refused without changing state")
+        elif result['mem'][0][-8:] != 'a5a5a5a5':
+            errors.append(f"{case['name']}: output guard changed")
+    for flag in flags:
+        for table in range(3):
+            for sharp in (0, -7):
+                prefix = f'{flag:x}-table{table}-sharp{sharp}'
+                stock = bytes.fromhex(results[f'{prefix}-off0']['mem'][0])
+                original = bytes.fromhex(results[f'{prefix}-off2']['mem'][0])
+                off = bytes.fromhex(results[f'{prefix}-off1']['mem'][0])
+                if original != stock:
+                    errors.append(f'{prefix}: Stock differs from the original unhooked YC output')
+                native_word, off_word = struct.unpack_from('<I', stock, 8)[0], struct.unpack_from('<I', off, 8)[0]
+                active = flag in (0x30, 0x130, 0x35, 0x40)
+                if active:
+                    nonzero += bool(native_word & 0x03ff0000)
+                    expected = bytearray(stock)
+                    struct.pack_into('<I', expected, 8, native_word & ~0x03ff0000)
+                    if off_word & 0x03ff0000 or off != expected:
+                        errors.append(f'{prefix}: Off did not clear only the gain bits')
+                elif stock != off:
+                    errors.append(f'{prefix}: saved-still or unknown class changed')
+    if not nonzero:
+        errors.append('no positive control: Stock never produced a nonzero sharpening gain')
+    if results['section-not-ready']['mem'] != results[cases[0]['name']]['mem']:
+        errors.append('section-not-ready: sharpening changed before the extension was ready')
+    expected = bytearray.fromhex(results[template['name']]['mem'][0])
+    native_word = struct.unpack_from('<I', expected, 8)[0]
+    struct.pack_into('<I', expected, 8, native_word & ~0x03ff0000)
+    if bytes.fromhex(results['load-at-gain']['mem'][0]) != expected:
+        errors.append('load-at-gain: the saved setting did not apply without first opening the menu')
+    if results['bad-record']['mem'] != results[template['name']]['mem']:
+        errors.append('bad-record: a bad settings CRC did not retain Stock sharpening')
+    return VIDEOSHARP, errors
+
+
 WB_KEYS = {'A-B': 34041, 'G-M': 38521}           # the capture's WB fine-tune reads (wb_get)
 CALL_REGS_D2_D3 = 0xc0                           # a call's register list [d2,d3]
 
@@ -2725,7 +2852,7 @@ def run_settle(emu, build, out, card0):
 
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
-          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive}
+          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive, VIDEOSHARP: run_videosharp}
 
 
 def newest_looks():
