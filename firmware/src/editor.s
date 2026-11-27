@@ -12035,6 +12035,7 @@ lg_pr:                            /* jmp from pr_ed, pr_hook's frame: as `call e
  call ck_card,[d2,d3,a2,a3],24    /* v0.30 test 9: CURVES.BIN, after el_card's films */
  call cr_hp,[d2,d3,a2,a3],20      /* crop modes: the first shutter event after an early load (crop.s) */
  call cm_hp,[d2,d3,a2,a3],24      /* k4: in P / A / S / M, their films and choice now (kept in M) */
+ call ab_clr,[d2,d3,a2,a3],20     /* #114: no COLOR 1-4 tick left in ART BKT (abkt.s) */
  call fc_hp,[d2,d3,a2,a3],24      /* Film Rolls: FILMROLL.BIN once, then the roll's ISO and film, its record (frcard.s) */
  call lg_write,[d2,d3,a2,a3],40
  call ex_live,[d2,d3,a2,a3],48    /* v0.28 pc1: the film's settings now, for the next photo's code */
@@ -23486,3 +23487,4 @@ bl_v:                             /* the value */
  .include "hbar.s"                /* wheel-hsl-view: the H / S / L bar under the colour wheel (ext15) */
  .include "stwheel.s"             /* split-tone strip w1: two small wheels and Balance on the Split toning row (ext15) */
  .include "splitrow.s"            /* the Split toning row: the Shadows / Highlights wheels on their own row (ext15) */
+ .include "abkt.s"                /* #114: COLOR 1-4 out of ART BKT (ext8) */

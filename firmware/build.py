@@ -143,7 +143,19 @@ DATA = {0x611d16c2: (bytes.fromhex('fcdc48c65461ca10'), bytes.fromhex('fcdca0ca5
         # camera-shown in w2). v0.41-a3: the hint at the camera's guide size, 50 rows (mkhbar.PAD): 400 x 114 at y 464.
         # The camera's own 175 x 50 guides, centred, sit 25 px higher than in v0.41-alpha.
         0x61451e40: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 514, 400, 64, 157, 514, 400, 64)),
-        0x61451e50: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 464, 400, 114, 157, 464, 400, 114))}
+        0x61451e50: (struct.pack('<8h', 310, 528, 180, 50, 360, 528, 180, 50), struct.pack('<8h', 116, 464, 400, 114, 157, 464, 400, 114)),
+        # #114 fix114-2 (owner, 2026-11-27: "skip them in art bracketing"): the ART BKT Setting list without COLOR 1-4.
+        # Table 0x60380070 = the list's 48 picture-mode codes (Pop Art I 0x19c .. Underwater 0x361); its two list
+        # records {0xb6 / 0xb7, table, count} at 0x6163faec / 0x6163faf8 are its only users. The four COLOR codes
+        # (0x417..0x41a) go past the end and both counts become 44; a tick left on one is cleared by ab_clr (abkt.s).
+        0x603800b6: (struct.pack('<13H', 0x417, 0x418, 0x419, 0x41a, 0x249, 0x195, 0x196, 0x197, 0x198, 0x199, 0x19a, 0x19b, 0x361),
+                     struct.pack('<13H', 0x249, 0x195, 0x196, 0x197, 0x198, 0x199, 0x19a, 0x19b, 0x361, 0x417, 0x418, 0x419, 0x41a)),
+        **{a: (struct.pack('<II', 0x60380070, 48), struct.pack('<II', 0x60380070, 44)) for a in (0x6163faf0, 0x6163fafc)},
+        # the menu's own copy (om-emu: the ART BKT Setting screen draws from this one): table 0x61529a18, its record
+        # {table, 48, next id} at 0x61529fd4, the same 48 codes in the same order
+        0x61529a5e: (struct.pack('<13H', 0x417, 0x418, 0x419, 0x41a, 0x249, 0x195, 0x196, 0x197, 0x198, 0x199, 0x19a, 0x19b, 0x361),
+                     struct.pack('<13H', 0x249, 0x195, 0x196, 0x197, 0x198, 0x199, 0x19a, 0x19b, 0x361, 0x417, 0x418, 0x419, 0x41a)),
+        0x61529fd4: (struct.pack('<II', 0x61529a18, 48), struct.pack('<II', 0x61529a18, 44))}
 # wheel-hsl-view h2: handler words in the Picture Mode screen's key state (block 0x61322da0, 16-byte entries
 # {event, GUI code, 1, handler}): Delete's press and release (stock no handler) and INFO's press (stock 0x610b3ddb).
 KEYW = {}   # picture-mode p3: Delete is the camera's again on the colour wheel (h2..p2: 0x61322f1c / 2c hb_kdel /

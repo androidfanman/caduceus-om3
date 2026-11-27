@@ -12142,3 +12142,25 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   A, Drive Single, RAW+JPEG [14]). The log (private `issue-114/owner-fix114-1-2026-11-27/`) is the next power-on's
   (event 4, 0 photos, grain tiles 0): it cannot say how far the shot got. So the xb_gs job check is not the (whole)
   cause; xb_gs on Art Filter jobs was a real gap but not what restarts the camera. Open.
+- **Owner's tries on fix114-1 (2026-11-27, camera):** RAW Data Edit of one RAW into Natural, COLOR 1-3 and an Art
+  picture mode: all five saved, no restart (the RAW-edit route alone is fine), but the COLOR 1 one (FILM 1, Grain 5) had
+  no grain (grain tiles 0; v0.29 gave grain there, 2026-11-14: open, a separate question). ART BKT with Natural +
+  Instant Film only, and with COLOR 1 only: no restart; the COLOR 1 frame came out with the camera's own COLOR 1 values
+  (no film look, no grain). No Focus Stacking in the restarts.
+- **fix114-2 (owner, 2026-11-27: "the films should have film grain ... I'd rather just skip them in art bracketing. go
+  ahead and build it"; emulator + analysis, camera test pending):** ART BKT takes no COLOR 1-4.
+  - The ART BKT Setting list (Shooting Menu 2 > 3. Bracketing > ART BKT) draws from table 0x61529a18 (48 halfword
+    picture-mode codes, Pop Art I 0x19c .. Underwater 0x361; COLOR 1-4 = 0x417..0x41a at rows 36-39), record
+    {0x61529a18, 48, next id} at 0x61529fd4 (om-emu: patching only the other copy, 0x60380070 with records 0x6163faf0
+    / 0x6163fafc, left the screen as it was). Both tables: the four COLOR codes moved past the end, counts 44 (DATA in
+    `firmware/build.py`). om-emu: Monochrome Profile 4 is followed by Color Creator; OK, wrap-around and an all-unticked
+    list (the camera allows it on its own) behave; the cursor opens at the top.
+  - A tick is setting 35668 at index = the code (the camera's generic indexed store, a word each from 0x62952724; the
+    getter 0x6041a1f9 / setter 0x60063431 as the list's wrappers 0x60419834 / 0x6041985a call them) plus, for COLOR 1-4,
+    a mirror, setting 63521 index 0..3 (a byte each from 0x62959a43; the menu writes it in the same OK). Clearing 35668
+    alone left the screen's ticks (om-emu). `abkt.s` ab_clr (ext8), from lg_pr at each shutter event: a COLOR 1-4 tick
+    in either is cleared through the camera's setter; nothing is written when none is ticked.
+  - Kept from fix114-1: xb_gs acts only on COLOR jobs.
+  - Tests: `art-bkt-color-tick-cleared-at-half-press`, `art-bkt-list-skips-color-profiles` (both beta3 `caught`).
+    Whether this stops the restart is the owner's camera test (the trigger itself is still not pinned).
+

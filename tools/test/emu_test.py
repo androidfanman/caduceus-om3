@@ -1165,6 +1165,15 @@ def ck_line(mem, card, matches, on_builtin, with_values):
             '^Curves / mix on COLOR 1-4: ' + re.escape(', '.join(words)) + '$']
 
 
+# #114 fix114-2 (owner, 2026-11-27): ART BKT takes no COLOR 1-4. The camera keeps the ART BKT ticks in setting 35668,
+# a word per picture-mode code from 0x62952724 (COLOR 1-4 = codes 0x417..0x41a), each COLOR's also in setting 63521
+# (a byte each from 0x62959a43). Shooting Menu 2 > 3. Bracketing > ART BKT > ART BKT Setting (from the menu as a blank
+# camera opens it after a half-press: Setup 1). On v0.41-beta3 the list's 36th row (down 35 from the top) is COLOR 1;
+# without COLOR 1-4 the list has 44 rows and its 36th is Color Creator (code 0x249), the row after Monochrome Profile 4.
+ABKT_TICK = lambda code: 0x62952724 + 4 * code
+ABKT_COLOR1, ABKT_CREATOR = 0x417, 0x249
+ABKT_LIST = 'menu wait' + ' right wait' * 17 + ' down wait' * 4 + ' ok wait down wait ok wait'
+ABKT_OUT = ' menu wait menu wait menu wait menu wait'
 TESTS = {
     'boot-smoke': [
         Boot('s1 wait wait poweroff', expect=[
@@ -1381,6 +1390,21 @@ TESTS = {
         Boot(f'wait wait s1 wait wait {BORDER_LINE_OFF_VIDEO} poweroff', photo_switch=PHOTO_SWITCH_VIDEO),
     ],
     # screen info: unticking Shooting Mode on Information 1 saves the mask in M and the mode icon goes after the half-press.
+    # #114 fix114-2: a COLOR 1 / COLOR 3 tick left in ART BKT (from an older build) is cleared at the half-press, both
+    # its copies (35668 and the mirror 63521); the rows without a tick stay untouched.
+    'art-bkt-color-tick-cleared-at-half-press': [
+        Boot(f'wait wait poke:{ABKT_TICK(ABKT_COLOR1):x}=01000000 poke:{ABKT_TICK(ABKT_COLOR1 + 2):x}=01000000 '
+             f'poke:62959a43=01 poke:62959a45=01 s1 wait wait '
+             f'expect:mem:{ABKT_TICK(ABKT_COLOR1):x}={"00" * 16} '
+             f'expect:mem:62959a43=00000000 expect:mem:{ABKT_TICK(0x19c):x}=01000000 poweroff'),
+    ],
+    # #114 fix114-2: the ART BKT Setting list has no COLOR 1-4 rows: its 36th row (where COLOR 1 was) is Color Creator,
+    # and OK there ticks Color Creator, not a COLOR (beta3: COLOR 1).
+    'art-bkt-list-skips-color-profiles': [
+        Boot(f's1 wait wait {ABKT_LIST}' + ' down wait' * 35 + f' ok wait'
+             f' expect:mem:{ABKT_TICK(ABKT_CREATOR):x}=01000000 expect:mem:{ABKT_TICK(ABKT_COLOR1):x}=00000000'
+             f'{ABKT_OUT} poweroff'),
+    ],
     'screen-info-hides-a-ticked-off-item': [
         Boot(f's1 wait wait {SI_MODE_ON} {SI_HIDE_MODE} {SI_MASK1} s1 wait wait {SI_MODE_OFF} poweroff'),
     ],
