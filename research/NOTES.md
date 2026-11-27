@@ -12148,7 +12148,7 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   Instant Film only, and with COLOR 1 only: no restart; the COLOR 1 frame came out with the camera's own COLOR 1 values
   (no film look, no grain). No Focus Stacking in the restarts.
 - **fix114-2 (owner, 2026-11-27: "the films should have film grain ... I'd rather just skip them in art bracketing. go
-  ahead and build it"; emulator + analysis, camera test pending):** ART BKT takes no COLOR 1-4.
+  ahead and build it"; camera-tested 2026-11-27: no restart):** ART BKT takes no COLOR 1-4.
   - The ART BKT Setting list (Shooting Menu 2 > 3. Bracketing > ART BKT) draws from table 0x61529a18 (48 halfword
     picture-mode codes, Pop Art I 0x19c .. Underwater 0x361; COLOR 1-4 = 0x417..0x41a at rows 36-39), record
     {0x61529a18, 48, next id} at 0x61529fd4 (om-emu: patching only the other copy, 0x60380070 with records 0x6163faf0
@@ -12163,4 +12163,9 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   - Kept from fix114-1: xb_gs acts only on COLOR jobs.
   - Tests: `art-bkt-color-tick-cleared-at-half-press`, `art-bkt-list-skips-color-profiles` (both beta3 `caught`).
     Whether this stops the restart is the owner's camera test (the trigger itself is still not pinned).
-
+  - **Camera result (owner, 2026-11-27, fix114-2 flashed, E1479999 6ee592ea…): "no restart happens now".** The card
+    gained one ORF and three JPEGs from one shot (RAW+JPEG, a three-picture bracket by the look of it; the settings
+    were not given). Not yet confirmed by the owner: the list without COLOR rows (om-emu shows it), and grain on a
+    normal (ART BKT off) photo.
+  - Open, separate: RAW Data Edit of a RAW with FILM 1 (Grain 5) gave no grain (camera, 2026-11-27), while v0.29 did
+    (2026-11-14). Not looked into.
