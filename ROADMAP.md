@@ -16,7 +16,7 @@ Feature parity with Caduceus for the E-P7: [docs/PARITY.md](docs/PARITY.md).
 | Feature | What it means | Status |
 |---|---|---|
 | **Films in the camera** ([#35](https://github.com/androidfanman/caduceus-om3/issues/35)) | Films, edits and Extras kept in the camera's own memory, so any SD card works. Research by iancw. | **Done (v0.29)** |
-| **Films from your own LUTs and Lightroom presets** (LookLab) | Make a film from a `.cube` LUT or a Lightroom preset; the file stays in your browser. | **Done (LookLab, 2026-11-13)** |
+| **Films from your own LUTs and Lightroom presets** (LookLab) | Make a film from a `.cube` LUT or a Lightroom preset; the file stays in your browser. Capture One styles (`.costyle`, #103) too. | **Done (LookLab, 2026-11-13; Capture One styles 2026-11-27)** |
 | **Halation** | The red glow around bright lights, its own Picture Mode row (0–5). | **Done (v0.28)** |
 | **Split toning** | Shadows and Highlights wheels in half steps, plus a Tone Balance row. | **Done (v0.28)** |
 | **Blacks / Whites grid** | One grid row, −7 to +7 each. | **Done (v0.28)** |

@@ -1,4 +1,5 @@
-// Make an OM-3 film from someone's own colour grade: a .cube LUT or a Lightroom preset (.xmp or .lrtemplate).
+// Make an OM-3 film from someone's own colour grade: a .cube LUT, a Lightroom preset (.xmp or .lrtemplate) or a
+// Capture One style (.costyle).
 // Nothing here copies the grade: it is run on a fixed set of test colours (greys, skin, sky, foliage and a ring of
 // hues at several strengths), and the camera's own settings that come closest are searched for, using the Control
 // Panel's preview, which is fitted to the OM-3 (research/film-grading/). The result is an approximation: the camera
@@ -263,6 +264,116 @@ export function lightroomExtras(p: LrPreset): { look: Partial<Look>; mapped: str
     if (!dropped.includes(label)) dropped.push(label);
   }
   if (g('ConvertToGrayscale')) dropped.unshift('Black & white (the OM-3 films are colour)');
+  return { look, mapped, dropped };
+}
+
+// ---------------------------------------------------------------- Capture One styles (#103)
+/** A Capture One style (.costyle): an XML list of `<E K="key" V="value" />` settings in an `<SL>` element. Phase One
+ *  does not publish the format; the keys used here are read from styles in the wild. Values are numbers, vectors
+ *  (`a;b;c`, e.g. Levels as R;G;B;master and Color Balance as R;G;B) or curves (`x,y;x,y;…`, 0..1). */
+export interface CoStyle { name: string; e: Record<string, string> }
+
+/** Parse a Capture One style (.costyle). */
+export function parseCaptureOne(text: string, fileName = ''): CoStyle {
+  if (!/<SL[\s>]/.test(text)) throw new Error('This is not a Capture One style (.costyle) we can read.');
+  const e: Record<string, string> = {};
+  const unq = (s: string) => s.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  for (const m of text.matchAll(/<E\s+K="([^"]*)"\s+V="([^"]*)"\s*\/?>/g)) e[m[1]] = unq(m[2]);
+  const name = (e.Name ?? fileName.replace(/\.costyle$/i, '')).trim();
+  return { name: name || 'Style', e };
+}
+
+/** The settings of a style this tool uses for the colour grade; the rest are reported as left out or mapped. */
+const C1_USED = /^(Exposure|Brightness|Contrast|Saturation|Vibrance|HighlightRecovery|HighlightRecoveryEx|ShadowRecovery|WhiteRecovery|BlackRecovery|Shadow|Highlight|Midtone|TargetShadow|TargetHighlight|GradationCurve|GradationCurveRed|GradationCurveGreen|GradationCurveBlue|GradationCurveY|ColorBalance|ColorBalanceShadow|ColorBalanceMidtone|ColorBalanceHighlight)$/;
+
+/** An approximation of what a Capture One style does to an already-rendered sRGB colour (Capture One's own maths is
+ *  not public): exposure in linear light; then High Dynamic Range (highlight / shadow / white / black recovery),
+ *  brightness and contrast; Levels (each channel, then all); the curves (RGB, then red / green / blue, then Luma);
+ *  Color Balance as gains per channel in the shadows, mid-tones and highlights; saturation. The Color Editor is not
+ *  read: its format is not published. */
+export function captureOneTransform(p: CoStyle): Transform {
+  const n = (k: string, d = 0) => { const v = Number(p.e[k]); return p.e[k] !== undefined && p.e[k] !== '' && Number.isFinite(v) ? v : d; };
+  const vec = (k: string, len: number, d: number) => {
+    const v = (p.e[k] ?? '').split(';').map(Number);
+    return v.length === len && v.every(Number.isFinite) ? v : new Array(len).fill(d);
+  };
+  const pts = (k: string): [number, number][] | undefined => {
+    const s = p.e[k];
+    if (!s) return undefined;
+    const q = s.split(';').map((xy) => xy.split(',').map(Number)).filter((a) => a.length === 2 && a.every(Number.isFinite)).map(([x, y]) => [x * 255, y * 255] as [number, number]);
+    return q.length >= 2 ? q : undefined;
+  };
+  const exp = n('Exposure'), bri = n('Brightness') / 50, con = n('Contrast') / 50, sat = n('Saturation') / 100, vib = n('Vibrance') / 100;
+  const hr = (n('HighlightRecoveryEx') || n('HighlightRecovery')) / 100, sr = n('ShadowRecovery') / 100, wr = n('WhiteRecovery') / 100, br = n('BlackRecovery') / 100;
+  // Levels: R, G, B, then the master (all channels)
+  const lvS = vec('Shadow', 4, 0), lvH = vec('Highlight', 4, 1), lvTS = vec('TargetShadow', 4, 0), lvTH = vec('TargetHighlight', 4, 1), lvM = vec('Midtone', 4, 0);
+  const level = (x: number, i: number) => {
+    const span = lvH[i] - lvS[i];
+    let y = span > 1e-4 ? clamp01((x - lvS[i]) / span) : x;
+    if (lvM[i]) y = y ** 2 ** (-2 * lvM[i]);                      // the mid-tone point, as a gamma (+ brightens)
+    return lvTS[i] + y * (lvTH[i] - lvTS[i]);
+  };
+  const lvOn = [0, 1, 2, 3].map((i) => lvS[i] !== 0 || lvH[i] !== 1 || lvTS[i] !== 0 || lvTH[i] !== 1 || lvM[i] !== 0);
+  const main = curveFn(pts('GradationCurve'));
+  const cR = curveFn(pts('GradationCurveRed')), cG = curveFn(pts('GradationCurveGreen')), cB = curveFn(pts('GradationCurveBlue'));
+  const cY = curveFn(pts('GradationCurveY'));
+  const cbM = vec('ColorBalance', 3, 1), cbS = vec('ColorBalanceShadow', 3, 1), cbMid = vec('ColorBalanceMidtone', 3, 1), cbH = vec('ColorBalanceHighlight', 3, 1);
+  const tone = (x: number) => {
+    let y = x;
+    y += 0.2 * sr * bump(y, 0.2, 0.3) - 0.2 * hr * bump(y, 0.8, 0.3) - 0.12 * wr * bump(y, 0.95, 0.2) + 0.12 * br * bump(y, 0.05, 0.2);
+    y += 0.12 * bri * bump(y, 0.5, 0.5);
+    y += con * 0.15 * Math.sin(2 * Math.PI * (y - 0.5)) * (1 - Math.abs(2 * y - 1) * 0.3);
+    return clamp01(y);
+  };
+  return (c: RGB): RGB => {
+    const lin = [dec(c[0]) * 2 ** exp, dec(c[1]) * 2 ** exp, dec(c[2]) * 2 ** exp];
+    let v: RGB = [tone(enc(clamp01(lin[0]))), tone(enc(clamp01(lin[1]))), tone(enc(clamp01(lin[2])))];
+    for (let i = 0; i < 3; i++) if (lvOn[i]) v[i] = clamp01(level(v[i], i));
+    if (lvOn[3]) v = v.map((x) => clamp01(level(x, 3))) as RGB;
+    if (main) v = v.map((x) => clamp01(main(x))) as RGB;
+    if (cR) v[0] = clamp01(cR(v[0])); if (cG) v[1] = clamp01(cG(v[1])); if (cB) v[2] = clamp01(cB(v[2]));
+    if (cY) { const y0 = luma(v), y1 = clamp01(cY(y0)); if (y0 > 1e-4) v = v.map((x) => clamp01((x * y1) / y0)) as RGB; else v = [y1, y1, y1]; }
+    // Color Balance: gains per channel, the master everywhere, the others weighted by how dark or light the colour is
+    const y = luma(v), wS = Math.max(0, 1 - y / 0.5) ** 1.5, wH = Math.max(0, (y - 0.5) / 0.5) ** 1.5, wM = 4 * y * (1 - y);
+    v = v.map((x, ch) => clamp01(x * cbM[ch] * (1 + wS * (cbS[ch] - 1)) * (1 + wM * (cbMid[ch] - 1)) * (1 + wH * (cbH[ch] - 1)))) as RGB;
+    if (sat || vib) {
+      const [h, s, val] = rgbToHsv(v);
+      let s2 = s * Math.max(0, 1 + sat);
+      s2 *= Math.max(0, 1 + vib * (1 - Math.min(1, s2)) * 1.2);
+      v = hsvToRgb(h, clamp01(s2), val);
+    }
+    return v;
+  };
+}
+
+/** What a style holds that the colour fit can't use, and what is carried over as a camera setting. */
+export function captureOneExtras(p: CoStyle): { look: Partial<Look>; mapped: string[]; dropped: string[] } {
+  const n = (k: string) => { const v = Number(p.e[k]); return Number.isFinite(v) ? v : 0; };
+  const look: Partial<Look> = {}, mapped: string[] = [], dropped: string[] = [];
+  const grain = n('FilmGrainAmount');
+  if (grain > 0) { look.film_grain = grain <= 25 ? 1 : grain <= 50 ? 2 : 3; mapped.push(`Film Grain ${grain} → Film Grain ${['', 'Low', 'Med', 'High'][look.film_grain]}`); }
+  const vig = n('VignettingAmount');
+  if (Math.abs(vig) >= 0.25) { look.vignette = Math.max(-OM3.shading, Math.min(OM3.shading, Math.round(-vig * 1.5))); mapped.push(`Vignetting ${vig} EV → Shading ${look.vignette > 0 ? '+' : ''}${look.vignette}`); }
+  const cl = n('Clarity');
+  if (cl >= 15) { look.effect = { type: 'clarity', strength: Math.max(1, Math.min(5, Math.round(cl / 20))) }; mapped.push(`Clarity ${cl} → Clarity ${look.effect.strength}`); }
+  else if (cl <= -15) { look.effect = { type: 'bloom', strength: Math.max(1, Math.min(5, Math.round(-cl / 20))) }; mapped.push(`Clarity ${cl} → Glow ${look.effect.strength}`); }
+  const known = /^(Name|UUID|StyleSource|Engine|FilmGrain\w*|Vignetting\w*|Clarity\w*|Usm\w*|Sharpening\w*|ICCProfile|FilmCurve|Orientation|Rotation)$/;
+  const labels: [RegExp, string][] = [[/^ColorCorrections/, 'Color Editor (its format is not published)'], [/^(Noise|NR|Luminance|ColorNoise)/i, 'Noise reduction'],
+    [/^(Structure|Dehaze)/, 'Structure / Dehaze'], [/^(Lens|Distortion|LightFalloff|Chromatic|Purple)/, 'Lens corrections'], [/^(BW|BlackAndWhite|Monochrome)/, 'Black & white'],
+    [/^(WhiteBalance|Kelvin|Tint)/, 'White balance']];
+  const neutral = (k: string, v: string) => {
+    const nums = v.split(/[;,]/).map(Number);
+    if (!v.trim() || !nums.every(Number.isFinite)) return false;
+    if (/^GradationCurve/.test(k)) return false;
+    return nums.every((x) => x === 0) || (/^(Highlight|TargetHighlight)$/.test(k) && nums.every((x) => x === 1));
+  };
+  for (const [k, v] of Object.entries(p.e)) {
+    if (C1_USED.test(k) || known.test(k) || neutral(k, v)) continue;
+    const l = labels.find(([re]) => re.test(k));
+    const label = l ? l[1] : k;
+    if (!dropped.includes(label)) dropped.push(label);
+  }
+  if (/^(1|true)$/i.test(p.e.BlackAndWhite ?? p.e.BWEnabled ?? '')) dropped.unshift('Black & white (the OM-3 films are colour)');
   return { look, mapped, dropped };
 }
 

@@ -56,10 +56,12 @@ COLOR) to put it back.
 ### Can I use my own presets or LUTs?
 
 Yes, as a starting point, in LookLab. Choose **From LUT / preset…** and pick a `.cube`
-LUT or a Lightroom preset (`.xmp` or the older `.lrtemplate`). LookLab finds the camera settings that come
+LUT, a Lightroom preset (`.xmp` or the older `.lrtemplate`) or a Capture One style (`.costyle`). LookLab finds the camera settings that come
 closest, shows your grade and the film side by side, and says how close they are. It's an approximation: the camera
 has 12 colour sectors, a tone curve, a WB shift and split toning, while a LUT can do much more. LUTs made for Log
-video are flagged, since they're far too strong on a photo. Your file stays on your computer.
+video are flagged, since they're far too strong on a photo. For Capture One styles the Color Editor is left out
+(its format isn't published), and Capture One ICC profiles can't be used: they describe a camera's raw colour,
+not a look on a finished photo. Your file stays on your computer.
 
 You can also have an AI assistant build a look from a photo you like with [these instructions](PHOTO_TO_LOOK.md).
 

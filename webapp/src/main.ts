@@ -29,7 +29,7 @@ import { CAMERA_FILMS, FILMS, FILM_GROUPS, filmLook, filmOf, type Film, type Fil
 import { parseLook } from './pack';
 import { base as rollBase, drawGroups, film as rollFilm } from './rollart';
 import { ROLL_ISOS, ROLL_NAME_MAX, ROLL_SWATCHES, cleanRollName, defaultRoll, hexRgb, rollOf, rollTooBig, rollartBin, shelfOf, type Roll } from './rollshelf';
-import { cubeApply, fitLook, lightroomExtras, lightroomTransform, looksLikeLog, parseCube, parseLightroom, type RGB, type Transform } from './convert';
+import { captureOneExtras, captureOneTransform, cubeApply, fitLook, lightroomExtras, lightroomTransform, looksLikeLog, parseCaptureOne, parseCube, parseLightroom, type RGB, type Transform } from './convert';
 // ---------------------------------------------------------------- state
 const LIBRARY = parsePack(libraryJson);
 // The colour-frames test photo first, then public-domain (CC0) photos picked for skin, strong colour, greens, blues,
@@ -227,7 +227,7 @@ function shell() {
         ]),
         h('button', { onclick: openFile, title: 'The card\'s OM3MOD/LOOKS.BIN (pick its CURVES.BIN with it to keep each film\'s curves and colour mix), a looks file, or one look\'s .json (LookLab\'s own, or a recipe with the photo code)' }, 'Open…'),
         h('button', { onclick: () => om3FilmPicker(), title: 'Add film simulations to your films' }, 'Film sims'),
-        h('button', { onclick: () => $<HTMLInputElement>('#grade').click(), title: 'Make a film from your own .cube LUT or Lightroom preset (.xmp, .lrtemplate)' }, 'From LUT / preset…'),
+        h('button', { onclick: () => $<HTMLInputElement>('#grade').click(), title: 'Make a film from your own .cube LUT, Lightroom preset (.xmp, .lrtemplate) or Capture One style (.costyle)' }, 'From LUT / preset…'),
         h('button', { onclick: pasteDialog, title: 'Open a shared look or looks link' }, 'Paste link'),
         h('button', { onclick: om3Share }, 'Share looks'),
         h('button', { onclick: om3InstallDialog }, 'Install firmware'),
@@ -242,9 +242,9 @@ function shell() {
         h('a', { href: '../' }, 'Tour'), h('a', { href: '../pages/install/' }, 'Install'), h('a', { href: '../pages/faq/' }, 'FAQ'),
         h('a', { href: './samples/CREDITS.md', target: '_blank', rel: 'noopener' }, 'Image credits'))),
     h('div', { id: 'toast', class: 'toast', role: 'status', 'aria-live': 'polite' }),
-    h('input', { type: 'file', id: 'file', multiple: true, accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnFile }),
+    h('input', { type: 'file', id: 'file', multiple: true, accept: '.json,application/json,.bin,.BIN,.jpg,.JPG,.jpeg,image/jpeg,.cube,.CUBE,.xmp,.XMP,.lrtemplate,.costyle', hidden: true, onchange: om3OnFile }),
     h('input', { type: 'file', id: 'photo', accept: 'image/*', multiple: true, hidden: true, onchange: onPhoto }),
-    h('input', { type: 'file', id: 'grade', accept: '.cube,.CUBE,.xmp,.XMP,.lrtemplate', hidden: true, onchange: om3OnGradeFile }));
+    h('input', { type: 'file', id: 'grade', accept: '.cube,.CUBE,.xmp,.XMP,.lrtemplate,.costyle', hidden: true, onchange: om3OnGradeFile }));
   buildPreview();
   // owner 2026-11-13: the film list is as tall as the preview and scrolls on its own
   const listPane = $<HTMLElement>('#list'), pvPane = $<HTMLElement>('#preview');
@@ -1908,7 +1908,7 @@ async function om3OnFile(e: Event) {
   for (const { f, bytes } of read) await om3OpenOne(f, bytes);
 }
 async function om3OpenOne(f: File, bytes: Uint8Array) {
-  if (/\.(cube|xmp|lrtemplate)$/i.test(f.name)) { await gradeDialog(f); return; }
+  if (/\.(cube|xmp|lrtemplate|costyle)$/i.test(f.name)) { await gradeDialog(f); return; }
   const magic = bytes.length >= 4 ? String.fromCharCode(...bytes.subarray(0, 4)) : '';
   try {
     if (magic === 'OM3P') { const bk = readProfiles(bytes, om3Fw28()); replaceBank(bk, `Opened ${f.name} (${bk.flat().filter(Boolean).length} looks)`); return; }
@@ -1953,7 +1953,7 @@ function freeFilm(): { k: number; v: number } | null {
   return any >= 0 ? { k: Math.floor(any / PER), v: any % PER } : null;
 }
 
-/** A film from the user's own .cube LUT or Lightroom preset: the camera settings that come closest (src/convert.ts),
+/** A film from the user's own .cube LUT, Lightroom preset or Capture One style (#103): the camera settings that come closest (src/convert.ts),
  *  previewed next to the grade itself on the current photo. The file stays in the browser. */
 async function gradeDialog(f: File) {
   const text = await f.text();
@@ -1966,6 +1966,11 @@ async function gradeDialog(f: File) {
       tf = (c) => cubeApply(cube, c); kind = 'LUT'; title = cube.title || f.name.replace(/\.cube$/i, '');
       if (looksLikeLog(`${cube.title} ${f.name}`, tf)) warn.push(h('p', { class: 'warn' }, h('b', {}, 'This LUT looks made for Log video. '),
         'It expects flat Log footage, not a finished photo, so on a camera JPEG it is far too strong. The film below follows it anyway: use a LUT made for normal (Rec.709 / sRGB) pictures for a good result.'));
+    } else if (/\.costyle$/i.test(f.name) || /<SL[\s>]/.test(text.slice(0, 400))) {
+      const p = parseCaptureOne(text, f.name);
+      tf = captureOneTransform(p); kind = 'Capture One style'; title = p.name;
+      extras = captureOneExtras(p);
+      if (Object.keys(p.e).length === 0) throw new Error('This style has no settings.');
     } else {
       const p = parseLightroom(text, f.name);
       tf = lightroomTransform(p); kind = 'Lightroom preset'; title = p.name;
