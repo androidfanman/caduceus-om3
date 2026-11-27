@@ -12,7 +12,7 @@
  .set AB_MIR, 63521               /* its mirror (index = code - AB_C1 for COLOR 1-4) */
  .set AB_C1, 0x417                /* COLOR 1's picture-mode code; COLOR 2-4 follow */
 
-.section .ext8,"ax"
+.section .ext6,"ax"                /* section 6's tail: loaded with lg_pr's code (static:section-order) */
 ab_clr:                           /* `call ab_clr,[d2,d3,a2,a3],20` from lg_pr (HLS_EVENT task, each shutter event) */
  mov AB_C1,d2
 1:
@@ -44,15 +44,9 @@ ab_clr:                           /* `call ab_clr,[d2,d3,a2,a3],20` from lg_pr (
  mov d3,a1
  mov AB_MIR,d0
  call AB_SET,[d2,d3,a2,a3],40
- movbu (ab_n),d0                  /* how many were cleared (om-emu test; not in the log) */
- add 1,d0
- movbu d0,(ab_n)
 3:
  add 1,d2
  cmp AB_C1 + 4,d2
  bne 1b
  ret [d2,d3,a2,a3],20
 
- .balign 4
-ab_n:
- .byte 0

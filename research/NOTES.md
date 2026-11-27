@@ -12158,7 +12158,7 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   - A tick is setting 35668 at index = the code (the camera's generic indexed store, a word each from 0x62952724; the
     getter 0x6041a1f9 / setter 0x60063431 as the list's wrappers 0x60419834 / 0x6041985a call them) plus, for COLOR 1-4,
     a mirror, setting 63521 index 0..3 (a byte each from 0x62959a43; the menu writes it in the same OK). Clearing 35668
-    alone left the screen's ticks (om-emu). `abkt.s` ab_clr (ext8), from lg_pr at each shutter event: a COLOR 1-4 tick
+    alone left the screen's ticks (om-emu). `abkt.s` ab_clr (ext6, section 6's tail: static:section-order refused ext8), from lg_pr at each shutter event: a COLOR 1-4 tick
     in either is cleared through the camera's setter; nothing is written when none is ticked.
   - Kept from fix114-1: xb_gs acts only on COLOR jobs.
   - Tests: `art-bkt-color-tick-cleared-at-half-press`, `art-bkt-list-skips-color-profiles` (both beta3 `caught`).

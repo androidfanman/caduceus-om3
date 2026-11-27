@@ -23487,4 +23487,4 @@ bl_v:                             /* the value */
  .include "hbar.s"                /* wheel-hsl-view: the H / S / L bar under the colour wheel (ext15) */
  .include "stwheel.s"             /* split-tone strip w1: two small wheels and Balance on the Split toning row (ext15) */
  .include "splitrow.s"            /* the Split toning row: the Shadows / Highlights wheels on their own row (ext15) */
- .include "abkt.s"                /* #114: COLOR 1-4 out of ART BKT (ext8) */
+ .include "abkt.s"                /* #114: COLOR 1-4 out of ART BKT (ext6) */
