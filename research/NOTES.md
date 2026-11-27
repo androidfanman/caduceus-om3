@@ -12201,3 +12201,10 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   Tests `grid-cross-centre-lines`, `grid-ticks-short-marks` (`--without` beta3 + #114: both caught).
 - Not checked: every other reader of 155 / 2047 (about 150 code sites load the ids); om-emu showed no trouble in
   live view, menus, a power-off with Ticks saved, XPan and video. Viewfinder and the camera itself: camera test.
+- **Camera, framing-lines-1 (owner, 2026-11-27):** "I can view them, however the crosses are slightly off center to
+  the left". Cause: cx = x0 + (x1 - x0) / 2 rounds down; the camera's own thirds sit at 300 / 600 on a 0..899 picture
+  (3:2, 16:9 and the crops' 16:9 base, the viewfinder's 14..1009 at 344 / 680), so the middle is 450 (512), not 449
+  (511); likewise y (0..599: thirds 199 / 400, middle 300, not 299). 4:3 (50..850) was right. **framing-lines-2:**
+  (x1 - x0 + 1) / 2 and (y1 - y0 + 1) / 2, the lines halfway between the thirds everywhere; om-emu XPan x 449..450,
+  4:3 y 299..300. `grid-cross-centre-lines` now checks x 450 at XPan (`--without` framing-lines-1: caught).
+

@@ -28,14 +28,16 @@ fg_ln:
  bcs 9f
  cmp 12,d0
  bcc 9f
- movhu (0,a3),d1                  /* cx = x0 + (x1 - x0) / 2 */
- movhu (2,a3),d3
- sub d1,d3
+ movhu (0,a3),d1                  /* cx = x0 + (x1 - x0 + 1) / 2: halfway between the camera's thirds (3:2 0..899 */
+ movhu (2,a3),d3                  /* -> 450, between 300 and 600; framing-lines-2, owner: "slightly off center to */
+ sub d1,d3                        /* the left" with (x1 - x0) / 2 = 449) */
+ inc d3
  lsr 1,d3
  add d3,d1
- movhu (4,a3),d2                  /* cy = y0 + (y1 - y0) / 2 */
+ movhu (4,a3),d2                  /* cy = y0 + (y1 - y0 + 1) / 2 (0..599 -> 300, between 199 and 400) */
  movhu (6,a3),d3
  sub d2,d3
+ inc d3
  lsr 1,d3
  add d3,d2
  mov a2,a0
