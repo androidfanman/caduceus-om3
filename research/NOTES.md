@@ -12223,3 +12223,11 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
     CV_WRK (0x60fa3000): the build stops (vf_end 0x60fa4000). The work (fg_ic, xblock xb_fgs / fgpics.inc, entries
     type 3, the words dropped) is kept as a patch in the private folder (`framing-lines-104/icons-wip-on-7d324fe.patch`).
     Room would come from the GX5 probe (section 4 +296,960 B, firmware-space session, camera test pending).
+- **framing-lines-3 (2026-11-27, after GX5's camera result; owner had said "Wait for GX5 space"):** the icons in
+  section 4's gap: `.ext16` at 0x60a8f800 (fg_ent, 2 descriptors <6H3I> as crop.py's with the stream's uncached address,
+  the two type-11 streams; 744 B), section 4's end word 0x60045e94 raised 0x60a8f800 -> 0x60a90000 (gridlines.place_s4,
+  stock word and all-FF gap checked first, as the GX5 build; GX5 proved up to 0x60ad8000, one camera session). The list
+  entries are type 3, pictures IC_FG0 0x7fcd / 0x7fce (crop.s cr_ic -> fg_ic -> ic_get); the words "Cross" / "Ticks"
+  and fg_str are gone. om-emu: the icons in the list at x 662..705 (as the camera's own) and as the row's value, from
+  switch-on; patch-audit pass. Test `grid-list-shows-cross-and-ticks-icons` (`--without` framing-lines-2: caught).
+  The icons stay white when their row is highlighted (the camera's own may change colour: camera test).

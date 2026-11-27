@@ -352,6 +352,8 @@ def build(defaults, testfile, out):
     (out / 'rgbpics.inc').write_text('\n'.join(rg) + '\n')
     (out / 'rgbpics2.inc').write_text('\n'.join(rg2) + '\n')
     (out / 'mixtab.inc').write_text('\n'.join(rgbpics.mixtables()) + '\n')   # colour mix: the Mix page's tables
+    import gridlines                          # #104 framing-lines-3: the Cross / Ticks list pictures (.ext16)
+    (out / 'fgpics.inc').write_text(gridlines.pics_inc())
     (out / 'films.inc').write_text('.balign 4\nfl_top:\n' + db(mkicons.pack4(mkicons.film_top())) + 'fl_tops:\n' +
                                    db(mkicons.pack4(mkicons.film_top(True))) + 'fl_dig:\n' +
                                    ''.join(db(mkicons.pack4(d)) for d in digs) +
@@ -378,7 +380,7 @@ def build(defaults, testfile, out):
     subprocess.run([P.AS, '-I', out, '-I', HERE / 'src', '-o', out / 'p.o', HERE / 'src' / 'editor.s'], check=True)
     subprocess.run([P.LD, '-T', HERE / 'src' / 'editor.ld', '-o', out / 'p.elf', out / 'p.o'], check=True)
     blobs = {}
-    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13', '.ext14', '.ext15']:
+    for s in list(HOOKS) + ['.ext1', '.ext4', '.ext10', '.ext6', '.ext5', '.ext3', '.ext8', '.ext9', '.ext2', '.ext7', '.ext11', '.ext12', '.ext13', '.ext14', '.ext15', '.ext16']:
         subprocess.run([P.OBJCOPY, '-O', 'binary', '-j', s, out / 'p.elf', out / (s[1:] + '.bin')], check=True)
         blobs[s] = (out / (s[1:] + '.bin')).read_bytes()
     raw = Path(P.STOCK).read_bytes()
@@ -496,6 +498,7 @@ def build(defaults, testfile, out):
     m[o(EXT15[0]):o(EXT15[0]) + len(b15)] = b15
     import gridlines                     # #104 framing lines: Cross / Ticks in the Displayed Grid lists (after ext15: its list is there)
     gridlines.apply(m, o, sy, log=lambda t: print(t, file=sys.stderr))
+    gridlines.place_s4(m, o, blobs['.ext16'], log=lambda t: print(t, file=sys.stderr))   # framing-lines-3: section 4's gap (GX5)
     # v0.23 new Picture Mode choice rows (Noise Filter, Shading Comp.): the item table (17 x 40 B at 0x6154c2a8) -> it_tab
     # (the stock 17, then our 4), at both lookups (mov table,a0 ... cmp 17,d1); the rows join the column's 9 row switches
     IT = 0x6154c2a8

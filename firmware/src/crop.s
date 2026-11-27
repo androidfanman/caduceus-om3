@@ -844,7 +844,7 @@ cr_ic:                            /* d0 = the id, d1 = its exthu (ar_ic); a0 <- 
 9:
  mov d0,d1                        /* as ar_ic left it */
  exthu d1
- jmp ic_get
+ jmp fg_ic                        /* #104 framing-lines-3: the Cross / Ticks pictures (gridlines.s), then ic_get */
 cr_str:                           /* st_get's frame, d0 = the id: a0 <- our UTF-16 string, ret [d2],8 as st_get */
  cmp CR_ST0,d0
  bcs 1f

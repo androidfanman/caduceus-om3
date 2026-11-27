@@ -1526,6 +1526,14 @@ TESTS = {
              'expect:pxsame:450,150,470,150 expect:pxdiff:70,299,70,320 expect:pxsame:200,299,200,320 poweroff'),
         Boot('wait wait s1 wait wait expect:pxdiff:450,20,470,20 expect:pxsame:450,150,470,150 poweroff'),
     ],
+    # #104 framing-lines-3: the Displayed Grid list draws our pictures for Cross / Ticks (44 x 34 at x 662..705, as the
+    # camera's own icons), from switch-on (no half-press first). Cross (the list's top row, y 91..124): its upright at
+    # x 683, a gap at x 673; Ticks (next row, y 123..156): the centre cross at y 140, nothing at y 132.
+    'grid-list-shows-cross-and-ticks-icons': [
+        Boot('wait wait menu wait left wait ok wait down wait ok wait' + ' down wait' * 7 +
+             ' expect:pxdiff:683,100,673,100 expect:pxdiff:673,107,673,100 expect:pxdiff:683,140,683,132 menu wait menu wait'
+             ' menu wait poweroff'),
+    ],
     'crop-grid-thirds-in-the-xpan-strip': [
         Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait {GRID_THIRDS} '
              'expect:pxdiff:300,300,310,300 expect:pxsame:300,120,310,120 expect:pxdiff:450,243,450,250 poweroff'),

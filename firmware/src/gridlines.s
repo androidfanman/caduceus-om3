@@ -1,11 +1,12 @@
 /* Framing lines (#104, 2026-11-27): two more choices in the camera's Displayed Grid list, 10 "Cross" (a centre line
  * each way) and 11 "Ticks" (short marks at the middle of each edge and a small centre cross). firmware/gridlines.py
  * adds them to the lists (validators of 155 / 2047, the Displayed Grid menu records); the movie grid (446) is left
- * alone. The grid builders look the value up (0x611c78c7) and miss, as for a Border's value, so bl_tail (editor.s)
+ * alone. framing-lines-3: the rows show our pictures, IC_FG0 + 0 / 1 (fg_ic; framing-lines-1/2: the words "Cross" /
+ * "Ticks"), in .ext16 (section 4's GX5-proven gap). The grid builders look the value up (0x611c78c7) and miss, as for a Border's value, so bl_tail (editor.s)
  * takes them and jumps here with the picture's place in bl_q (a crop's strip, after cr_gx). Lines go in bl_r's first
  * slots; a Border's frame follows in the slots left (with a Border, Ticks keeps only its centre cross).
  * research/NOTES.md "Framing lines (#104)". */
- .set ST_FG0, 0x7f75              /* our strings: "Cross", "Ticks" (st_get chain: si_str -> fg_str -> cr_str) */
+ .set IC_FG0, 0x7fcd              /* framing-lines-3: their list pictures (after crop's CR_IC0 + 0..8; DG0 is 0x7fd0) */
 
 .section .ext1,"ax"
 fg_v155:                          /* validator list of 155 (stock 0, 5, 6, 1, 7, 8, 9 at 0x60616713) + 10, 11 */
@@ -120,22 +121,24 @@ fg_ln:
  movhu d0,(40,a0)
  jmp bl_cg2
 
-.section .ext13,"ax"                /* beside si_str (the string chain stays in section 6) */
-/* fg_str <- jmp from si_str (st_get's frame, ret [d2],8; d0 the id): our two names, else on to crop.s cr_str. */
-fg_str:
- cmp ST_FG0,d0
- bne 1f
- mov fg_s0,a0
- ret [d2],8
-1:
- cmp ST_FG0 + 1,d0
- bne 2f
- mov fg_s1,a0
- ret [d2],8
-2:
- jmp cr_str
- .balign 2
-fg_s0:
- .short 67, 114, 111, 115, 115, 0  /* "Cross" */
-fg_s1:
- .short 84, 105, 99, 107, 115, 0   /* "Ticks" */
+.section .ext13,"ax"
+/* fg_ic <- jmp from crop.s cr_ic's end (the picture getter's frame: d0 the id, d1 its exthu; a0 <- &descriptor word,
+ * retf as ar_ic): IC_FG0 + k -> fg_ent word k, else ic_get. */
+fg_ic:
+ cmp IC_FG0,d1
+ bcs 9f
+ cmp IC_FG0 + 2,d1
+ bcc 9f
+ add -IC_FG0,d1
+ asl2 d1
+ mov fg_ent,a0
+ add d1,a0
+ retf [],0
+9:
+ jmp ic_get
+
+.section .ext16,"ax"                /* section 4's gap (GX5): data only, read by the GUI (section 7) */
+ .balign 4
+fg_ent:
+ .long fg_d0, fg_d1
+ .include "fgpics.inc"            /* fg_d0 / fg_d1 descriptors and fg_p0 / fg_p1 streams (gridlines.py pics_inc) */
