@@ -12165,7 +12165,7 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
     Whether this stops the restart is the owner's camera test (the trigger itself is still not pinned).
   - **Camera result (owner, 2026-11-27, fix114-2 flashed, E1479999 6ee592ea…): "no restart happens now".** The card
     gained one ORF and three JPEGs from one shot (RAW+JPEG, a three-picture bracket by the look of it; the settings
-    were not given). Not yet confirmed by the owner: the list without COLOR rows (om-emu shows it), and grain on a
-    normal (ART BKT off) photo.
+    were not given). Owner, the same day: COLOR 1-4 are gone from the list, and films with ART BKT off keep their grain
+    (camera). Owner: "yes lets add this to the next release".
   - Open, separate: RAW Data Edit of a RAW with FILM 1 (Grain 5) gave no grain (camera, 2026-11-27), while v0.29 did
     (2026-11-14). Not looked into.
