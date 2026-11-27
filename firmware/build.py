@@ -58,6 +58,7 @@ HOOKS = {'.hook_color': (0x60518615, bytes.fromhex('cd6cfdf060')),
          '.hook_nr1': (0x603c8038, bytes.fromhex('dd48b3c9ffc00c')),
          '.hook_nr2': (0x603e7891, bytes.fromhex('ddefbac7ffc00c')),
          '.hook_sh': (0x603e767f, bytes.fromhex('dd01bdc7ffc00c')),   # v0.22 Sharp: capture Sharpness read (key 0x8119)
+         '.hook_vs': (0x60513db7, bytes.fromhex('f87404dff058')),      # final YC gain store and return; preserves saved stills
          '.hook_cl': (0x604955f1, bytes.fromhex('dd48790900a00c')),
          '.hook_rng': (0x611d1041, bytes.fromhex('dd29599bff0004' '8007' 'ca16')),   # v0.23: the Sharpness slider bar's ends
          '.hook_dot': (0x611d10fb, bytes.fromhex('5c08' 'f1d9' 'fb019b00')),
@@ -861,13 +862,17 @@ def build(defaults, testfile, out):
         recs_ = bytes(m[o(rows):o(rows) + 28 * 4])
         assert all(struct.unpack_from('<IHHI', recs_, 28 * k)[1:4:2] == (4, TICK) for k in range(4))
         new = recs_ + b''.join(struct.pack('<IHHI16x', SIB + 32 * pg + k, 4, SI_LABELS[k], TICK) for k in SI_ROWS)
+        if pg == 0:
+            new += struct.pack('<IHHI16x', sy['VSB'], 4, sy['ST_VS'], TICK)
         put('si_rows%d' % pg, 'si_rows%d' % (pg + 1) if pg < 2 else 'si_rend', new)
-        struct.pack_into('<2I', m, o(ent) + 4, sy['si_rows%d' % pg], 4 + SIK)
+        struct.pack_into('<2I', m, o(ent) + 4, sy['si_rows%d' % pg], 4 + SIK + (pg == 0))
         rp, nr = u32(mrec + 4, 2)
         assert u32(mrec)[0] == mode and nr == 4 and struct.unpack_from('<4H', m, o(rp)) == order, hex(mrec)
-        put('si_ord%d' % pg, 'si_ord%d' % (pg + 1) if pg < 2 else 'si_end',
-            struct.pack('<4H', *order) + struct.pack('<%dH' % SIK, *(SIB + 32 * pg + k for k in SI_ROWS)))
-        struct.pack_into('<2I', m, o(mrec) + 4, sy['si_ord%d' % pg], 4 + SIK)
+        new_order = struct.pack('<4H', *order) + struct.pack('<%dH' % SIK, *(SIB + 32 * pg + k for k in SI_ROWS))
+        if pg == 0:
+            new_order += struct.pack('<H', sy['VSB'])
+        put('si_ord%d' % pg, 'si_ord%d' % (pg + 1) if pg < 2 else 'si_end', new_order)
+        struct.pack_into('<2I', m, o(mrec) + 4, sy['si_ord%d' % pg], 4 + SIK + (pg == 0))
     a = 0x6139e26c + 16 * 1                                         # picker title icon 1
     assert u32(a, 4) == (0xffff, 7, 7, 1), hex(a)
     struct.pack_into('<I', m, o(a) + 12, DEL_IC)

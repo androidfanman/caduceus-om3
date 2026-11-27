@@ -251,6 +251,12 @@ si_wr:
 /* si_bit: d0 = one of our ids -> a0 = its mask's address, d1 = its bit (1 << k), or d1 = 0 (no such item). Uses
  * d0, d1, a0. */
 si_bit:
+ cmp VSB,d0
+ bne 1f
+ mov si_ram + 36,a0
+ mov 1,d1
+ ret [],0
+1:
  exthu d0
  add -SIB,d0
  mov d0,d1
@@ -287,6 +293,11 @@ si_get:
 2:
  mov 1,d0                         /* shown */
 1:
+ mov (12,sp),d1
+ cmp VSB,d1
+ bne 3f
+ xor 1,d0                        /* the new tick is Off when checked, unlike the display's shown tick */
+3:
  mov (4,sp),a1
  mov d0,(a1)
  mov (8,sp),d0
@@ -299,6 +310,10 @@ si_get:
  * facade. Ours: mode 0 sets a1 (1 shown / 0 hidden), modes 1 / 2 / 3 (the tick rows' OK sends 3) toggle; d0 0. The
  * stock SetValue would refuse our ids (its id check at 0x60ae9c08) and never reach .hook_set. Anything else: stock. */
 si_sv:
+ cmp VSB,d0
+ bne 0f
+ jmp vs_sv
+0:
  cmp SIB,d0
  bcs 1f
  cmp SIB + SI_N,d0
@@ -306,6 +321,7 @@ si_sv:
 1:
  jmp si_sv0
 2:
+si_sv2:
  add -16,sp                       /* (0) call slot, (4) MDR */
  mov d0,(8,sp)
  mov mdr,d0
@@ -330,6 +346,12 @@ si_put:
  mov d1,d2                        /* the value */
  mov d0,d3                        /* the id */
  call si_ld,[d2,d3,a2,a3],20
+ cmp VSB,d3
+ bne 0f
+ cmp -1,d2
+ beq 0f
+ xor 1,d2                        /* VSB 1 means Off; si_put's existing bit convention is 0 hidden */
+0:
  mov d3,d0
  call si_bit,[],0
  cmp 0,d1
@@ -383,8 +405,12 @@ si_dfl:                           /* <- facade +156 word 0x60e57510 (build.py; w
 si_def:
  cmp 0,a1
  beq 1f
- mov 1,d0
- mov d0,(a1)
+ mov 1,d1
+ cmp VSB,d0
+ bne 2f
+ clr d1
+2:
+ mov d1,(a1)
  clr d0
  rets
 1:
@@ -399,8 +425,10 @@ si_ok:
 si_pend:
  .byte 0
  .balign 4
+.section .ext15,"ax"               /* the added menu row exceeded .ext12; these rebuilt lists stay in section 6 */
+ .balign 4
 si_rows0:                         /* build.py: the pages' item records (28 B: the stock four, then ours) */
- .space 28 * (4 + SI_K)
+ .space 28 * (5 + SI_K)
 si_rows1:
  .space 28 * (4 + SI_K)
 si_rows2:
@@ -411,7 +439,7 @@ si_rend:
 .section .ext11,"ax"               /* s3: .ext12 is full (v0.40-beta); the row lists sit in .ext11's tail */
  .balign 4
 si_ord0:                          /* build.py: the pages' row lists (u16 setting ids) */
- .space 2 * (4 + SI_K)
+ .space 2 * (5 + SI_K)
 si_ord1:
  .space 2 * (4 + SI_K)
 si_ord2:

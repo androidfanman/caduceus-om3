@@ -3005,6 +3005,11 @@ gr_lc:
 /* st_get <- jmp from the string getter 0x610f56a6 (its frame: `call ..,[d2],8`; d0 id -> a0 the UTF-16 string):
  * our own strings, else as stock (language index 0x610f56bd, then the table lookup at 0x610f56ac). */
 st_get:
+ cmp ST_VS,d0
+ bne 47f
+ mov vs_title,a0
+ ret [d2],8
+47:
  cmp ST_RZT,d0                    /* Halation Radius: its strings (hrrow.s rz_str) */
  bcs 48f
  cmp ST_RZS + 4,d0
@@ -23397,3 +23402,4 @@ bl_v:                             /* the value */
  .include "playfilm.s"            /* #93: playback labels a photo by the film in its own Exif (ext13) */
  .include "hradius.s"             /* Halation Radius: Tight / Medium / Wide beside Bloom (ext14) */
  .include "hrrow.s"               /* Halation Radius: its row on COLOR 1-4 (ext14) */
+ .include "videosharp.s"

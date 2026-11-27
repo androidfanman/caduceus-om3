@@ -1,5 +1,9 @@
 <h1 align="center">Caduceus for OM-3</h1>
 
+> **Experimental branch:** adds a global Video Sharpening Off menu toggle. This is not a released or
+> camera-tested firmware. Menu/persistence and native parameter tests are described in
+> [Using it](docs/USING.md#experimental-video-sharpening-off).
+
 <p align="center"><strong>Film looks and a color editor, built into the OM SYSTEM OM-3.</strong></p>
 
 <p align="center">
