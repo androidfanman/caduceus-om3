@@ -12231,3 +12231,18 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   and fg_str are gone. om-emu: the icons in the list at x 662..705 (as the camera's own) and as the row's value, from
   switch-on; patch-audit pass. Test `grid-list-shows-cross-and-ticks-icons` (`--without` framing-lines-2: caught).
   The icons stay white when their row is highlighted (the camera's own may change colour: camera test).
+
+## v0.41-beta4 (2026-11-27): framing lines (#104) and the #114 fix as a test version
+- **Owner (2026-11-27):** "card loaded. Everything looks good. Lets release the gridlines, #114 fix and stuff to a .41
+  beta 4 release" (after the camera test of framing-lines-3, E1479999 5027329e…).
+- `try/v0.41-beta4` = `feature/framing-lines-104` a3d2061 (framing-lines-3 = v0.41-beta3 + fix114-2 + Cross / Ticks
+  with icons in .ext16) with VERSION `v0.41-b4 (beta 4: b3 + #114 fix + framing lines)`, the same length as before:
+  E1479999.BIN differs from framing-lines-3's in 44 bytes (the name, the Firmware Version page's "0.41-b4", the tags /
+  CRCs that follow); FILMROLL.BIN in 3 (its tag).
+- **Build:** E1479999.BIN `d4f08c43…8b52`, two clean builds match; `firmware/patch.py --release v0.41-beta4` makes the
+  same file. FILMROLL.BIN `e261159e…b4d2` (this firmware's); ROLLART / SCREENS / WINDOW, CURVES.BIN, LOOKS.BIN,
+  DEBUG.TXT and the photo code kit as v0.41-beta3.
+- Not in it: `feature/firmware-space` (.ext16 / .ext17 opened in full; owner: not now). Section 4's end word is only
+  raised to 0x60a90000 here (the icons, 744 B).
+- Open: RAW Data Edit of a FILM 1 (Grain 5) RAW gave no grain (camera, 2026-11-27, on fix114-1); not yet known whether
+  v0.41-beta3 does the same.

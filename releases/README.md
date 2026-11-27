@@ -5,6 +5,7 @@ card files it needs, the expected checksums, and short notes. No OM firmware is 
 
 | Version | What's new | Status |
 |---|---|---|
+| [v0.41-beta4](v0.41-beta4/NOTES.md) | Test version: v0.41-beta3 plus Cross and Ticks in Displayed Grid (#104) and the ART BKT restart fix (#114: ART BKT no longer offers COLOR 1-4) | Test version (pre-release), camera-tested |
 | [v0.41-beta3](v0.41-beta3/NOTES.md) | Test version: v0.41-beta2 plus the C5 fixes: C5 brings back its own films at a dial turn (#116, #117), follows Save Settings: Hold, and gets Color Mix, the RGB curves and Film Rolls | Test version (pre-release), camera-tested |
 | [v0.41-beta2](v0.41-beta2/NOTES.md) | Test version: v0.41-beta plus Film Rolls (shoot a roll of 24, 36 or 72 exposures; turned on by its `FILMROLL` folder), XPan kept after a half-press at start-up (#105), and Remaining Movie Time as its own screen-info row | Test version (pre-release), camera-tested |
 | [v0.41-beta](v0.41-beta/NOTES.md) | Test version: v0.41-alpha cleaned up (INFO hints on the two bars, only the bar on Split toning's Balance, one INFO guide style) plus the photo code om3.2 (RGB curves, Color Mix, Film Grain strength and Grain Size in each photo's code) | Test version (pre-release), camera-tested |
@@ -68,5 +69,5 @@ the launchers never copy them to the card.
 **v0.28-alpha** is a test version: it is published by hand as a GitHub pre-release from `feature/v0.28-halation`
 (not from `main`), and the launchers in its download make it by default. **v0.29-beta** is published the same way from
 `feature/films-in-camera`; it has no card files (they are built into the firmware). **v0.30.4-alpha** likewise from
-`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`, **v0.40.3-beta** from `try/v0.40.3-beta`, **v0.40.3-beta2** from `try/v0.40.3-beta2`, **v0.40.3-beta3** from `try/v0.40.3-beta3`, **v0.40.3-beta4** from `try/v0.40.3-beta4`, **v0.41-alpha** from `try/v0.41-alpha`, **v0.41-beta** from `try/v0.41-beta`, **v0.41-beta2** from `try/v0.41-beta2`, and **v0.41-beta3** from `try/v0.41-beta3`.
+`try/v0.30.4`, **v0.40-alpha** from `try/v0.40-alpha`, **v0.40-beta**, **v0.40-beta2** and **v0.40-beta3** from `try/v0.40-beta`, **v0.40.3-beta** from `try/v0.40.3-beta`, **v0.40.3-beta2** from `try/v0.40.3-beta2`, **v0.40.3-beta3** from `try/v0.40.3-beta3`, **v0.40.3-beta4** from `try/v0.40.3-beta4`, **v0.41-alpha** from `try/v0.41-alpha`, **v0.41-beta** from `try/v0.41-beta`, **v0.41-beta2** from `try/v0.41-beta2`, **v0.41-beta3** from `try/v0.41-beta3`, and **v0.41-beta4** from `try/v0.41-beta4`.
 See [CHANGELOG.md](../CHANGELOG.md) for the full history.
