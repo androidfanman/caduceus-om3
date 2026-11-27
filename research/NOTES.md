@@ -12208,3 +12208,18 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   (x1 - x0 + 1) / 2 and (y1 - y0 + 1) / 2, the lines halfway between the thirds everywhere; om-emu XPan x 449..450,
   4:3 y 299..300. `grid-cross-centre-lines` now checks x 450 at XPan (`--without` framing-lines-1: caught).
 
+- **Camera, framing-lines-2 (owner, 2026-11-27):** "this looks good". Then: "can we now create a little icon like the
+  other grid selection options". Findings (analysis + om-emu, nothing built for the camera):
+  - The camera's grid entries are type-4 strings that are icon glyphs of its font: 841 "@A007@", 840 "@A006@", 955
+    "@A01D@", 831 "@A004@", 3042 "@A02D@", 1570 "@A021@" (1460 "Off"); the text drawer 0x610f9456 parses "@Axxx@" as a
+    character 0xAxxx (valid up to 0xA08F, else log 1069) and draws its font glyph (tables in RAM, 0x62b8fa8c..). New
+    glyphs would need a hook in all text drawing: not tried.
+  - A **type-3 picture entry works** in this list and in the row's value (om-emu: the list shows CR_IC0 + 4, "XPan").
+    So our own pictures through the picture chain (cr_ic -> fg_ic) would do. Icons drawn as the camera's: 44 x 34, 2 px
+    outline, clipped corners, 2 px lines (`framing-lines-104/icons-mockup.png`, private).
+  - **No room yet:** as type-11 streams they are 356 + 324 B (+ 2 descriptors), about 740 B. The section tails have about
+    280 B left, none over 233 in one piece. GUIDES.BIN's code block is 1,656 B under its malloc cap, but GUIDES.BIN is
+    also stored in the firmware (0x60f99800.., with LABELS.BIN and TONES.BIN) and that region has 176 B left before
+    CV_WRK (0x60fa3000): the build stops (vf_end 0x60fa4000). The work (fg_ic, xblock xb_fgs / fgpics.inc, entries
+    type 3, the words dropped) is kept as a patch in the private folder (`framing-lines-104/icons-wip-on-7d324fe.patch`).
+    Room would come from the GX5 probe (section 4 +296,960 B, firmware-space session, camera test pending).
