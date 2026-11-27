@@ -3637,9 +3637,52 @@ def run_fddrive(emu, build, out, card0):
     return FDDRIVE, errors
 
 
+# #114 (ourparhelion-collab; owner's camera, 2026-11-27): ART BKT on a film with Film Grain restarted the camera and saved
+# nothing; Grain off or ART BKT off: fine. ART BKT develops its Art Filters while the picture mode stays the COLOR, and
+# xb_gs (code block +56, the Soft Focus blend setup's wrapper) took Grain / Halation / Border / Shading from xb_slot
+# (the camera's picture mode), not from the job: an Art Filter's Soft Focus passes got our CPU grain. fix114-1: xb_gs
+# acts on COLOR jobs only (S+10276 -> job, job+5352 = 11). Called natively on a fake S with COLOR 1's Grain at 5,
+# stopped at the stock setup SF_ENT: our path calls it with xb_gs's frame on the stack (sp - 44), the stock path jumps
+# to it with sp as at the call. The restart itself needs a still: camera-only (research/TESTING.md, "Past regressions").
+ARTBKT = 'art-filter-job-takes-no-film-grain'
+ARTBKT_SF_ENT = 0x604be2aa
+ARTBKT_CASES = [('color-job', 11, True), ('art-filter-job', 0x01010065, False), ('no-job', None, False)]
+
+
+def run_artbkt(emu, build, out, card0):
+    sym, xb = elf_symbols(build / 'p.elf'), elf_symbols(build / 'xb10000000.elf')
+    target = f"W(P+{sym['XPTR']})+{xb['xb_gs'] - 0x10000000:#x}"
+    grain = 'P+32+53'                                        # COLOR 1's Film Grain level
+    def case(name, key):
+        mem = [['B', 'fcff'], ['B+2', f'=({target})-B'], ['B+0x200+5352', f'={key or 0}'],   # calls xb_gs
+               ['B+0x100+10276', '=B+0x200' if key is not None else '=0'], [grain, '05']]
+        return {'name': name, 'pc': 'B', 'stop': [f'{ARTBKT_SF_ENT:#x}'], 'max': 20000, 'mem': mem,
+                'regs': {'a0': 'B+0x100'}, 'restore': [[grain, '00']]}
+    spec = [case(n, k) for n, k, _ in ARTBKT_CASES]
+    d = out / ARTBKT
+    d.mkdir(parents=True, exist_ok=True)
+    res = run_ncall(emu, build, d, card0, 's1 wait wait ncall', spec)
+    if isinstance(res, str):
+        return ARTBKT, [res]
+    sp = int(json.loads((d / 'out.json').read_text())['SP'], 16)
+    errors = []
+    for name, _, ours in ARTBKT_CASES:
+        r = res[name]
+        if r['steps'] >= 20000:
+            errors.append(f'{name}: xb_gs did not reach the stock setup (out.json)')
+            continue
+        got = int(r['regs']['sp'], 16)
+        want = sp - 44 if ours else sp
+        if got != want:
+            errors.append(f"{name}: {'our passes' if got == sp - 44 else 'the stock setup'} (sp {got:x}), "
+                          f"not {'our passes' if ours else 'the stock setup'} (sp {want:x})")
+    return ARTBKT, errors
+
+
 # Tests that call our code directly through run_ncall: name -> runner(emu, build, out, card0).
 DIRECT = {WB: run_wb, HL: run_hl, CROPEL: run_cropel, LIVE: run_livelook, CROPSAVE: run_cropsave, HLYIELD: run_hlyield,
-          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive, FRBURST: run_frburst}
+          PBFILM: run_pbfilm, HLRZPICS: run_hlrzpics, FDDRIVE: run_fddrive, FRBURST: run_frburst,
+          ARTBKT: run_artbkt}
 
 
 def main():

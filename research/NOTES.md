@@ -12114,3 +12114,27 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
   same file. FILMROLL.BIN `ee842eca…62f2` (13892 B, this firmware's); ROLLART / SCREENS / WINDOW, CURVES.BIN,
   LOOKS.BIN, DEBUG.TXT and the photo code kit as v0.41-beta2.
 - **Suite:** on fix116-1's build (74504fa) 202 pass, 2 FAIL (static:changed-bytes, static:hook-list, as v0.41-beta2's).
+
+## #114: Film Grain + ART BKT restarts the camera, fix114-1 (2026-11-27; emulator + analysis, camera test pending; branch fix/114-grain-art-bkt-b3, on v0.41-beta3)
+- **Report (#114, ourparhelion-collab, v0.40.3):** a film with Film Grain 1 / 3 / 5 and ART BKT (Art Filter
+  Bracketing) on: the shutter restarts the camera, nothing saved; JPEG and RAW+JPEG. Grain off, or ART BKT off (their
+  Test 5 was a typo, 2026-11-27): fine. **Owner's camera (2026-11-27, v0.41-c5 = v0.41-beta2 + #116, the C5 fix in v0.41-beta3): restarts too**
+  (FILM 1 with Film Grain 5 Coarse, A, Drive Single [30], quality [14]). The log is the next power-on's (0 photos):
+  Single means the Detail processing anyway, so not the #91 path.
+- **Cause (analysis, matches every report):** the firmware makes ART BKT's pictures through the RAW-edit path
+  (`EditRaw::startArtBktEdit` / `saveArtBktEdit`), one development per bracketed Art Filter, while the camera's
+  picture mode stays the COLOR. Every grain hook checks the job's key (COLOR 11) except **xb_gs** (code block +56,
+  editor.s g_sf, the Soft Focus blend setup 0x604be2aa that the Art Filters' own Soft Focus passes use too): it takes
+  Grain / Halation / Border / Shading from xb_slot, i.e. setting 63153 (the camera's picture mode), not from the job.
+  So an Art Filter's development got our CPU grain (xb_grain, and Halation / Border / Shading if set) on its
+  buffers. In normal shooting with an Art Filter the picture mode is that Art Filter, xb_slot answers 0, and nothing
+  of ours runs: only ART BKT puts the two together.
+- **fix114-1:** xb_gs first checks S+10276 -> job, job+5352 = 11; anything else (or no job) -> the stock setup, as if
+  called directly. Code block +16 B (GUIDES.BIN 14,808 of 16,448). No new hook, no flash byte changed except the
+  code block in the firmware's built-in GUIDES. COLOR stills keep everything (their job key stays 11 on Grainy Film's
+  list too, xb_wl). Behaviour: ART BKT's Art Filter pictures now have no Film Grain / Halation / Border / Shading of
+  ours (they never were meant to).
+- om-emu: test `art-filter-job-takes-no-film-grain` (xb_gs natively on a fake S, COLOR 1's Grain 5, stopped at the
+  stock setup: COLOR job -> our passes, Soft Focus key and no job -> stock) passes; `--without` the v0.41-beta3 build
+  (= the release): **caught** (both took our passes). The restart is camera-only (TESTING.md "Past
+  regressions").

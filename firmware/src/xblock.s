@@ -623,6 +623,15 @@ xb_gs:                           /* `calls` (0,sp) = return, a0 = job */
  add -28,sp                       /* (0) call slot, (4) job, (8) level, (12) result, (16) halation 0..5, (20) border 0..5,
                                      (24) gentler Shading -5..5 */
  mov a0,(4,sp)
+ mov (10276,a0),a1                /* #114: only a COLOR job (job+5352 = 11). ART BKT develops its Art Filters while the
+                                     picture mode stays a COLOR with Grain: xb_slot (the camera's picture mode, not the
+                                     job's) gave their Soft Focus passes our grain / Halation / Border / Shading, and the
+                                     camera restarted (owner's camera, 2026-11-27) */
+ cmp 0,a1
+ beq 90f
+ mov (5352,a1),d0
+ cmp 11,d0
+ bne 90f
  clr d0
  mov d0,(16,sp)
  mov d0,(20,sp)
