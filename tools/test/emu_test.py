@@ -918,6 +918,11 @@ def PICK_ASPECT(n):
 GRID_THIRDS = 'menu left ok wait down ok wait down wait down wait down wait ok wait s1 wait wait'
 
 
+# #104: Custom menu > Grid Settings > Displayed Grid, the list's row n (0 Off .. 6 the camera's last, 7 Cross, 8 Ticks).
+def GRID_PICK(n):
+    return 'menu wait left wait ok wait down wait ok wait' + ' down wait' * n + ' ok wait s1 wait wait'
+
+
 # #83: where cr_rst read the tag, as the log says it (crop-start-up-restore-photo-only covers the half-press)
 AT_START_UP = 'at start-up'
 
@@ -1505,6 +1510,22 @@ TESTS = {
     ],
     # crop round 2: at XPan the thirds sit in the strip (rear screen: 16:9 picture y 47..552, XPan strip y 134..465):
     # a vertical line at x 300 inside the strip, none above it; a horizontal one at y 243 (the strip's first third).
+    # #104 framing lines: Displayed Grid > Cross (the 8th row, after the camera's seven). Rear screen 900 x 600, 4:3:
+    # a 2-px line at x 449..450 over the whole height and at y 298..299 over the picture (x 50..850); no thirds line at
+    # x 316. At XPan (16:9's full width, centre x 448..449) the vertical line stays in the strip (y 134..465): drawn at y
+    # 200, not at y 100.
+    'grid-cross-centre-lines': [
+        Boot(f's1 wait wait {GRID_PICK(7)} expect:pxdiff:450,200,470,200 expect:pxdiff:200,299,200,320 '
+             f'expect:pxsame:316,200,330,200 {PICK_ASPECT(6)} s1 wait wait expect:pxdiff:449,200,470,200 '
+             'expect:pxsame:449,100,470,100 poweroff'),
+    ],
+    # #104: Displayed Grid > Ticks (the 9th row): short marks at the edges' middles and a small centre cross, no full
+    # line (4:3: the top mark at y 20, the centre's arm at y 290, nothing at y 150); after a power-off it is still Ticks.
+    'grid-ticks-short-marks': [
+        Boot(f's1 wait wait {GRID_PICK(8)} expect:pxdiff:450,20,470,20 expect:pxdiff:450,290,470,290 '
+             'expect:pxsame:450,150,470,150 expect:pxdiff:70,299,70,320 expect:pxsame:200,299,200,320 poweroff'),
+        Boot('wait wait s1 wait wait expect:pxdiff:450,20,470,20 expect:pxsame:450,150,470,150 poweroff'),
+    ],
     'crop-grid-thirds-in-the-xpan-strip': [
         Boot(f's1 wait wait {PICK_ASPECT(6)} s1 wait wait {GRID_THIRDS} '
              'expect:pxdiff:300,300,310,300 expect:pxsame:300,120,310,120 expect:pxdiff:450,243,450,250 poweroff'),

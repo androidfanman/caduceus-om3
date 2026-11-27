@@ -23284,6 +23284,10 @@ bl_tail:
  mov d0,d2
  and 0x300,d2
  bne 2f
+ cmp 10,d0                        /* #104 framing lines: Cross / Ticks (gridlines.s) */
+ beq 2f
+ cmp 11,d0
+ beq 2f
 0:
  jmp gl_ret                       /* 0x611c7927: retf (a miss writes nothing, as stock) */
 2:
@@ -23358,6 +23362,8 @@ bl_tail:
  beq bl_cgb
  jmp cr_gx
 bl_cgb:                           /* (back from cr_gx: the strip in bl_q) */
+ jmp fg_ln                        /* #104: Cross / Ticks lines first (gridlines.s) */
+bl_cg2:
  movhu (0,a3),d0
  movhu (2,a3),d1
  movhu (4,a3),d2
@@ -23488,3 +23494,4 @@ bl_v:                             /* the value */
  .include "stwheel.s"             /* split-tone strip w1: two small wheels and Balance on the Split toning row (ext15) */
  .include "splitrow.s"            /* the Split toning row: the Shadows / Highlights wheels on their own row (ext15) */
  .include "abkt.s"                /* #114: COLOR 1-4 out of ART BKT (ext6) */
+ .include "gridlines.s"           /* #104: Cross and Ticks in the Displayed Grid list (ext1, ext13, ext14, ext15) */

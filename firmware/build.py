@@ -494,6 +494,8 @@ def build(defaults, testfile, out):
     assert sy['HR_END'] <= EXT15[0] and EXT15[0] + len(b15) <= EXT15[1], (hex(sy['HR_END']), len(b15))
     assert set(m[o(EXT15[0]):o(EXT15[1])]) <= {0xff}, 'ext15: the reserve is not free in the image'
     m[o(EXT15[0]):o(EXT15[0]) + len(b15)] = b15
+    import gridlines                     # #104 framing lines: Cross / Ticks in the Displayed Grid lists (after ext15: its list is there)
+    gridlines.apply(m, o, sy, log=lambda t: print(t, file=sys.stderr))
     # v0.23 new Picture Mode choice rows (Noise Filter, Shading Comp.): the item table (17 x 40 B at 0x6154c2a8) -> it_tab
     # (the stock 17, then our 4), at both lookups (mov table,a0 ... cmp 17,d1); the rows join the column's 9 row switches
     IT = 0x6154c2a8

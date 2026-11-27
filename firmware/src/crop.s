@@ -1179,7 +1179,7 @@ cr_sh:
 
 /* cr_gm: `call cr_gm,[d2,d3,a2,a3],28` from bl_gv (after its own work), a0 -> the grid value, a3 = bl_gv's mx_photo
  * (0: not the stills grid 155 / 2047, or not a photo mode): + BL_C when a crop is set and the value draws lines
- * (thirds 1, 6x4 5, golden 6, or a Border's value). */
+ * (thirds 1, 6x4 5, golden 6, #104 Cross 10 / Ticks 11, or a Border's value). */
 cr_gm:
  movbu (cr_on),d0
  cmp 0,d0
@@ -1203,6 +1203,10 @@ cr_gm:
  cmp 1,d0
  beq 2f
  cmp 5,d0
+ beq 2f
+ cmp 10,d0                        /* #104: Cross / Ticks (gridlines.s) */
+ beq 2f
+ cmp 11,d0
  beq 2f
  cmp 6,d0
  bne 9f

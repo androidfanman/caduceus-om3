@@ -386,7 +386,7 @@ si_str:
  mov si_rmt,a0
  ret [d2],8
 1:
- jmp cr_str
+ jmp fg_str                       /* #104: "Cross" / "Ticks" (gridlines.s), then crop.s cr_str */
 
 .section .ext11,"ax"               /* rt1 (with Film Rolls): si_tab beside the row lists; si_upd reads it by its address */
 
