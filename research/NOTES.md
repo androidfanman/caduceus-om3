@@ -12169,3 +12169,35 @@ Issue #116 (v0.40.3-beta3): C5 assigned FILM 5, C4 FILM 4; dial C5 -> C4 -> C5 s
     (camera). Owner: "yes lets add this to the next release".
   - Open, separate: RAW Data Edit of a RAW with FILM 1 (Grain 5) gave no grain (camera, 2026-11-27), while v0.29 did
     (2026-11-14). Not looked into.
+
+## Framing lines (#104): Cross and Ticks in the Displayed Grid list (2026-11-27; branch feature/framing-lines-104 on fix/114-grain-art-bkt-b3; emulator only, camera test pending)
+- Issue #104 (jirimachovec): a centre line or centre cross in XPan, to keep the horizon level. Owner, after mockups
+  (private): "lets add just B and E" (B centre cross, E centre ticks), "why cant they just be added to grid list?" ->
+  two new entries in the camera's own Displayed Grid list.
+- **Setting:** Displayed Grid is 155 (and 2047, the same list without the 16:9 frame; the movie grid 446 has its own
+  record and is left alone). Values 0 Off, 5, 6, 7, 8, 1 thirds, 9 16:9 frame; 7 / 8 are the picture grids
+  (MODE_COMPOSITION_GOLDEN_SECTION / _DIAGONAL). New: **10 Cross, 11 Ticks.**
+- **Lists (firmware/gridlines.py):** validator records 0x6061b904 (155, list 0x60616713 [0,5,6,1,7,8,9], 7) and
+  0x60621188 (2047, list 0x60618b62 [0,5,6,1,7,8], 6) -> fg_v155 / fg_v2047 in .ext1 (section 1, as crop's lists for
+  section-2 records) + 10, 11. The menu list 0x6158bf08 (7 x 12 B {u32 value, u16 4, u16 string, cond 0x6158aeb4};
+  the strings 1460 "Off", 841, 840, 955, 831, 3042, 1570 draw as the camera's icons) -> fg_ml (.ext15) + our strings
+  ST_FG0 0x7f75 "Cross" / 0x7f76 "Ticks" (text, not icons: si_str -> fg_str -> cr_str). The list is named by 36-B
+  records {u32 id, u16 type, u16 title, cond, list, count, 0, cond, list, count}: 155 at 0x6158e544, 2047 at
+  0x6158e6ac (both list / count pairs repointed), 446 at 0x6158e5f8 (stock).
+- **Lines:** the builders' lookup (0x611c78c7) misses 10 / 11 as it misses a Border's value; bl_tail now also takes a
+  plain 10 / 11, finds the picture's place (the thirds record), cr_gm marks 10 / 11 BL_C in a crop so cr_gx gives the
+  strip, and bl_cgb jumps to fg_ln (.ext14), which writes the lines into bl_r's first slots: Cross {cx, y0..y1},
+  {x0..x1, cy}; Ticks a centre cross of arm C = s/16 + s/32 (s the shorter half side) and edge marks T = 2C long
+  (4:3 rear: C 27, T 54; XPan: C 15, T 30). With a Border (L > 0) Ticks keeps only its centre cross, so the frame's 4
+  lines fit the 8 slots. The camera draws them in the grid colour (no dark edge, unlike the mockups).
+- **Video:** the camera shows the stills grid in video too (stock: thirds set -> thirds in a video boot, om-emu), so
+  Cross / Ticks show there as well, like thirds. Before the first half-press after a power-off they draw at once (no
+  load, a few memory reads); a Border's frame still waits for the half-press as before.
+- Space: .ext1 +16, .ext12 +16, .ext13 +64, .ext14 +240, .ext15 +112 (about 450 B). Left: .ext1 104, .ext12 48,
+  .ext13 64, .ext14 24, .ext15 40.
+- om-emu (pinned 0819080): the list shows "Cross" and "Ticks" after the seven icons; picked, the row's value reads
+  Cross / Ticks; 4:3 Cross x 449..450 full height, y 298..299 over x 50..850; XPan: inside the strip (y 134..465),
+  centre x 448..449; Ticks: marks and centre cross, kept after a power-off; Ticks + Border 3: frame + centre cross.
+  Tests `grid-cross-centre-lines`, `grid-ticks-short-marks` (`--without` beta3 + #114: both caught).
+- Not checked: every other reader of 155 / 2047 (about 150 code sites load the ids); om-emu showed no trouble in
+  live view, menus, a power-off with Ticks saved, XPan and video. Viewfinder and the camera itself: camera test.

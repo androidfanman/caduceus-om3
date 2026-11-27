@@ -171,6 +171,14 @@ Image Aspect has three more choices, on the super control panel and in the Image
   crop's edges.
 - Photos only. LookLab doesn't know the crops yet.
 
+## Centre lines: Cross and Ticks (v0.41-beta4, test version)
+
+Custom menu → **5. Grid/Other Displays** → **Grid Settings** → **Displayed Grid** has two more choices after the
+camera's own: **Cross** (a line down the middle and one across) and **Ticks** (short marks at the middle of each edge
+and a small cross in the centre, so the picture stays clear). They help keep the horizon level and split a photo into
+two halves, and in XPan, 21:9 and 5:4 they sit inside the crop. With a film's Border on, Ticks shows only its centre
+cross beside the frame. Like the camera's own grids, they also show in video.
+
 ## Choosing what the shooting screen shows (v0.40-beta)
 
 Custom menu → **4. Information** → **Camera Info Settings** → **Information 1**, **2** or **3** (press ▶): after the
